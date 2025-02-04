@@ -1,3 +1,44 @@
+Speed up compression
+
+diff -uarp a/scripts/Makefile.lib b/scripts/Makefile.lib
+--- a/scripts/Makefile.lib
++++ b/scripts/Makefile.lib
+@@ -517,13 +517,13 @@ quiet_cmd_xzmisc = XZMISC  $@
+ # be used because it would require zstd to allocate a 128 MB buffer.
+ 
+ quiet_cmd_zstd = ZSTD    $@
+-      cmd_zstd = cat $(real-prereqs) | $(ZSTD) -19 > $@
++      cmd_zstd = cat $(real-prereqs) | $(ZSTD) -6 > $@
+ 
+ quiet_cmd_zstd22 = ZSTD22  $@
+-      cmd_zstd22 = cat $(real-prereqs) | $(ZSTD) -22 --ultra > $@
++      cmd_zstd22 = cat $(real-prereqs) | $(ZSTD) -6 --ultra > $@
+ 
+ quiet_cmd_zstd22_with_size = ZSTD22  $@
+-      cmd_zstd22_with_size = { cat $(real-prereqs) | $(ZSTD) -22 --ultra; $(size_append); } > $@
++      cmd_zstd22_with_size = { cat $(real-prereqs) | $(ZSTD) -6 --ultra; $(size_append); } > $@
+ 
+ # ASM offsets
+ # ---------------------------------------------------------------------------
+-- 
+2.30.1
+
+Change to RCU, matching patch-6.13-rt5
+
+diff -uarp a/kernel/kprobes.c b/kernel/kprobes.c
+--- a/kernel/kprobes.c
++++ b/kernel/kprobes.c
+@@ -1570,7 +1570,7 @@ static int check_kprobe_address_safe(str
+ 	/* Ensure the address is in a text area, and find a module if exists. */
+ 	*probed_mod = NULL;
+ 	if (!core_kernel_text((unsigned long) p->addr)) {
+-		guard(preempt)();
++		guard(rcu)();
+ 		*probed_mod = __module_text_address((unsigned long) p->addr);
+ 		if (!(*probed_mod)) {
+ 			ret = -EINVAL;
+-- 
+2.30.1
 
 Disable the DELAY_DEQUEUE EEVDF feature by default.
 
@@ -141,7 +182,7 @@ index 2695843..f4e4d3e 100644
 +
  	for_each_sched_entity(se) {
  		struct cfs_rq *cfs_rq = cfs_rq_of(se);
-
+ 
 -- 
 2.47.0
 
@@ -334,6 +375,30 @@ diff -uarp a/arch/x86/Makefile b/arch/x86/Makefile
  		   -Wall -Wstrict-prototypes -march=i386 -mregparm=3 \
  		   -fno-strict-aliasing -fomit-frame-pointer -fno-pic \
  		   -mno-mmx -mno-sse $(call cc-option,-fcf-protection=none)
+diff -uarp a/arch/x86/boot/compressed/Makefile b/arch/x86/boot/compressed/Makefile
+--- a/arch/x86/boot/compressed/Makefile
++++ b/arch/x86/boot/compressed/Makefile
+@@ -25,7 +25,7 @@ targets := vmlinux vmlinux.bin vmlinux.bin.gz vmlinux.bin.bz2 vmlinux.bin.lzma \
+ # avoid errors with '-march=i386', and future flags may depend on the target to
+ # be valid.
+ KBUILD_CFLAGS := -m$(BITS) -O2 $(CLANG_FLAGS)
+-KBUILD_CFLAGS += -std=gnu11
++KBUILD_CFLAGS += -std=gnu17
+ KBUILD_CFLAGS += -fno-strict-aliasing -fPIE
+ KBUILD_CFLAGS += -Wundef
+ KBUILD_CFLAGS += -DDISABLE_BRANCH_PROFILING
+diff -uarp a/drivers/firmware/efi/libstub/Makefile b/drivers/firmware/efi/libstub/Makefile
+--- a/drivers/firmware/efi/libstub/Makefile
++++ b/drivers/firmware/efi/libstub/Makefile
+@@ -11,7 +11,7 @@ cflags-y			:= $(KBUILD_CFLAGS)
+ 
+ cflags-$(CONFIG_X86_32)		:= -march=i386
+ cflags-$(CONFIG_X86_64)		:= -mcmodel=small
+-cflags-$(CONFIG_X86)		+= -m$(BITS) -D__KERNEL__ -std=gnu11 \
++cflags-$(CONFIG_X86)		+= -m$(BITS) -D__KERNEL__ -std=gnu17 \
+ 				   -fPIC -fno-strict-aliasing -mno-red-zone \
+ 				   -mno-mmx -mno-sse -fshort-wchar \
+ 				   -Wno-pointer-sign \
 diff -uarp a/Makefile b/Makefile
 --- a/Makefile
 +++ b/Makefile

@@ -71,7 +71,7 @@ diff -uarp a/init/Kconfig b/init/Kconfig
 diff -uarp a/Makefile b/Makefile
 --- a/Makefile
 +++ b/Makefile
-@@ -821,6 +821,31 @@ KBUILD_CFLAGS += $(call cc-option,-fmodu
+@@ -821,6 +821,30 @@ KBUILD_CFLAGS += $(call cc-option,-fmodu
  KBUILD_RUSTFLAGS += -Cdebug-assertions=$(if $(CONFIG_RUST_DEBUG_ASSERTIONS),y,n)
  KBUILD_RUSTFLAGS += -Coverflow-checks=$(if $(CONFIG_RUST_OVERFLOW_CHECKS),y,n)
  
@@ -80,7 +80,6 @@ diff -uarp a/Makefile b/Makefile
 +KBUILD_CFLAGS	+= -fplugin=LLVMPolly.so \
 +		   -mllvm -enable-gvn-hoist \
 +		   -mllvm -enable-nontrivial-unswitch \
-+		   -mllvm -unswitch-threshold=50 \
 +		   -mllvm -inline-threshold=1500 \
 +		   -mllvm -unroll-threshold=50 \
 +		   -mllvm -polly \

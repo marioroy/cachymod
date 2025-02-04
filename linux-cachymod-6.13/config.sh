@@ -227,16 +227,6 @@ if [[ $(uname -m) = *"x86"* ]]; then
     ### Disable khugepaged to put read-only file-backed pages in THP.
     scripts/config -d READ_ONLY_THP_FOR_FS
 
-    ### Force all function address 64B aligned. This requires patch in
-    ### 0200 to remove the depends on EXPERT check.
-    scripts/config -e DEBUG_FORCE_FUNCTION_ALIGN_64B
-
-    ### Disable heap memory zeroing on allocation by default.
-    ### Instead, enable register zeroing on function exit.
-    ### NVIDIA OpenCL needs NVreg_InitializeSystemMemoryAllocations=1 (default)
-    #scripts/config -d INIT_STACK_ALL_ZERO -d INIT_ON_ALLOC_DEFAULT_ON
-    #scripts/config -e INIT_STACK_NONE -e ZERO_CALL_USED_REGS
-
     ### Disable Integrity Policy Enforcement (IPE).
     scripts/config -d SECURITY_IPE
 

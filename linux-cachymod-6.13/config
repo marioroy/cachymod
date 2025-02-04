@@ -1,6 +1,6 @@
 #
 # Automatically generated file; DO NOT EDIT.
-# Linux/x86 6.13.0 Kernel Configuration
+# Linux/x86 6.13.1 Kernel Configuration
 #
 CONFIG_CC_VERSION_TEXT="gcc (GCC) 14.2.1 20240910"
 CONFIG_CC_IS_GCC=y
@@ -11816,7 +11816,6 @@ CONFIG_STRIP_ASM_SYMS=y
 # CONFIG_HEADERS_INSTALL is not set
 # CONFIG_DEBUG_SECTION_MISMATCH is not set
 CONFIG_SECTION_MISMATCH_WARN_ONLY=y
-CONFIG_DEBUG_FORCE_FUNCTION_ALIGN_64B=y
 CONFIG_OBJTOOL=y
 # CONFIG_DEBUG_FORCE_WEAK_PER_CPU is not set
 # end of Compile-time checks and compiler options

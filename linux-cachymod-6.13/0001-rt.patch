@@ -1,7 +1,7 @@
-patch-6.13-rc6-rt3
+patch-6.13-rt5
 https://cdn.kernel.org/pub/linux/kernel/projects/rt/6.13/
 
-This patch differs from rc6-rt3. Removed kernel/kprobes.c update
+This patch differs from rt5. Removed kernel/kprobes.c update
 applied by 0001-cachyos-base-all.patch.
 
 
@@ -940,7 +940,7 @@ index 609214231ffcb..91b3e55c389eb 100644
  #else
  # define _WAIT_FOR_ATOMIC_CHECK(ATOMIC) do { } while (0)
 diff --git a/drivers/tty/serial/8250/8250_core.c b/drivers/tty/serial/8250/8250_core.c
-index 5f9f06911795c..ccf681de86702 100644
+index 68baf75bdadc4..82f8aa0ffc068 100644
 --- a/drivers/tty/serial/8250/8250_core.c
 +++ b/drivers/tty/serial/8250/8250_core.c
 @@ -388,6 +388,7 @@ void __init serial8250_register_ports(struct uart_driver *drv, struct device *de
@@ -1251,7 +1251,7 @@ index c3f075e8f60cb..d5dd54c53ace6 100644
  	if (mod)
  		ptr = dereference_module_function_descriptor(mod, ptr);
 diff --git a/include/linux/module.h b/include/linux/module.h
-index 94acbacdcdf18..5c1f7ea76c8cb 100644
+index b3a6434353579..2b99b1c69972b 100644
 --- a/include/linux/module.h
 +++ b/include/linux/module.h
 @@ -663,7 +663,7 @@ static inline bool within_module(unsigned long addr, const struct module *mod)
@@ -2041,7 +2041,7 @@ index bb7d066a7c397..c2c59e6ef35d0 100644
  		return 0;
  
 diff --git a/kernel/trace/bpf_trace.c b/kernel/trace/bpf_trace.c
-index 1b8db5aee9d38..020df7b6ff90c 100644
+index 1b8db5aee9d38..2f916cbde76e4 100644
 --- a/kernel/trace/bpf_trace.c
 +++ b/kernel/trace/bpf_trace.c
 @@ -2336,10 +2336,9 @@ void bpf_put_raw_tracepoint(struct bpf_raw_event_map *btp)
@@ -2056,8 +2056,11 @@ index 1b8db5aee9d38..020df7b6ff90c 100644
  }
  
  static __always_inline
-@@ -2907,16 +2906,14 @@ static int get_modules_for_addrs(struct module ***mods, unsigned long *addrs, u3
+@@ -2905,18 +2904,21 @@ static int get_modules_for_addrs(struct module ***mods, unsigned long *addrs, u3
+ 	u32 i, err = 0;
+ 
  	for (i = 0; i < addrs_cnt; i++) {
++		bool skip_add = false;
  		struct module *mod;
  
 -		preempt_disable();
@@ -2068,20 +2071,24 @@ index 1b8db5aee9d38..020df7b6ff90c 100644
 -			continue;
 +		scoped_guard(rcu) {
 +			mod = __module_address(addrs[i]);
-+			/* Either no module or we it's already stored  */
-+			if (!mod || has_module(&arr, mod))
-+				continue;
++			/* Either no module or it's already stored  */
++			if (!mod || has_module(&arr, mod)) {
++				skip_add = true;
++				break; /* scoped_guard */
++			}
 +			if (!try_module_get(mod))
 +				err = -EINVAL;
  		}
 -		if (!try_module_get(mod))
 -			err = -EINVAL;
 -		preempt_enable();
++		if (skip_add)
++			continue;
  		if (err)
  			break;
  		err = add_module(&arr, mod);
 diff --git a/kernel/trace/trace.c b/kernel/trace/trace.c
-index f8aebcb01e62c..1e82125d0c8d4 100644
+index b6e40e8791fa7..1e82125d0c8d4 100644
 --- a/kernel/trace/trace.c
 +++ b/kernel/trace/trace.c
 @@ -4119,12 +4119,7 @@ print_trace_header(struct seq_file *m, struct trace_iterator *iter)
@@ -2099,7 +2106,7 @@ index f8aebcb01e62c..1e82125d0c8d4 100644
  		   0, 0, 0, 0);
  #ifdef CONFIG_SMP
 diff --git a/kernel/trace/trace_kprobe.c b/kernel/trace/trace_kprobe.c
-index 935a886af40c9..37ff78ee17fe0 100644
+index 0642ea1748490..43ac32f1608e5 100644
 --- a/kernel/trace/trace_kprobe.c
 +++ b/kernel/trace/trace_kprobe.c
 @@ -123,9 +123,8 @@ static nokprobe_inline bool trace_kprobe_module_exist(struct trace_kprobe *tk)
