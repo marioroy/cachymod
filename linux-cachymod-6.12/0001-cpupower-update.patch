@@ -1,0 +1,505 @@
+
+cpupower update
+https://lore.kernel.org/all/fe61c48e-d34a-4d57-98ef-1eebc6cad797@linuxfoundation.org/
+
+Several fixes, cleanups and AMD support enhancements:
+
+* fix TSC MHz calculation
+* Add install and uninstall options to bindings makefile
+* Add header changes for cpufreq.h to SWIG bindings
+* selftests/cpufreq: gitignore output files and clean them in make clean
+* Remove spurious return statement
+* Add support for parsing 'enabled' or 'disabled' strings from table
+* Add support for amd-pstate preferred core rankings
+* Don't try to read frequency from hardware when kernel uses aperf mperf
+* Add support for showing energy performance preference
+* Don't fetch maximum latency when EPP is enabled
+* Adjust whitespace for amd-pstate specific prints
+* revise is_valid flag handling for idle_monitor
+
+tools/power/cpupower/bindings/python/Makefile      | 10 ++++++
+tools/power/cpupower/bindings/python/README        | 25 +++++++++++++++
+.../cpupower/bindings/python/raw_pylibcpupower.swg |  3 ++
+tools/power/cpupower/lib/cpufreq.c                 | 18 +++++++++++
+tools/power/cpupower/lib/cpufreq.h                 |  8 +++++
+tools/power/cpupower/utils/cpufreq-info.c          | 36 ++++++++++++++++++++--
+tools/power/cpupower/utils/helpers/amd.c           | 18 ++++++++---
+.../cpupower/utils/idle_monitor/hsw_ext_idle.c     |  4 +--
+.../cpupower/utils/idle_monitor/mperf_monitor.c    | 17 +++++-----
+tools/power/cpupower/utils/idle_monitor/nhm_idle.c |  2 +-
+tools/power/cpupower/utils/idle_monitor/snb_idle.c |  4 +--
+tools/testing/selftests/cpufreq/.gitignore         |  2 ++
+tools/testing/selftests/cpufreq/Makefile           |  1 +
+13 files changed, 129 insertions(+), 19 deletions(-)
+
+diff --git a/tools/power/cpupower/bindings/python/Makefile b/tools/power/cpupower/bindings/python/Makefile
+index e1ebb1d60cd4..741f21477432 100644
+--- a/tools/power/cpupower/bindings/python/Makefile
++++ b/tools/power/cpupower/bindings/python/Makefile
+@@ -11,6 +11,7 @@ HAVE_PYCONFIG := $(shell if which python-config >/dev/null 2>&1; then echo 1; el
+ LIB_DIR := ../../lib
+ PY_INCLUDE = $(firstword $(shell python-config --includes))
+ OBJECTS_LIB = $(wildcard $(LIB_DIR)/*.o)
++INSTALL_DIR = $(shell python3 -c "import site; print(site.getsitepackages()[0])")
+ 
+ all: _raw_pylibcpupower.so
+ 
+@@ -28,6 +29,15 @@ else ifeq ($(HAVE_PYCONFIG),0)
+ endif
+ 	swig -python raw_pylibcpupower.swg
+ 
++# Only installs the Python bindings
++install: _raw_pylibcpupower.so
++	install -D _raw_pylibcpupower.so $(INSTALL_DIR)/_raw_pylibcpupower.so
++	install -D raw_pylibcpupower.py $(INSTALL_DIR)/raw_pylibcpupower.py
++
++uninstall:
++	rm -f $(INSTALL_DIR)/_raw_pylibcpupower.so
++	rm -f $(INSTALL_DIR)/raw_pylibcpupower.py
++
+ # Will only clean the bindings folder; will not clean the actual cpupower folder
+ clean:
+ 	rm -f raw_pylibcpupower.py raw_pylibcpupower_wrap.c raw_pylibcpupower_wrap.o _raw_pylibcpupower.so
+diff --git a/tools/power/cpupower/bindings/python/README b/tools/power/cpupower/bindings/python/README
+index 0a4bb2581e8a..952e2e02fd32 100644
+--- a/tools/power/cpupower/bindings/python/README
++++ b/tools/power/cpupower/bindings/python/README
+@@ -48,6 +48,31 @@ To run the test script:
+ $ python test_raw_pylibcpupower.py
+ 
+ 
++developing/using the bindings directly
++--------------------------------------
++
++You need to add the Python bindings directory to your $PYTHONPATH.
++
++You would set the path in the Bash terminal or in the Bash profile:
++
++PYTHONPATH=~/linux/tools/power/cpupower/bindings/python:$PYTHONPATH
++
++This allows you to set a specific repo of the bindings to use.
++
++
++installing/uninstalling
++-----------------------
++
++Python uses a system specific site-packages folder to look up modules to import
++by default. You do not need to install cpupower to use the SWIG bindings.
++
++You can install and uninstall the bindings to the site-packages with:
++
++sudo make install
++
++sudo make uninstall
++
++
+ credits
+ -------
+ 
+diff --git a/tools/power/cpupower/bindings/python/raw_pylibcpupower.swg b/tools/power/cpupower/bindings/python/raw_pylibcpupower.swg
+index 96556d87a745..a8226c79cfea 100644
+--- a/tools/power/cpupower/bindings/python/raw_pylibcpupower.swg
++++ b/tools/power/cpupower/bindings/python/raw_pylibcpupower.swg
+@@ -134,6 +134,9 @@ void cpufreq_put_stats(struct cpufreq_stats *stats);
+ 
+ unsigned long cpufreq_get_transitions(unsigned int cpu);
+ 
++char *cpufreq_get_energy_performance_preference(unsigned int cpu);
++void cpufreq_put_energy_performance_preference(char *ptr);
++
+ int cpufreq_set_policy(unsigned int cpu, struct cpufreq_policy *policy);
+ 
+ int cpufreq_modify_policy_min(unsigned int cpu, unsigned long min_freq);
+diff --git a/tools/power/cpupower/lib/cpufreq.c b/tools/power/cpupower/lib/cpufreq.c
+index 1516d23c17c9..8dda3db2dff0 100644
+--- a/tools/power/cpupower/lib/cpufreq.c
++++ b/tools/power/cpupower/lib/cpufreq.c
+@@ -102,6 +102,10 @@ unsigned long cpufreq_get_sysfs_value_from_table(unsigned int cpu,
+ 	if (len == 0)
+ 		return 0;
+ 
++	if (!strcmp(linebuf, "enabled\n"))
++		return 1;
++	if (!strcmp(linebuf, "disabled\n"))
++		return 0;
+ 	value = strtoul(linebuf, &endp, 0);
+ 
+ 	if (endp == linebuf || errno == ERANGE)
+@@ -123,12 +127,14 @@ static unsigned long sysfs_cpufreq_get_one_value(unsigned int cpu,
+ enum cpufreq_string {
+ 	SCALING_DRIVER,
+ 	SCALING_GOVERNOR,
++	ENERGY_PERFORMANCE_PREFERENCE,
+ 	MAX_CPUFREQ_STRING_FILES
+ };
+ 
+ static const char *cpufreq_string_files[MAX_CPUFREQ_STRING_FILES] = {
+ 	[SCALING_DRIVER] = "scaling_driver",
+ 	[SCALING_GOVERNOR] = "scaling_governor",
++	[ENERGY_PERFORMANCE_PREFERENCE] = "energy_performance_preference",
+ };
+ 
+ 
+@@ -203,6 +209,18 @@ unsigned long cpufreq_get_transition_latency(unsigned int cpu)
+ 	return sysfs_cpufreq_get_one_value(cpu, CPUINFO_LATENCY);
+ }
+ 
++char *cpufreq_get_energy_performance_preference(unsigned int cpu)
++{
++	return sysfs_cpufreq_get_one_string(cpu, ENERGY_PERFORMANCE_PREFERENCE);
++}
++
++void cpufreq_put_energy_performance_preference(char *ptr)
++{
++	if (!ptr)
++		return;
++	free(ptr);
++}
++
+ int cpufreq_get_hardware_limits(unsigned int cpu,
+ 				unsigned long *min,
+ 				unsigned long *max)
+diff --git a/tools/power/cpupower/lib/cpufreq.h b/tools/power/cpupower/lib/cpufreq.h
+index 2f3c84035806..bfc617311ebd 100644
+--- a/tools/power/cpupower/lib/cpufreq.h
++++ b/tools/power/cpupower/lib/cpufreq.h
+@@ -68,6 +68,14 @@ unsigned long cpufreq_get_freq_hardware(unsigned int cpu);
+ unsigned long cpufreq_get_transition_latency(unsigned int cpu);
+ 
+ 
++/* determine energy performance preference
++ *
++ * returns NULL on failure, else the string that represents the energy performance
++ * preference requested.
++ */
++char *cpufreq_get_energy_performance_preference(unsigned int cpu);
++void cpufreq_put_energy_performance_preference(char *ptr);
++
+ /* determine hardware CPU frequency limits
+  *
+  * These may be limited further by thermal, energy or other
+diff --git a/tools/power/cpupower/utils/cpufreq-info.c b/tools/power/cpupower/utils/cpufreq-info.c
+index c96b77365c63..fc750e127404 100644
+--- a/tools/power/cpupower/utils/cpufreq-info.c
++++ b/tools/power/cpupower/utils/cpufreq-info.c
+@@ -120,7 +120,6 @@ static void print_duration(unsigned long duration)
+ 		} else
+ 			printf("%lu ns", duration);
+ 	}
+-	return;
+ }
+ 
+ static int get_boost_mode_x86(unsigned int cpu)
+@@ -255,7 +254,12 @@ static int get_freq_kernel(unsigned int cpu, unsigned int human)
+ 
+ static int get_freq_hardware(unsigned int cpu, unsigned int human)
+ {
+-	unsigned long freq = cpufreq_get_freq_hardware(cpu);
++	unsigned long freq;
++
++	if (cpupower_cpu_info.caps & CPUPOWER_CAP_APERF)
++		return -EINVAL;
++
++	freq = cpufreq_get_freq_hardware(cpu);
+ 	printf(_("  current CPU frequency: "));
+ 	if (!freq) {
+ 		printf("Unable to call hardware\n");
+@@ -418,12 +422,32 @@ static int get_freq_stats(unsigned int cpu, unsigned int human)
+ 	return 0;
+ }
+ 
++/* --epp / -z */
++
++static int get_epp(unsigned int cpu, bool interactive)
++{
++	char *epp;
++
++	epp = cpufreq_get_energy_performance_preference(cpu);
++	if (!epp)
++		return -EINVAL;
++	if (interactive)
++		printf(_("  energy performance preference: %s\n"), epp);
++
++	cpufreq_put_energy_performance_preference(epp);
++
++	return 0;
++}
++
+ /* --latency / -y */
+ 
+ static int get_latency(unsigned int cpu, unsigned int human)
+ {
+ 	unsigned long latency = cpufreq_get_transition_latency(cpu);
+ 
++	if (!get_epp(cpu, false))
++		return -EINVAL;
++
+ 	printf(_("  maximum transition latency: "));
+ 	if (!latency || latency == UINT_MAX) {
+ 		printf(_(" Cannot determine or is not supported.\n"));
+@@ -457,6 +481,7 @@ static void debug_output_one(unsigned int cpu)
+ 	get_related_cpus(cpu);
+ 	get_affected_cpus(cpu);
+ 	get_latency(cpu, 1);
++	get_epp(cpu, true);
+ 	get_hardware_limits(cpu, 1);
+ 
+ 	freqs = cpufreq_get_available_frequencies(cpu);
+@@ -497,6 +522,7 @@ static struct option info_opts[] = {
+ 	{"human",	 no_argument,		 NULL,	 'm'},
+ 	{"no-rounding", no_argument,	 NULL,	 'n'},
+ 	{"performance", no_argument,	 NULL,	 'c'},
++	{"epp",		 no_argument,		 NULL,	 'z'},
+ 	{ },
+ };
+ 
+@@ -510,7 +536,7 @@ int cmd_freq_info(int argc, char **argv)
+ 	int output_param = 0;
+ 
+ 	do {
+-		ret = getopt_long(argc, argv, "oefwldpgrasmybnc", info_opts,
++		ret = getopt_long(argc, argv, "oefwldpgrasmybncz", info_opts,
+ 				  NULL);
+ 		switch (ret) {
+ 		case '?':
+@@ -534,6 +560,7 @@ int cmd_freq_info(int argc, char **argv)
+ 		case 's':
+ 		case 'y':
+ 		case 'c':
++		case 'z':
+ 			if (output_param) {
+ 				output_param = -1;
+ 				cont = 0;
+@@ -643,6 +670,9 @@ int cmd_freq_info(int argc, char **argv)
+ 		case 'c':
+ 			ret = get_perf_cap(cpu);
+ 			break;
++		case 'z':
++			ret = get_epp(cpu, true);
++			break;
+ 		}
+ 		if (ret)
+ 			return ret;
+diff --git a/tools/power/cpupower/utils/helpers/amd.c b/tools/power/cpupower/utils/helpers/amd.c
+index 0a56e22240fc..795562e879de 100644
+--- a/tools/power/cpupower/utils/helpers/amd.c
++++ b/tools/power/cpupower/utils/helpers/amd.c
+@@ -177,6 +177,8 @@ enum amd_pstate_value {
+ 	AMD_PSTATE_HIGHEST_PERF,
+ 	AMD_PSTATE_MAX_FREQ,
+ 	AMD_PSTATE_LOWEST_NONLINEAR_FREQ,
++	AMD_PSTATE_HW_PREFCORE,
++	AMD_PSTATE_PREFCORE_RANKING,
+ 	MAX_AMD_PSTATE_VALUE_READ_FILES,
+ };
+ 
+@@ -184,6 +186,8 @@ static const char *amd_pstate_value_files[MAX_AMD_PSTATE_VALUE_READ_FILES] = {
+ 	[AMD_PSTATE_HIGHEST_PERF] = "amd_pstate_highest_perf",
+ 	[AMD_PSTATE_MAX_FREQ] = "amd_pstate_max_freq",
+ 	[AMD_PSTATE_LOWEST_NONLINEAR_FREQ] = "amd_pstate_lowest_nonlinear_freq",
++	[AMD_PSTATE_HW_PREFCORE] = "amd_pstate_hw_prefcore",
++	[AMD_PSTATE_PREFCORE_RANKING] = "amd_pstate_prefcore_ranking",
+ };
+ 
+ static unsigned long amd_pstate_get_data(unsigned int cpu,
+@@ -215,7 +219,9 @@ void amd_pstate_boost_init(unsigned int cpu, int *support, int *active)
+ 
+ void amd_pstate_show_perf_and_freq(unsigned int cpu, int no_rounding)
+ {
+-	printf(_("    AMD PSTATE Highest Performance: %lu. Maximum Frequency: "),
++
++	printf(_("  amd-pstate limits:\n"));
++	printf(_("    Highest Performance: %lu. Maximum Frequency: "),
+ 	       amd_pstate_get_data(cpu, AMD_PSTATE_HIGHEST_PERF));
+ 	/*
+ 	 * If boost isn't active, the cpuinfo_max doesn't indicate real max
+@@ -224,22 +230,26 @@ void amd_pstate_show_perf_and_freq(unsigned int cpu, int no_rounding)
+ 	print_speed(amd_pstate_get_data(cpu, AMD_PSTATE_MAX_FREQ), no_rounding);
+ 	printf(".\n");
+ 
+-	printf(_("    AMD PSTATE Nominal Performance: %lu. Nominal Frequency: "),
++	printf(_("    Nominal Performance: %lu. Nominal Frequency: "),
+ 	       acpi_cppc_get_data(cpu, NOMINAL_PERF));
+ 	print_speed(acpi_cppc_get_data(cpu, NOMINAL_FREQ) * 1000,
+ 		    no_rounding);
+ 	printf(".\n");
+ 
+-	printf(_("    AMD PSTATE Lowest Non-linear Performance: %lu. Lowest Non-linear Frequency: "),
++	printf(_("    Lowest Non-linear Performance: %lu. Lowest Non-linear Frequency: "),
+ 	       acpi_cppc_get_data(cpu, LOWEST_NONLINEAR_PERF));
+ 	print_speed(amd_pstate_get_data(cpu, AMD_PSTATE_LOWEST_NONLINEAR_FREQ),
+ 		    no_rounding);
+ 	printf(".\n");
+ 
+-	printf(_("    AMD PSTATE Lowest Performance: %lu. Lowest Frequency: "),
++	printf(_("    Lowest Performance: %lu. Lowest Frequency: "),
+ 	       acpi_cppc_get_data(cpu, LOWEST_PERF));
+ 	print_speed(acpi_cppc_get_data(cpu, LOWEST_FREQ) * 1000, no_rounding);
+ 	printf(".\n");
++
++	printf(_("    Preferred Core Support: %lu. Preferred Core Ranking: %lu.\n"),
++	       amd_pstate_get_data(cpu, AMD_PSTATE_HW_PREFCORE),
++	       amd_pstate_get_data(cpu, AMD_PSTATE_PREFCORE_RANKING));
+ }
+ 
+ /* AMD P-State Helper Functions ************************************/
+diff --git a/tools/power/cpupower/utils/idle_monitor/hsw_ext_idle.c b/tools/power/cpupower/utils/idle_monitor/hsw_ext_idle.c
+index 55e55b6b42f9..f5a2a326b1b7 100644
+--- a/tools/power/cpupower/utils/idle_monitor/hsw_ext_idle.c
++++ b/tools/power/cpupower/utils/idle_monitor/hsw_ext_idle.c
+@@ -117,7 +117,7 @@ static int hsw_ext_start(void)
+ 
+ 	for (num = 0; num < HSW_EXT_CSTATE_COUNT; num++) {
+ 		for (cpu = 0; cpu < cpu_count; cpu++) {
+-			hsw_ext_get_count(num, &val, cpu);
++			is_valid[cpu] = !hsw_ext_get_count(num, &val, cpu);
+ 			previous_count[num][cpu] = val;
+ 		}
+ 	}
+@@ -134,7 +134,7 @@ static int hsw_ext_stop(void)
+ 
+ 	for (num = 0; num < HSW_EXT_CSTATE_COUNT; num++) {
+ 		for (cpu = 0; cpu < cpu_count; cpu++) {
+-			is_valid[cpu] = !hsw_ext_get_count(num, &val, cpu);
++			is_valid[cpu] |= !hsw_ext_get_count(num, &val, cpu);
+ 			current_count[num][cpu] = val;
+ 		}
+ 	}
+diff --git a/tools/power/cpupower/utils/idle_monitor/mperf_monitor.c b/tools/power/cpupower/utils/idle_monitor/mperf_monitor.c
+index ae6af354a81d..73b6b10cbdd2 100644
+--- a/tools/power/cpupower/utils/idle_monitor/mperf_monitor.c
++++ b/tools/power/cpupower/utils/idle_monitor/mperf_monitor.c
+@@ -33,7 +33,7 @@ static int mperf_get_count_percent(unsigned int self_id, double *percent,
+ 				   unsigned int cpu);
+ static int mperf_get_count_freq(unsigned int id, unsigned long long *count,
+ 				unsigned int cpu);
+-static struct timespec time_start, time_end;
++static struct timespec *time_start, *time_end;
+ 
+ static cstate_t mperf_cstates[MPERF_CSTATE_COUNT] = {
+ 	{
+@@ -148,7 +148,7 @@ static int mperf_measure_stats(unsigned int cpu)
+ 	ret = get_aperf_mperf(cpu, &aval, &mval);
+ 	aperf_current_count[cpu] = aval;
+ 	mperf_current_count[cpu] = mval;
+-	is_valid[cpu] = !ret;
++	is_valid[cpu] |= !ret;
+ 
+ 	return 0;
+ }
+@@ -174,7 +174,7 @@ static int mperf_get_count_percent(unsigned int id, double *percent,
+ 		dprint("%s: TSC Ref - mperf_diff: %llu, tsc_diff: %llu\n",
+ 		       mperf_cstates[id].name, mperf_diff, tsc_diff);
+ 	} else if (max_freq_mode == MAX_FREQ_SYSFS) {
+-		timediff = max_frequency * timespec_diff_us(time_start, time_end);
++		timediff = max_frequency * timespec_diff_us(time_start[cpu], time_end[cpu]);
+ 		*percent = 100.0 * mperf_diff / timediff;
+ 		dprint("%s: MAXFREQ - mperf_diff: %llu, time_diff: %llu\n",
+ 		       mperf_cstates[id].name, mperf_diff, timediff);
+@@ -207,7 +207,7 @@ static int mperf_get_count_freq(unsigned int id, unsigned long long *count,
+ 	if (max_freq_mode == MAX_FREQ_TSC_REF) {
+ 		/* Calculate max_freq from TSC count */
+ 		tsc_diff = tsc_at_measure_end[cpu] - tsc_at_measure_start[cpu];
+-		time_diff = timespec_diff_us(time_start, time_end);
++		time_diff = timespec_diff_us(time_start[cpu], time_end[cpu]);
+ 		max_frequency = tsc_diff / time_diff;
+ 	}
+ 
+@@ -226,9 +226,8 @@ static int mperf_start(void)
+ {
+ 	int cpu;
+ 
+-	clock_gettime(CLOCK_REALTIME, &time_start);
+-
+ 	for (cpu = 0; cpu < cpu_count; cpu++) {
++		clock_gettime(CLOCK_REALTIME, &time_start[cpu]);
+ 		mperf_get_tsc(&tsc_at_measure_start[cpu]);
+ 		mperf_init_stats(cpu);
+ 	}
+@@ -243,9 +242,9 @@ static int mperf_stop(void)
+ 	for (cpu = 0; cpu < cpu_count; cpu++) {
+ 		mperf_measure_stats(cpu);
+ 		mperf_get_tsc(&tsc_at_measure_end[cpu]);
++		clock_gettime(CLOCK_REALTIME, &time_end[cpu]);
+ 	}
+ 
+-	clock_gettime(CLOCK_REALTIME, &time_end);
+ 	return 0;
+ }
+ 
+@@ -349,6 +348,8 @@ struct cpuidle_monitor *mperf_register(void)
+ 	aperf_current_count = calloc(cpu_count, sizeof(unsigned long long));
+ 	tsc_at_measure_start = calloc(cpu_count, sizeof(unsigned long long));
+ 	tsc_at_measure_end = calloc(cpu_count, sizeof(unsigned long long));
++	time_start = calloc(cpu_count, sizeof(struct timespec));
++	time_end = calloc(cpu_count, sizeof(struct timespec));
+ 	mperf_monitor.name_len = strlen(mperf_monitor.name);
+ 	return &mperf_monitor;
+ }
+@@ -361,6 +362,8 @@ void mperf_unregister(void)
+ 	free(aperf_current_count);
+ 	free(tsc_at_measure_start);
+ 	free(tsc_at_measure_end);
++	free(time_start);
++	free(time_end);
+ 	free(is_valid);
+ }
+ 
+diff --git a/tools/power/cpupower/utils/idle_monitor/nhm_idle.c b/tools/power/cpupower/utils/idle_monitor/nhm_idle.c
+index 16eaf006f61f..6b1733782ffa 100644
+--- a/tools/power/cpupower/utils/idle_monitor/nhm_idle.c
++++ b/tools/power/cpupower/utils/idle_monitor/nhm_idle.c
+@@ -151,7 +151,7 @@ static int nhm_stop(void)
+ 
+ 	for (num = 0; num < NHM_CSTATE_COUNT; num++) {
+ 		for (cpu = 0; cpu < cpu_count; cpu++) {
+-			is_valid[cpu] = !nhm_get_count(num, &val, cpu);
++			is_valid[cpu] |= !nhm_get_count(num, &val, cpu);
+ 			current_count[num][cpu] = val;
+ 		}
+ 	}
+diff --git a/tools/power/cpupower/utils/idle_monitor/snb_idle.c b/tools/power/cpupower/utils/idle_monitor/snb_idle.c
+index 811d63ab17a7..5969b88a85b4 100644
+--- a/tools/power/cpupower/utils/idle_monitor/snb_idle.c
++++ b/tools/power/cpupower/utils/idle_monitor/snb_idle.c
+@@ -115,7 +115,7 @@ static int snb_start(void)
+ 
+ 	for (num = 0; num < SNB_CSTATE_COUNT; num++) {
+ 		for (cpu = 0; cpu < cpu_count; cpu++) {
+-			snb_get_count(num, &val, cpu);
++			is_valid[cpu] = !snb_get_count(num, &val, cpu);
+ 			previous_count[num][cpu] = val;
+ 		}
+ 	}
+@@ -132,7 +132,7 @@ static int snb_stop(void)
+ 
+ 	for (num = 0; num < SNB_CSTATE_COUNT; num++) {
+ 		for (cpu = 0; cpu < cpu_count; cpu++) {
+-			is_valid[cpu] = !snb_get_count(num, &val, cpu);
++			is_valid[cpu] |= !snb_get_count(num, &val, cpu);
+ 			current_count[num][cpu] = val;
+ 		}
+ 	}
+diff --git a/tools/testing/selftests/cpufreq/.gitignore b/tools/testing/selftests/cpufreq/.gitignore
+new file mode 100644
+index 000000000000..67604e91e068
+--- /dev/null
++++ b/tools/testing/selftests/cpufreq/.gitignore
+@@ -0,0 +1,2 @@
++# SPDX-License-Identifier: GPL-2.0-only
++cpufreq_selftest.*
+diff --git a/tools/testing/selftests/cpufreq/Makefile b/tools/testing/selftests/cpufreq/Makefile
+index c86ca8342222..9b2ccb10b0cf 100644
+--- a/tools/testing/selftests/cpufreq/Makefile
++++ b/tools/testing/selftests/cpufreq/Makefile
+@@ -3,6 +3,7 @@ all:
+ 
+ TEST_PROGS := main.sh
+ TEST_FILES := cpu.sh cpufreq.sh governor.sh module.sh special-tests.sh
++EXTRA_CLEAN := cpufreq_selftest.dmesg_cpufreq.txt cpufreq_selftest.dmesg_full.txt cpufreq_selftest.txt
+ 
+ include ../lib.mk
+ 
+-- 
+cgit
+

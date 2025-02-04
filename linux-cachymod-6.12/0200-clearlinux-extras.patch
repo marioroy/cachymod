@@ -17,7 +17,6 @@
 # Patch0128: 0128-itmt_epb-use-epb-to-scale-itmt.patch
 # Patch0130: 0130-itmt2-ADL-fixes.patch
 # Patch0131: 0131-add-a-per-cpu-minimum-high-watermark-an-tune-batch-s.patch
-# Patch0133: 0133-novector.patch
 # Patch0135: 0135-initcall-only-print-non-zero-initcall-debug-to-speed.patch
 # Patch0137: libsgrowdown.patch
 # Patch0141: epp-retune.patch
@@ -25,6 +24,7 @@
 # Patch0156: ratelimit-sched-yield.patch
 # Patch0157: scale-net-alloc.patch
 # Patch0158: 0158-clocksource-only-perform-extended-clocksource-checks.patch
+# Patch0164: 0164-KVM-VMX-make-vmx-init-a-late-init-call-to-get-to-ini.patch
 # Patch0165: slack.patch
 # Patch0167: 0167-net-sock-increase-default-number-of-_SK_MEM_PACKETS-.patch
 ##
@@ -77,7 +77,7 @@ diff -uar a/init/Kconfig b/init/Kconfig
  	help
  	  sys_sysfs is an obsolete system call no longer supported in libc.
 
-# Allow 64bit function alignment, and disable more debug knobs.
+# Disable more debug knobs.
 
 diff -uar a/lib/Kconfig.debug b/lib/Kconfig.debug
 --- a/lib/Kconfig.debug
@@ -91,15 +91,6 @@ diff -uar a/lib/Kconfig.debug b/lib/Kconfig.debug
  	depends on BUG && (GENERIC_BUG || HAVE_DEBUG_BUGVERBOSE)
  	default y
  	help
-@@ -512,7 +512,7 @@
- 
- config DEBUG_FORCE_FUNCTION_ALIGN_64B
- 	bool "Force all function address 64B aligned"
--	depends on EXPERT && (X86_64 || ARM64 || PPC32 || PPC64 || ARC || RISCV || S390)
-+	depends on (X86_64 || ARM64 || PPC32 || PPC64 || ARC || RISCV || S390)
- 	select FUNCTION_ALIGNMENT_64B
- 	help
- 	  There are cases that a commit from one domain changes the function
 @@ -874,7 +874,7 @@
  	  regions to be regularly checked for invalid topology.
  
@@ -761,33 +752,6 @@ index e6f211dcf82e..0ea48434ac7d 100644
 -- 
 https://clearlinux.org
 
-# Patch0133: 0133-novector.patch
-
-From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
-From: Arjan van de Ven <arjan.van.de.ven@intel.com>
-Date: Fri, 15 Apr 2022 00:07:38 +0000
-Subject: [PATCH] novector
-
-gcc12/build workarounds
-
----
- arch/x86/Makefile | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
---- linux-6.9.1/arch/x86/Makefile~	2024-05-17 10:18:09.000000000 +0000
-+++ linux-6.9.1/arch/x86/Makefile	2024-05-17 18:54:31.463961414 +0000
-@@ -70,7 +70,7 @@
- #
- #    https://gcc.gnu.org/bugzilla/show_bug.cgi?id=53383
- #
--KBUILD_CFLAGS += -mno-sse -mno-mmx -mno-sse2 -mno-3dnow -mno-avx
-+KBUILD_CFLAGS += -mno-sse -mno-mmx -mno-sse2 -mno-3dnow -mno-avx -mno-avx2 -mno-avx512f
- KBUILD_RUSTFLAGS += --target=$(objtree)/scripts/target.json
- KBUILD_RUSTFLAGS += -Ctarget-feature=-sse,-sse2,-sse3,-ssse3,-sse4.1,-sse4.2,-avx,-avx2,-avx512f
- 
--- 
-2.45.2
-
 # Patch0135: 0135-initcall-only-print-non-zero-initcall-debug-to-speed.patch
 
 From 496f1bc8c53f359a2fe07204d3c5ffdba963994e Mon Sep 17 00:00:00 2001
@@ -1026,6 +990,36 @@ index 82338773602c..d84f0e29452e 100644
  		for (i = 0; i < ACPI_PM_READ_CHECKS; i++) {
 -- 
 2.40.1
+
+# Patch0164: 0164-KVM-VMX-make-vmx-init-a-late-init-call-to-get-to-ini.patch
+
+From 4e6585f34be8b87fe5258233aaa8c002ab561897 Mon Sep 17 00:00:00 2001
+From: Colin Ian King <colin.i.king@intel.com>
+Date: Tue, 10 Oct 2023 12:41:00 +0100
+Subject: [PATCH] KVM: VMX: make vmx_init a late init call to get to init process faster
+
+Making vmx_init a late initcall improves QEMU kernel boot times to
+get to the init process. Average of 100 boots, QEMU boot average
+reduced from 0.776 seconds to 0.622 seconds (~19.8% faster) on
+Alderlake i9-12900 and ~0.5% faster for non-QEMU UEFI boots.
+
+Signed-off-by: Colin Ian King <colin.i.king@intel.com>
+---
+ arch/x86/kvm/vmx/vmx.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/arch/x86/kvm/vmx/vmx.c b/arch/x86/kvm/vmx/vmx.c
+index bc6f0fea48b4..e671fbe70d5a 100644
+--- a/arch/x86/kvm/vmx/vmx.c
++++ b/arch/x86/kvm/vmx/vmx.c
+@@ -8702,4 +8702,4 @@ static int __init vmx_init(void)
+ 	kvm_x86_vendor_exit();
+ 	return r;
+ }
+-module_init(vmx_init);
++late_initcall(vmx_init);
+-- 
+2.42.0
 
 # Patch0165: slack.patch
 
