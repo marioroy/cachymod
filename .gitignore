@@ -12,6 +12,8 @@
 *.swp
 *.tmp
 
+1[0-9][0-9][0-9]-*.patch*
+
 linux-6*
 PKGBUILD
 tg_boom
