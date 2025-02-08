@@ -55,10 +55,6 @@ set -e
 : "${_makegconfig:=no}"
 : "${_makexconfig:=no}"
 
-# NUMA is optimized for multi-socket motherboards
-# It seems that in 2023 this is not really a huge regression anymore
-: "${_NUMAdisable:=no}"
-
 # Transparent Hugepages { always, madvise }
 : "${_hugepage:=always}"
 
@@ -131,7 +127,7 @@ export _extra_patch_or_url7 _extra_patch_or_url8 _extra_patch_or_url9
 
 export _prefer_eevdf _runtrim_script _disable_debug_info _enable_sched_ext
 export _localmodcfg _localmodcfg_path _makenconfig _makegconfig _makexconfig
-export _NUMAdisable _hugepage _HZ_ticks _ticktype _preempt _processor_opt
+export _hugepage _HZ_ticks _ticktype _preempt _processor_opt
 export _use_auto_optimization _buildtype _build_debug _prevent_avx2
 
 # Overwrite PKGBUILD if it exists

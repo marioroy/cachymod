@@ -169,7 +169,7 @@ index 9b301180fd..e2ca4830c3 100644
  #include <trace/events/sched.h>
  
  #define CREATE_TRACE_POINTS
-@@ -2524,6 +2526,10 @@ __latent_entropy struct task_struct *copy_process(
+@@ -2535,6 +2537,10 @@ __latent_entropy struct task_struct *copy_process(
  	p->start_time = ktime_get_ns();
  	p->start_boottime = ktime_get_boottime_ns();
  
@@ -950,7 +950,7 @@ index 26958431de..9331896e5d 100644
  	/*
  	 * Tell update_rq_clock() that we've just updated,
  	 * so we don't do microscopic update in schedule()
-@@ -13031,6 +13089,9 @@ static void task_tick_fair(struct rq *rq, struct task_struct *curr, int queued)
+@@ -13040,6 +13098,9 @@ static void task_tick_fair(struct rq *rq, struct task_struct *curr, int queued)
  static void task_fork_fair(struct task_struct *p)
  {
  	set_task_max_allowed_capacity(p);
@@ -960,7 +960,7 @@ index 26958431de..9331896e5d 100644
  }
  
  /*
-@@ -13141,6 +13202,10 @@ static void attach_task_cfs_rq(struct task_struct *p)
+@@ -13150,6 +13211,10 @@ static void attach_task_cfs_rq(struct task_struct *p)
  
  static void switched_from_fair(struct rq *rq, struct task_struct *p)
  {

@@ -27,7 +27,7 @@ Signed-off-by: Mario Roy <...>
 diff -uarp a/kernel/sched/features.h b/kernel/sched/features.h
 --- a/kernel/sched/features.h
 +++ b/kernel/sched/features.h
-@@ -46,7 +46,7 @@ SCHED_FEAT(CACHE_HOT_BUDDY, true)
+@@ -55,7 +55,7 @@ SCHED_FEAT(CACHE_HOT_BUDDY, true)
   *
   * DELAY_ZERO clips the lag on dequeue (or wakeup) to 0.
   */
@@ -403,7 +403,7 @@ Speed up compression
 diff -uarp a/scripts/Makefile.lib b/scripts/Makefile.lib
 --- a/scripts/Makefile.lib
 +++ b/scripts/Makefile.lib
-@@ -517,13 +517,13 @@ quiet_cmd_xzmisc = XZMISC  $@
+@@ -519,13 +519,13 @@ quiet_cmd_xzmisc = XZMISC  $@
  # be used because it would require zstd to allocate a 128 MB buffer.
  
  quiet_cmd_zstd = ZSTD    $@
