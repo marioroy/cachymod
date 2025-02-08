@@ -4,8 +4,8 @@ diff --git a/Documentation/admin-guide/kernel-parameters.txt b/Documentation/adm
 index a1068742a6df..99bd3b31ea63 100644
 --- a/Documentation/admin-guide/kernel-parameters.txt
 +++ b/Documentation/admin-guide/kernel-parameters.txt
-@@ -5472,6 +5472,14 @@
- 					delay after resetting its port);
+@@ -7224,6 +7224,14 @@
+ 					request from 5000 ms to 500 ms);
  			Example: quirks=0781:5580:bk,0a5c:5834:gij
  
 +	usbcore.interrupt_interval_override=
@@ -182,7 +182,7 @@ index 562a730befda..b6e51182ca5b 100644
  	const unsigned short *maxpacket_maxes;
  
  	d = (struct usb_endpoint_descriptor *) buffer;
-@@ -386,6 +529,23 @@ static int usb_parse_endpoint(struct device *ddev, int cfgno,
+@@ -398,6 +541,23 @@ static int usb_parse_endpoint(struct device *ddev, int cfgno,
  		endpoint->desc.bInterval = n;
  	}
  
@@ -206,7 +206,7 @@ index 562a730befda..b6e51182ca5b 100644
  	/* Some buggy low-speed devices have Bulk endpoints, which is
  	 * explicitly forbidden by the USB spec.  In an attempt to make
  	 * them usable, we will try treating them as Interrupt endpoints.
-@@ -1091,3 +1251,11 @@ int usb_get_bos_descriptor(struct usb_device *dev)
+@@ -1102,3 +1262,11 @@ int usb_get_bos_descriptor(struct usb_device *dev)
  	usb_release_bos_descriptor(dev);
  	return ret;
  }
@@ -222,7 +222,7 @@ diff --git a/drivers/usb/core/usb.c b/drivers/usb/core/usb.c
 index bafc113f2b3e..d766c18747a3 100644
 --- a/drivers/usb/core/usb.c
 +++ b/drivers/usb/core/usb.c
-@@ -1040,6 +1040,7 @@ static void __exit usb_exit(void)
+@@ -1135,6 +1135,7 @@ static void __exit usb_exit(void)
  		return;
  
  	usb_release_quirk_list();
@@ -234,7 +234,7 @@ diff --git a/drivers/usb/core/usb.h b/drivers/usb/core/usb.h
 index 98e7d1ee63dc..76cf312baafd 100644
 --- a/drivers/usb/core/usb.h
 +++ b/drivers/usb/core/usb.h
-@@ -37,6 +37,7 @@ extern void usb_authorize_interface(struct usb_interface *);
+@@ -38,6 +38,7 @@ extern void usb_authorize_interface(struct usb_interface *);
  extern void usb_detect_quirks(struct usb_device *udev);
  extern void usb_detect_interface_quirks(struct usb_device *udev);
  extern void usb_release_quirk_list(void);

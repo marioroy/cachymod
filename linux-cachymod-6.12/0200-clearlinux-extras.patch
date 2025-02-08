@@ -34,7 +34,7 @@
 diff -uar a/arch/x86/Kconfig b/arch/x86/Kconfig
 --- a/arch/x86/Kconfig
 +++ b/arch/x86/Kconfig
-@@ -1241,7 +1241,7 @@
+@@ -1245,7 +1245,7 @@
  	default X86_LEGACY_VM86
  
  config X86_16BIT
@@ -58,7 +58,7 @@ diff -uar a/arch/x86/Kconfig b/arch/x86/Kconfig
 diff -uar a/init/Kconfig b/init/Kconfig
 --- a/init/Kconfig
 +++ b/init/Kconfig
-@@ -1495,7 +1495,7 @@
+@@ -1582,7 +1582,7 @@
  	  Only use this if you really know what you are doing.
  
  config UID16
@@ -67,7 +67,7 @@ diff -uar a/init/Kconfig b/init/Kconfig
  	depends on HAVE_UID16 && MULTIUSER
  	default y
  	help
-@@ -1526,7 +1526,7 @@
+@@ -1613,7 +1613,7 @@
  	  If unsure, leave the default option here.
  
  config SYSFS_SYSCALL
@@ -91,7 +91,7 @@ diff -uar a/lib/Kconfig.debug b/lib/Kconfig.debug
  	depends on BUG && (GENERIC_BUG || HAVE_DEBUG_BUGVERBOSE)
  	default y
  	help
-@@ -874,7 +874,7 @@
+@@ -891,7 +891,7 @@
  	  regions to be regularly checked for invalid topology.
  
  config DEBUG_MEMORY_INIT
@@ -402,15 +402,15 @@ diff --git a/drivers/pci/pci.c b/drivers/pci/pci.c
 index d25122fbe98a..dbfb6aaa4a07 100644
 --- a/drivers/pci/pci.c
 +++ b/drivers/pci/pci.c
-@@ -60,7 +60,7 @@ struct pci_pme_device {
+@@ -61,7 +61,7 @@ struct pci_pme_device {
  	struct pci_dev *dev;
  };
  
 -#define PME_TIMEOUT 1000 /* How long between PME checks */
 +#define PME_TIMEOUT 4000 /* How long between PME checks */
  
- static void pci_dev_d3_sleep(struct pci_dev *dev)
- {
+ /*
+  * Following exit from Conventional Reset, devices must be ready within 1 sec
 -- 
 https://clearlinux.org
 
@@ -431,7 +431,7 @@ diff --git a/arch/x86/kernel/tsc.c b/arch/x86/kernel/tsc.c
 index a698196377be..5f3ee7c31c8a 100644
 --- a/arch/x86/kernel/tsc.c
 +++ b/arch/x86/kernel/tsc.c
-@@ -1569,6 +1569,9 @@ unsigned long calibrate_delay_is_known(void)
+@@ -1592,6 +1592,9 @@ unsigned long calibrate_delay_is_known(void)
  	if (!constant_tsc || !mask)
  		return 0;
  
@@ -460,7 +460,7 @@ diff --git a/net/ipv4/tcp.c b/net/ipv4/tcp.c
 index 28ff2a820f7c..c4f240da8d70 100644
 --- a/net/ipv4/tcp.c
 +++ b/net/ipv4/tcp.c
-@@ -4604,8 +4604,8 @@ void __init tcp_init(void)
+@@ -5134,8 +5134,8 @@ void __init tcp_init(void)
  	tcp_init_mem();
  	/* Set per-socket limits to no more than 1/128 the pressure threshold */
  	limit = nr_free_buffer_pages() << (PAGE_SHIFT - 7);
@@ -469,7 +469,7 @@ index 28ff2a820f7c..c4f240da8d70 100644
 +	max_wshare = min(16UL*1024*1024, limit);
 +	max_rshare = min(16UL*1024*1024, limit);
  
- 	init_net.ipv4.sysctl_tcp_wmem[0] = SK_MEM_QUANTUM;
+ 	init_net.ipv4.sysctl_tcp_wmem[0] = PAGE_SIZE;
  	init_net.ipv4.sysctl_tcp_wmem[1] = 16*1024;
 -- 
 https://clearlinux.org
@@ -551,7 +551,7 @@ diff --git a/fs/xattr.c b/fs/xattr.c
 index 998045165916..62b6fb4dedee 100644
 --- a/fs/xattr.c
 +++ b/fs/xattr.c
-@@ -120,16 +120,17 @@ xattr_permission(struct user_namespace *mnt_userns, struct inode *inode,
+@@ -139,16 +139,17 @@ xattr_permission(struct user_namespace *mnt_userns, struct inode *inode,
  	}
  
  	/*
@@ -596,7 +596,7 @@ diff --git a/arch/x86/include/asm/topology.h b/arch/x86/include/asm/topology.h
 index 2f0b6be8eaab..c31f81e2ea05 100644
 --- a/arch/x86/include/asm/topology.h
 +++ b/arch/x86/include/asm/topology.h
-@@ -174,6 +174,7 @@ extern unsigned int __read_mostly sysctl_sched_itmt_enabled;
+@@ -246,6 +246,7 @@ extern unsigned int __read_mostly sysctl_sched_itmt_enabled;
  
  /* Interface to set priority of a cpu */
  void sched_set_itmt_core_prio(int prio, int core_cpu);
@@ -631,7 +631,7 @@ index 57027bfed25f..596fd7fb7847 100644
  
  /* Boolean to track if system has ITMT capabilities */
  static bool __read_mostly sched_itmt_capable;
-@@ -169,7 +170,12 @@ void sched_clear_itmt_support(void)
+@@ -159,7 +160,12 @@ void sched_clear_itmt_support(void)
  
  int arch_asym_cpu_priority(int cpu)
  {
@@ -644,10 +644,10 @@ index 57027bfed25f..596fd7fb7847 100644
 +	return per_cpu(sched_core_priority, cpu) * power_ratio / 256;
  }
  
- extern int best_core;
-@@ -217,3 +223,24 @@ void sched_set_itmt_core_prio(int prio, int core_cpu)
- 		}
- 	}
+ /**
+@@ -180,3 +186,24 @@ void sched_set_itmt_core_prio(int prio, int core_cpu)
+ {
+ 	per_cpu(sched_core_priority, cpu) = prio;
  }
 +
 +/**
@@ -701,7 +701,7 @@ diff --git a/drivers/cpufreq/intel_pstate.c b/drivers/cpufreq/intel_pstate.c
 index bc7f7e6759bd..ee33ad7f6f28 100644
 --- a/drivers/cpufreq/intel_pstate.c
 +++ b/drivers/cpufreq/intel_pstate.c
-@@ -364,6 +364,13 @@ static void intel_pstate_set_itmt_prio(int cpu)
+@@ -376,6 +376,13 @@ static void intel_pstate_set_itmt_prio(int cpu)
  	 * update them at any time after it has been called.
  	 */
  	sched_set_itmt_core_prio(cppc_perf.highest_perf, cpu);
@@ -735,7 +735,7 @@ diff --git a/mm/page_alloc.c b/mm/page_alloc.c
 index e6f211dcf82e..0ea48434ac7d 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -6836,11 +6836,11 @@ static int zone_batchsize(struct zone *zone)
+@@ -5533,11 +5533,11 @@ static int zone_batchsize(struct zone *zone)
  
  	/*
  	 * The number of pages to batch allocate is either ~0.1%
@@ -774,7 +774,7 @@ diff --git a/init/main.c b/init/main.c
 index aa21add5f7c5..715d57f58895 100644
 --- a/init/main.c
 +++ b/init/main.c
-@@ -1254,10 +1254,13 @@ static __init_or_module void
+@@ -1220,10 +1220,13 @@ static __init_or_module void
  trace_initcall_finish_cb(void *data, initcall_t fn, int ret)
  {
  	ktime_t rettime, *calltime = data;
@@ -800,7 +800,7 @@ Place libraries right below the binary for PIE binaries, this helps code localit
 
 --- linux-5.18.2/fs/binfmt_elf.c~	2022-06-06 06:49:00.000000000 +0000
 +++ linux-5.18.2/fs/binfmt_elf.c	2022-08-10 13:53:04.878633166 +0000
-@@ -1297,6 +1297,8 @@
+@@ -1282,6 +1282,8 @@
  	mm = current->mm;
  	mm->end_code = end_code;
  	mm->start_code = start_code;
@@ -814,7 +814,7 @@ Place libraries right below the binary for PIE binaries, this helps code localit
 
 --- linux-6.1/arch/x86/include/asm/msr-index.h~	2022-12-11 22:15:18.000000000 +0000
 +++ linux-6.1/arch/x86/include/asm/msr-index.h	2022-12-16 01:31:32.266119875 +0000
-@@ -472,7 +472,7 @@
+@@ -543,7 +543,7 @@
  #define HWP_MAX_PERF(x) 		((x & 0xff) << 8)
  #define HWP_DESIRED_PERF(x)		((x & 0xff) << 16)
  #define HWP_ENERGY_PERF_PREFERENCE(x)	(((unsigned long long) x & 0xff) << 24)
@@ -840,7 +840,7 @@ diff --git a/kernel/sched/core.c b/kernel/sched/core.c
 index f730b6fe94a7..ee0ec4ab7d1c 100644
 --- a/kernel/sched/core.c
 +++ b/kernel/sched/core.c
-@@ -533,7 +533,7 @@ void raw_spin_rq_lock_nested(struct rq *rq, int subclass)
+@@ -596,7 +596,7 @@ void raw_spin_rq_lock_nested(struct rq *rq, int subclass)
  
  	/* Matches synchronize_rcu() in __sched_core_enable() */
  	preempt_disable();
@@ -849,7 +849,7 @@ index f730b6fe94a7..ee0ec4ab7d1c 100644
  		raw_spin_lock_nested(&rq->__lock, subclass);
  		/* preempt_count *MUST* be > 1 */
  		preempt_enable_no_resched();
-@@ -741,7 +741,7 @@ void update_rq_clock(struct rq *rq)
+@@ -809,7 +809,7 @@ void update_rq_clock(struct rq *rq)
  	scx_rq_clock_update(rq, clock);
  
  	delta = clock - rq->clock;
@@ -858,7 +858,7 @@ index f730b6fe94a7..ee0ec4ab7d1c 100644
  		return;
  	rq->clock += delta;
  
-@@ -5932,7 +5932,7 @@ pick_next_task(struct rq *rq, struct task_struct *prev, struct rq_flags *rf)
+@@ -6111,7 +6111,7 @@ pick_next_task(struct rq *rq, struct task_struct *prev, struct rq_flags *rf)
  	struct rq *rq_i;
  	bool need_sync;
  
@@ -867,7 +867,7 @@ index f730b6fe94a7..ee0ec4ab7d1c 100644
  		return __pick_next_task(rq, prev, rf);
  
  	cpu = cpu_of(rq);
-@@ -8352,7 +8352,7 @@ SYSCALL_DEFINE0(sched_yield)
+@@ -7272,7 +7272,7 @@ SYSCALL_DEFINE0(sched_yield)
  #if !defined(CONFIG_PREEMPTION) || defined(CONFIG_PREEMPT_DYNAMIC)
  int __sched __cond_resched(void)
  {
@@ -900,7 +900,7 @@ diff --git a/kernel/sched/syscalls.c b/kernel/sched/syscalls.c
 index ae1b42775ef9..441ac65f4f15 100644
 --- a/kernel/sched/syscalls.c
 +++ b/kernel/sched/syscalls.c
-@@ -1456,10 +1456,22 @@ SYSCALL_DEFINE3(sched_getaffinity, pid_t, pid, unsigned int, len,
+@@ -1390,10 +1390,22 @@ SYSCALL_DEFINE3(sched_getaffinity, pid_t, pid, unsigned int, len,
  	return ret;
  }
  
@@ -932,7 +932,7 @@ diff --git a/include/net/sock.h b/include/net/sock.h
 index 4e787285fc66..3e045f6eb6ee 100644
 --- a/include/net/sock.h
 +++ b/include/net/sock.h
-@@ -1684,10 +1684,17 @@ static inline void sk_mem_charge(struct sock *sk, int size)
+@@ -1579,10 +1579,17 @@ static inline void sk_mem_charge(struct sock *sk, int size)
  
  static inline void sk_mem_uncharge(struct sock *sk, int size)
  {
@@ -969,7 +969,7 @@ diff --git a/drivers/clocksource/acpi_pm.c b/drivers/clocksource/acpi_pm.c
 index 82338773602c..d84f0e29452e 100644
 --- a/drivers/clocksource/acpi_pm.c
 +++ b/drivers/clocksource/acpi_pm.c
-@@ -176,13 +176,16 @@ static int verify_pmtmr_rate(void)
+@@ -208,13 +208,16 @@ static int verify_pmtmr_rate(void)
  static int __init init_acpi_pm_clocksource(void)
  {
  	u64 value1, value2;
@@ -1012,7 +1012,7 @@ diff --git a/arch/x86/kvm/vmx/vmx.c b/arch/x86/kvm/vmx/vmx.c
 index bc6f0fea48b4..e671fbe70d5a 100644
 --- a/arch/x86/kvm/vmx/vmx.c
 +++ b/arch/x86/kvm/vmx/vmx.c
-@@ -8702,4 +8702,4 @@ static int __init vmx_init(void)
+@@ -8652,4 +8652,4 @@ static int __init vmx_init(void)
  	kvm_x86_vendor_exit();
  	return r;
  }
@@ -1025,15 +1025,15 @@ index bc6f0fea48b4..e671fbe70d5a 100644
 
 --- linux-6.5.1/init/init_task.c~	2023-09-02 07:13:30.000000000 +0000
 +++ linux-6.5.1/init/init_task.c	2023-10-30 15:12:13.920976572 +0000
-@@ -130,7 +130,7 @@
+@@ -139,7 +139,7 @@
  	.journal_info	= NULL,
  	INIT_CPU_TIMERS(init_task)
  	.pi_lock	= __RAW_SPIN_LOCK_UNLOCKED(init_task.pi_lock),
 -	.timer_slack_ns = 50000, /* 50 usec default slack */
 +	.timer_slack_ns = 50, /* 50 nsec default slack */
  	.thread_pid	= &init_struct_pid,
- 	.thread_group	= LIST_HEAD_INIT(init_task.thread_group),
  	.thread_node	= LIST_HEAD_INIT(init_signals.thread_head),
+ #ifdef CONFIG_AUDIT
 
 # Patch0167: 0167-net-sock-increase-default-number-of-_SK_MEM_PACKETS-.patch
 
@@ -1053,7 +1053,7 @@ diff --git a/include/net/sock.h b/include/net/sock.h
 index 54ca8dcbfb43..9adc51e8085b 100644
 --- a/include/net/sock.h
 +++ b/include/net/sock.h
-@@ -2903,7 +2903,7 @@ void sk_get_meminfo(const struct sock *sk, u32 *meminfo);
+@@ -2820,7 +2820,7 @@ void sk_get_meminfo(const struct sock *sk, u32 *meminfo);
   * platforms.  This makes socket queueing behavior and performance
   * not depend upon such differences.
   */

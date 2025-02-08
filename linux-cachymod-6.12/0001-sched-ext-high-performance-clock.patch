@@ -25,7 +25,7 @@ diff --git a/kernel/sched/sched.h b/kernel/sched/sched.h
 index 76f5f53a645f..440ecedf871b 100644
 --- a/kernel/sched/sched.h
 +++ b/kernel/sched/sched.h
-@@ -1717,6 +1717,19 @@ struct rq_flags {
+@@ -1718,6 +1718,19 @@ struct rq_flags {
  
  extern struct balance_callback balance_push_callback;
  
@@ -45,7 +45,7 @@ index 76f5f53a645f..440ecedf871b 100644
  /*
   * Lockdep annotation that avoids accidental unlocks; it's like a
   * sticky/continuous lockdep_assert_held().
-@@ -2505,19 +2518,6 @@ extern const struct sched_class rt_sched_class;
+@@ -2520,19 +2533,6 @@ extern const struct sched_class rt_sched_class;
  extern const struct sched_class fair_sched_class;
  extern const struct sched_class idle_sched_class;
  
@@ -179,7 +179,7 @@ diff --git a/kernel/sched/ext.c b/kernel/sched/ext.c
 index ec91a4d95722..9a568ee8e1f5 100644
 --- a/kernel/sched/ext.c
 +++ b/kernel/sched/ext.c
-@@ -4915,7 +4915,7 @@ static void scx_ops_disable_workfn(struct kthread_work *work)
+@@ -4500,7 +4500,7 @@ static void scx_ops_disable_workfn(struct kthread_work *work)
  	struct task_struct *p;
  	struct rhashtable_iter rht_iter;
  	struct scx_dispatch_q *dsq;
@@ -188,7 +188,7 @@ index ec91a4d95722..9a568ee8e1f5 100644
  
  	kind = atomic_read(&scx_exit_kind);
  	while (true) {
-@@ -4998,6 +4998,15 @@ static void scx_ops_disable_workfn(struct kthread_work *work)
+@@ -4583,6 +4583,15 @@ static void scx_ops_disable_workfn(struct kthread_work *work)
  	scx_task_iter_stop(&sti);
  	percpu_up_write(&scx_fork_rwsem);
  
@@ -204,7 +204,7 @@ index ec91a4d95722..9a568ee8e1f5 100644
  	/* no task is on scx, turn off all the switches and flush in-progress calls */
  	static_branch_disable(&__scx_ops_enabled);
  	for (i = SCX_OPI_BEGIN; i < SCX_OPI_END; i++)
-@@ -7603,6 +7612,68 @@ __bpf_kfunc struct cgroup *scx_bpf_task_cgroup(struct task_struct *p)
+@@ -7221,6 +7230,68 @@ __bpf_kfunc struct cgroup *scx_bpf_task_cgroup(struct task_struct *p)
  }
  #endif
  
@@ -273,7 +273,7 @@ index ec91a4d95722..9a568ee8e1f5 100644
  __bpf_kfunc_end_defs();
  
  BTF_KFUNCS_START(scx_kfunc_ids_any)
-@@ -7634,6 +7705,7 @@ BTF_ID_FLAGS(func, scx_bpf_cpu_rq)
+@@ -7252,6 +7323,7 @@ BTF_ID_FLAGS(func, scx_bpf_cpu_rq)
  #ifdef CONFIG_CGROUP_SCHED
  BTF_ID_FLAGS(func, scx_bpf_task_cgroup, KF_RCU | KF_ACQUIRE)
  #endif
@@ -285,7 +285,7 @@ diff --git a/kernel/sched/sched.h b/kernel/sched/sched.h
 index 440ecedf871b..a97f96a06615 100644
 --- a/kernel/sched/sched.h
 +++ b/kernel/sched/sched.h
-@@ -754,6 +754,7 @@ enum scx_rq_flags {
+@@ -760,6 +760,7 @@ enum scx_rq_flags {
  	SCX_RQ_BAL_PENDING	= 1 << 2, /* balance hasn't run yet */
  	SCX_RQ_BAL_KEEP		= 1 << 3, /* balance decided to keep current */
  	SCX_RQ_BYPASSING	= 1 << 4,
@@ -293,7 +293,7 @@ index 440ecedf871b..a97f96a06615 100644
  
  	SCX_RQ_IN_WAKEUP	= 1 << 16,
  	SCX_RQ_IN_BALANCE	= 1 << 17,
-@@ -766,9 +767,10 @@ struct scx_rq {
+@@ -772,9 +773,10 @@ struct scx_rq {
  	unsigned long		ops_qseq;
  	u64			extra_enq_flags;	/* see move_task_to_local_dsq() */
  	u32			nr_running;
@@ -305,7 +305,7 @@ index 440ecedf871b..a97f96a06615 100644
  	cpumask_var_t		cpus_to_kick;
  	cpumask_var_t		cpus_to_kick_if_idle;
  	cpumask_var_t		cpus_to_preempt;
-@@ -1725,9 +1727,28 @@ DECLARE_STATIC_KEY_FALSE(__scx_switched_all);	/* all fair class tasks on SCX */
+@@ -1726,9 +1728,28 @@ DECLARE_STATIC_KEY_FALSE(__scx_switched_all);	/* all fair class tasks on SCX */
  
  #define scx_enabled()		static_branch_unlikely(&__scx_ops_enabled)
  #define scx_switched_all()	static_branch_unlikely(&__scx_switched_all)
@@ -334,7 +334,7 @@ index 440ecedf871b..a97f96a06615 100644
  #endif /* !CONFIG_SCHED_CLASS_EXT */
  
  /*
-@@ -1759,7 +1780,7 @@ static inline void rq_unpin_lock(struct rq *rq, struct rq_flags *rf)
+@@ -1760,7 +1781,7 @@ static inline void rq_unpin_lock(struct rq *rq, struct rq_flags *rf)
  	if (rq->clock_update_flags > RQCF_ACT_SKIP)
  		rf->clock_update_flags = RQCF_UPDATED;
  #endif
@@ -369,21 +369,21 @@ diff --git a/tools/sched_ext/include/scx/common.bpf.h b/tools/sched_ext/include/
 index 858ba1f438f6..5c9517190713 100644
 --- a/tools/sched_ext/include/scx/common.bpf.h
 +++ b/tools/sched_ext/include/scx/common.bpf.h
-@@ -76,6 +76,7 @@ bool scx_bpf_task_running(const struct task_struct *p) __ksym;
+@@ -72,6 +72,7 @@ bool scx_bpf_task_running(const struct task_struct *p) __ksym;
  s32 scx_bpf_task_cpu(const struct task_struct *p) __ksym;
  struct rq *scx_bpf_cpu_rq(s32 cpu) __ksym;
  struct cgroup *scx_bpf_task_cgroup(struct task_struct *p) __ksym __weak;
 +u64 scx_bpf_now(void) __ksym __weak;
  
  /*
-  * Use the following as @it__iter when calling scx_bpf_dsq_move[_vtime]() from
+  * Use the following as @it__iter when calling
 diff --git a/tools/sched_ext/include/scx/compat.bpf.h b/tools/sched_ext/include/scx/compat.bpf.h
 index d56520100a26..50e1499ae093 100644
 --- a/tools/sched_ext/include/scx/compat.bpf.h
 +++ b/tools/sched_ext/include/scx/compat.bpf.h
-@@ -125,6 +125,11 @@ bool scx_bpf_dispatch_vtime_from_dsq___compat(struct bpf_iter_scx_dsq *it__iter,
- 	false;									\
- })
+@@ -34,6 +34,11 @@ bool scx_bpf_dispatch_vtime_from_dsq___compat(struct bpf_iter_scx_dsq *it__iter,
+ 	(bpf_ksym_exists(scx_bpf_dispatch_vtime_from_dsq) ?			\
+ 	 scx_bpf_dispatch_vtime_from_dsq((it), (p), (dsq_id), (enq_flags)) : false)
  
 +#define scx_bpf_now()								\
 +	(bpf_ksym_exists(scx_bpf_now) ?						\
@@ -424,7 +424,7 @@ diff --git a/tools/sched_ext/include/scx/common.bpf.h b/tools/sched_ext/include/
 index 5c9517190713..f3e15e9efa76 100644
 --- a/tools/sched_ext/include/scx/common.bpf.h
 +++ b/tools/sched_ext/include/scx/common.bpf.h
-@@ -408,6 +408,100 @@ static __always_inline const struct cpumask *cast_mask(struct bpf_cpumask *mask)
+@@ -330,6 +330,100 @@ static __always_inline const struct cpumask *cast_mask(struct bpf_cpumask *mask)
  void bpf_rcu_read_lock(void) __ksym;
  void bpf_rcu_read_unlock(void) __ksym;
  
@@ -574,7 +574,7 @@ diff --git a/tools/sched_ext/scx_flatcg.bpf.c b/tools/sched_ext/scx_flatcg.bpf.c
 index 3dbfa82883be..5f588963fb2f 100644
 --- a/tools/sched_ext/scx_flatcg.bpf.c
 +++ b/tools/sched_ext/scx_flatcg.bpf.c
-@@ -734,7 +734,7 @@ void BPF_STRUCT_OPS(fcg_dispatch, s32 cpu, struct task_struct *prev)
+@@ -732,7 +732,7 @@ void BPF_STRUCT_OPS(fcg_dispatch, s32 cpu, struct task_struct *prev)
  	struct fcg_cpu_ctx *cpuc;
  	struct fcg_cgrp_ctx *cgc;
  	struct cgroup *cgrp;
@@ -655,7 +655,7 @@ index 5f588963fb2f..2c720e3ecad5 100644
  		cvtime = cvtime_now - max_budget;
  
  	cgv_node->cvtime = cvtime;
-@@ -401,7 +396,7 @@ void BPF_STRUCT_OPS(fcg_enqueue, struct task_struct *p, u64 enq_flags)
+@@ -399,7 +394,7 @@ void BPF_STRUCT_OPS(fcg_enqueue, struct task_struct *p, u64 enq_flags)
  		 * Limit the amount of budget that an idling task can accumulate
  		 * to one slice.
  		 */
@@ -663,8 +663,8 @@ index 5f588963fb2f..2c720e3ecad5 100644
 +		if (time_before(tvtime, cgc->tvtime_now - SCX_SLICE_DFL))
  			tvtime = cgc->tvtime_now - SCX_SLICE_DFL;
  
- 		scx_bpf_dsq_insert_vtime(p, cgrp->kn->id, SCX_SLICE_DFL,
-@@ -535,7 +530,7 @@ void BPF_STRUCT_OPS(fcg_running, struct task_struct *p)
+ 		scx_bpf_dispatch_vtime(p, cgrp->kn->id, SCX_SLICE_DFL,
+@@ -533,7 +528,7 @@ void BPF_STRUCT_OPS(fcg_running, struct task_struct *p)
  		 * from multiple CPUs and thus racy. Any error should be
  		 * contained and temporary. Let's just live with it.
  		 */
@@ -673,7 +673,7 @@ index 5f588963fb2f..2c720e3ecad5 100644
  			cgc->tvtime_now = p->scx.dsq_vtime;
  	}
  	bpf_cgroup_release(cgrp);
-@@ -645,7 +640,7 @@ static bool try_pick_next_cgroup(u64 *cgidp)
+@@ -643,7 +638,7 @@ static bool try_pick_next_cgroup(u64 *cgidp)
  	cgv_node = container_of(rb_node, struct cgv_node, rb_node);
  	cgid = cgv_node->cgid;
  
@@ -682,7 +682,7 @@ index 5f588963fb2f..2c720e3ecad5 100644
  		cvtime_now = cgv_node->cvtime;
  
  	/*
-@@ -744,7 +739,7 @@ void BPF_STRUCT_OPS(fcg_dispatch, s32 cpu, struct task_struct *prev)
+@@ -742,7 +737,7 @@ void BPF_STRUCT_OPS(fcg_dispatch, s32 cpu, struct task_struct *prev)
  	if (!cpuc->cur_cgid)
  		goto pick_next_cgroup;
  
@@ -691,7 +691,7 @@ index 5f588963fb2f..2c720e3ecad5 100644
  		if (scx_bpf_consume(cpuc->cur_cgid)) {
  			stat_inc(FCG_STAT_CNS_KEEP);
  			return;
-@@ -920,14 +915,14 @@ void BPF_STRUCT_OPS(fcg_cgroup_move, struct task_struct *p,
+@@ -918,14 +913,14 @@ void BPF_STRUCT_OPS(fcg_cgroup_move, struct task_struct *p,
  		    struct cgroup *from, struct cgroup *to)
  {
  	struct fcg_cgrp_ctx *from_cgc, *to_cgc;
@@ -733,7 +733,7 @@ index 31f915b286c6..e6de99dba7db 100644
 +		if (time_before(vtime, vtime_now - SCX_SLICE_DFL))
  			vtime = vtime_now - SCX_SLICE_DFL;
  
- 		scx_bpf_dsq_insert_vtime(p, SHARED_DSQ, SCX_SLICE_DFL, vtime,
+ 		scx_bpf_dispatch_vtime(p, SHARED_DSQ, SCX_SLICE_DFL, vtime,
 @@ -108,7 +103,7 @@ void BPF_STRUCT_OPS(simple_running, struct task_struct *p)
  	 * thus racy. Any error should be contained and temporary. Let's just
  	 * live with it.

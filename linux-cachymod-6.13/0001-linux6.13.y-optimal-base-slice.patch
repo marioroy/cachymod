@@ -8,7 +8,7 @@ Signed-off-by: Mario Roy <...>
 diff -uarp a/init/Kconfig b/init/Kconfig
 --- a/init/Kconfig
 +++ b/init/Kconfig
-@@ -1342,6 +1342,14 @@ config CHECKPOINT_RESTORE
+@@ -1362,6 +1362,14 @@ config CHECKPOINT_RESTORE
  
  	  If unsure, say N here.
  
@@ -26,8 +26,8 @@ diff -uarp a/init/Kconfig b/init/Kconfig
 diff -uarp a/kernel/Kconfig.hz b/kernel/Kconfig.hz
 --- a/kernel/Kconfig.hz
 +++ b/kernel/Kconfig.hz
-@@ -55,5 +55,22 @@ config HZ
- 	default 300 if HZ_300
+@@ -79,5 +79,22 @@ config HZ
+ 	default 750 if HZ_750
  	default 1000 if HZ_1000
  
 +config MIN_BASE_SLICE_NS
@@ -272,7 +272,7 @@ diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
 diff -uarp a/kernel/sched/sched.h b/kernel/sched/sched.h
 --- a/kernel/sched/sched.h
 +++ b/kernel/sched/sched.h
-@@ -2092,7 +2092,11 @@ static inline void update_sched_domain_d
+@@ -2125,7 +2125,11 @@ static inline void update_sched_domain_d
  static inline void dirty_sched_domain_sysctl(int cpu) { }
  #endif
  
@@ -284,7 +284,7 @@ diff -uarp a/kernel/sched/sched.h b/kernel/sched/sched.h
  
  static inline const struct cpumask *task_user_cpus(struct task_struct *p)
  {
-@@ -2829,7 +2833,12 @@ extern void wakeup_preempt(struct rq *rq
+@@ -2849,7 +2853,12 @@ extern void wakeup_preempt(struct rq *rq
  extern const_debug unsigned int sysctl_sched_nr_migrate;
  extern const_debug unsigned int sysctl_sched_migration_cost;
  

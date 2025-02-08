@@ -48,7 +48,7 @@ Signed-off-by: Peter Jung <admin@ptr1337.dev>
 diff -uarp a/init/Kconfig b/init/Kconfig
 --- a/init/Kconfig
 +++ b/init/Kconfig
-@@ -244,6 +244,19 @@ config BUILD_SALT
+@@ -255,6 +255,19 @@ config BUILD_SALT
  	  This is mostly useful for distributions which want to ensure the
  	  build is unique between builds. It's safe to leave the default.
  
@@ -71,24 +71,20 @@ diff -uarp a/init/Kconfig b/init/Kconfig
 diff -uarp a/Makefile b/Makefile
 --- a/Makefile
 +++ b/Makefile
-@@ -821,6 +821,30 @@ KBUILD_CFLAGS += $(call cc-option,-fmodu
+@@ -878,6 +878,26 @@ KBUILD_CFLAGS += $(call cc-option,-fmodu
  KBUILD_RUSTFLAGS += -Cdebug-assertions=$(if $(CONFIG_RUST_DEBUG_ASSERTIONS),y,n)
  KBUILD_RUSTFLAGS += -Coverflow-checks=$(if $(CONFIG_RUST_OVERFLOW_CHECKS),y,n)
  
 +ifdef CONFIG_POLLY_CLANG
 +KBUILD_LDFLAGS	+= --lto-O3 --lto-CGO3
 +KBUILD_CFLAGS	+= -fplugin=LLVMPolly.so \
-+		   -mllvm -enable-gvn-hoist \
-+		   -mllvm -enable-nontrivial-unswitch \
-+		   -mllvm -inline-threshold=1500 \
++		   -mllvm -inline-threshold=1000 \
 +		   -mllvm -unroll-threshold=50 \
 +		   -mllvm -polly \
 +		   -mllvm -polly-ast-use-context \
 +		   -mllvm -polly-invariant-load-hoisting \
 +		   -mllvm -polly-loopfusion-greedy \
 +		   -mllvm -polly-run-inliner \
-+		   -mllvm -polly-tiling \
-+		   -mllvm -polly-2nd-level-tiling \
 +		   -mllvm -polly-vectorizer=stripmine
 +# Polly may optimise loops with dead paths beyound what the linker
 +# can understand. This may negate the effect of the linker's DCE

@@ -13,6 +13,10 @@ set -e
 # The kernel will be tagged "eevdf" or "bore".
 : "${_prefer_eevdf:=no}"
 
+# Prevent AVX2 floating-point instructions. (Clear and XanMod default)
+# The default is no, matching CachyOS preference.
+: "${_prevent_avx2:=no}"
+
 # Run the "trim.sh" script to trim the kernel
 # To deselect ~ 1,500 kernel options
 : "${_runtrim_script:=no}"
@@ -77,7 +81,7 @@ set -e
 # Select "lazy" for low-latency desktop, matching the CachyOS RT kernel preemption.
 # Select "rt" for real-time preemption, running time-sensitive instruments.
 # The _enable_sched_ext build option is ignored for real-time preemption.
-: "${_preempt:=full}"
+: "${_preempt:=lazy}"
 
 # Use automatic CPU optimization
 : "${_use_auto_optimization:=yes}"
@@ -128,7 +132,7 @@ export _extra_patch_or_url7 _extra_patch_or_url8 _extra_patch_or_url9
 export _prefer_eevdf _runtrim_script _disable_debug_info _enable_sched_ext
 export _localmodcfg _localmodcfg_path _makenconfig _makegconfig _makexconfig
 export _NUMAdisable _hugepage _HZ_ticks _ticktype _preempt _processor_opt
-export _use_auto_optimization _buildtype _build_debug 
+export _use_auto_optimization _buildtype _build_debug _prevent_avx2
 
 # Overwrite PKGBUILD if it exists
 cp PKGBUILD.lazy PKGBUILD

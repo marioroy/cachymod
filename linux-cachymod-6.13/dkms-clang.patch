@@ -14,7 +14,7 @@ diff --git a/scripts/Makefile.clang b/scripts/Makefile.clang
 index 6c23c6af797f..59b2e19416af 100644
 --- a/scripts/Makefile.clang
 +++ b/scripts/Makefile.clang
-@@ -31,9 +31,7 @@ endif
+@@ -32,9 +32,7 @@ endif
  # certain optimization flags it knows it has not implemented.
  # Make it behave more like gcc by erroring when these flags are encountered
  # so they can be implemented or wrapped in cc-option.

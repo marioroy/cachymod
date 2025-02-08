@@ -1,34 +1,9 @@
-Speed up compression
-
-diff -uarp a/scripts/Makefile.lib b/scripts/Makefile.lib
---- a/scripts/Makefile.lib
-+++ b/scripts/Makefile.lib
-@@ -517,13 +517,13 @@ quiet_cmd_xzmisc = XZMISC  $@
- # be used because it would require zstd to allocate a 128 MB buffer.
- 
- quiet_cmd_zstd = ZSTD    $@
--      cmd_zstd = cat $(real-prereqs) | $(ZSTD) -19 > $@
-+      cmd_zstd = cat $(real-prereqs) | $(ZSTD) -6 > $@
- 
- quiet_cmd_zstd22 = ZSTD22  $@
--      cmd_zstd22 = cat $(real-prereqs) | $(ZSTD) -22 --ultra > $@
-+      cmd_zstd22 = cat $(real-prereqs) | $(ZSTD) -6 --ultra > $@
- 
- quiet_cmd_zstd22_with_size = ZSTD22  $@
--      cmd_zstd22_with_size = { cat $(real-prereqs) | $(ZSTD) -22 --ultra; $(size_append); } > $@
-+      cmd_zstd22_with_size = { cat $(real-prereqs) | $(ZSTD) -6 --ultra; $(size_append); } > $@
- 
- # ASM offsets
- # ---------------------------------------------------------------------------
--- 
-2.30.1
-
 Change to RCU, matching patch-6.13-rt5
 
 diff -uarp a/kernel/kprobes.c b/kernel/kprobes.c
 --- a/kernel/kprobes.c
 +++ b/kernel/kprobes.c
-@@ -1570,7 +1570,7 @@ static int check_kprobe_address_safe(str
+@@ -1574,7 +1574,7 @@ static int check_kprobe_address_safe(str
  	/* Ensure the address is in a text area, and find a module if exists. */
  	*probed_mod = NULL;
  	if (!core_kernel_text((unsigned long) p->addr)) {
@@ -150,7 +125,7 @@ diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
 index 2695843..f4e4d3e 100644
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -5372,6 +5372,15 @@ static __always_inline void return_cfs_rq_runtime(struct cfs_rq *cfs_rq);
+@@ -5524,6 +5524,15 @@ static __always_inline void return_cfs_rq_runtime(struct cfs_rq *cfs_rq);
  static void set_delayed(struct sched_entity *se)
  {
  	se->sched_delayed = 1;
@@ -166,7 +141,7 @@ index 2695843..f4e4d3e 100644
  	for_each_sched_entity(se) {
  		struct cfs_rq *cfs_rq = cfs_rq_of(se);
  
-@@ -5384,6 +5393,16 @@ static void set_delayed(struct sched_entity *se)
+@@ -5536,6 +5545,16 @@ static void set_delayed(struct sched_entity *se)
  static void clear_delayed(struct sched_entity *se)
  {
  	se->sched_delayed = 0;
@@ -309,7 +284,7 @@ diff --git a/kernel/sched/sched.h b/kernel/sched/sched.h
 index 6085ef50febf..44d736e49d06 100644
 --- a/kernel/sched/sched.h
 +++ b/kernel/sched/sched.h
-@@ -2470,21 +2470,6 @@ __put_prev_set_next_dl_server(struct rq *rq,
+@@ -2518,21 +2518,6 @@ __put_prev_set_next_dl_server(struct rq *rq,
  	rq->dl_server = NULL;
  }
  
@@ -331,9 +306,9 @@ index 6085ef50febf..44d736e49d06 100644
  /*
   * Helper to define a sched_class instance; each one is placed in a separate
   * section which is ordered by the linker script:
-@@ -2523,6 +2508,21 @@ DECLARE_STATIC_KEY_FALSE(__scx_switched_all);	/* all fair class tasks on SCX */
- #define scx_switched_all()	false
- #endif /* !CONFIG_SCHED_CLASS_EXT */
+@@ -2558,6 +2543,21 @@ DECLARE_STATIC_KEY_FALSE(__scx_switched_all);	/* all fair class tasks on SCX */
+ extern const struct sched_class fair_sched_class;
+ extern const struct sched_class idle_sched_class;
  
 +static inline void put_prev_set_next_task(struct rq *rq,
 +					  struct task_struct *prev,
@@ -498,7 +473,7 @@ diff -uarp a/drivers/firmware/efi/libstub/Makefile b/drivers/firmware/efi/libstu
 diff -uarp a/Makefile b/Makefile
 --- a/Makefile
 +++ b/Makefile
-@@ -462,7 +462,7 @@ HOSTRUSTC = rustc
+@@ -437,7 +437,7 @@ HOSTRUSTC = rustc
  HOSTPKG_CONFIG	= pkg-config
  
  KBUILD_USERHOSTCFLAGS := -Wall -Wmissing-prototypes -Wstrict-prototypes \
@@ -507,7 +482,7 @@ diff -uarp a/Makefile b/Makefile
  KBUILD_USERCFLAGS  := $(KBUILD_USERHOSTCFLAGS) $(USERCFLAGS)
  KBUILD_USERLDFLAGS := $(USERLDFLAGS)
  
-@@ -575,7 +575,7 @@ LINUXINCLUDE    := \
+@@ -546,7 +546,7 @@ LINUXINCLUDE    := \
  KBUILD_AFLAGS   := -D__ASSEMBLY__ -fno-PIE
  
  KBUILD_CFLAGS :=
@@ -516,6 +491,31 @@ diff -uarp a/Makefile b/Makefile
  KBUILD_CFLAGS += -fshort-wchar
  KBUILD_CFLAGS += -funsigned-char
  KBUILD_CFLAGS += -fno-common
+-- 
+2.30.1
+
+Speed up compression
+
+diff -uarp a/scripts/Makefile.lib b/scripts/Makefile.lib
+--- a/scripts/Makefile.lib
++++ b/scripts/Makefile.lib
+@@ -463,13 +463,13 @@ quiet_cmd_xzmisc = XZMISC  $@
+ # be used because it would require zstd to allocate a 128 MB buffer.
+ 
+ quiet_cmd_zstd = ZSTD    $@
+-      cmd_zstd = cat $(real-prereqs) | $(ZSTD) -19 > $@
++      cmd_zstd = cat $(real-prereqs) | $(ZSTD) -6 > $@
+ 
+ quiet_cmd_zstd22 = ZSTD22  $@
+-      cmd_zstd22 = cat $(real-prereqs) | $(ZSTD) -22 --ultra > $@
++      cmd_zstd22 = cat $(real-prereqs) | $(ZSTD) -6 --ultra > $@
+ 
+ quiet_cmd_zstd22_with_size = ZSTD22  $@
+-      cmd_zstd22_with_size = { cat $(real-prereqs) | $(ZSTD) -22 --ultra; $(size_append); } > $@
++      cmd_zstd22_with_size = { cat $(real-prereqs) | $(ZSTD) -6 --ultra; $(size_append); } > $@
+ 
+ # ASM offsets
+ # ---------------------------------------------------------------------------
 -- 
 2.30.1
 
@@ -540,7 +540,7 @@ diff --git a/Makefile b/Makefile
 index 59a938a0c335..1f9ef37558df 100644
 --- a/Makefile
 +++ b/Makefile
-@@ -975,15 +975,8 @@ export CC_FLAGS_FPU
+@@ -980,15 +980,8 @@ export CC_FLAGS_FPU
  export CC_FLAGS_NO_FPU
  
  ifneq ($(CONFIG_FUNCTION_ALIGNMENT),0)
@@ -701,7 +701,7 @@ diff --git a/include/linux/blkdev.h b/include/linux/blkdev.h
 index 50c3b959da28..e291cd33edcf 100644
 --- a/include/linux/blkdev.h
 +++ b/include/linux/blkdev.h
-@@ -605,7 +605,8 @@ enum {
+@@ -613,7 +613,8 @@ enum {
  	QUEUE_FLAG_MAX
  };
  
@@ -821,50 +821,13 @@ index 7312ae7c3cc5..78f629791bdf 100644
  	  be able to print symbolic error names such as ENOSPC instead
 @@ -200,7 +200,7 @@ config SYMBOLIC_ERRNAME
  config DEBUG_BUGVERBOSE
- 	bool "Verbose BUG() reporting (adds 70K)" if DEBUG_KERNEL && EXPERT
+ 	bool "Verbose BUG() reporting (adds 70K)" if DEBUG_KERNEL
  	depends on BUG && (GENERIC_BUG || HAVE_DEBUG_BUGVERBOSE)
 -	default y
 +	default n
  	help
  	  Say Y here to make BUG() panics output the file name and line number
  	  of the BUG call as well as the EIP and oops trace.  This aids
--- 
-2.45.2
-
-# 0002-ZEN-dm-crypt-Disable-workqueues-for-crypto-ops.patch
-
-From deef13431e620a3637755f5fb1a671661050e755 Mon Sep 17 00:00:00 2001
-From: Steven Barrett <steven@liquorix.net>
-Date: Sat, 21 May 2022 15:15:09 -0500
-Subject: [PATCH 2/2] ZEN: dm-crypt: Disable workqueues for crypto ops
-
-Queueing in dm-crypt for crypto operations reduces performance on modern
-systems.  As discussed in an article from Cloudflare, they discovered
-that queuing was introduced because the crypto subsystem used to be
-synchronous.  Since it's now asynchronous, we get double queueing when
-using the subsystem through dm-crypt.  This is obviously undesirable and
-reduces throughput and increases latency.
-
-Fixes: https://github.com/zen-kernel/zen-kernel/issues/282
-Signed-off-by: Alexandre Frade <kernel@xanmod.org>
----
- drivers/md/dm-crypt.c | 3 +++
- 1 file changed, 3 insertions(+)
-
-diff --git a/drivers/md/dm-crypt.c b/drivers/md/dm-crypt.c
-index 1ae2c71bb383..55d6b4806677 100644
---- a/drivers/md/dm-crypt.c
-+++ b/drivers/md/dm-crypt.c
-@@ -3315,6 +3315,9 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
- 			goto bad;
- 	}
- 
-+	set_bit(DM_CRYPT_NO_READ_WORKQUEUE, &cc->flags);
-+	set_bit(DM_CRYPT_NO_WRITE_WORKQUEUE, &cc->flags);
-+
- 	ret = crypt_ctr_cipher(ti, argv[0], argv[1]);
- 	if (ret < 0)
- 		goto bad;
 -- 
 2.45.2
 
@@ -900,7 +863,7 @@ Signed-off-by: Ionut Nechita <ionut_n2001@yahoo.com>
 diff --git a/Documentation/admin-guide/kernel-parameters.txt b/Documentation/admin-guide/kernel-parameters.txt
 --- a/Documentation/admin-guide/kernel-parameters.txt
 +++ b/Documentation/admin-guide/kernel-parameters.txt
-@@ -5070,7 +5070,7 @@
+@@ -5074,7 +5074,7 @@
  			overwritten.
  
  	rcutree.kthread_prio= 	 [KNL,BOOT]
@@ -1021,7 +984,7 @@ Signed-off-by: Ionut Nechita <ionut_n2001@yahoo.com>
 diff --git a/kernel/workqueue.c b/kernel/workqueue.c
 --- a/kernel/workqueue.c
 +++ b/kernel/workqueue.c
-@@ -7827,20 +7827,20 @@ static void __init wq_cpu_intensive_thresh_init(void)
+@@ -7841,20 +7841,20 @@ static void __init wq_cpu_intensive_thresh_init(void)
  		return;
  
  	/*

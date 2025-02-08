@@ -105,7 +105,7 @@ diff --git a/init/Kconfig b/init/Kconfig
 index a20e6efd3f..0b17af19d3 100644
 --- a/init/Kconfig
 +++ b/init/Kconfig
-@@ -1342,6 +1342,23 @@ config CHECKPOINT_RESTORE
+@@ -1362,6 +1362,23 @@ config CHECKPOINT_RESTORE
  
  	  If unsure, say N here.
  
@@ -133,8 +133,8 @@ diff --git a/kernel/Kconfig.hz b/kernel/Kconfig.hz
 index 38ef6d0688..253c566b59 100644
 --- a/kernel/Kconfig.hz
 +++ b/kernel/Kconfig.hz
-@@ -55,5 +55,22 @@ config HZ
- 	default 300 if HZ_300
+@@ -79,5 +79,22 @@ config HZ
+ 	default 750 if HZ_750
  	default 1000 if HZ_1000
  
 +config MIN_BASE_SLICE_NS
@@ -160,7 +160,7 @@ diff --git a/kernel/fork.c b/kernel/fork.c
 index 9b301180fd..e2ca4830c3 100644
 --- a/kernel/fork.c
 +++ b/kernel/fork.c
-@@ -112,6 +112,8 @@
+@@ -116,6 +116,8 @@
  #include <asm/cacheflush.h>
  #include <asm/tlbflush.h>
  
@@ -169,7 +169,7 @@ index 9b301180fd..e2ca4830c3 100644
  #include <trace/events/sched.h>
  
  #define CREATE_TRACE_POINTS
-@@ -2515,6 +2517,10 @@ __latent_entropy struct task_struct *copy_process(
+@@ -2524,6 +2526,10 @@ __latent_entropy struct task_struct *copy_process(
  	p->start_time = ktime_get_ns();
  	p->start_boottime = ktime_get_boottime_ns();
  
@@ -651,7 +651,7 @@ index 3e5a6bf587..fb4bb3fa5a 100644
  EXPORT_TRACEPOINT_SYMBOL_GPL(ipi_send_cpu);
  EXPORT_TRACEPOINT_SYMBOL_GPL(ipi_send_cpumask);
  
-@@ -8481,6 +8483,10 @@ void __init sched_init(void)
+@@ -8503,6 +8505,10 @@ void __init sched_init(void)
  	BUG_ON(!sched_class_above(&ext_sched_class, &idle_sched_class));
  #endif
  
@@ -950,7 +950,7 @@ index 26958431de..9331896e5d 100644
  	/*
  	 * Tell update_rq_clock() that we've just updated,
  	 * so we don't do microscopic update in schedule()
-@@ -13009,6 +13067,9 @@ static void task_tick_fair(struct rq *rq, struct task_struct *curr, int queued)
+@@ -13031,6 +13089,9 @@ static void task_tick_fair(struct rq *rq, struct task_struct *curr, int queued)
  static void task_fork_fair(struct task_struct *p)
  {
  	set_task_max_allowed_capacity(p);
@@ -960,7 +960,7 @@ index 26958431de..9331896e5d 100644
  }
  
  /*
-@@ -13119,6 +13180,10 @@ static void attach_task_cfs_rq(struct task_struct *p)
+@@ -13141,6 +13202,10 @@ static void attach_task_cfs_rq(struct task_struct *p)
  
  static void switched_from_fair(struct rq *rq, struct task_struct *p)
  {
@@ -975,7 +975,7 @@ diff --git a/kernel/sched/sched.h b/kernel/sched/sched.h
 index c5d67a43fe..e14855d24a 100644
 --- a/kernel/sched/sched.h
 +++ b/kernel/sched/sched.h
-@@ -2092,7 +2092,11 @@ static inline void update_sched_domain_debugfs(void) { }
+@@ -2125,7 +2125,11 @@ static inline void update_sched_domain_debugfs(void) { }
  static inline void dirty_sched_domain_sysctl(int cpu) { }
  #endif
  
@@ -987,7 +987,7 @@ index c5d67a43fe..e14855d24a 100644
  
  static inline const struct cpumask *task_user_cpus(struct task_struct *p)
  {
-@@ -2829,7 +2833,12 @@ extern void wakeup_preempt(struct rq *rq, struct task_struct *p, int flags);
+@@ -2849,7 +2853,12 @@ extern void wakeup_preempt(struct rq *rq, struct task_struct *p, int flags);
  extern const_debug unsigned int sysctl_sched_nr_migrate;
  extern const_debug unsigned int sysctl_sched_migration_cost;
  

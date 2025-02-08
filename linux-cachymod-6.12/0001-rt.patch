@@ -2122,7 +2122,7 @@ index 1ca96c99872f0..2c6bbda654157 100644
  		clear_buddies(cfs_rq, curr);
  	}
  }
-@@ -5708,7 +5708,7 @@ entity_tick(struct cfs_rq *cfs_rq, struct sched_entity *curr, int queued)
+@@ -5712,7 +5712,7 @@ entity_tick(struct cfs_rq *cfs_rq, struct sched_entity *curr, int queued)
  	 * validating it and just reschedule.
  	 */
  	if (queued) {
@@ -2131,7 +2131,7 @@ index 1ca96c99872f0..2c6bbda654157 100644
  		return;
  	}
  	/*
-@@ -8889,7 +8889,7 @@ static void check_preempt_wakeup_fair(struct rq *rq, struct task_struct *p, int
+@@ -8893,7 +8893,7 @@ static void check_preempt_wakeup_fair(struct rq *rq, struct task_struct *p, int
  	return;
  
  preempt:

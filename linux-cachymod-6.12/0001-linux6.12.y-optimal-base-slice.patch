@@ -8,7 +8,7 @@ Signed-off-by: Mario Roy <...>
 diff -uarp a/init/Kconfig b/init/Kconfig
 --- a/init/Kconfig
 +++ b/init/Kconfig
-@@ -1341,6 +1341,14 @@ config CHECKPOINT_RESTORE
+@@ -1361,6 +1361,14 @@ config CHECKPOINT_RESTORE
  
  	  If unsure, say N here.
  
@@ -26,8 +26,8 @@ diff -uarp a/init/Kconfig b/init/Kconfig
 diff -uarp a/kernel/Kconfig.hz b/kernel/Kconfig.hz
 --- a/kernel/Kconfig.hz
 +++ b/kernel/Kconfig.hz
-@@ -55,5 +55,22 @@ config HZ
- 	default 300 if HZ_300
+@@ -79,5 +79,22 @@ config HZ
+ 	default 750 if HZ_750
  	default 1000 if HZ_1000
  
 +config MIN_BASE_SLICE_NS
@@ -115,7 +115,7 @@ diff -uarp a/kernel/sched/debug.c b/kernel/sched/debug.c
  #endif /* SMP */
  
  #ifdef CONFIG_PREEMPT_DYNAMIC
-@@ -504,13 +550,20 @@ static __init int sched_init_debug(void)
+@@ -505,13 +551,20 @@ static __init int sched_init_debug(void)
  	debugfs_create_file("preempt", 0644, debugfs_sched, NULL, &sched_dynamic_fops);
  #endif
  
@@ -232,7 +232,7 @@ diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
  #endif
  #endif
  
-@@ -5289,6 +5319,9 @@ place_entity(struct cfs_rq *cfs_rq, stru
+@@ -5293,6 +5323,9 @@ place_entity(struct cfs_rq *cfs_rq, stru
  	 *
  	 * EEVDF: placement strategy #1 / #2
  	 */
@@ -242,7 +242,7 @@ diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
  	if (sched_feat(PLACE_LAG) && cfs_rq->nr_running) {
  		struct sched_entity *curr = cfs_rq->curr;
  		unsigned long load;
-@@ -5370,7 +5403,11 @@ place_entity(struct cfs_rq *cfs_rq, stru
+@@ -5374,7 +5407,11 @@ place_entity(struct cfs_rq *cfs_rq, stru
  	 * on average, halfway through their slice, as such start tasks
  	 * off with half a slice to ease into the competition.
  	 */
@@ -254,7 +254,7 @@ diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
  		vslice /= 2;
  
  	/*
-@@ -9059,16 +9104,24 @@ static void yield_task_fair(struct rq *r
+@@ -9063,16 +9100,24 @@ static void yield_task_fair(struct rq *r
  	/*
  	 * Are we the only task in the tree?
  	 */
@@ -282,7 +282,7 @@ diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
 diff -uarp a/kernel/sched/sched.h b/kernel/sched/sched.h
 --- a/kernel/sched/sched.h
 +++ b/kernel/sched/sched.h
-@@ -2084,7 +2084,11 @@ static inline void update_sched_domain_d
+@@ -2118,7 +2118,11 @@ static inline void update_sched_domain_d
  static inline void dirty_sched_domain_sysctl(int cpu) { }
  #endif
  
@@ -294,7 +294,7 @@ diff -uarp a/kernel/sched/sched.h b/kernel/sched/sched.h
  
  static inline const struct cpumask *task_user_cpus(struct task_struct *p)
  {
-@@ -2834,7 +2838,12 @@ extern void wakeup_preempt(struct rq *rq
+@@ -2856,7 +2860,12 @@ extern void wakeup_preempt(struct rq *rq
  extern const_debug unsigned int sysctl_sched_nr_migrate;
  extern const_debug unsigned int sysctl_sched_migration_cost;
  

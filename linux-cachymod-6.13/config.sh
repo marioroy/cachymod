@@ -145,6 +145,7 @@ scripts/config -d DEBUG_WX
 scripts/config -d DLM_DEBUG
 scripts/config -d DM_DEBUG_BLOCK_MANAGER_LOCKING
 scripts/config -d DM_DEBUG_BLOCK_STACK_TRACING
+scripts/config -d DRM_ACCEL_IVPU_DEBUG
 scripts/config -d DRM_DEBUG_DP_MST_TOPOLOGY_REFS
 scripts/config -d DRM_DEBUG_MODESET_LOCK
 scripts/config -d DRM_DISPLAY_DP_TUNNEL_STATE_DEBUG
@@ -156,6 +157,7 @@ scripts/config -d DRM_I915_DEBUG_WAKEREF
 scripts/config -d DRM_I915_SW_FENCE_DEBUG_OBJECTS
 scripts/config -d DRM_XE_DEBUG
 scripts/config -d DRM_XE_DEBUG_MEM
+scripts/config -d DRM_XE_DEBUG_MEMIRQ
 scripts/config -d DRM_XE_DEBUG_SRIOV
 scripts/config -d DRM_XE_DEBUG_VM
 scripts/config -d DVB_USB_DEBUG
@@ -247,6 +249,9 @@ if [[ $(uname -m) = *"x86"* ]]; then
 
     ### Set the default state of memory_corruption_check to off.
     scripts/config -d X86_BOOTPARAM_MEMORY_CORRUPTION_CHECK
+
+    ### Disable Split Lock Detect and Bus Lock Detect support.
+    scripts/config -d X86_BUS_LOCK_DETECT
 
     ### Disable statistic for Change Page Attribute.
     scripts/config -d X86_CPA_STATISTICS
