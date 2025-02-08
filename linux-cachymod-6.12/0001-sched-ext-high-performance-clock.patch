@@ -45,7 +45,7 @@ index 76f5f53a645f..440ecedf871b 100644
  /*
   * Lockdep annotation that avoids accidental unlocks; it's like a
   * sticky/continuous lockdep_assert_held().
-@@ -2520,19 +2533,6 @@ extern const struct sched_class rt_sched_class;
+@@ -2492,19 +2505,6 @@ extern const struct sched_class rt_sched_class;
  extern const struct sched_class fair_sched_class;
  extern const struct sched_class idle_sched_class;
  

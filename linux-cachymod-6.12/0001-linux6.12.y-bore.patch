@@ -651,7 +651,7 @@ index 6cc12777bb..aa131e05db 100644
  EXPORT_TRACEPOINT_SYMBOL_GPL(ipi_send_cpu);
  EXPORT_TRACEPOINT_SYMBOL_GPL(ipi_send_cpumask);
  
-@@ -8528,6 +8530,10 @@ void __init sched_init(void)
+@@ -8541,6 +8543,10 @@ void __init sched_init(void)
  	BUG_ON(!sched_class_above(&ext_sched_class, &idle_sched_class));
  #endif
  
@@ -960,7 +960,7 @@ index 782ce70ebd..62d460f3df 100644
  	/*
  	 * Tell update_rq_clock() that we've just updated,
  	 * so we don't do microscopic update in schedule()
-@@ -13124,6 +13185,9 @@ static void task_tick_fair(struct rq *rq, struct task_struct *curr, int queued)
+@@ -13133,6 +13194,9 @@ static void task_tick_fair(struct rq *rq, struct task_struct *curr, int queued)
  static void task_fork_fair(struct task_struct *p)
  {
  	set_task_max_allowed_capacity(p);
@@ -970,7 +970,7 @@ index 782ce70ebd..62d460f3df 100644
  }
  
  /*
-@@ -13234,6 +13298,10 @@ static void attach_task_cfs_rq(struct task_struct *p)
+@@ -13243,6 +13307,10 @@ static void attach_task_cfs_rq(struct task_struct *p)
  
  static void switched_from_fair(struct rq *rq, struct task_struct *p)
  {
@@ -997,7 +997,7 @@ index c03b3d7b32..bbe2f77aa4 100644
  
  static inline const struct cpumask *task_user_cpus(struct task_struct *p)
  {
-@@ -2856,7 +2860,12 @@ extern void wakeup_preempt(struct rq *rq, struct task_struct *p, int flags);
+@@ -2828,7 +2832,12 @@ extern void wakeup_preempt(struct rq *rq, struct task_struct *p, int flags);
  extern const_debug unsigned int sysctl_sched_nr_migrate;
  extern const_debug unsigned int sysctl_sched_migration_cost;
  

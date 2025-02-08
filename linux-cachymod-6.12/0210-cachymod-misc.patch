@@ -27,7 +27,7 @@ Signed-off-by: Mario Roy <...>
 diff -uarp a/kernel/sched/features.h b/kernel/sched/features.h
 --- a/kernel/sched/features.h
 +++ b/kernel/sched/features.h
-@@ -46,7 +46,7 @@ SCHED_FEAT(CACHE_HOT_BUDDY, true)
+@@ -55,7 +55,7 @@ SCHED_FEAT(CACHE_HOT_BUDDY, true)
   *
   * DELAY_ZERO clips the lag on dequeue (or wakeup) to 0.
   */
@@ -284,7 +284,7 @@ diff --git a/kernel/sched/sched.h b/kernel/sched/sched.h
 index 6085ef50febf..44d736e49d06 100644
 --- a/kernel/sched/sched.h
 +++ b/kernel/sched/sched.h
-@@ -2518,21 +2518,6 @@ __put_prev_set_next_dl_server(struct rq *rq,
+@@ -2490,21 +2490,6 @@ __put_prev_set_next_dl_server(struct rq *rq,
  	rq->dl_server = NULL;
  }
  
@@ -306,7 +306,7 @@ index 6085ef50febf..44d736e49d06 100644
  /*
   * Helper to define a sched_class instance; each one is placed in a separate
   * section which is ordered by the linker script:
-@@ -2558,6 +2543,21 @@ DECLARE_STATIC_KEY_FALSE(__scx_switched_all);	/* all fair class tasks on SCX */
+@@ -2530,6 +2515,21 @@ DECLARE_STATIC_KEY_FALSE(__scx_switched_all);	/* all fair class tasks on SCX */
  extern const struct sched_class fair_sched_class;
  extern const struct sched_class idle_sched_class;
  

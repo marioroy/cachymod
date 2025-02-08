@@ -1066,7 +1066,7 @@ index 3509af7dc52b8..2cdfc737835a1 100644
  #ifdef CONFIG_SERIAL_8250_RSA
  /*
   * Attempts to turn on the RSA FIFO.  Returns zero on failure.
-@@ -3269,6 +3288,11 @@ static void serial8250_console_putchar(struct uart_port *port, unsigned char ch)
+@@ -3270,6 +3289,11 @@ static void serial8250_console_putchar(struct uart_port *port, unsigned char ch)
  
  	wait_for_xmitr(up, UART_LSR_THRE);
  	serial_port_out(port, UART_TX, ch);
@@ -1078,15 +1078,15 @@ index 3509af7dc52b8..2cdfc737835a1 100644
  }
  
  /*
-@@ -3297,6 +3321,7 @@ static void serial8250_console_restore(struct uart_8250_port *up)
- 	serial8250_out_MCR(up, up->mcr | UART_MCR_DTR | UART_MCR_RTS);
+@@ -3308,6 +3332,7 @@ static void serial8250_console_restore(struct uart_8250_port *up)
+ 	}
  }
  
 +#ifdef CONFIG_SERIAL_8250_LEGACY_CONSOLE
  /*
   * Print a string to the serial port using the device FIFO
   *
-@@ -3355,7 +3380,7 @@ void serial8250_console_write(struct uart_8250_port *up, const char *s,
+@@ -3375,7 +3400,7 @@ void serial8250_console_write(struct uart_8250_port *up, const char *s,
  	 *	First save the IER then disable the interrupts
  	 */
  	ier = serial_port_in(port, UART_IER);
@@ -1095,7 +1095,7 @@ index 3509af7dc52b8..2cdfc737835a1 100644
  
  	/* check scratch reg to see if port powered off during system sleep */
  	if (up->canary && (up->canary != serial_port_in(port, UART_SCR))) {
-@@ -3421,6 +3446,131 @@ void serial8250_console_write(struct uart_8250_port *up, const char *s,
+@@ -3441,6 +3466,131 @@ void serial8250_console_write(struct uart_8250_port *up, const char *s,
  	if (locked)
  		uart_port_unlock_irqrestore(port, flags);
  }
@@ -1227,7 +1227,7 @@ index 3509af7dc52b8..2cdfc737835a1 100644
  
  static unsigned int probe_baud(struct uart_port *port)
  {
-@@ -3439,6 +3589,7 @@ static unsigned int probe_baud(struct uart_port *port)
+@@ -3459,6 +3609,7 @@ static unsigned int probe_baud(struct uart_port *port)
  
  int serial8250_console_setup(struct uart_port *port, char *options, bool probe)
  {
@@ -1235,7 +1235,7 @@ index 3509af7dc52b8..2cdfc737835a1 100644
  	int baud = 9600;
  	int bits = 8;
  	int parity = 'n';
-@@ -3448,6 +3599,8 @@ int serial8250_console_setup(struct uart_port *port, char *options, bool probe)
+@@ -3468,6 +3619,8 @@ int serial8250_console_setup(struct uart_port *port, char *options, bool probe)
  	if (!port->iobase && !port->membase)
  		return -ENODEV;
  
@@ -1374,7 +1374,7 @@ diff --git a/include/linux/sched.h b/include/linux/sched.h
 index 02eaf84c8626f..3245cd7b6f02a 100644
 --- a/include/linux/sched.h
 +++ b/include/linux/sched.h
-@@ -2010,7 +2010,8 @@ static inline void set_tsk_need_resched(struct task_struct *tsk)
+@@ -2011,7 +2011,8 @@ static inline void set_tsk_need_resched(struct task_struct *tsk)
  
  static inline void clear_tsk_need_resched(struct task_struct *tsk)
  {
@@ -1911,7 +1911,7 @@ index d07dc87787dff..9582c5d51e73e 100644
  	curr->sched_class->task_tick(rq, curr, 0);
  	if (sched_feat(LATENCY_WARN))
  		resched_latency = cpu_resched_latency(rq);
-@@ -7352,6 +7402,8 @@ EXPORT_SYMBOL(__cond_resched_rwlock_write);
+@@ -7365,6 +7415,8 @@ EXPORT_SYMBOL(__cond_resched_rwlock_write);
   *   preempt_schedule           <- NOP
   *   preempt_schedule_notrace   <- NOP
   *   irqentry_exit_cond_resched <- NOP
@@ -1920,7 +1920,7 @@ index d07dc87787dff..9582c5d51e73e 100644
   *
   * VOLUNTARY:
   *   cond_resched               <- __cond_resched
-@@ -7359,6 +7411,8 @@ EXPORT_SYMBOL(__cond_resched_rwlock_write);
+@@ -7372,6 +7424,8 @@ EXPORT_SYMBOL(__cond_resched_rwlock_write);
   *   preempt_schedule           <- NOP
   *   preempt_schedule_notrace   <- NOP
   *   irqentry_exit_cond_resched <- NOP
@@ -1929,7 +1929,7 @@ index d07dc87787dff..9582c5d51e73e 100644
   *
   * FULL:
   *   cond_resched               <- RET0
-@@ -7366,6 +7420,26 @@ EXPORT_SYMBOL(__cond_resched_rwlock_write);
+@@ -7379,6 +7433,26 @@ EXPORT_SYMBOL(__cond_resched_rwlock_write);
   *   preempt_schedule           <- preempt_schedule
   *   preempt_schedule_notrace   <- preempt_schedule_notrace
   *   irqentry_exit_cond_resched <- irqentry_exit_cond_resched
@@ -1956,7 +1956,7 @@ index d07dc87787dff..9582c5d51e73e 100644
   */
  
  enum {
-@@ -7373,30 +7447,45 @@ enum {
+@@ -7386,30 +7460,45 @@ enum {
  	preempt_dynamic_none,
  	preempt_dynamic_voluntary,
  	preempt_dynamic_full,
@@ -2004,7 +2004,7 @@ index d07dc87787dff..9582c5d51e73e 100644
  #else
  #error "Unsupported PREEMPT_DYNAMIC mechanism"
  #endif
-@@ -7416,6 +7505,8 @@ static void __sched_dynamic_update(int mode)
+@@ -7429,6 +7518,8 @@ static void __sched_dynamic_update(int mode)
  	preempt_dynamic_enable(preempt_schedule);
  	preempt_dynamic_enable(preempt_schedule_notrace);
  	preempt_dynamic_enable(irqentry_exit_cond_resched);
@@ -2013,7 +2013,7 @@ index d07dc87787dff..9582c5d51e73e 100644
  
  	switch (mode) {
  	case preempt_dynamic_none:
-@@ -7425,6 +7516,8 @@ static void __sched_dynamic_update(int mode)
+@@ -7438,6 +7529,8 @@ static void __sched_dynamic_update(int mode)
  		preempt_dynamic_disable(preempt_schedule);
  		preempt_dynamic_disable(preempt_schedule_notrace);
  		preempt_dynamic_disable(irqentry_exit_cond_resched);
@@ -2022,7 +2022,7 @@ index d07dc87787dff..9582c5d51e73e 100644
  		if (mode != preempt_dynamic_mode)
  			pr_info("Dynamic Preempt: none\n");
  		break;
-@@ -7436,6 +7529,8 @@ static void __sched_dynamic_update(int mode)
+@@ -7449,6 +7542,8 @@ static void __sched_dynamic_update(int mode)
  		preempt_dynamic_disable(preempt_schedule);
  		preempt_dynamic_disable(preempt_schedule_notrace);
  		preempt_dynamic_disable(irqentry_exit_cond_resched);
@@ -2031,7 +2031,7 @@ index d07dc87787dff..9582c5d51e73e 100644
  		if (mode != preempt_dynamic_mode)
  			pr_info("Dynamic Preempt: voluntary\n");
  		break;
-@@ -7447,9 +7542,37 @@ static void __sched_dynamic_update(int mode)
+@@ -7460,9 +7555,37 @@ static void __sched_dynamic_update(int mode)
  		preempt_dynamic_enable(preempt_schedule);
  		preempt_dynamic_enable(preempt_schedule_notrace);
  		preempt_dynamic_enable(irqentry_exit_cond_resched);
@@ -2069,7 +2069,7 @@ index d07dc87787dff..9582c5d51e73e 100644
  	}
  
  	preempt_dynamic_mode = mode;
-@@ -7512,6 +7635,10 @@ static void __init preempt_dynamic_init(void)
+@@ -7525,6 +7648,10 @@ static void __init preempt_dynamic_init(void)
  			sched_dynamic_update(preempt_dynamic_none);
  		} else if (IS_ENABLED(CONFIG_PREEMPT_VOLUNTARY)) {
  			sched_dynamic_update(preempt_dynamic_voluntary);
@@ -2080,7 +2080,7 @@ index d07dc87787dff..9582c5d51e73e 100644
  		} else {
  			/* Default static call setting, nothing to do */
  			WARN_ON_ONCE(!IS_ENABLED(CONFIG_PREEMPT));
-@@ -7532,6 +7659,8 @@ static void __init preempt_dynamic_init(void)
+@@ -7545,6 +7672,8 @@ static void __init preempt_dynamic_init(void)
  PREEMPT_MODEL_ACCESSOR(none);
  PREEMPT_MODEL_ACCESSOR(voluntary);
  PREEMPT_MODEL_ACCESSOR(full);
@@ -2144,7 +2144,7 @@ diff --git a/kernel/sched/sched.h b/kernel/sched/sched.h
 index f2ef520513c4a..9931d10265b6b 100644
 --- a/kernel/sched/sched.h
 +++ b/kernel/sched/sched.h
-@@ -2705,6 +2705,7 @@ extern void init_sched_rt_class(void);
+@@ -2677,6 +2677,7 @@ extern void init_sched_rt_class(void);
  extern void init_sched_fair_class(void);
  
  extern void resched_curr(struct rq *rq);

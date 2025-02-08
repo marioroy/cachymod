@@ -27,12 +27,6 @@
 : "${_makegconfig:=no}"
 : "${_makexconfig:=no}"
 
-# NUMA is optimized for multi-socket motherboards.
-# A single multi-core CPU actually runs slower with NUMA enabled
-# See, https://bugs.archlinux.org/task/31187
-# It seems that in 2023 this is not really a huge regression anymore
-: "${_NUMAdisable:=no}"
-
 # Transparent Hugepages
 # ATTENTION: one of two predefined values should be selected!
 # 'always'  - always enable THP
@@ -103,13 +97,13 @@ fi
 
 _pkgsuffix=cachymod-612
 _major=6.12
-_minor=12
+_minor=13
 pkgver=${_major}.${_minor}
 _stable=${_major}.${_minor}
 
 _srcname=linux-${_stable}
 pkgdesc='CachyMod Linux Kernel with other patches and improvements'
-pkgrel=2
+pkgrel=1
 _kernver="$pkgver-$pkgrel"
 _kernuname="${pkgver}-${_pkgsuffix}"
 arch=('x86_64')
@@ -126,7 +120,6 @@ source=(
     "trim.sh"
     "auto-cpu-optimization.sh"
     "mkinitcpio.template"
-    "0001-cpupower-update.patch"
     "0001-rt.patch"
     "0001-rt-update.patch"
     "0001-cachyos-base-all.patch"
@@ -288,24 +281,6 @@ prepare() {
     esac
 
     echo "Setting tick rate to ${_HZ_ticks} Hz..."
-
-    ### Disable NUMA
-    if [[ "$_NUMAdisable" =~ ^(yes|y|1)$ ]]; then
-        echo "Disabling NUMA from kernel config..."
-        scripts/config -d NUMA \
-            -d AMD_NUMA \
-            -d X86_64_ACPI_NUMA \
-            -d NODES_SPAN_OTHER_NODES \
-            -d NUMA_EMU \
-            -d USE_PERCPU_NUMA_NODE_ID \
-            -d ACPI_NUMA \
-            -d ARCH_SUPPORTS_NUMA_BALANCING \
-            -d NODES_SHIFT \
-            -u NODES_SHIFT \
-            -d NEED_MULTIPLE_NODES \
-            -d NUMA_BALANCING \
-            -d NUMA_BALANCING_DEFAULT_ENABLED
-    fi
 
     ### Select tickless type
     [ -z "$_ticktype" ] && _die "The value is empty. Choose the correct one again."
