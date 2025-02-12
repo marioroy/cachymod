@@ -71,21 +71,28 @@ diff -uarp a/init/Kconfig b/init/Kconfig
 diff -uarp a/Makefile b/Makefile
 --- a/Makefile
 +++ b/Makefile
-@@ -820,6 +820,26 @@ KBUILD_CFLAGS += $(call cc-option,-fmodu
+@@ -820,6 +820,33 @@ KBUILD_CFLAGS += $(call cc-option,-fmodu
  KBUILD_RUSTFLAGS += -Cdebug-assertions=$(if $(CONFIG_RUST_DEBUG_ASSERTIONS),y,n)
  KBUILD_RUSTFLAGS += -Coverflow-checks=$(if $(CONFIG_RUST_OVERFLOW_CHECKS),y,n)
  
 +ifdef CONFIG_POLLY_CLANG
 +KBUILD_LDFLAGS	+= --lto-O3 --lto-CGO3
 +KBUILD_CFLAGS	+= -fplugin=LLVMPolly.so \
++		   -fmerge-all-constants \
 +		   -mllvm -inline-threshold=1000 \
 +		   -mllvm -unroll-threshold=50 \
 +		   -mllvm -polly \
 +		   -mllvm -polly-ast-use-context \
++		   -mllvm -polly-dependences-computeout=600000 \
++		   -mllvm -polly-detect-profitability-min-per-loop-insts=40 \
++		   -mllvm -polly-enable-delicm=true \
 +		   -mllvm -polly-invariant-load-hoisting \
 +		   -mllvm -polly-loopfusion-greedy \
 +		   -mllvm -polly-run-inliner \
-+		   -mllvm -polly-vectorizer=stripmine
++		   -mllvm -polly-tiling=true \
++		   -mllvm -polly-vectorizer=stripmine \
++		   -mllvm -polly-prevect-width=256 \
++		   -mprefer-vector-width=256
 +# Polly may optimise loops with dead paths beyound what the linker
 +# can understand. This may negate the effect of the linker's DCE
 +# so we tell Polly to perfom proven DCE on the loops it optimises

@@ -15,11 +15,16 @@ diff -uarp a/kernel/kprobes.c b/kernel/kprobes.c
 -- 
 2.30.1
 
-Disable the DELAY_DEQUEUE EEVDF feature by default.
+Disable PLACE_LAG, RUN_TO_PARITY, and DELAY_DEQUEUE EEVDF features.
 
 Enable feature via /etc/tmpfiles.d/ configuration, if needed.
+  w /sys/kernel/debug/sched/features - - - - PLACE_LAG
+  w /sys/kernel/debug/sched/features - - - - RUN_TO_PARITY
   w /sys/kernel/debug/sched/features - - - - DELAY_DEQUEUE
+
 Or manually.
+  echo PLACE_LAG     | sudo tee /sys/kernel/debug/sched/features
+  echo RUN_TO_PARITY | sudo tee /sys/kernel/debug/sched/features
   echo DELAY_DEQUEUE | sudo tee /sys/kernel/debug/sched/features
 
 Signed-off-by: Mario Roy <...>
@@ -27,6 +32,24 @@ Signed-off-by: Mario Roy <...>
 diff -uarp a/kernel/sched/features.h b/kernel/sched/features.h
 --- a/kernel/sched/features.h
 +++ b/kernel/sched/features.h
+@@ -4,7 +4,7 @@
+  * Using the avg_vruntime, do the right thing and preserve lag across
+  * sleep+wake cycles. EEVDF placement strategy #1, #2 if disabled.
+  */
+-SCHED_FEAT(PLACE_LAG, true)
++SCHED_FEAT(PLACE_LAG, false)
+ /*
+  * Give new tasks half a slice to ease into the competition.
+  */
+@@ -17,7 +17,7 @@ SCHED_FEAT(PLACE_REL_DEADLINE, true)
+  * Inhibit (wakeup) preemption until the current task has either matched the
+  * 0-lag point or until is has exhausted it's slice.
+  */
+-SCHED_FEAT(RUN_TO_PARITY, true)
++SCHED_FEAT(RUN_TO_PARITY, false)
+ /*
+  * Allow wakeup of tasks with a shorter slice to cancel RUN_TO_PARITY for
+  * current.
 @@ -55,7 +55,7 @@ SCHED_FEAT(CACHE_HOT_BUDDY, true)
   *
   * DELAY_ZERO clips the lag on dequeue (or wakeup) to 0.
