@@ -254,7 +254,7 @@ diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
  		vslice /= 2;
  
  	/*
-@@ -9063,16 +9100,24 @@ static void yield_task_fair(struct rq *r
+@@ -9082,16 +9119,24 @@ static void yield_task_fair(struct rq *r
  	/*
  	 * Are we the only task in the tree?
  	 */
@@ -294,7 +294,7 @@ diff -uarp a/kernel/sched/sched.h b/kernel/sched/sched.h
  
  static inline const struct cpumask *task_user_cpus(struct task_struct *p)
  {
-@@ -2856,7 +2860,12 @@ extern void wakeup_preempt(struct rq *rq
+@@ -2828,7 +2832,12 @@ extern void wakeup_preempt(struct rq *rq
  extern const_debug unsigned int sysctl_sched_nr_migrate;
  extern const_debug unsigned int sysctl_sched_migration_cost;
  

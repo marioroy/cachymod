@@ -1,7 +1,7 @@
 diff -uar a/mm/compaction.c b/mm/compaction.c
 --- a/mm/compaction.c
 +++ b/mm/compaction.c
-@@ -1920,11 +1920,7 @@
+@@ -1921,11 +1921,7 @@
   * aggressively the kernel should compact memory in the
   * background. It takes values in the range [0, 100].
   */

@@ -62,125 +62,284 @@ diff -uarp a/kernel/sched/features.h b/kernel/sched/features.h
 -- 
 2.47.0
 
-sched/fair: Fix inaccurate h_nr_runnable accounting with delayed dequeue
-https://lore.kernel.org/all/173746207146.31546.3446635183950754481.tip-bot2@tip-bot2/
+sched/fair: Refactor can_migrate_task() to elimate looping
+https://lore.kernel.org/all/173961695638.10177.15446908649592495018.tip-bot2@tip-bot2/
 
-From: "tip-bot2 for K Prateek Nayak" <tip-bot2@linutronix.de>
+From: "tip-bot2 for I Hsin Cheng" <tip-bot2@linutronix.de>
 To: linux-tip-commits@vger.kernel.org
-Cc: K Prateek Nayak <kprateek.nayak@amd.com>,
+Cc: I Hsin Cheng <richard120310@gmail.com>,
 	"Peter Zijlstra (Intel)" <peterz@infradead.org>,
-	"Gautham R. Shenoy" <gautham.shenoy@amd.com>,
-	Swapnil Sapkal <swapnil.sapkal@amd.com>,
 	x86@kernel.org, linux-kernel@vger.kernel.org
-Subject: [tip: sched/urgent] sched/fair: Fix inaccurate h_nr_runnable accounting with delayed dequeue
-Date: Tue, 21 Jan 2025 12:21:11 -0000	[thread overview]
-Message-ID: <173746207146.31546.3446635183950754481.tip-bot2@tip-bot2> (raw)
-In-Reply-To: <20250117105852.23908-1-kprateek.nayak@amd.com>
+Subject: [tip: sched/core] sched/fair: Refactor can_migrate_task() to elimate looping
+Date: Sat, 15 Feb 2025 10:55:56 -0000	[thread overview]
+Message-ID: <173961695638.10177.15446908649592495018.tip-bot2@tip-bot2> (raw)
+In-Reply-To: <20250210103019.283824-1-richard120310@gmail.com>
 
-The following commit has been merged into the sched/urgent branch of tip:
+The following commit has been merged into the sched/core branch of tip:
 
-Commit-ID:     3429dd57f0deb1a602c2624a1dd7c4c11b6c4734
-Gitweb:        https://git.kernel.org/tip/3429dd57f0deb1a602c2624a1dd7c4c11b6c4734
-Author:        K Prateek Nayak <kprateek.nayak@amd.com>
-AuthorDate:    Fri, 17 Jan 2025 10:58:52 
+Commit-ID:     d34e798094ca7be935b629a42f8b237d4d5b7f1d
+Gitweb:        https://git.kernel.org/tip/d34e798094ca7be935b629a42f8b237d4d5b7f1d
+Author:        I Hsin Cheng <richard120310@gmail.com>
+AuthorDate:    Mon, 10 Feb 2025 18:30:18 +08:00
 Committer:     Peter Zijlstra <peterz@infradead.org>
-CommitterDate: Tue, 21 Jan 2025 13:13:36 +01:00
+CommitterDate: Fri, 14 Feb 2025 10:32:01 +01:00
 
-sched/fair: Fix inaccurate h_nr_runnable accounting with delayed dequeue
+sched/fair: Refactor can_migrate_task() to elimate looping
 
-set_delayed() adjusts cfs_rq->h_nr_runnable for the hierarchy when an
-entity is delayed irrespective of whether the entity corresponds to a
-task or a cfs_rq.
+The function "can_migrate_task()" utilize "for_each_cpu_and" with a
+"if" statement inside to find the destination cpu. It's the same logic
+to find the first set bit of the result of the bitwise-AND of
+"env->dst_grpmask", "env->cpus" and "p->cpus_ptr".
 
-Consider the following scenario:
+Refactor it by using "cpumask_first_and_and()" to perform bitwise-AND
+for "env->dst_grpmask", "env->cpus" and "p->cpus_ptr" and pick the
+first cpu within the intersection as the destination cpu, so we can
+elimate the need of looping and multiple times of branch.
 
-	root
-       /    \
-      A	     B (*) delayed since B is no longer eligible on root
-      |	     |
-    Task0  Task1 <--- dequeue_task_fair() - task blocks
+After the refactoring this part of the code can speed up from ~115ns
+to ~54ns, according to the test below.
 
-When Task1 blocks (dequeue_entity() for task's se returns true),
-dequeue_entities() will continue adjusting cfs_rq->h_nr_* for the
-hierarchy of Task1. However, when the sched_entity corresponding to
-cfs_rq B is delayed, set_delayed() will adjust the h_nr_runnable for the
-hierarchy too leading to both dequeue_entity() and set_delayed()
-decrementing h_nr_runnable for the dequeue of the same task.
+Ran the test for 5 times and the result is showned in the following
+table, and the test script is paste in next section.
 
-A SCHED_WARN_ON() to inspect h_nr_runnable post its update in
-dequeue_entities() like below:
+  -------------------------------------------------------
+  |Old method|  130|  118|  115|  109|  106|  avg ~115ns|
+  -------------------------------------------------------
+  |New method|   58|   55|   54|   48|   55|  avg  ~54ns|
+  -------------------------------------------------------
 
-    cfs_rq->h_nr_runnable -= h_nr_runnable;
-    SCHED_WARN_ON(((int) cfs_rq->h_nr_runnable) < 0);
-
-is consistently tripped when running wakeup intensive workloads like
-hackbench in a cgroup.
-
-This error is self correcting since cfs_rq are per-cpu and cannot
-migrate. The entitiy is either picked for full dequeue or is requeued
-when a task wakes up below it. Both those paths call clear_delayed()
-which again increments h_nr_runnable of the hierarchy without
-considering if the entity corresponds to a task or not.
-
-h_nr_runnable will eventually reflect the correct value however in the
-interim, the incorrect values can still influence PELT calculation which
-uses se->runnable_weight or cfs_rq->h_nr_runnable.
-
-Since only delayed tasks take the early return path in
-dequeue_entities() and enqueue_task_fair(), adjust the
-h_nr_runnable in {set,clear}_delayed() only when a task is delayed as
-this path skips the h_nr_* update loops and returns early.
-
-For entities corresponding to cfs_rq, the h_nr_* update loop in the
-caller will do the right thing.
-
-Fixes: 76f2f783294d ("sched/eevdf: More PELT vs DELAYED_DEQUEUE")
-Signed-off-by: K Prateek Nayak <kprateek.nayak@amd.com>
+Signed-off-by: I Hsin Cheng <richard120310@gmail.com>
 Signed-off-by: Peter Zijlstra (Intel) <peterz@infradead.org>
-Reviewed-by: Gautham R. Shenoy <gautham.shenoy@amd.com>
-Tested-by: Swapnil Sapkal <swapnil.sapkal@amd.com>
-Link: https://lkml.kernel.org/r/20250117105852.23908-1-kprateek.nayak@amd.com
+Link: https://lkml.kernel.org/r/20250210103019.283824-1-richard120310@gmail.com
 ---
- kernel/sched/fair.c | 19 +++++++++++++++++++
- 1 file changed, 19 insertions(+)
+ kernel/sched/fair.c | 11 +++++------
+ 1 file changed, 5 insertions(+), 6 deletions(-)
 
 diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
-index 2695843..f4e4d3e 100644
+index 9279bfb..857808d 100644
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -5524,6 +5524,15 @@ static __always_inline void return_cfs_rq_runtime(struct cfs_rq *cfs_rq);
- static void set_delayed(struct sched_entity *se)
- {
- 	se->sched_delayed = 1;
-+
-+	/*
-+	 * Delayed se of cfs_rq have no tasks queued on them.
-+	 * Do not adjust h_nr_runnable since dequeue_entities()
-+	 * will account it for blocked tasks.
-+	 */
-+	if (!entity_is_task(se))
-+		return;
-+
- 	for_each_sched_entity(se) {
- 		struct cfs_rq *cfs_rq = cfs_rq_of(se);
+@@ -9537,12 +9537,11 @@ int can_migrate_task(struct task_struct *p, struct lb_env *env)
+ 			return 0;
  
-@@ -5536,6 +5545,16 @@ static void set_delayed(struct sched_entity *se)
- static void clear_delayed(struct sched_entity *se)
- {
- 	se->sched_delayed = 0;
+ 		/* Prevent to re-select dst_cpu via env's CPUs: */
+-		for_each_cpu_and(cpu, env->dst_grpmask, env->cpus) {
+-			if (cpumask_test_cpu(cpu, p->cpus_ptr)) {
+-				env->flags |= LBF_DST_PINNED;
+-				env->new_dst_cpu = cpu;
+-				break;
+-			}
++		cpu = cpumask_first_and_and(env->dst_grpmask, env->cpus, p->cpus_ptr);
 +
-+	/*
-+	 * Delayed se of cfs_rq have no tasks queued on them.
-+	 * Do not adjust h_nr_runnable since a dequeue has
-+	 * already accounted for it or an enqueue of a task
-+	 * below it will account for it in enqueue_task_fair().
-+	 */
-+	if (!entity_is_task(se))
-+		return;
-+
- 	for_each_sched_entity(se) {
- 		struct cfs_rq *cfs_rq = cfs_rq_of(se);
++		if (cpu < nr_cpu_ids) {
++			env->flags |= LBF_DST_PINNED;
++			env->new_dst_cpu = cpu;
+ 		}
  
+ 		return 0;
+-- 
+2.47.0
+
+sched/eevdf: Force propagating min_slice of cfs_rq when {en,de}queue tasks
+https://lore.kernel.org/all/173961695692.10177.11974788721404078533.tip-bot2@tip-bot2/
+
+From: "tip-bot2 for Tianchen Ding" <tip-bot2@linutronix.de>
+To: linux-tip-commits@vger.kernel.org
+Cc: Tianchen Ding <dtcccc@linux.alibaba.com>,
+	"Peter Zijlstra (Intel)" <peterz@infradead.org>,
+	x86@kernel.org, linux-kernel@vger.kernel.org
+Subject: [tip: sched/core] sched/eevdf: Force propagating min_slice of cfs_rq when {en,de}queue tasks
+Date: Sat, 15 Feb 2025 10:55:56 -0000	[thread overview]
+Message-ID: <173961695692.10177.11974788721404078533.tip-bot2@tip-bot2> (raw)
+In-Reply-To: <20250211063659.7180-1-dtcccc@linux.alibaba.com>
+
+The following commit has been merged into the sched/core branch of tip:
+
+Commit-ID:     563bc2161b94571ea425bbe2cf69fd38e24cdedf
+Gitweb:        https://git.kernel.org/tip/563bc2161b94571ea425bbe2cf69fd38e24cdedf
+Author:        Tianchen Ding <dtcccc@linux.alibaba.com>
+AuthorDate:    Tue, 11 Feb 2025 14:36:59 +08:00
+Committer:     Peter Zijlstra <peterz@infradead.org>
+CommitterDate: Fri, 14 Feb 2025 10:32:01 +01:00
+
+sched/eevdf: Force propagating min_slice of cfs_rq when {en,de}queue tasks
+
+When a task is enqueued and its parent cgroup se is already on_rq, this
+parent cgroup se will not be enqueued again, and hence the root->min_slice
+leaves unchanged. The same issue happens when a task is dequeued and its
+parent cgroup se has other runnable entities, and the parent cgroup se
+will not be dequeued.
+
+Force propagating min_slice when se doesn't need to be enqueued or
+dequeued. Ensure the se hierarchy always get the latest min_slice.
+
+Fixes: aef6987d8954 ("sched/eevdf: Propagate min_slice up the cgroup hierarchy")
+Signed-off-by: Tianchen Ding <dtcccc@linux.alibaba.com>
+Signed-off-by: Peter Zijlstra (Intel) <peterz@infradead.org>
+Link: https://lkml.kernel.org/r/20250211063659.7180-1-dtcccc@linux.alibaba.com
+---
+ kernel/sched/fair.c | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
+index 1784752..9279bfb 100644
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -7131,6 +7131,8 @@ enqueue_task_fair(struct rq *rq, struct task_struct *p, int flags)
+ 		update_cfs_group(se);
+ 
+ 		se->slice = slice;
++		if (se != cfs_rq->curr)
++			min_vruntime_cb_propagate(&se->run_node, NULL);
+ 		slice = cfs_rq_min_slice(cfs_rq);
+ 
+ 		cfs_rq->h_nr_running++;
+@@ -7260,6 +7262,8 @@ static int dequeue_entities(struct rq *rq, struct sched_entity *se, int flags)
+ 		update_cfs_group(se);
+ 
+ 		se->slice = slice;
++		if (se != cfs_rq->curr)
++			min_vruntime_cb_propagate(&se->run_node, NULL);
+ 		slice = cfs_rq_min_slice(cfs_rq);
+ 
+ 		cfs_rq->h_nr_running -= h_nr_running;
+-- 
+2.47.0
+
+sched: Cancel the slice protection of the idle entity
+https://lore.kernel.org/all/173961695853.10177.12588433756462565858.tip-bot2@tip-bot2/
+
+From: "tip-bot2 for zihan zhou" <tip-bot2@linutronix.de>
+To: linux-tip-commits@vger.kernel.org
+Cc: zihan zhou <15645113830zzh@gmail.com>,
+	"Peter Zijlstra (Intel)" <peterz@infradead.org>,
+	Vincent Guittot <vincent.guittot@linaro.org>,
+	x86@kernel.org, linux-kernel@vger.kernel.org
+Subject: [tip: sched/core] sched: Cancel the slice protection of the idle entity
+Date: Sat, 15 Feb 2025 10:55:58 -0000	[thread overview]
+Message-ID: <173961695853.10177.12588433756462565858.tip-bot2@tip-bot2> (raw)
+In-Reply-To: <20250208080850.16300-1-15645113830zzh@gmail.com>
+
+The following commit has been merged into the sched/core branch of tip:
+
+Commit-ID:     f553741ac8c0e467a3b873e305f34b902e50b86d
+Gitweb:        https://git.kernel.org/tip/f553741ac8c0e467a3b873e305f34b902e50b86d
+Author:        zihan zhou <15645113830zzh@gmail.com>
+AuthorDate:    Sat, 08 Feb 2025 16:08:52 +08:00
+Committer:     Peter Zijlstra <peterz@infradead.org>
+CommitterDate: Fri, 14 Feb 2025 10:32:00 +01:00
+
+sched: Cancel the slice protection of the idle entity
+
+A wakeup non-idle entity should preempt idle entity at any time,
+but because of the slice protection of the idle entity, the non-idle
+entity has to wait, so just cancel it.
+
+This patch is aimed at minimizing the impact of SCHED_IDLE on
+SCHED_NORMAL. For example, a task with SCHED_IDLE policy that sleeps for
+1s and then runs for 3 ms, running cyclictest on the same cpu, has a
+maximum latency of 3 ms, which is caused by the slice protection of the
+idle entity. It is unreasonable. With this patch, the cyclictest latency
+under the same conditions is basically the same on the cpu with idle
+processes and on empty cpu.
+
+[peterz: add helpers]
+Fixes: 63304558ba5d ("sched/eevdf: Curb wakeup-preemption")
+Signed-off-by: zihan zhou <15645113830zzh@gmail.com>
+Signed-off-by: Peter Zijlstra (Intel) <peterz@infradead.org>
+Reviewed-by: Vincent Guittot <vincent.guittot@linaro.org>
+Tested-by: Vincent Guittot <vincent.guittot@linaro.org>
+Link: https://lkml.kernel.org/r/20250208080850.16300-1-15645113830zzh@gmail.com
+---
+ kernel/sched/fair.c | 46 +++++++++++++++++++++++++++++++-------------
+ 1 file changed, 33 insertions(+), 13 deletions(-)
+
+diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
+index 1c0ef43..61b826f 100644
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -912,6 +912,26 @@ struct sched_entity *__pick_first_entity(struct cfs_rq *cfs_rq)
+ }
+ 
+ /*
++ * HACK, stash a copy of deadline at the point of pick in vlag,
++ * which isn't used until dequeue.
++ */
++static inline void set_protect_slice(struct sched_entity *se)
++{
++	se->vlag = se->deadline;
++}
++
++static inline bool protect_slice(struct sched_entity *se)
++{
++	return se->vlag == se->deadline;
++}
++
++static inline void cancel_protect_slice(struct sched_entity *se)
++{
++	if (protect_slice(se))
++		se->vlag = se->deadline + 1;
++}
++
++/*
+  * Earliest Eligible Virtual Deadline First
+  *
+  * In order to provide latency guarantees for different request sizes
+@@ -947,11 +967,7 @@ static struct sched_entity *pick_eevdf(struct cfs_rq *cfs_rq)
+ 	if (curr && (!curr->on_rq || !entity_eligible(cfs_rq, curr)))
+ 		curr = NULL;
+ 
+-	/*
+-	 * Once selected, run a task until it either becomes non-eligible or
+-	 * until it gets a new slice. See the HACK in set_next_entity().
+-	 */
+-	if (sched_feat(RUN_TO_PARITY) && curr && curr->vlag == curr->deadline)
++	if (sched_feat(RUN_TO_PARITY) && curr && protect_slice(curr))
+ #ifdef CONFIG_SCHED_BORE
+ 		if (!(likely(sched_bore) && likely(sched_burst_parity_threshold) &&
+ 			sched_burst_parity_threshold < cfs_rq->nr_running))
+@@ -5667,11 +5683,8 @@ set_next_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
+ 		update_stats_wait_end_fair(cfs_rq, se);
+ 		__dequeue_entity(cfs_rq, se);
+ 		update_load_avg(cfs_rq, se, UPDATE_TG);
+-		/*
+-		 * HACK, stash a copy of deadline at the point of pick in vlag,
+-		 * which isn't used until dequeue.
+-		 */
+-		se->vlag = se->deadline;
++
++		set_protect_slice(se);
+ 	}
+ 
+ 	update_stats_curr_start(cfs_rq, se);
+@@ -8936,8 +8949,15 @@ static void check_preempt_wakeup_fair(struct rq *rq, struct task_struct *p, int 
+ 	 * Preempt an idle entity in favor of a non-idle entity (and don't preempt
+ 	 * in the inverse case).
+ 	 */
+-	if (cse_is_idle && !pse_is_idle)
++	if (cse_is_idle && !pse_is_idle) {
++		/*
++		 * When non-idle entity preempt an idle entity,
++		 * don't give idle entity slice protection.
++		 */
++		cancel_protect_slice(se);
+ 		goto preempt;
++	}
++
+ 	if (cse_is_idle != pse_is_idle)
+ 		return;
+ 
+@@ -8956,8 +8976,8 @@ static void check_preempt_wakeup_fair(struct rq *rq, struct task_struct *p, int 
+ 	 * Note that even if @p does not turn out to be the most eligible
+ 	 * task at this moment, current's slice protection will be lost.
+ 	 */
+-	if (do_preempt_short(cfs_rq, pse, se) && se->vlag == se->deadline)
+-		se->vlag = se->deadline + 1;
++	if (do_preempt_short(cfs_rq, pse, se))
++		cancel_protect_slice(se);
+ 
+ 	/*
+ 	 * If @p has become the most eligible task, force preemption.
 -- 
 2.47.0
 
@@ -307,7 +466,7 @@ diff --git a/kernel/sched/sched.h b/kernel/sched/sched.h
 index 6085ef50febf..44d736e49d06 100644
 --- a/kernel/sched/sched.h
 +++ b/kernel/sched/sched.h
-@@ -2490,21 +2490,6 @@ __put_prev_set_next_dl_server(struct rq *rq,
+@@ -2489,21 +2489,6 @@ __put_prev_set_next_dl_server(struct rq *rq,
  	rq->dl_server = NULL;
  }
  
@@ -329,7 +488,7 @@ index 6085ef50febf..44d736e49d06 100644
  /*
   * Helper to define a sched_class instance; each one is placed in a separate
   * section which is ordered by the linker script:
-@@ -2530,6 +2515,21 @@ DECLARE_STATIC_KEY_FALSE(__scx_switched_all);	/* all fair class tasks on SCX */
+@@ -2529,6 +2514,21 @@ DECLARE_STATIC_KEY_FALSE(__scx_switched_all);	/* all fair class tasks on SCX */
  extern const struct sched_class fair_sched_class;
  extern const struct sched_class idle_sched_class;
  

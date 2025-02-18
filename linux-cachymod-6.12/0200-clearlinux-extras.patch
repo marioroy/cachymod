@@ -623,7 +623,7 @@ diff --git a/arch/x86/kernel/itmt.c b/arch/x86/kernel/itmt.c
 index 57027bfed25f..596fd7fb7847 100644
 --- a/arch/x86/kernel/itmt.c
 +++ b/arch/x86/kernel/itmt.c
-@@ -25,6 +25,7 @@
+@@ -26,6 +26,7 @@
  
  static DEFINE_MUTEX(itmt_update_mutex);
  DEFINE_PER_CPU_READ_MOSTLY(int, sched_core_priority);
@@ -631,7 +631,7 @@ index 57027bfed25f..596fd7fb7847 100644
  
  /* Boolean to track if system has ITMT capabilities */
  static bool __read_mostly sched_itmt_capable;
-@@ -159,7 +160,12 @@ void sched_clear_itmt_support(void)
+@@ -144,7 +145,12 @@ void sched_clear_itmt_support(void)
  
  int arch_asym_cpu_priority(int cpu)
  {
@@ -645,7 +645,7 @@ index 57027bfed25f..596fd7fb7847 100644
  }
  
  /**
-@@ -180,3 +186,24 @@ void sched_set_itmt_core_prio(int prio, int core_cpu)
+@@ -165,3 +171,24 @@ void sched_set_itmt_core_prio(int prio, int core_cpu)
  {
  	per_cpu(sched_core_priority, cpu) = prio;
  }
@@ -814,7 +814,7 @@ Place libraries right below the binary for PIE binaries, this helps code localit
 
 --- linux-6.1/arch/x86/include/asm/msr-index.h~	2022-12-11 22:15:18.000000000 +0000
 +++ linux-6.1/arch/x86/include/asm/msr-index.h	2022-12-16 01:31:32.266119875 +0000
-@@ -543,7 +543,7 @@
+@@ -545,7 +545,7 @@
  #define HWP_MAX_PERF(x) 		((x & 0xff) << 8)
  #define HWP_DESIRED_PERF(x)		((x & 0xff) << 16)
  #define HWP_ENERGY_PERF_PREFERENCE(x)	(((unsigned long long) x & 0xff) << 24)

@@ -1783,7 +1783,7 @@ diff --git a/kernel/sched/core.c b/kernel/sched/core.c
 index d07dc87787dff..9582c5d51e73e 100644
 --- a/kernel/sched/core.c
 +++ b/kernel/sched/core.c
-@@ -941,10 +941,9 @@ static inline void hrtick_rq_init(struct rq *rq)
+@@ -943,10 +943,9 @@ static inline void hrtick_rq_init(struct rq *rq)
   * this avoids any races wrt polling state changes and thereby avoids
   * spurious IPIs.
   */
@@ -1796,7 +1796,7 @@ index d07dc87787dff..9582c5d51e73e 100644
  }
  
  /*
-@@ -969,9 +968,9 @@ static bool set_nr_if_polling(struct task_struct *p)
+@@ -971,9 +970,9 @@ static bool set_nr_if_polling(struct task_struct *p)
  }
  
  #else
@@ -1808,7 +1808,7 @@ index d07dc87787dff..9582c5d51e73e 100644
  	return true;
  }
  
-@@ -1076,28 +1075,75 @@ void wake_up_q(struct wake_q_head *head)
+@@ -1078,28 +1077,75 @@ void wake_up_q(struct wake_q_head *head)
   * might also involve a cross-CPU call to trigger the scheduler on
   * the target CPU.
   */
@@ -1891,7 +1891,7 @@ index d07dc87787dff..9582c5d51e73e 100644
  }
  
  void resched_cpu(int cpu)
-@@ -1192,7 +1238,7 @@ static void wake_up_idle_cpu(int cpu)
+@@ -1194,7 +1240,7 @@ static void wake_up_idle_cpu(int cpu)
  	 * and testing of the above solutions didn't appear to report
  	 * much benefits.
  	 */
@@ -1900,7 +1900,7 @@ index d07dc87787dff..9582c5d51e73e 100644
  		smp_send_reschedule(cpu);
  	else
  		trace_sched_wake_idle_without_ipi(cpu);
-@@ -5604,6 +5650,10 @@ void sched_tick(void)
+@@ -5606,6 +5652,10 @@ void sched_tick(void)
  	update_rq_clock(rq);
  	hw_pressure = arch_scale_hw_pressure(cpu_of(rq));
  	update_hw_load_avg(rq_clock_task(rq), rq, hw_pressure);
@@ -1911,7 +1911,7 @@ index d07dc87787dff..9582c5d51e73e 100644
  	curr->sched_class->task_tick(rq, curr, 0);
  	if (sched_feat(LATENCY_WARN))
  		resched_latency = cpu_resched_latency(rq);
-@@ -7365,6 +7415,8 @@ EXPORT_SYMBOL(__cond_resched_rwlock_write);
+@@ -7367,6 +7417,8 @@ EXPORT_SYMBOL(__cond_resched_rwlock_write);
   *   preempt_schedule           <- NOP
   *   preempt_schedule_notrace   <- NOP
   *   irqentry_exit_cond_resched <- NOP
@@ -1920,7 +1920,7 @@ index d07dc87787dff..9582c5d51e73e 100644
   *
   * VOLUNTARY:
   *   cond_resched               <- __cond_resched
-@@ -7372,6 +7424,8 @@ EXPORT_SYMBOL(__cond_resched_rwlock_write);
+@@ -7374,6 +7426,8 @@ EXPORT_SYMBOL(__cond_resched_rwlock_write);
   *   preempt_schedule           <- NOP
   *   preempt_schedule_notrace   <- NOP
   *   irqentry_exit_cond_resched <- NOP
@@ -1929,7 +1929,7 @@ index d07dc87787dff..9582c5d51e73e 100644
   *
   * FULL:
   *   cond_resched               <- RET0
-@@ -7379,6 +7433,26 @@ EXPORT_SYMBOL(__cond_resched_rwlock_write);
+@@ -7381,6 +7435,26 @@ EXPORT_SYMBOL(__cond_resched_rwlock_write);
   *   preempt_schedule           <- preempt_schedule
   *   preempt_schedule_notrace   <- preempt_schedule_notrace
   *   irqentry_exit_cond_resched <- irqentry_exit_cond_resched
@@ -1956,7 +1956,7 @@ index d07dc87787dff..9582c5d51e73e 100644
   */
  
  enum {
-@@ -7386,30 +7460,45 @@ enum {
+@@ -7388,30 +7462,45 @@ enum {
  	preempt_dynamic_none,
  	preempt_dynamic_voluntary,
  	preempt_dynamic_full,
@@ -2004,7 +2004,7 @@ index d07dc87787dff..9582c5d51e73e 100644
  #else
  #error "Unsupported PREEMPT_DYNAMIC mechanism"
  #endif
-@@ -7429,6 +7518,8 @@ static void __sched_dynamic_update(int mode)
+@@ -7431,6 +7520,8 @@ static void __sched_dynamic_update(int mode)
  	preempt_dynamic_enable(preempt_schedule);
  	preempt_dynamic_enable(preempt_schedule_notrace);
  	preempt_dynamic_enable(irqentry_exit_cond_resched);
@@ -2013,7 +2013,7 @@ index d07dc87787dff..9582c5d51e73e 100644
  
  	switch (mode) {
  	case preempt_dynamic_none:
-@@ -7438,6 +7529,8 @@ static void __sched_dynamic_update(int mode)
+@@ -7440,6 +7531,8 @@ static void __sched_dynamic_update(int mode)
  		preempt_dynamic_disable(preempt_schedule);
  		preempt_dynamic_disable(preempt_schedule_notrace);
  		preempt_dynamic_disable(irqentry_exit_cond_resched);
@@ -2022,7 +2022,7 @@ index d07dc87787dff..9582c5d51e73e 100644
  		if (mode != preempt_dynamic_mode)
  			pr_info("Dynamic Preempt: none\n");
  		break;
-@@ -7449,6 +7542,8 @@ static void __sched_dynamic_update(int mode)
+@@ -7451,6 +7544,8 @@ static void __sched_dynamic_update(int mode)
  		preempt_dynamic_disable(preempt_schedule);
  		preempt_dynamic_disable(preempt_schedule_notrace);
  		preempt_dynamic_disable(irqentry_exit_cond_resched);
@@ -2031,7 +2031,7 @@ index d07dc87787dff..9582c5d51e73e 100644
  		if (mode != preempt_dynamic_mode)
  			pr_info("Dynamic Preempt: voluntary\n");
  		break;
-@@ -7460,9 +7555,37 @@ static void __sched_dynamic_update(int mode)
+@@ -7462,9 +7557,37 @@ static void __sched_dynamic_update(int mode)
  		preempt_dynamic_enable(preempt_schedule);
  		preempt_dynamic_enable(preempt_schedule_notrace);
  		preempt_dynamic_enable(irqentry_exit_cond_resched);
@@ -2069,7 +2069,7 @@ index d07dc87787dff..9582c5d51e73e 100644
  	}
  
  	preempt_dynamic_mode = mode;
-@@ -7525,6 +7648,10 @@ static void __init preempt_dynamic_init(void)
+@@ -7527,6 +7650,10 @@ static void __init preempt_dynamic_init(void)
  			sched_dynamic_update(preempt_dynamic_none);
  		} else if (IS_ENABLED(CONFIG_PREEMPT_VOLUNTARY)) {
  			sched_dynamic_update(preempt_dynamic_voluntary);
@@ -2080,7 +2080,7 @@ index d07dc87787dff..9582c5d51e73e 100644
  		} else {
  			/* Default static call setting, nothing to do */
  			WARN_ON_ONCE(!IS_ENABLED(CONFIG_PREEMPT));
-@@ -7545,6 +7672,8 @@ static void __init preempt_dynamic_init(void)
+@@ -7547,6 +7674,8 @@ static void __init preempt_dynamic_init(void)
  PREEMPT_MODEL_ACCESSOR(none);
  PREEMPT_MODEL_ACCESSOR(voluntary);
  PREEMPT_MODEL_ACCESSOR(full);
@@ -2122,7 +2122,7 @@ index 1ca96c99872f0..2c6bbda654157 100644
  		clear_buddies(cfs_rq, curr);
  	}
  }
-@@ -5712,7 +5712,7 @@ entity_tick(struct cfs_rq *cfs_rq, struct sched_entity *curr, int queued)
+@@ -5731,7 +5731,7 @@ entity_tick(struct cfs_rq *cfs_rq, struct sched_entity *curr, int queued)
  	 * validating it and just reschedule.
  	 */
  	if (queued) {
@@ -2131,7 +2131,7 @@ index 1ca96c99872f0..2c6bbda654157 100644
  		return;
  	}
  	/*
-@@ -8893,7 +8893,7 @@ static void check_preempt_wakeup_fair(struct rq *rq, struct task_struct *p, int
+@@ -8912,7 +8912,7 @@ static void check_preempt_wakeup_fair(struct rq *rq, struct task_struct *p, int
  	return;
  
  preempt:
@@ -2255,7 +2255,7 @@ diff --git a/kernel/time/hrtimer.c b/kernel/time/hrtimer.c
 index cddcd08ea827f..133d49f703d93 100644
 --- a/kernel/time/hrtimer.c
 +++ b/kernel/time/hrtimer.c
-@@ -1811,7 +1811,7 @@ void hrtimer_interrupt(struct clock_event_device *dev)
+@@ -1872,7 +1872,7 @@ void hrtimer_interrupt(struct clock_event_device *dev)
  	if (!ktime_before(now, cpu_base->softirq_expires_next)) {
  		cpu_base->softirq_expires_next = KTIME_MAX;
  		cpu_base->softirq_activated = 1;
@@ -2264,7 +2264,7 @@ index cddcd08ea827f..133d49f703d93 100644
  	}
  
  	__hrtimer_run_queues(cpu_base, now, flags, HRTIMER_ACTIVE_HARD);
-@@ -1906,7 +1906,7 @@ void hrtimer_run_queues(void)
+@@ -1967,7 +1967,7 @@ void hrtimer_run_queues(void)
  	if (!ktime_before(now, cpu_base->softirq_expires_next)) {
  		cpu_base->softirq_expires_next = KTIME_MAX;
  		cpu_base->softirq_activated = 1;
