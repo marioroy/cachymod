@@ -651,7 +651,7 @@ index 3e5a6bf587..fb4bb3fa5a 100644
  EXPORT_TRACEPOINT_SYMBOL_GPL(ipi_send_cpu);
  EXPORT_TRACEPOINT_SYMBOL_GPL(ipi_send_cpumask);
  
-@@ -8503,6 +8505,10 @@ void __init sched_init(void)
+@@ -8511,6 +8513,10 @@ void __init sched_init(void)
  	BUG_ON(!sched_class_above(&ext_sched_class, &idle_sched_class));
  #endif
  
@@ -908,7 +908,7 @@ index 26958431de..9331896e5d 100644
  	/*
  	 * When joining the competition; the existing tasks will be,
  	 * on average, halfway through their slice, as such start tasks
-@@ -7135,6 +7175,15 @@ static bool dequeue_task_fair(struct rq *rq, struct task_struct *p, int flags)
+@@ -7154,6 +7194,15 @@ static bool dequeue_task_fair(struct rq *rq, struct task_struct *p, int flags)
  		util_est_dequeue(&rq->cfs, p);
  
  	util_est_update(&rq->cfs, p, flags & DEQUEUE_SLEEP);
@@ -924,7 +924,7 @@ index 26958431de..9331896e5d 100644
  	if (dequeue_entities(rq, &p->se, flags) < 0)
  		return false;
  
-@@ -8948,16 +8997,25 @@ static void yield_task_fair(struct rq *rq)
+@@ -8967,16 +9016,25 @@ static void yield_task_fair(struct rq *rq)
  	/*
  	 * Are we the only task in the tree?
  	 */
@@ -950,7 +950,7 @@ index 26958431de..9331896e5d 100644
  	/*
  	 * Tell update_rq_clock() that we've just updated,
  	 * so we don't do microscopic update in schedule()
-@@ -13040,6 +13098,9 @@ static void task_tick_fair(struct rq *rq, struct task_struct *curr, int queued)
+@@ -13059,6 +13117,9 @@ static void task_tick_fair(struct rq *rq, struct task_struct *curr, int queued)
  static void task_fork_fair(struct task_struct *p)
  {
  	set_task_max_allowed_capacity(p);
@@ -960,7 +960,7 @@ index 26958431de..9331896e5d 100644
  }
  
  /*
-@@ -13150,6 +13211,10 @@ static void attach_task_cfs_rq(struct task_struct *p)
+@@ -13169,6 +13230,10 @@ static void attach_task_cfs_rq(struct task_struct *p)
  
  static void switched_from_fair(struct rq *rq, struct task_struct *p)
  {

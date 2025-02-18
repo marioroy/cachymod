@@ -97,7 +97,7 @@ fi
 
 _pkgsuffix=cachymod-613
 _major=6.13
-_minor=2
+_minor=3
 pkgver=${_major}.${_minor}
 _stable=${_major}.${_minor}
 #_stable=${_major}
@@ -109,7 +109,7 @@ _stable=${_major}.${_minor}
 
 _srcname=linux-${_stable}
 pkgdesc='CachyMod Linux Kernel with other patches and improvements'
-pkgrel=3
+pkgrel=1
 _kernver="$pkgver-$pkgrel"
 _kernuname="${pkgver}-${_pkgsuffix}"
 arch=('x86_64')
@@ -132,7 +132,6 @@ source=(
     "0001-reduce-tasklist-lock-hold-time.patch"
     "0001-sched-ext-high-performance-clock.patch"
     "0001-sched-fair-remove-cachy-mods.patch"
-    "0001-upstream-commits.patch"
 )
 
 if [[ "$_prefer_eevdf" =~ ^(yes|y|1)$ ]]; then

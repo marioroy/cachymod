@@ -1988,7 +1988,7 @@ diff --git a/kernel/sched/core.c b/kernel/sched/core.c
 index 3e5a6bf587f91..34aded1c697ca 100644
 --- a/kernel/sched/core.c
 +++ b/kernel/sched/core.c
-@@ -7642,6 +7642,30 @@ static inline void preempt_dynamic_init(void) { }
+@@ -7644,6 +7644,30 @@ static inline void preempt_dynamic_init(void) { }
  
  #endif /* CONFIG_PREEMPT_DYNAMIC */
  

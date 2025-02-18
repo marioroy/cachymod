@@ -151,7 +151,7 @@ diff --git a/kernel/sched/core.c b/kernel/sched/core.c
 index 95e40895a519..ab8015c8cab4 100644
 --- a/kernel/sched/core.c
 +++ b/kernel/sched/core.c
-@@ -789,6 +789,7 @@ static void update_rq_clock_task(struct rq *rq, s64 delta)
+@@ -791,6 +791,7 @@ static void update_rq_clock_task(struct rq *rq, s64 delta)
  void update_rq_clock(struct rq *rq)
  {
  	s64 delta;
@@ -159,7 +159,7 @@ index 95e40895a519..ab8015c8cab4 100644
  
  	lockdep_assert_rq_held(rq);
  
-@@ -800,11 +801,14 @@ void update_rq_clock(struct rq *rq)
+@@ -802,11 +803,14 @@ void update_rq_clock(struct rq *rq)
  		SCHED_WARN_ON(rq->clock_update_flags & RQCF_UPDATED);
  	rq->clock_update_flags |= RQCF_UPDATED;
  #endif
