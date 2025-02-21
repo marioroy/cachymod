@@ -97,7 +97,7 @@ fi
 
 _pkgsuffix=cachymod-612
 _major=6.12
-_minor=15
+_minor=16
 pkgver=${_major}.${_minor}
 _stable=${_major}.${_minor}
 
@@ -126,6 +126,7 @@ source=(
     "0001-reduce-tasklist-lock-hold-time.patch"
     "0001-sched-ext-high-performance-clock.patch"
     "0001-sched-fair-remove-cachy-mods.patch"
+    "0001-upstream-commits.patch"
 )
 
 if [[ "$_prefer_eevdf" =~ ^(yes|y|1)$ ]]; then

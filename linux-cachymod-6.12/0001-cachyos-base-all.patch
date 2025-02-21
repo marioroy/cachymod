@@ -5062,7 +5062,7 @@ diff --git a/drivers/gpu/drm/amd/pm/swsmu/amdgpu_smu.c b/drivers/gpu/drm/amd/pm/
 index 0c0b9aa44dfa..c7d977890f47 100644
 --- a/drivers/gpu/drm/amd/pm/swsmu/amdgpu_smu.c
 +++ b/drivers/gpu/drm/amd/pm/swsmu/amdgpu_smu.c
-@@ -2792,7 +2792,10 @@ int smu_get_power_limit(void *handle,
+@@ -2793,7 +2793,10 @@ int smu_get_power_limit(void *handle,
  			*limit = smu->max_power_limit;
  			break;
  		case SMU_PPT_LIMIT_MIN:
@@ -5074,7 +5074,7 @@ index 0c0b9aa44dfa..c7d977890f47 100644
  			break;
  		default:
  			return -EINVAL;
-@@ -2816,7 +2819,14 @@ static int smu_set_power_limit(void *handle, uint32_t limit)
+@@ -2817,7 +2820,14 @@ static int smu_set_power_limit(void *handle, uint32_t limit)
  		if (smu->ppt_funcs->set_power_limit)
  			return smu->ppt_funcs->set_power_limit(smu, limit_type, limit);
  
@@ -5090,7 +5090,7 @@ index 0c0b9aa44dfa..c7d977890f47 100644
  		dev_err(smu->adev->dev,
  			"New power limit (%d) is out of range [%d,%d]\n",
  			limit, smu->min_power_limit, smu->max_power_limit);
-@@ -2895,6 +2905,10 @@ static enum smu_clk_type smu_convert_to_smuclk(enum pp_clock_type type)
+@@ -2896,6 +2906,10 @@ static enum smu_clk_type smu_convert_to_smuclk(enum pp_clock_type type)
  		clk_type = SMU_OD_FAN_TARGET_TEMPERATURE; break;
  	case OD_FAN_MINIMUM_PWM:
  		clk_type = SMU_OD_FAN_MINIMUM_PWM; break;
@@ -12215,7 +12215,7 @@ diff --git a/kernel/sched/ext.c b/kernel/sched/ext.c
 index 4c4681cb9337..284d69169795 100644
 --- a/kernel/sched/ext.c
 +++ b/kernel/sched/ext.c
-@@ -4807,9 +4807,9 @@ static void scx_dump_task(struct seq_buf *s, struct scx_dump_ctx *dctx,
+@@ -4800,9 +4800,9 @@ static void scx_dump_task(struct seq_buf *s, struct scx_dump_ctx *dctx,
  		  scx_get_task_state(p), p->scx.flags & ~SCX_TASK_STATE_MASK,
  		  p->scx.dsq_flags, ops_state & SCX_OPSS_STATE_MASK,
  		  ops_state >> SCX_OPSS_QSEQ_SHIFT);
@@ -18336,7 +18336,7 @@ index 369414c92fcc..df897a7fda48 100644
  	if (cls->is_indirect)
  		app->mt_flags |= INPUT_MT_POINTER;
  
-@@ -1763,6 +1785,15 @@ static int mt_probe(struct hid_device *hdev, const struct hid_device_id *id)
+@@ -1766,6 +1788,15 @@ static int mt_probe(struct hid_device *hdev, const struct hid_device_id *id)
  		}
  	}
  
@@ -18352,7 +18352,7 @@ index 369414c92fcc..df897a7fda48 100644
  	td = devm_kzalloc(&hdev->dev, sizeof(struct mt_device), GFP_KERNEL);
  	if (!td) {
  		dev_err(&hdev->dev, "cannot allocate multitouch data\n");
-@@ -1810,10 +1841,6 @@ static int mt_probe(struct hid_device *hdev, const struct hid_device_id *id)
+@@ -1813,10 +1844,6 @@ static int mt_probe(struct hid_device *hdev, const struct hid_device_id *id)
  
  	timer_setup(&td->release_timer, mt_expired_timeout, 0);
  
@@ -18363,7 +18363,7 @@ index 369414c92fcc..df897a7fda48 100644
  	if (mtclass->quirks & MT_QUIRK_FIX_CONST_CONTACT_ID)
  		mt_fix_const_fields(hdev, HID_DG_CONTACTID);
  
-@@ -2295,6 +2322,11 @@ static const struct hid_device_id mt_devices[] = {
+@@ -2298,6 +2325,11 @@ static const struct hid_device_id mt_devices[] = {
  		MT_USB_DEVICE(USB_VENDOR_ID_XIROKU,
  			USB_DEVICE_ID_XIROKU_CSR2) },
  

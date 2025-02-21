@@ -814,7 +814,7 @@ Place libraries right below the binary for PIE binaries, this helps code localit
 
 --- linux-6.1/arch/x86/include/asm/msr-index.h~	2022-12-11 22:15:18.000000000 +0000
 +++ linux-6.1/arch/x86/include/asm/msr-index.h	2022-12-16 01:31:32.266119875 +0000
-@@ -545,7 +545,7 @@
+@@ -546,7 +546,7 @@
  #define HWP_MAX_PERF(x) 		((x & 0xff) << 8)
  #define HWP_DESIRED_PERF(x)		((x & 0xff) << 16)
  #define HWP_ENERGY_PERF_PREFERENCE(x)	(((unsigned long long) x & 0xff) << 24)
@@ -1012,7 +1012,7 @@ diff --git a/arch/x86/kvm/vmx/vmx.c b/arch/x86/kvm/vmx/vmx.c
 index bc6f0fea48b4..e671fbe70d5a 100644
 --- a/arch/x86/kvm/vmx/vmx.c
 +++ b/arch/x86/kvm/vmx/vmx.c
-@@ -8652,4 +8652,4 @@ static int __init vmx_init(void)
+@@ -8654,4 +8654,4 @@ static int __init vmx_init(void)
  	kvm_x86_vendor_exit();
  	return r;
  }
