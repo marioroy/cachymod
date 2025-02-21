@@ -36,7 +36,7 @@ index 1d13cecc7cc7..ec97275c8852 100644
  KBUILD_CFLAGS += -Wno-format-security
  KBUILD_CFLAGS += -Wno-trigraphs
  KBUILD_CFLAGS += $(call cc-disable-warning,frame-address,)
-@@ -68,9 +67,6 @@ KBUILD_CFLAGS += $(KBUILD_CFLAGS-y) $(CONFIG_CC_IMPLICIT_FALLTHROUGH)
+@@ -73,9 +72,6 @@ KBUILD_CFLAGS += $(KBUILD_CFLAGS-y) $(CONFIG_CC_IMPLICIT_FALLTHROUGH)
  # Prohibit date/time macros, which would make the build non-deterministic
  KBUILD_CFLAGS += -Werror=date-time
  

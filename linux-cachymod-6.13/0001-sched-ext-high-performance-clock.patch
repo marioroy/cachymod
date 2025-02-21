@@ -179,7 +179,7 @@ diff --git a/kernel/sched/ext.c b/kernel/sched/ext.c
 index ec91a4d95722..9a568ee8e1f5 100644
 --- a/kernel/sched/ext.c
 +++ b/kernel/sched/ext.c
-@@ -4957,7 +4957,7 @@ static void scx_ops_disable_workfn(struct kthread_work *work)
+@@ -4972,7 +4972,7 @@ static void scx_ops_disable_workfn(struct kthread_work *work)
  	struct task_struct *p;
  	struct rhashtable_iter rht_iter;
  	struct scx_dispatch_q *dsq;
@@ -188,7 +188,7 @@ index ec91a4d95722..9a568ee8e1f5 100644
  
  	kind = atomic_read(&scx_exit_kind);
  	while (true) {
-@@ -5040,6 +5040,15 @@ static void scx_ops_disable_workfn(struct kthread_work *work)
+@@ -5055,6 +5055,15 @@ static void scx_ops_disable_workfn(struct kthread_work *work)
  	scx_task_iter_stop(&sti);
  	percpu_up_write(&scx_fork_rwsem);
  
@@ -204,7 +204,7 @@ index ec91a4d95722..9a568ee8e1f5 100644
  	/* no task is on scx, turn off all the switches and flush in-progress calls */
  	static_branch_disable(&__scx_ops_enabled);
  	for (i = SCX_OPI_BEGIN; i < SCX_OPI_END; i++)
-@@ -7649,6 +7658,68 @@ __bpf_kfunc struct cgroup *scx_bpf_task_cgroup(struct task_struct *p)
+@@ -7664,6 +7673,68 @@ __bpf_kfunc struct cgroup *scx_bpf_task_cgroup(struct task_struct *p)
  }
  #endif
  
@@ -273,7 +273,7 @@ index ec91a4d95722..9a568ee8e1f5 100644
  __bpf_kfunc_end_defs();
  
  BTF_KFUNCS_START(scx_kfunc_ids_any)
-@@ -7680,6 +7751,7 @@ BTF_ID_FLAGS(func, scx_bpf_cpu_rq)
+@@ -7695,6 +7766,7 @@ BTF_ID_FLAGS(func, scx_bpf_cpu_rq)
  #ifdef CONFIG_CGROUP_SCHED
  BTF_ID_FLAGS(func, scx_bpf_task_cgroup, KF_RCU | KF_ACQUIRE)
  #endif
@@ -424,7 +424,7 @@ diff --git a/tools/sched_ext/include/scx/common.bpf.h b/tools/sched_ext/include/
 index 5c9517190713..f3e15e9efa76 100644
 --- a/tools/sched_ext/include/scx/common.bpf.h
 +++ b/tools/sched_ext/include/scx/common.bpf.h
-@@ -330,6 +330,100 @@ static __always_inline const struct cpumask *cast_mask(struct bpf_cpumask *mask)
+@@ -338,6 +338,100 @@ static __always_inline const struct cpumask *cast_mask(struct bpf_cpumask *mask)
  void bpf_rcu_read_lock(void) __ksym;
  void bpf_rcu_read_unlock(void) __ksym;
  

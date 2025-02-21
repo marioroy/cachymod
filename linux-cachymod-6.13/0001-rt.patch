@@ -1057,7 +1057,7 @@ index 649e74e9b52f6..d335ddb2566a1 100644
  #ifdef CONFIG_SERIAL_8250_RSA
  /*
   * Attempts to turn on the RSA FIFO.  Returns zero on failure.
-@@ -3290,6 +3309,11 @@ static void serial8250_console_putchar(struct uart_port *port, unsigned char ch)
+@@ -3299,6 +3318,11 @@ static void serial8250_console_putchar(struct uart_port *port, unsigned char ch)
  
  	wait_for_xmitr(up, UART_LSR_THRE);
  	serial_port_out(port, UART_TX, ch);
@@ -1069,7 +1069,7 @@ index 649e74e9b52f6..d335ddb2566a1 100644
  }
  
  /*
-@@ -3328,6 +3352,7 @@ static void serial8250_console_restore(struct uart_8250_port *up)
+@@ -3337,6 +3361,7 @@ static void serial8250_console_restore(struct uart_8250_port *up)
  	}
  }
  
@@ -1077,7 +1077,7 @@ index 649e74e9b52f6..d335ddb2566a1 100644
  /*
   * Print a string to the serial port using the device FIFO
   *
-@@ -3395,7 +3420,7 @@ void serial8250_console_write(struct uart_8250_port *up, const char *s,
+@@ -3404,7 +3429,7 @@ void serial8250_console_write(struct uart_8250_port *up, const char *s,
  	 *	First save the IER then disable the interrupts
  	 */
  	ier = serial_port_in(port, UART_IER);
@@ -1086,7 +1086,7 @@ index 649e74e9b52f6..d335ddb2566a1 100644
  
  	/* check scratch reg to see if port powered off during system sleep */
  	if (up->canary && (up->canary != serial_port_in(port, UART_SCR))) {
-@@ -3461,6 +3486,131 @@ void serial8250_console_write(struct uart_8250_port *up, const char *s,
+@@ -3470,6 +3495,131 @@ void serial8250_console_write(struct uart_8250_port *up, const char *s,
  	if (locked)
  		uart_port_unlock_irqrestore(port, flags);
  }
@@ -1218,7 +1218,7 @@ index 649e74e9b52f6..d335ddb2566a1 100644
  
  static unsigned int probe_baud(struct uart_port *port)
  {
-@@ -3479,6 +3629,7 @@ static unsigned int probe_baud(struct uart_port *port)
+@@ -3488,6 +3638,7 @@ static unsigned int probe_baud(struct uart_port *port)
  
  int serial8250_console_setup(struct uart_port *port, char *options, bool probe)
  {
@@ -1226,7 +1226,7 @@ index 649e74e9b52f6..d335ddb2566a1 100644
  	int baud = 9600;
  	int bits = 8;
  	int parity = 'n';
-@@ -3488,6 +3639,8 @@ int serial8250_console_setup(struct uart_port *port, char *options, bool probe)
+@@ -3497,6 +3648,8 @@ int serial8250_console_setup(struct uart_port *port, char *options, bool probe)
  	if (!port->iobase && !port->membase)
  		return -ENODEV;
  
