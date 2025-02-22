@@ -1,13 +1,5 @@
 # PKGBUILD originated from CachyOS, modified for CachyMod.
 # https://github.com/marioroy/cachymod
-
-# Maintainer: Peter Jung ptr1337 <admin@ptr1337.dev>
-# Maintainer: Piotr Gorski <piotrgorski@cachyos.org>
-# Maintainer: Vasiliy Stelmachenok <ventureo@cachyos.org>
-# Contributor: Jan Alexander Steffens (heftig) <jan.steffens@gmail.com>
-# Contributor: Tobias Powalowski <tpowa@archlinux.org>
-# Contributor: Thomas Baechler <thomas@archlinux.org>
-
 # https://wiki.archlinux.org/title/PKGBUILD
 
 ### BUILD OPTIONS
@@ -227,7 +219,7 @@ prepare() {
         fi
     elif [[ "$_use_auto_optimization" =~ ^(yes|y|1)$ ]]; then
         ### Use automatic CPU optimization
-        "${srcdir}"/auto-cpu-optimization.sh
+        bash "${srcdir}"/auto-cpu-optimization.sh
     fi
 
     ### Selecting CachyOS config
@@ -251,14 +243,15 @@ prepare() {
 
     case "$_buildtype" in
         thin)
-            scripts/config -e LTO -e LTO_CLANG -e ARCH_SUPPORTS_LTO_CLANG -e ARCH_SUPPORTS_LTO_CLANG_THIN -d LTO_NONE -e HAS_LTO_CLANG -d LTO_CLANG_FULL -e LTO_CLANG_THIN -e HAVE_GCC_PLUGINS
+            scripts/config -e LTO -e LTO_CLANG -e ARCH_SUPPORTS_LTO_CLANG -e ARCH_SUPPORTS_LTO_CLANG_THIN -e HAS_LTO_CLANG -d LTO_NONE -d LTO_CLANG_FULL -e LTO_CLANG_THIN -e HAVE_GCC_PLUGINS
             scripts/config -e POLLY_CLANG
             ;;
         full)
-            scripts/config -e LTO -e LTO_CLANG -e ARCH_SUPPORTS_LTO_CLANG -e ARCH_SUPPORTS_LTO_CLANG_THIN -d LTO_NONE -e HAS_LTO_CLANG -e LTO_CLANG_FULL -d LTO_CLANG_THIN -e HAVE_GCC_PLUGINS
+            scripts/config -e LTO -e LTO_CLANG -e ARCH_SUPPORTS_LTO_CLANG -e ARCH_SUPPORTS_LTO_CLANG_THIN -e HAS_LTO_CLANG -d LTO_NONE -e LTO_CLANG_FULL -d LTO_CLANG_THIN -e HAVE_GCC_PLUGINS
             scripts/config -e POLLY_CLANG
             ;;
         polly)
+            scripts/config -e LTO -e LTO_CLANG -e ARCH_SUPPORTS_LTO_CLANG -e ARCH_SUPPORTS_LTO_CLANG_THIN -e HAS_LTO_CLANG -e LTO_NONE -d LTO_CLANG_FULL -d LTO_CLANG_THIN -e HAVE_GCC_PLUGINS
             scripts/config -e POLLY_CLANG
             ;;
         gcc)
