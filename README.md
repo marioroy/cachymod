@@ -22,11 +22,11 @@ sudo pacman -Sy nvidia-open-dkms   # 6.13 needs 565.77-5 or later
 ## Building and Installation
 
 Copy a `linux-cachymod-6.12/13` folder to a work area with ample storage space,
-and change directory. Optionally, adjust the build options in `PKGBUILD.lazy.sh`.
+and change directory. Optionally, adjust the build options in `build.sh`.
 Select `_preempt=rt` for the realtime kernel.
 
 ```bash
-bash PKGBUILD.lazy.sh
+bash build.sh
 
 # lazy
 sudo pacman -U linux-cachymod-612-bore-lto-{6,h}*.zst
@@ -74,11 +74,9 @@ preempt=lazy
 
 ## Developer Notes
 
-The `PKGBUILD.lazy.sh` script creates the `PKGBUILD` file.
-
-Feel free to copy the `PKGBUILD.lazy.sh` script and name it
-anything you like, and edit that file. I have four depending
-on the type of kernel I want to build.
+Feel free to copy the `build.sh` script and name it anything
+you like, and edit that file. I have four depending on the
+type of kernel I want to build.
 
 ```text
 # Fast localmod build.

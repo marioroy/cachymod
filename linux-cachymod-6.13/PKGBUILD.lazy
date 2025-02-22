@@ -166,7 +166,7 @@ else
     BUILD_FLAGS=( CC=gcc )
 fi
 
-# Append extra sources in PKGBUILD.lazy.sh
+# Append extra sources in build.sh
 [ -n "$_extra_patch_or_url1" ] && source+=("$_extra_patch_or_url1")
 [ -n "$_extra_patch_or_url2" ] && source+=("$_extra_patch_or_url2")
 [ -n "$_extra_patch_or_url3" ] && source+=("$_extra_patch_or_url3")
