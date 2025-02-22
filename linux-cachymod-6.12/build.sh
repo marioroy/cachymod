@@ -130,9 +130,6 @@ export _localmodcfg _localmodcfg_path _makenconfig _makegconfig _makexconfig
 export _hugepage _HZ_ticks _ticktype _preempt _processor_opt
 export _use_auto_optimization _buildtype _build_debug _prevent_avx2
 
-# Overwrite PKGBUILD if it exists
-cp PKGBUILD.lazy PKGBUILD
-
 # Build kernel lazy and lazy-headers packages
 time nice -n 15 makepkg -scf --cleanbuild --skipinteg || exit 1
 
