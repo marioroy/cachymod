@@ -1,0 +1,108 @@
+#!/bin/bash
+# Make a copy, "cp custom.sh.in custom.sh" and edit custom.sh
+# Set custom kernel options
+
+##
+# scripts/config usage:
+# scripts/config options command ...
+# commands:
+#         --enable|-e option   Enable option
+#         --disable|-d option  Disable option
+#         --module|-m option   Turn option into a module
+#         --set-str option string
+#                              Set option to "string"
+#         --set-val option value
+#                              Set option to value
+#         --undefine|-u option Undefine option
+##
+
+##
+# Do not disable CPU_MITIGATIONS here.
+# Use the build-time option _disable_cpu_mitigations to disable.
+# It involves patching "arch/x86/Makefile".
+##
+
+set -e
+
+# Disable AMD Secure Memory Encryption (SME) support
+#scripts/config -d AMD_MEM_ENCRYPT
+
+# Disable Intel Software Guard eXtensions (SGX)
+# A set of CPU instructions that can be used by applications to set aside
+# private regions of code and data, referred to as enclaves.
+#scripts/config -d X86_SGX
+
+# Disable platform support for Chrome hardware
+#scripts/config -d CHROME_PLATFORMS
+
+# Disable platform support for CZ.NIC's Turris hardware
+#scripts/config -d CZNIC_PLATFORMS
+
+# Disable platform support for Mellanox hardware
+#scripts/config -d MELLANOX_PLATFORM
+
+# Disable Microsoft Surface platform-specific device drivers
+#scripts/config -d SURFACE_PLATFORMS
+
+# Disable joystick input devices
+# https://github.com/torvalds/linux/blob/master/drivers/input/joystick/Kconfig
+#scripts/config -d INPUT_JOYSTICK -d INPUT_JOYDEV
+
+# Disable miscellaneous input devices
+# https://github.com/torvalds/linux/blob/master/drivers/input/misc/Kconfig
+#scripts/config -d INPUT_MISC
+
+# Disable touchscreen input devices
+# https://github.com/torvalds/linux/blob/master/drivers/input/touchscreen/Kconfig
+#scripts/config -d INPUT_TOUCHSCREEN
+
+# Disable multiple devices driver support (RAID and LVM)
+# https://github.com/torvalds/linux/blob/master/drivers/md/Kconfig
+#scripts/config -d MD
+
+# Disable network drivers
+#scripts/config -d NET_VENDOR_ADI
+#scripts/config -d NET_VENDOR_AGERE
+#scripts/config -d NET_VENDOR_AMAZON
+#scripts/config -d NET_VENDOR_AMD
+#scripts/config -d NET_VENDOR_AQUANTIA
+#scripts/config -d NET_VENDOR_ASIX
+#scripts/config -d NET_VENDOR_ATHEROS
+#scripts/config -d NET_VENDOR_BROADCOM
+#scripts/config -d NET_VENDOR_CADENCE
+#scripts/config -d NET_VENDOR_CHELSIO
+#scripts/config -d NET_VENDOR_CORTINA
+#scripts/config -d NET_VENDOR_DAVICOM
+#scripts/config -d NET_VENDOR_DLINK
+#scripts/config -d NET_VENDOR_ENGLEDER
+#scripts/config -d NET_VENDOR_FUNGIBLE
+#scripts/config -d NET_VENDOR_GOOGLE
+#scripts/config -d NET_VENDOR_HISILICON
+#scripts/config -d NET_VENDOR_HUAWEI
+#scripts/config -d NET_VENDOR_I825XX
+#scripts/config -d NET_VENDOR_LITEX
+#scripts/config -d NET_VENDOR_MARVELL
+#scripts/config -d NET_VENDOR_META
+#scripts/config -d NET_VENDOR_MICROSOFT
+#scripts/config -d NET_VENDOR_NETRONOME
+#scripts/config -d NET_VENDOR_NI
+#scripts/config -d NET_VENDOR_PACKET_ENGINES
+#scripts/config -d NET_VENDOR_QLOGIC
+#scripts/config -d NET_VENDOR_SOCIONEXT
+#scripts/config -d NET_VENDOR_SOLARFLARE
+#scripts/config -d NET_VENDOR_STMICRO
+#scripts/config -d NET_VENDOR_VERTEXCOM
+#scripts/config -d NET_VENDOR_WANGXUN
+
+# Disable RF switch subsystem support
+# Control over RF switches found on many WiFi and Bluetooth cards
+#scripts/config -d RFKILL
+
+# Disable wireless LAN drivers
+# https://github.com/torvalds/linux/blob/master/net/wireless/Kconfig
+#scripts/config -d WLAN
+
+# Disable staging drivers
+# Drivers that are not of the "normal" Linux kernel quality level
+#scripts/config -d STAGING
+
