@@ -88,6 +88,14 @@ mario.lazy
 mario.lazy-rt
 ```
 
+Custom kernel tuning is possible via `custom.sh`, if it exists.
+Make a copy of the sample provided and edit `custom.sh`. The file
+is ignored from GIT commits.
+
+```text
+cp ../sample/custom.sh.in custom.sh
+```
+
 Optionally, change the first build option to have one script
 for building bore or eevdf. Do this in your copy.
 
@@ -114,19 +122,21 @@ done
 
 echo "Installing the kernel..."
 
-if [[ "$_buildtype" = "thin" || "$_buildtype" = "full" ]]; then
-    buildtype="lto"
-else
-    buildtype="$_buildtype"
+if [ -z "$_kernel_suffix" ]; then
+    if [[ "$_buildtype" = "thin" || "$_buildtype" = "full" ]]; then
+        buildtype="lto"
+    else
+        buildtype="$_buildtype"
+    fi
+    if [[ "$_prefer_eevdf" =~ ^(yes|y|1)$ ]]; then
+        buildtag="eevdf"
+    else
+        buildtag="bore"
+    fi
+    _kernel_suffix="${buildtag}-${buildtype}"
 fi
 
-if [[ "$_prefer_eevdf" =~ (y|1) ]]; then
-    buildtag="eevdf"
-else
-    buildtag="bore"
-fi
-
-sudo pacman -U --noconfirm linux-cachymod-612-${buildtag}-${buildtype}-{6,h}*
+sudo pacman -U --noconfirm linux-cachymod-612-${_kernel_suffix}-{6,h}*
 
 sync
 ```
