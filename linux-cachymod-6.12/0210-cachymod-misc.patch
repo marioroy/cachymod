@@ -619,15 +619,17 @@ Signed-off-by: Mario Roy <...>
 diff -uarp a/arch/x86/Makefile b/arch/x86/Makefile
 --- a/arch/x86/Makefile
 +++ b/arch/x86/Makefile
-@@ -47,7 +47,7 @@ endif
+@@ -47,8 +47,8 @@ endif
  
  # How to compile the 16-bit code.  Note we always compile for -march=i386;
  # that way we can complain to the user if the CPU is insufficient.
 -REALMODE_CFLAGS	:= -std=gnu11 -m16 -g -Os -DDISABLE_BRANCH_PROFILING -D__DISABLE_EXPORTS \
-+REALMODE_CFLAGS	:= -std=gnu17 -m16 -g -Os -DDISABLE_BRANCH_PROFILING -D__DISABLE_EXPORTS \
- 		   -Wall -Wstrict-prototypes -march=i386 -mregparm=3 \
+-		   -Wall -Wstrict-prototypes -march=i386 -mregparm=3 \
++REALMODE_CFLAGS	:= -std=gnu17 -m16 -O2 -march=x86-64 -DDISABLE_BRANCH_PROFILING -D__DISABLE_EXPORTS \
++		   -Wall -Wstrict-prototypes -mregparm=3 \
  		   -fno-strict-aliasing -fomit-frame-pointer -fno-pic \
  		   -mno-mmx -mno-sse $(call cc-option,-fcf-protection=none)
+ 
 diff -uarp a/arch/x86/boot/compressed/Makefile b/arch/x86/boot/compressed/Makefile
 --- a/arch/x86/boot/compressed/Makefile
 +++ b/arch/x86/boot/compressed/Makefile

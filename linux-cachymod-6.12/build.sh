@@ -8,14 +8,19 @@ set -e
 # Build options. Unless selections given, answer "yes/y/1", "no/n/0" or "".
 ###############################################################################
 
+# Custom kernel suffix. Default "{bore,eevdf}-{gcc,polly,lto}"
+: "${_kernel_suffix:=}"
+
 # The default is patching the kernel with the complete BORE CPU scheduler.
 # If you prefer EEVDF, only the BORE optimal base slice logic is applied.
-# The kernel will be tagged "eevdf" or "bore".
 : "${_prefer_eevdf:=no}"
 
 # Prevent AVX2 floating-point instructions. (Clear and XanMod default)
 # The default is no, matching CachyOS preference.
 : "${_prevent_avx2:=no}"
+
+# Disable mitigations for CPU vulnerabilities.
+: "${_disable_cpu_mitigations:=no}"
 
 # Run the "trim.sh" script to trim the kernel
 # To deselect ~ 1,500 kernel options
@@ -83,7 +88,7 @@ set -e
 : "${_use_auto_optimization:=yes}"
 
 # Select CPU compiler optimization (overrides _use_auto_optimization)
-# { native_amd, native_intel, zen, zen2, zen3, zen4, generic,
+# { native_amd, native_intel, zen, zen2, zen3, zen4, zen5, generic,
 #   generic_v1, generic_v2, generic_v3, generic_v4, core2, sandybridge,
 #   ivybridge, haswell, broadwell, skylake, skylakex, icelake, tigerlake,
 #   sapphirerapids, alderlake, raptorlake, meteorlake, emeraldrapids }
@@ -129,6 +134,8 @@ export _prefer_eevdf _runtrim_script _disable_debug_info _enable_sched_ext
 export _localmodcfg _localmodcfg_path _makenconfig _makegconfig _makexconfig
 export _hugepage _HZ_ticks _ticktype _preempt _processor_opt
 export _use_auto_optimization _buildtype _build_debug _prevent_avx2
+
+export _kernel_suffix _disable_cpu_mitigations
 
 # Build kernel lazy and lazy-headers packages
 time nice -n 15 makepkg -scf --cleanbuild --skipinteg || exit 1

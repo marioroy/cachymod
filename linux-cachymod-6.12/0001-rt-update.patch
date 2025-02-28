@@ -1062,7 +1062,7 @@ diff -uarp a/kernel/trace/bpf_trace.c b/kernel/trace/bpf_trace.c
 diff -uarp a/kernel/trace/trace.c b/kernel/trace/trace.c
 --- a/kernel/trace/trace.c
 +++ b/kernel/trace/trace.c
-@@ -4145,11 +4145,7 @@ print_trace_header(struct seq_file *m, s
+@@ -4126,11 +4126,7 @@ print_trace_header(struct seq_file *m, s
  		   entries,
  		   total,
  		   buf->cpu,

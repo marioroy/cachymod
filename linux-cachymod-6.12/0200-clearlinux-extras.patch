@@ -460,7 +460,7 @@ diff --git a/net/ipv4/tcp.c b/net/ipv4/tcp.c
 index 28ff2a820f7c..c4f240da8d70 100644
 --- a/net/ipv4/tcp.c
 +++ b/net/ipv4/tcp.c
-@@ -5134,8 +5134,8 @@ void __init tcp_init(void)
+@@ -5153,8 +5153,8 @@ void __init tcp_init(void)
  	tcp_init_mem();
  	/* Set per-socket limits to no more than 1/128 the pressure threshold */
  	limit = nr_free_buffer_pages() << (PAGE_SHIFT - 7);
@@ -1012,7 +1012,7 @@ diff --git a/arch/x86/kvm/vmx/vmx.c b/arch/x86/kvm/vmx/vmx.c
 index bc6f0fea48b4..e671fbe70d5a 100644
 --- a/arch/x86/kvm/vmx/vmx.c
 +++ b/arch/x86/kvm/vmx/vmx.c
-@@ -8654,4 +8654,4 @@ static int __init vmx_init(void)
+@@ -8675,4 +8675,4 @@ static int __init vmx_init(void)
  	kvm_x86_vendor_exit();
  	return r;
  }
