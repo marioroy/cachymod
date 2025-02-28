@@ -15,17 +15,15 @@ diff -uarp a/kernel/kprobes.c b/kernel/kprobes.c
 -- 
 2.30.1
 
-Disable PLACE_LAG, RUN_TO_PARITY, and DELAY_DEQUEUE EEVDF features.
+Disable PLACE_LAG and RUN_TO_PARITY EEVDF features.
 
 Enable feature via /etc/tmpfiles.d/ configuration, if needed.
   w /sys/kernel/debug/sched/features - - - - PLACE_LAG
   w /sys/kernel/debug/sched/features - - - - RUN_TO_PARITY
-  w /sys/kernel/debug/sched/features - - - - DELAY_DEQUEUE
 
 Or manually.
   echo PLACE_LAG     | sudo tee /sys/kernel/debug/sched/features
   echo RUN_TO_PARITY | sudo tee /sys/kernel/debug/sched/features
-  echo DELAY_DEQUEUE | sudo tee /sys/kernel/debug/sched/features
 
 Signed-off-by: Mario Roy <...>
 
@@ -50,15 +48,6 @@ diff -uarp a/kernel/sched/features.h b/kernel/sched/features.h
  /*
   * Allow wakeup of tasks with a shorter slice to cancel RUN_TO_PARITY for
   * current.
-@@ -55,7 +55,7 @@ SCHED_FEAT(CACHE_HOT_BUDDY, true)
-  *
-  * DELAY_ZERO clips the lag on dequeue (or wakeup) to 0.
-  */
--SCHED_FEAT(DELAY_DEQUEUE, true)
-+SCHED_FEAT(DELAY_DEQUEUE, false)
- SCHED_FEAT(DELAY_ZERO, true)
- 
- /*
 -- 
 2.47.0
 
