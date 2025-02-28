@@ -62,6 +62,21 @@ scripts/config -d TIGON3_HWMON
 scripts/config -d SCSI_UFS_HWMON
 scripts/config -d SENSORS_IIO_HWMON
 
+### Disable more drivers.
+scripts/config -d AGP
+scripts/config -d ATA_SFF
+scripts/config -d ISDN
+scripts/config -d NET_FC
+scripts/config -d RD_BZIP2
+scripts/config -d RD_LZMA
+scripts/config -d RD_LZO
+scripts/config -d RD_LZ4
+scripts/config -d FUSION
+scripts/config -d MACINTOSH_DRIVERS
+scripts/config -d SCSI_PROC_FS
+scripts/config -d SCSI_CONSTANTS
+scripts/config -d SCSI_LOWLEVEL
+
 ### Disable tracers.
 scripts/config -d ATH5K_TRACER
 scripts/config -d DM_UEVENT
@@ -222,6 +237,9 @@ if [[ $(uname -m) = *"x86"* ]]; then
 
     ### Disable paravirtual steal time accounting.
     scripts/config -d PARAVIRT_TIME_ACCOUNTING
+
+    ### Disable pvpanic device support.
+    scripts/config -d PVPANIC
 
     ### Require boot param to enable pressure stall information tracking.
     scripts/config -e PSI_DEFAULT_DISABLED

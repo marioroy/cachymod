@@ -1069,14 +1069,14 @@ index 649e74e9b52f6..d335ddb2566a1 100644
  }
  
  /*
-@@ -3337,6 +3361,7 @@ static void serial8250_console_restore(struct uart_8250_port *up)
- 	}
+@@ -3327,6 +3351,7 @@ static void serial8250_console_restore(struct uart_8250_port *up)
+ 	serial8250_out_MCR(up, up->mcr | UART_MCR_DTR | UART_MCR_RTS);
  }
  
 +#ifdef CONFIG_SERIAL_8250_LEGACY_CONSOLE
- /*
-  * Print a string to the serial port using the device FIFO
-  *
+ static void fifo_wait_for_lsr(struct uart_8250_port *up, unsigned int count)
+ {
+ 	unsigned int i;
 @@ -3404,7 +3429,7 @@ void serial8250_console_write(struct uart_8250_port *up, const char *s,
  	 *	First save the IER then disable the interrupts
  	 */
@@ -2094,7 +2094,7 @@ diff --git a/kernel/trace/trace.c b/kernel/trace/trace.c
 index b6e40e8791fa7..1e82125d0c8d4 100644
 --- a/kernel/trace/trace.c
 +++ b/kernel/trace/trace.c
-@@ -4119,12 +4119,7 @@ print_trace_header(struct seq_file *m, struct trace_iterator *iter)
+@@ -4100,12 +4100,7 @@ print_trace_header(struct seq_file *m, struct trace_iterator *iter)
  		   entries,
  		   total,
  		   buf->cpu,

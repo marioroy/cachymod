@@ -5,14 +5,23 @@
 ### BUILD OPTIONS
 # Set these variables to ANYTHING that is not null or choose proper variable to enable them
 
+# Custom kernel suffix. Default "{bore,eevdf}-{gcc,polly,lto}"
+: "${_kernel_suffix:=}"
+
 # The default is patching the kernel with the complete BORE CPU scheduler
 # If you prefer EEVDF, only the BORE optimal base slice logic is applied
-# The kernel will be tagged "eevdf" or "bore"
 : "${_prefer_eevdf:=no}"
 
 # Prevent AVX2 floating-point instructions. (Clear and XanMod default)
 # The default is no, matching CachyOS preference.
 : "${_prevent_avx2:=no}"
+
+# Disable mitigations for CPU vulnerabilities
+: "${_disable_cpu_mitigations:=no}"
+
+# Run the "trim.sh" script to trim the kernel
+# To deselect ~ 1,500 kernel options
+: "${_runtrim_script:=no}"
 
 # Tweak kernel options prior to a build via nconfig, gconfig or xconfig
 : "${_makenconfig:=no}"
@@ -56,7 +65,7 @@
 : "${_use_auto_optimization:=yes}"
 
 # Select CPU compiler optimization (overrides _use_auto_optimization)
-# { native_amd, native_intel, zen, zen2, zen3, zen4, generic,
+# { native_amd, native_intel, zen, zen2, zen3, zen4, zen5, generic,
 #   generic_v1, generic_v2, generic_v3, generic_v4, core2, sandybridge,
 #   ivybridge, haswell, broadwell, skylake, skylakex, icelake, tigerlake,
 #   sapphirerapids, alderlake, raptorlake, meteorlake, emeraldrapids }
@@ -87,9 +96,18 @@ else
     buildtype="$_buildtype"
 fi
 
+if [ -z "$_kernel_suffix" ]; then
+    if [[ "$_prefer_eevdf" =~ ^(yes|y|1)$ ]]; then
+        buildtag="eevdf"
+    else
+        buildtag="bore"
+    fi
+    _kernel_suffix="${buildtag}-${buildtype}"
+fi
+
 _pkgsuffix=cachymod-613
 _major=6.13
-_minor=4
+_minor=5
 pkgver=${_major}.${_minor}
 _stable=${_major}.${_minor}
 #_stable=${_major}
@@ -124,19 +142,12 @@ source=(
     "0001-reduce-tasklist-lock-hold-time.patch"
     "0001-sched-ext-high-performance-clock.patch"
     "0001-sched-fair-remove-cachy-mods.patch"
-    "0001-upstream-commits.patch"
 )
 
 if [[ "$_prefer_eevdf" =~ ^(yes|y|1)$ ]]; then
     source+=("0001-linux6.13.y-optimal-base-slice.patch")
-    buildtag="eevdf"
 else
     source+=("0001-linux6.13.y-bore.patch")
-    buildtag="bore"
-fi
-
-if [[ "$_prevent_avx2" =~ ^(yes|y|1)$ ]]; then
-    source+=("0001-x86-prevent-avx2-vector.patch")
 fi
 
 source+=(
@@ -144,7 +155,18 @@ source+=(
     "0100-mm-kconfig-enable-rt-thp.patch"
     "0200-clearlinux-extras.patch"
     "0210-cachymod-misc.patch"
+    "0220-upstream-commits.patch"
 )
+
+if [[ "$_prevent_avx2" =~ ^(yes|y|1)$ ]]; then
+    source+=("0300-x86-prevent-avx2-vector.patch")
+fi
+if [[ "$_disable_cpu_mitigations" =~ ^(yes|y|1)$ ]]; then
+    source+=("0310-x86-disable-cpu-mitigations.patch")
+fi
+if [[ -s "custom.sh" ]]; then
+    source+=("custom.sh")
+fi
 
 # LLVM makedepends
 if [[ "$buildtype" =~ (lto|polly) ]]; then
@@ -169,18 +191,18 @@ fi
 [ -n "$_extra_patch_or_url8" ] && source+=("$_extra_patch_or_url8")
 [ -n "$_extra_patch_or_url9" ] && source+=("$_extra_patch_or_url9")
 
+_die() { error "$@" ; exit 1; }
+
 pkgbase="linux-$_pkgsuffix"
 if [ "$_preempt" = "rt" ]; then
-    pkgbase="${pkgbase}-${buildtag}-${buildtype}-rt"
+    pkgbase="${pkgbase}-${_kernel_suffix}-rt"
 else
-    pkgbase="${pkgbase}-${buildtag}-${buildtype}"
+    pkgbase="${pkgbase}-${_kernel_suffix}"
 fi
 
 export KBUILD_BUILD_HOST=cachyos
 export KBUILD_BUILD_USER="$pkgbase"
 export KBUILD_BUILD_TIMESTAMP="$(date -Ru${SOURCE_DATE_EPOCH:+d @$SOURCE_DATE_EPOCH})"
-
-_die() { error "$@" ; exit 1; }
 
 prepare() {
     cd "$_srcname"
@@ -220,6 +242,12 @@ prepare() {
     elif [[ "$_use_auto_optimization" =~ ^(yes|y|1)$ ]]; then
         ### Use automatic CPU optimization
         bash "${srcdir}"/auto-cpu-optimization.sh
+    fi
+
+    ### Disable CPU mitigations
+    if [[ "$_disable_cpu_mitigations" =~ ^(yes|y|1)$ ]]; then
+        echo "Disabling mitigations for CPU vulnerabilities..."
+        scripts/config -d CPU_MITIGATIONS -d ADDRESS_MASKING
     fi
 
     ### Selecting CachyOS config
@@ -357,6 +385,12 @@ prepare() {
         bash "${srcdir}"/trim.sh
     fi
 
+    ### Optionally run the custom.sh script for custom tuning
+    if [[ -s "${srcdir}"/custom.sh ]]; then
+        echo "Custom kernel tuning. Running custom.sh script..."
+        bash "${srcdir}"/custom.sh
+    fi
+
     ### Optionally disable DEBUG_INFO related knobs for more kernel trimming
     ### BPF and SCX will not work, used by all sorts of stuff including firewall
     ### This requires disabling the ananicy-cpp service or will segfault
@@ -473,7 +507,7 @@ _package() {
     echo "$pkgbase" | install -Dm644 /dev/stdin "$modulesdir/pkgbase"
 
     # Include mkinitcpio preset file, excluding PRESETS 'fallback'
-    [ "$_preempt" = "rt" ] && flavour="${buildtag}-${buildtype}-rt" || flavour="${buildtag}-${buildtype}"
+    [ "$_preempt" = "rt" ] && flavour="${_kernel_suffix}-rt" || flavour="${_kernel_suffix}"
 
     install -Dm644 "${srcdir}/mkinitcpio.template" \
         "${pkgdir}/etc/mkinitcpio.d/linux-cachymod-613-${flavour}.preset"
