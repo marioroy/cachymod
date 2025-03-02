@@ -20,14 +20,25 @@ FAMILY=$(lscpu | awk '/^CPU family:/ { print $3; exit }')
 MODEL=$(lscpu | awk '/^Model:/ { print $2; exit }')
 
 # Check for specific CPU types and set MARCH variable accordingly
-if [[ "$FAMILY" = "6" && "$MODEL" = "143" ]]; then
+if [[ "$FAMILY" = "6" && "$MODEL" = "207" ]]; then
+  MARCH="EMERALDRAPIDS"  # 06_CFH Intel Emerald Rapids Server microarchitecture
+elif [[ "$FAMILY" = "6" && "$MODEL" = "143" ]]; then
   MARCH="SAPPHIRERAPIDS" # 06_8FH Intel Sapphire Rapids Server microarchitecture
 elif [[ "$FAMILY" = "6" && "$MODEL" = "170" ]]; then
   MARCH="METEORLAKE"     # 06_AAH Intel Meteor Lake microarchitecture
 elif [[ "$FAMILY" = "6" && "$MODEL" =~ (183|186|191) ]]; then
   MARCH="RAPTORLAKE"     # 06_B7H,BAH,BFH Intel Raptor Lake microarchitecture
-elif [[ "$FAMILY" = "6" && "$MODEL" = "207" ]]; then
-  MARCH="EMERALDRAPIDS"  # 06_CFH Intel Emerald Rapids Server microarchitecture
+elif [[ "$FAMILY" = "6" && "$MODEL" =~ (151|154) ]]; then
+  MARCH="ALDERLAKE"      # 06_97H,9AH Intel Alder Lake microarchitecture
+elif [[ "$FAMILY" = "6" && "$MODEL" =~ (140|141) ]]; then
+  MARCH="TIGERLAKE"      # 06_8CH,8DH Intel Tiger Lake microarchitecture
+elif [[ "$FAMILY" = "6" && "$MODEL" = "167" ]]; then
+  MARCH="ROCKETLAKE"     # 06_A7H Intel Rocket Lake microarchitecture
+elif [[ "$FAMILY" = "6" && "$MODEL" = "102" ]]; then
+  MARCH="CANNONLAKE"     # 06_66H Intel Cannon Lake microarchitecture
+elif [[ "$FAMILY" = "6" && "$MODEL" =~ (165|166) ]]; then
+  MARCH="SKYLAKE"        # 06_A5H,A6H Intel Comet Lake microarchitecture
+                         # Use SKYLAKE as --march=cometlake not supported
 else
   case $MARCH in
     ZNVER1) MARCH="ZEN";;
@@ -50,7 +61,9 @@ else
       scripts/config --disable CONFIG_AGP_AMD64 
       scripts/config --disable CONFIG_MICROCODE_AMD
       MARCH="MIVYBRIDGE";;
-    ICELAKE-CLIENT) MARCH="ICELAKE";;
+    ICELAKE) MARCH="ICELAKE_CLIENT";;
+    ICELAKE-CLIENT) MARCH="ICELAKE_CLIENT";;
+    ICELAKE-SERVER) MARCH="ICELAKE_SERVER";;
   esac
 fi
 
