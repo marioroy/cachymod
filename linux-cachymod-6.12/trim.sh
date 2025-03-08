@@ -1,7 +1,7 @@
 #!/bin/bash
 # Trim kernel by deselecting options not enabled in the Clear Linux config.
 # Options already unset in the CachyOS config were pruned from this list.
-# Last checked: 2024-12-19
+# Last checked: 2025-03-07
 
 # Exit immediately on error.
 set -e
@@ -370,7 +370,6 @@ scripts/config -d LED_TRIGGER_PHY
 scripts/config -d ADIN_PHY
 scripts/config -d MARVELL_88X2222_PHY
 scripts/config -d MICROCHIP_T1_PHY
-scripts/config -d MOTORCOMM_PHY
 scripts/config -d NXP_C45_TJA11XX_PHY
 scripts/config -d NXP_TJA11XX_PHY
 scripts/config -d DP83TC811_PHY
@@ -534,7 +533,6 @@ scripts/config -d INPUT_DRV260X_HAPTICS
 scripts/config -d INPUT_DRV2665_HAPTICS
 scripts/config -d INPUT_DRV2667_HAPTICS
 scripts/config -d RMI4_F34
-scripts/config -d RMI4_F3A
 
 #
 # Hardware I/O ports
@@ -1641,8 +1639,6 @@ scripts/config -d EXTCON_RT8973A
 scripts/config -d EXTCON_SM5502
 scripts/config -d EXTCON_USB_GPIO
 scripts/config -d MEMORY
-scripts/config -d IIO_BUFFER_DMA
-scripts/config -d IIO_BUFFER_DMAENGINE
 scripts/config -d IIO_TRIGGERED_EVENT
 
 #
@@ -2033,7 +2029,6 @@ scripts/config -d MOST
 scripts/config -d REISERFS_FS
 scripts/config -d JFS_FS
 scripts/config -d XFS_SUPPORT_ASCII_CI
-scripts/config -d XFS_QUOTA
 scripts/config -d XFS_ONLINE_SCRUB
 scripts/config -d GFS2_FS
 scripts/config -d OCFS2_FS
