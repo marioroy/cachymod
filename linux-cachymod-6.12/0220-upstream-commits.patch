@@ -594,6 +594,7 @@ Signed-off-by: Abel Wu <wuyun.abel@xxxxxxxxxxxxx>
 Reviewed-by: Vincent Guittot <vincent.guittot@xxxxxxxxxx>
 Reviewed-by: Josh Don <joshdon@xxxxxxxxxx>
 Reviewed-by: Madadi Vineeth Reddy <vineethr@xxxxxxxxxxxxx>
+Tested-by: K Prateek Nayak <kprateek.nayak@xxxxxxx>
 ---
  kernel/sched/fair.c | 8 +++++---
  1 file changed, 5 insertions(+), 3 deletions(-)
@@ -651,6 +652,8 @@ Fix it by strictly following the aforementioned rules.
 
 Fixes: faa42d29419d ("sched/fair: Make SCHED_IDLE entity be preempted in strict hierarchy")
 Signed-off-by: Abel Wu <wuyun.abel@xxxxxxxxxxxxx>
+Acked-by: Vincent Guittot <vincent.guittot@xxxxxxxxxx>
+Tested-by: K Prateek Nayak <kprateek.nayak@xxxxxxx>
 ---
  kernel/sched/fair.c | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
@@ -679,6 +682,68 @@ index aaa9822e9562..a7eeb72d57aa 100644
  	/*
  	 * IDLE entities do not preempt others.
  	 */
+-- 
+2.37.3
+
+sched/fair: Fix potential memory corruption in child_cfs_rq_on_list
+https://lore.kernel.org/all/174119292742.14745.16827644501260146974.tip-bot2@tip-bot2/#t
+
+child_cfs_rq_on_list attempts to convert a 'prev' pointer to a cfs_rq.
+This 'prev' pointer can originate from struct rq's leaf_cfs_rq_list,
+making the conversion invalid and potentially leading to memory
+corruption. Depending on the relative positions of leaf_cfs_rq_list and
+the task group (tg) pointer within the struct, this can cause a memory
+fault or access garbage data.
+
+The issue arises in list_add_leaf_cfs_rq, where both
+cfs_rq->leaf_cfs_rq_list and rq->leaf_cfs_rq_list are added to the same
+leaf list. Also, rq->tmp_alone_branch can be set to rq->leaf_cfs_rq_list.
+
+This adds a check `if (prev == &rq->leaf_cfs_rq_list)` after the main
+conditional in child_cfs_rq_on_list. This ensures that the container_of
+operation will convert a correct cfs_rq struct.
+
+This check is sufficient because only cfs_rqs on the same CPU are added
+to the list, so verifying the 'prev' pointer against the current rq's list
+head is enough.
+
+Fixes a potential memory corruption issue that due to current struct
+layout might not be manifesting as a crash but could lead to unpredictable
+behavior when the layout changes.
+
+Fixes: fdaba61ef8a2 ("sched/fair: Ensure that the CFS parent is added after unthrottling")
+Signed-off-by: Zecheng Li <zecheng@xxxxxxxxxx>
+Reviewed-and-tested-by: K Prateek Nayak <kprateek.nayak@xxxxxxx>
+Signed-off-by: Peter Zijlstra (Intel) <peterz@xxxxxxxxxxxxx>
+Reviewed-by: Vincent Guittot <vincent.guittot@xxxxxxxxxx>
+---
+ kernel/sched/fair.c | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
+index 1c0ef43..c798d27 100644
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -4207,15 +4207,17 @@ static inline bool child_cfs_rq_on_list(struct cfs_rq *cfs_rq)
+ {
+ 	struct cfs_rq *prev_cfs_rq;
+ 	struct list_head *prev;
++	struct rq *rq = rq_of(cfs_rq);
+ 
+ 	if (cfs_rq->on_list) {
+ 		prev = cfs_rq->leaf_cfs_rq_list.prev;
+ 	} else {
+-		struct rq *rq = rq_of(cfs_rq);
+-
+ 		prev = rq->tmp_alone_branch;
+ 	}
+ 
++	if (prev == &rq->leaf_cfs_rq_list)
++		return false;
++
+ 	prev_cfs_rq = container_of(prev, struct cfs_rq, leaf_cfs_rq_list);
+ 
+ 	return (prev_cfs_rq->tg->parent == cfs_rq->tg);
 -- 
 2.37.3
 

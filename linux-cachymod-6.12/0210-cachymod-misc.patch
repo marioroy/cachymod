@@ -874,7 +874,7 @@ diff --git a/include/linux/blkdev.h b/include/linux/blkdev.h
 index 50c3b959da28..e291cd33edcf 100644
 --- a/include/linux/blkdev.h
 +++ b/include/linux/blkdev.h
-@@ -613,7 +613,8 @@ enum {
+@@ -614,7 +614,8 @@ enum {
  	QUEUE_FLAG_MAX
  };
  

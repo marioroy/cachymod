@@ -43,7 +43,7 @@ diff -uar a/arch/x86/Kconfig b/arch/x86/Kconfig
  	default y
  	depends on MODIFY_LDT_SYSCALL
  	help
-@@ -2385,7 +2385,7 @@
+@@ -2386,7 +2386,7 @@
  	  be set to 'N' under normal conditions.
  
  config MODIFY_LDT_SYSCALL
@@ -460,7 +460,7 @@ diff --git a/net/ipv4/tcp.c b/net/ipv4/tcp.c
 index 28ff2a820f7c..c4f240da8d70 100644
 --- a/net/ipv4/tcp.c
 +++ b/net/ipv4/tcp.c
-@@ -5153,8 +5153,8 @@ void __init tcp_init(void)
+@@ -5147,8 +5147,8 @@ void __init tcp_init(void)
  	tcp_init_mem();
  	/* Set per-socket limits to no more than 1/128 the pressure threshold */
  	limit = nr_free_buffer_pages() << (PAGE_SHIFT - 7);
@@ -871,8 +871,8 @@ index f730b6fe94a7..ee0ec4ab7d1c 100644
  #if !defined(CONFIG_PREEMPTION) || defined(CONFIG_PREEMPT_DYNAMIC)
  int __sched __cond_resched(void)
  {
--	if (should_resched(0)) {
-+	if (unlikely(should_resched(0))) {
+-	if (should_resched(0) && !irqs_disabled()) {
++	if (unlikely(should_resched(0)) && !irqs_disabled()) {
  		preempt_schedule_common();
  		return 1;
  	}

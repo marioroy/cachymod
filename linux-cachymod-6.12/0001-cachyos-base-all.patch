@@ -632,7 +632,7 @@ diff --git a/net/ipv4/tcp.c b/net/ipv4/tcp.c
 index 4f77bd862e95..fd3a5551eda7 100644
 --- a/net/ipv4/tcp.c
 +++ b/net/ipv4/tcp.c
-@@ -3403,6 +3403,7 @@ int tcp_disconnect(struct sock *sk, int flags)
+@@ -3397,6 +3397,7 @@ int tcp_disconnect(struct sock *sk, int flags)
  	tp->rx_opt.dsack = 0;
  	tp->rx_opt.num_sacks = 0;
  	tp->rcv_ooopack = 0;
@@ -640,7 +640,7 @@ index 4f77bd862e95..fd3a5551eda7 100644
  
  
  	/* Clean up fastopen related fields */
-@@ -4129,6 +4130,8 @@ void tcp_get_info(struct sock *sk, struct tcp_info *info)
+@@ -4123,6 +4124,8 @@ void tcp_get_info(struct sock *sk, struct tcp_info *info)
  		info->tcpi_options |= TCPI_OPT_ECN;
  	if (tp->ecn_flags & TCP_ECN_SEEN)
  		info->tcpi_options |= TCPI_OPT_ECN_SEEN;
@@ -4782,7 +4782,7 @@ diff --git a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c b/drivers/gpu/drm
 index 85e58e0f6059..dd5f300cc186 100644
 --- a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c
 +++ b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c
-@@ -4503,7 +4503,7 @@ static int amdgpu_dm_mode_config_init(struct amdgpu_device *adev)
+@@ -4558,7 +4558,7 @@ static int amdgpu_dm_mode_config_init(struct amdgpu_device *adev)
  		return r;
  	}
  
@@ -13632,7 +13632,7 @@ diff --git a/kernel/sched/ext.c b/kernel/sched/ext.c
 index 4c4681cb9337..284d69169795 100644
 --- a/kernel/sched/ext.c
 +++ b/kernel/sched/ext.c
-@@ -4889,9 +4889,9 @@ static void scx_dump_task(struct seq_buf *s, struct scx_dump_ctx *dctx,
+@@ -4892,9 +4892,9 @@ static void scx_dump_task(struct seq_buf *s, struct scx_dump_ctx *dctx,
  		  scx_get_task_state(p), p->scx.flags & ~SCX_TASK_STATE_MASK,
  		  p->scx.dsq_flags, ops_state & SCX_OPSS_STATE_MASK,
  		  ops_state >> SCX_OPSS_QSEQ_SHIFT);
