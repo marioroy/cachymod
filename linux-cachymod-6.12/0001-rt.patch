@@ -671,7 +671,7 @@ diff --git a/drivers/gpu/drm/i915/display/intel_cursor.c b/drivers/gpu/drm/i915/
 index 9ad53e1cbbd06..6cbe81a2fa668 100644
 --- a/drivers/gpu/drm/i915/display/intel_cursor.c
 +++ b/drivers/gpu/drm/i915/display/intel_cursor.c
-@@ -895,13 +895,15 @@ intel_legacy_cursor_update(struct drm_plane *_plane,
+@@ -902,13 +902,15 @@ intel_legacy_cursor_update(struct drm_plane *_plane,
  		 */
  		intel_psr_wait_for_idle_locked(crtc_state);
  
@@ -689,8 +689,8 @@ index 9ad53e1cbbd06..6cbe81a2fa668 100644
  	}
  
  	if (new_plane_state->uapi.visible) {
-@@ -911,7 +913,8 @@ intel_legacy_cursor_update(struct drm_plane *_plane,
- 		intel_plane_disable_arm(plane, crtc_state);
+@@ -918,7 +920,8 @@ intel_legacy_cursor_update(struct drm_plane *_plane,
+ 		intel_plane_disable_arm(NULL, plane, crtc_state);
  	}
  
 -	local_irq_enable();
@@ -2122,7 +2122,7 @@ index ddc096d6b0c20..6f1d3426691db 100644
  		clear_buddies(cfs_rq, curr);
  	}
  }
-@@ -5731,7 +5731,7 @@ entity_tick(struct cfs_rq *cfs_rq, struct sched_entity *curr, int queued)
+@@ -5733,7 +5733,7 @@ entity_tick(struct cfs_rq *cfs_rq, struct sched_entity *curr, int queued)
  	 * validating it and just reschedule.
  	 */
  	if (queued) {
@@ -2131,7 +2131,7 @@ index ddc096d6b0c20..6f1d3426691db 100644
  		return;
  	}
  	/*
-@@ -8912,7 +8912,7 @@ static void check_preempt_wakeup_fair(struct rq *rq, struct task_struct *p, int
+@@ -8914,7 +8914,7 @@ static void check_preempt_wakeup_fair(struct rq *rq, struct task_struct *p, int
  	return;
  
  preempt:

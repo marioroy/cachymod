@@ -232,7 +232,7 @@ diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
  #endif
  #endif
  
-@@ -5293,6 +5323,9 @@ place_entity(struct cfs_rq *cfs_rq, stru
+@@ -5295,6 +5325,9 @@ place_entity(struct cfs_rq *cfs_rq, stru
  	 *
  	 * EEVDF: placement strategy #1 / #2
  	 */
@@ -242,7 +242,7 @@ diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
  	if (sched_feat(PLACE_LAG) && cfs_rq->nr_running) {
  		struct sched_entity *curr = cfs_rq->curr;
  		unsigned long load;
-@@ -5374,7 +5407,11 @@ place_entity(struct cfs_rq *cfs_rq, stru
+@@ -5376,7 +5409,11 @@ place_entity(struct cfs_rq *cfs_rq, stru
  	 * on average, halfway through their slice, as such start tasks
  	 * off with half a slice to ease into the competition.
  	 */
@@ -254,7 +254,7 @@ diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
  		vslice /= 2;
  
  	/*
-@@ -9082,16 +9119,24 @@ static void yield_task_fair(struct rq *r
+@@ -9084,16 +9121,24 @@ static void yield_task_fair(struct rq *r
  	/*
  	 * Are we the only task in the tree?
  	 */

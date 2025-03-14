@@ -34,7 +34,7 @@
 diff -uar a/arch/x86/Kconfig b/arch/x86/Kconfig
 --- a/arch/x86/Kconfig
 +++ b/arch/x86/Kconfig
-@@ -1245,7 +1245,7 @@
+@@ -1247,7 +1247,7 @@
  	default X86_LEGACY_VM86
  
  config X86_16BIT
@@ -43,7 +43,7 @@ diff -uar a/arch/x86/Kconfig b/arch/x86/Kconfig
  	default y
  	depends on MODIFY_LDT_SYSCALL
  	help
-@@ -2386,7 +2386,7 @@
+@@ -2388,7 +2388,7 @@
  	  be set to 'N' under normal conditions.
  
  config MODIFY_LDT_SYSCALL
@@ -735,7 +735,7 @@ diff --git a/mm/page_alloc.c b/mm/page_alloc.c
 index e6f211dcf82e..0ea48434ac7d 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -5533,11 +5533,11 @@ static int zone_batchsize(struct zone *zone)
+@@ -5534,11 +5534,11 @@ static int zone_batchsize(struct zone *zone)
  
  	/*
  	 * The number of pages to batch allocate is either ~0.1%
@@ -1012,7 +1012,7 @@ diff --git a/arch/x86/kvm/vmx/vmx.c b/arch/x86/kvm/vmx/vmx.c
 index bc6f0fea48b4..e671fbe70d5a 100644
 --- a/arch/x86/kvm/vmx/vmx.c
 +++ b/arch/x86/kvm/vmx/vmx.c
-@@ -8675,4 +8675,4 @@ static int __init vmx_init(void)
+@@ -8671,4 +8671,4 @@ static int __init vmx_init(void)
  	kvm_x86_vendor_exit();
  	return r;
  }
