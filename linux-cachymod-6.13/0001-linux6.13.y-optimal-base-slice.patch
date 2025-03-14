@@ -232,7 +232,7 @@ diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
  #endif
  #endif
  
-@@ -5265,7 +5295,11 @@ place_entity(struct cfs_rq *cfs_rq, stru
+@@ -5267,7 +5297,11 @@ place_entity(struct cfs_rq *cfs_rq, stru
  	 * on average, halfway through their slice, as such start tasks
  	 * off with half a slice to ease into the competition.
  	 */
@@ -244,7 +244,7 @@ diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
  		vslice /= 2;
  
  	/*
-@@ -8967,16 +9001,24 @@ static void yield_task_fair(struct rq *r
+@@ -8969,16 +9003,24 @@ static void yield_task_fair(struct rq *r
  	/*
  	 * Are we the only task in the tree?
  	 */

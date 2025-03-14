@@ -18,8 +18,8 @@ diff -uarp a/kernel/kprobes.c b/kernel/kprobes.c
 Disable PLACE_LAG and RUN_TO_PARITY EEVDF features.
 
 Enable feature via /etc/tmpfiles.d/ configuration, if needed.
-  w /sys/kernel/debug/sched/features - - - - PLACE_LAG
-  w /sys/kernel/debug/sched/features - - - - RUN_TO_PARITY
+  w+ /sys/kernel/debug/sched/features - - - - PLACE_LAG
+  w+ /sys/kernel/debug/sched/features - - - - RUN_TO_PARITY
 
 Or manually.
   echo PLACE_LAG     | sudo tee /sys/kernel/debug/sched/features
@@ -108,7 +108,7 @@ diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
 index 9279bfb..857808d 100644
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -9419,12 +9419,11 @@ int can_migrate_task(struct task_struct *p, struct lb_env *env)
+@@ -9421,12 +9421,11 @@ int can_migrate_task(struct task_struct *p, struct lb_env *env)
  			return 0;
  
  		/* Prevent to re-select dst_cpu via env's CPUs: */
@@ -174,7 +174,7 @@ diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
 index 1784752..9279bfb 100644
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -7013,6 +7013,8 @@ enqueue_task_fair(struct rq *rq, struct task_struct *p, int flags)
+@@ -7015,6 +7015,8 @@ enqueue_task_fair(struct rq *rq, struct task_struct *p, int flags)
  		update_cfs_group(se);
  
  		se->slice = slice;
@@ -183,7 +183,7 @@ index 1784752..9279bfb 100644
  		slice = cfs_rq_min_slice(cfs_rq);
  
  		cfs_rq->h_nr_running++;
-@@ -7142,6 +7144,8 @@ static int dequeue_entities(struct rq *rq, struct sched_entity *se, int flags)
+@@ -7144,6 +7146,8 @@ static int dequeue_entities(struct rq *rq, struct sched_entity *se, int flags)
  		update_cfs_group(se);
  
  		se->slice = slice;
@@ -287,7 +287,7 @@ index 1c0ef43..61b826f 100644
  #ifdef CONFIG_SCHED_BORE
  		if (!(likely(sched_bore) && likely(sched_burst_parity_threshold) &&
  			sched_burst_parity_threshold < cfs_rq->nr_running))
-@@ -5555,11 +5571,8 @@ set_next_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
+@@ -5557,11 +5573,8 @@ set_next_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
  		update_stats_wait_end_fair(cfs_rq, se);
  		__dequeue_entity(cfs_rq, se);
  		update_load_avg(cfs_rq, se, UPDATE_TG);
@@ -301,7 +301,7 @@ index 1c0ef43..61b826f 100644
  	}
  
  	update_stats_curr_start(cfs_rq, se);
-@@ -8818,8 +8831,15 @@ static void check_preempt_wakeup_fair(struct rq *rq, struct task_struct *p, int 
+@@ -8820,8 +8833,15 @@ static void check_preempt_wakeup_fair(struct rq *rq, struct task_struct *p, int 
  	 * Preempt an idle entity in favor of a non-idle entity (and don't preempt
  	 * in the inverse case).
  	 */
@@ -318,7 +318,7 @@ index 1c0ef43..61b826f 100644
  	if (cse_is_idle != pse_is_idle)
  		return;
  
-@@ -8838,8 +8858,8 @@ static void check_preempt_wakeup_fair(struct rq *rq, struct task_struct *p, int 
+@@ -8840,8 +8860,8 @@ static void check_preempt_wakeup_fair(struct rq *rq, struct task_struct *p, int 
  	 * Note that even if @p does not turn out to be the most eligible
  	 * task at this moment, current's slice protection will be lost.
  	 */
