@@ -2,6 +2,8 @@
 # Make a copy, "cp custom.sh.in custom.sh" and edit custom.sh
 # Set custom kernel options
 
+set -e
+
 ##
 # scripts/config usage:
 # scripts/config options command ...
@@ -21,8 +23,6 @@
 # Use the build-time option _disable_cpu_mitigations to disable.
 # It involves patching "arch/x86/Makefile".
 ##
-
-set -e
 
 # Disable AMD Secure Memory Encryption (SME) support
 #scripts/config -d AMD_MEM_ENCRYPT
