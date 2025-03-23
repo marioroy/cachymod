@@ -4782,7 +4782,7 @@ diff --git a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c b/drivers/gpu/drm
 index 85e58e0f6059..dd5f300cc186 100644
 --- a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c
 +++ b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c
-@@ -4558,7 +4558,7 @@ static int amdgpu_dm_mode_config_init(struct amdgpu_device *adev)
+@@ -4568,7 +4568,7 @@ static int amdgpu_dm_mode_config_init(struct amdgpu_device *adev)
  		return r;
  	}
  
@@ -4839,7 +4839,7 @@ diff --git a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm_plane.c b/drivers/g
 index 83c7c8853ede..059d0ca29518 100644
 --- a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm_plane.c
 +++ b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm_plane.c
-@@ -1567,7 +1567,7 @@ static void amdgpu_dm_plane_drm_plane_destroy_state(struct drm_plane *plane,
+@@ -1570,7 +1570,7 @@ static void amdgpu_dm_plane_drm_plane_destroy_state(struct drm_plane *plane,
  	drm_atomic_helper_plane_destroy_state(plane, state);
  }
  
@@ -4848,7 +4848,7 @@ index 83c7c8853ede..059d0ca29518 100644
  static void
  dm_atomic_plane_attach_color_mgmt_properties(struct amdgpu_display_manager *dm,
  					     struct drm_plane *plane)
-@@ -1758,7 +1758,7 @@ static const struct drm_plane_funcs dm_plane_funcs = {
+@@ -1761,7 +1761,7 @@ static const struct drm_plane_funcs dm_plane_funcs = {
  	.atomic_duplicate_state = amdgpu_dm_plane_drm_plane_duplicate_state,
  	.atomic_destroy_state = amdgpu_dm_plane_drm_plane_destroy_state,
  	.format_mod_supported = amdgpu_dm_plane_format_mod_supported,
@@ -4857,7 +4857,7 @@ index 83c7c8853ede..059d0ca29518 100644
  	.atomic_set_property = dm_atomic_plane_set_property,
  	.atomic_get_property = dm_atomic_plane_get_property,
  #endif
-@@ -1851,7 +1851,7 @@ int amdgpu_dm_plane_init(struct amdgpu_display_manager *dm,
+@@ -1854,7 +1854,7 @@ int amdgpu_dm_plane_init(struct amdgpu_display_manager *dm,
  
  	drm_plane_helper_add(plane, &dm_plane_helper_funcs);
  
@@ -13548,7 +13548,7 @@ diff --git a/drivers/hid/hid-ids.h b/drivers/hid/hid-ids.h
 index ceb3b1a72e23..0ba4dd865718 100644
 --- a/drivers/hid/hid-ids.h
 +++ b/drivers/hid/hid-ids.h
-@@ -210,6 +210,7 @@
+@@ -211,6 +211,7 @@
  #define USB_DEVICE_ID_ASUSTEK_ROG_NKEY_KEYBOARD2	0x19b6
  #define USB_DEVICE_ID_ASUSTEK_ROG_NKEY_KEYBOARD3	0x1a30
  #define USB_DEVICE_ID_ASUSTEK_ROG_Z13_LIGHTBAR		0x18c6
@@ -13666,8 +13666,8 @@ index 8b195d06f4e8..618ce1fe870e 100644
 +}
 +
  extern void __futex_unqueue(struct futex_q *q);
- extern void __futex_queue(struct futex_q *q, struct futex_hash_bucket *hb);
- extern int futex_unqueue(struct futex_q *q);
+ extern void __futex_queue(struct futex_q *q, struct futex_hash_bucket *hb,
+ 				struct task_struct *task);
 diff --git a/kernel/kprobes.c b/kernel/kprobes.c
 index da59c68df841..55d0835ea0cf 100644
 --- a/kernel/kprobes.c
@@ -17694,7 +17694,7 @@ index a481a939862e..d3bb3865c1b1 100644
  };
  
  static const struct x86_cpu_id rapl_model_match[] __initconst = {
-@@ -854,57 +891,73 @@ MODULE_DEVICE_TABLE(x86cpu, rapl_model_match);
+@@ -855,57 +892,73 @@ MODULE_DEVICE_TABLE(x86cpu, rapl_model_match);
  static int __init rapl_pmu_init(void)
  {
  	const struct x86_cpu_id *id;
