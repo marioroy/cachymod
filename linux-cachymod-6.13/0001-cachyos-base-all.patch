@@ -8330,7 +8330,7 @@ index ca6b9a585aba..ddcb2c66c916 100644
  
  static enum drm_mode_subconnector get_subconnector_type(struct dc_link *link)
  {
-@@ -2897,6 +2899,33 @@ static int amdgpu_dm_smu_write_watermarks_table(struct amdgpu_device *adev)
+@@ -2901,6 +2903,33 @@ static int amdgpu_dm_smu_write_watermarks_table(struct amdgpu_device *adev)
  	return 0;
  }
  
@@ -8364,7 +8364,7 @@ index ca6b9a585aba..ddcb2c66c916 100644
  /**
   * dm_hw_init() - Initialize DC device
   * @ip_block: Pointer to the amdgpu_ip_block for this hw instance.
-@@ -2928,6 +2957,10 @@ static int dm_hw_init(struct amdgpu_ip_block *ip_block)
+@@ -2932,6 +2961,10 @@ static int dm_hw_init(struct amdgpu_ip_block *ip_block)
  		return r;
  	amdgpu_dm_hpd_init(adev);
  
@@ -8375,7 +8375,7 @@ index ca6b9a585aba..ddcb2c66c916 100644
  	return 0;
  }
  
-@@ -2943,6 +2976,8 @@ static int dm_hw_fini(struct amdgpu_ip_block *ip_block)
+@@ -2947,6 +2980,8 @@ static int dm_hw_fini(struct amdgpu_ip_block *ip_block)
  {
  	struct amdgpu_device *adev = ip_block->adev;
  
@@ -8384,7 +8384,7 @@ index ca6b9a585aba..ddcb2c66c916 100644
  	amdgpu_dm_hpd_fini(adev);
  
  	amdgpu_dm_irq_fini(adev);
-@@ -4579,7 +4614,7 @@ static int amdgpu_dm_mode_config_init(struct amdgpu_device *adev)
+@@ -4589,7 +4624,7 @@ static int amdgpu_dm_mode_config_init(struct amdgpu_device *adev)
  		return r;
  	}
  
@@ -8393,7 +8393,7 @@ index ca6b9a585aba..ddcb2c66c916 100644
  	if (amdgpu_dm_create_color_properties(adev)) {
  		dc_state_release(state->context);
  		kfree(state);
-@@ -8290,7 +8325,7 @@ static int amdgpu_dm_i2c_xfer(struct i2c_adapter *i2c_adap,
+@@ -8300,7 +8335,7 @@ static int amdgpu_dm_i2c_xfer(struct i2c_adapter *i2c_adap,
  	int i;
  	int result = -EIO;
  
@@ -8402,7 +8402,7 @@ index ca6b9a585aba..ddcb2c66c916 100644
  		return result;
  
  	cmd.payloads = kcalloc(num, sizeof(struct i2c_payload), GFP_KERNEL);
-@@ -8309,11 +8344,18 @@ static int amdgpu_dm_i2c_xfer(struct i2c_adapter *i2c_adap,
+@@ -8319,11 +8354,18 @@ static int amdgpu_dm_i2c_xfer(struct i2c_adapter *i2c_adap,
  		cmd.payloads[i].data = msgs[i].buf;
  	}
  
@@ -8426,7 +8426,7 @@ index ca6b9a585aba..ddcb2c66c916 100644
  
  	kfree(cmd.payloads);
  	return result;
-@@ -8330,9 +8372,7 @@ static const struct i2c_algorithm amdgpu_dm_i2c_algo = {
+@@ -8340,9 +8382,7 @@ static const struct i2c_algorithm amdgpu_dm_i2c_algo = {
  };
  
  static struct amdgpu_i2c_adapter *
@@ -8437,7 +8437,7 @@ index ca6b9a585aba..ddcb2c66c916 100644
  {
  	struct amdgpu_device *adev = ddc_service->ctx->driver_context;
  	struct amdgpu_i2c_adapter *i2c;
-@@ -8343,9 +8383,14 @@ create_i2c(struct ddc_service *ddc_service,
+@@ -8353,9 +8393,14 @@ create_i2c(struct ddc_service *ddc_service,
  	i2c->base.owner = THIS_MODULE;
  	i2c->base.dev.parent = &adev->pdev->dev;
  	i2c->base.algo = &amdgpu_dm_i2c_algo;
@@ -8453,7 +8453,7 @@ index ca6b9a585aba..ddcb2c66c916 100644
  
  	return i2c;
  }
-@@ -8370,7 +8415,7 @@ static int amdgpu_dm_connector_init(struct amdgpu_display_manager *dm,
+@@ -8380,7 +8425,7 @@ static int amdgpu_dm_connector_init(struct amdgpu_display_manager *dm,
  	link->priv = aconnector;
  
  
@@ -8528,7 +8528,7 @@ diff --git a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm_plane.c b/drivers/g
 index 83c7c8853ede..059d0ca29518 100644
 --- a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm_plane.c
 +++ b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm_plane.c
-@@ -1567,7 +1567,7 @@ static void amdgpu_dm_plane_drm_plane_destroy_state(struct drm_plane *plane,
+@@ -1570,7 +1570,7 @@ static void amdgpu_dm_plane_drm_plane_destroy_state(struct drm_plane *plane,
  	drm_atomic_helper_plane_destroy_state(plane, state);
  }
  
@@ -8537,7 +8537,7 @@ index 83c7c8853ede..059d0ca29518 100644
  static void
  dm_atomic_plane_attach_color_mgmt_properties(struct amdgpu_display_manager *dm,
  					     struct drm_plane *plane)
-@@ -1758,7 +1758,7 @@ static const struct drm_plane_funcs dm_plane_funcs = {
+@@ -1761,7 +1761,7 @@ static const struct drm_plane_funcs dm_plane_funcs = {
  	.atomic_duplicate_state = amdgpu_dm_plane_drm_plane_duplicate_state,
  	.atomic_destroy_state = amdgpu_dm_plane_drm_plane_destroy_state,
  	.format_mod_supported = amdgpu_dm_plane_format_mod_supported,
@@ -8546,7 +8546,7 @@ index 83c7c8853ede..059d0ca29518 100644
  	.atomic_set_property = dm_atomic_plane_set_property,
  	.atomic_get_property = dm_atomic_plane_get_property,
  #endif
-@@ -1851,7 +1851,7 @@ int amdgpu_dm_plane_init(struct amdgpu_display_manager *dm,
+@@ -1854,7 +1854,7 @@ int amdgpu_dm_plane_init(struct amdgpu_display_manager *dm,
  
  	drm_plane_helper_add(plane, &dm_plane_helper_funcs);
  
@@ -16283,7 +16283,7 @@ diff --git a/drivers/hid/hid-ids.h b/drivers/hid/hid-ids.h
 index d1d479ca50a2..d1ab021e4a6a 100644
 --- a/drivers/hid/hid-ids.h
 +++ b/drivers/hid/hid-ids.h
-@@ -210,6 +210,7 @@
+@@ -211,6 +211,7 @@
  #define USB_DEVICE_ID_ASUSTEK_ROG_NKEY_KEYBOARD2	0x19b6
  #define USB_DEVICE_ID_ASUSTEK_ROG_NKEY_KEYBOARD3	0x1a30
  #define USB_DEVICE_ID_ASUSTEK_ROG_Z13_LIGHTBAR		0x18c6
@@ -20593,7 +20593,7 @@ index a8defc813c36..d3bb3865c1b1 100644
  };
  
  static const struct x86_cpu_id rapl_model_match[] __initconst = {
-@@ -804,45 +891,73 @@ MODULE_DEVICE_TABLE(x86cpu, rapl_model_match);
+@@ -805,45 +892,73 @@ MODULE_DEVICE_TABLE(x86cpu, rapl_model_match);
  static int __init rapl_pmu_init(void)
  {
  	const struct x86_cpu_id *id;

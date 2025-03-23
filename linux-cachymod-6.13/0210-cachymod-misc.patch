@@ -986,7 +986,7 @@ diff --git a/kernel/rcu/rcutorture.c b/kernel/rcu/rcutorture.c
 diff --git a/kernel/rcu/tree.c b/kernel/rcu/tree.c
 --- a/kernel/rcu/tree.c
 --- b/kernel/rcu/tree.c
-@@ -4942,7 +4942,7 @@ static void __init rcu_start_exp_gp_kworker(void)
+@@ -4944,7 +4944,7 @@ static void __init rcu_start_exp_gp_kworker(void)
  	}
  
  	if (IS_ENABLED(CONFIG_RCU_EXP_KTHREAD))
@@ -995,7 +995,7 @@ diff --git a/kernel/rcu/tree.c b/kernel/rcu/tree.c
  }
  
  static void rcu_spawn_rnp_kthreads(struct rcu_node *rnp)
-@@ -5366,7 +5366,7 @@ static int __init rcu_spawn_gp_kthread(void)
+@@ -5368,7 +5368,7 @@ static int __init rcu_spawn_gp_kthread(void)
  		return 0;
  	if (kthread_prio) {
  		sp.sched_priority = kthread_prio;
