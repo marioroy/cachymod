@@ -32,7 +32,7 @@
 diff -uar a/arch/x86/Kconfig b/arch/x86/Kconfig
 --- a/arch/x86/Kconfig
 +++ b/arch/x86/Kconfig
-@@ -1247,7 +1247,7 @@
+@@ -1245,7 +1245,7 @@
  	default X86_LEGACY_VM86
  
  config X86_16BIT
@@ -41,7 +41,7 @@ diff -uar a/arch/x86/Kconfig b/arch/x86/Kconfig
  	default y
  	depends on MODIFY_LDT_SYSCALL
  	help
-@@ -2388,7 +2388,7 @@
+@@ -2386,7 +2386,7 @@
  	  be set to 'N' under normal conditions.
  
  config MODIFY_LDT_SYSCALL

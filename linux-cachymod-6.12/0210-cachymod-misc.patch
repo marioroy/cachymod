@@ -672,7 +672,7 @@ Speed up compression
 diff -uarp a/scripts/Makefile.lib b/scripts/Makefile.lib
 --- a/scripts/Makefile.lib
 +++ b/scripts/Makefile.lib
-@@ -483,13 +483,13 @@ quiet_cmd_xzmisc = XZMISC  $@
+@@ -463,13 +463,13 @@ quiet_cmd_xzmisc = XZMISC  $@
  # be used because it would require zstd to allocate a 128 MB buffer.
  
  quiet_cmd_zstd = ZSTD    $@
@@ -733,7 +733,7 @@ diff --git a/arch/Kconfig b/arch/Kconfig
 index bd9f095d69fa..7c1f69a6dc37 100644
 --- a/arch/Kconfig
 +++ b/arch/Kconfig
-@@ -1706,18 +1706,6 @@ config FUNCTION_ALIGNMENT
+@@ -1667,18 +1667,6 @@ config FUNCTION_ALIGNMENT
  	default 4 if FUNCTION_ALIGNMENT_4B
  	default 0
  
