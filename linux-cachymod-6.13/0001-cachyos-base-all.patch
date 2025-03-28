@@ -8677,7 +8677,7 @@ diff --git a/drivers/gpu/drm/amd/pm/amdgpu_pm.c b/drivers/gpu/drm/amd/pm/amdgpu_
 index e8ae7681bf0a..8a0d873983f3 100644
 --- a/drivers/gpu/drm/amd/pm/amdgpu_pm.c
 +++ b/drivers/gpu/drm/amd/pm/amdgpu_pm.c
-@@ -3178,6 +3178,9 @@ static ssize_t amdgpu_hwmon_show_power_cap_min(struct device *dev,
+@@ -3180,6 +3180,9 @@ static ssize_t amdgpu_hwmon_show_power_cap_min(struct device *dev,
  					 struct device_attribute *attr,
  					 char *buf)
  {

@@ -107,7 +107,7 @@ fi
 
 _pkgsuffix=cachymod-613
 _major=6.13
-_minor=8
+_minor=9
 pkgver=${_major}.${_minor}
 _stable=${_major}.${_minor}
 #_stable=${_major}
@@ -119,7 +119,7 @@ _stable=${_major}.${_minor}
 
 _srcname=linux-${_stable}
 pkgdesc='CachyMod Linux Kernel with other patches and improvements'
-pkgrel=2
+pkgrel=1
 _kernver="$pkgver-$pkgrel"
 _kernuname="${pkgver}-${_pkgsuffix}"
 arch=('x86_64')
@@ -425,9 +425,9 @@ prepare() {
         if [ -e "$_localmodcfg_path" ]; then
             echo "Running Steven Rostedt's make localmodconfig now"
             ( cat "$_localmodcfg_path"
-              # Include exfat, ntsync, and modules for Docker
+              # Include RAM disk, exfat, ntsync, and modules for Docker
               for module in \
-                  bridge exfat llc nf_conntrack nf_conntrack_netlink \
+                  brd bridge exfat llc nf_conntrack nf_conntrack_netlink \
                   nf_defrag_ipv4 nf_defrag_ipv6 nf_nat nf_tables \
                   nft_chain_nat nft_compat ntsync overlay stp veth \
                   xfrm_algo xfrm_user xt_addrtype xt_conntrack \
