@@ -60,6 +60,33 @@ set -e
 # https://github.com/torvalds/linux/blob/master/drivers/md/Kconfig
 #scripts/config -d MD
 
+# Disable Controller Area Network (CAN) bus subsystem support
+# https://github.com/torvalds/linux/blob/master/net/can/Kconfig
+#scripts/config -d CAN
+
+# Disable industrial I/O subsystem support
+# https://github.com/torvalds/linux/blob/master/drivers/iio/Kconfig
+#scripts/config -d IIO
+
+# Disable InfiniBand support
+# https://github.com/torvalds/linux/blob/master/drivers/infiniband/Kconfig
+#scripts/config -d INFINIBAND
+
+# Disable ServerEngines' 10Gbps NIC - BladeEngine ethernet support
+# https://github.com/torvalds/linux/blob/master/drivers/net/ethernet/emulex/Kconfig
+#scripts/config -d BE2NET
+
+# Disable Mellanox Technologies ethernet support
+# https://github.com/torvalds/linux/blob/master/drivers/net/ethernet/mellanox/Kconfig
+#scripts/config -d MLX4_EN
+#scripts/config -d MLX5_CORE
+#scripts/config -d MLXSW_CORE
+#scripts/config -d MLXFW
+
+# Disable Sonics Silicon Backplane support
+# https://github.com/torvalds/linux/blob/master/drivers/ssb/Kconfig
+#scripts/config -d SSB
+
 # Disable network drivers
 #scripts/config -d NET_VENDOR_ADI
 #scripts/config -d NET_VENDOR_AGERE
