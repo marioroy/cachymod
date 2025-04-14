@@ -21,8 +21,8 @@ sudo pacman -Sy nvidia-open-dkms   # 6.13 needs 565.77-5 or later
 
 ## Building and Installation
 
-Copy a `linux-cachymod-6.12/13` folder to a work area with ample storage space,
-and change directory. Optionally, adjust the build options in `build.sh`.
+Copy a `linux-cachymod-6.12/13/14` folder to a work area and change
+directory. Optionally, adjust the build options in `build.sh`.
 Select `_preempt=rt` for the realtime kernel.
 
 ```bash
@@ -42,8 +42,8 @@ sudo pacman -U linux-cachymod-612-bore-gcc-rt*.zst
 ```
 
 Removal is via pacman as well. Change the kernel version, build tag,
-and build type accordingly to { 612, 613 }, { bore, eevdf }, and
-{ lto, polly, clang, gcc }, respectively.
+and build type accordingly to { 612, 613, 614 }, { bore, eevdf }, and
+{ lto, polly, gcc }, respectively.
 
 ```text
 # lazy
@@ -55,21 +55,6 @@ sudo pacman -Rsn \
 sudo pacman -Rsn \
   linux-cachymod-612-bore-gcc-rt \
   linux-cachymod-612-bore-gcc-rt-headers
-```
-
-The desired preemption can be specified with a kernel argument.
-For most cases "full" is what you want for low-latency.
-
-```bash
-# lazy
-preempt=voluntary
-preempt=full (default)
-preempt=lazy
-preempt=none
-
-# lazy-rt
-preempt=full (default)
-preempt=lazy
 ```
 
 ## Developer Notes
