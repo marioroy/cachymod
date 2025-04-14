@@ -1,0 +1,1770 @@
+Disable PLACE_LAG and RUN_TO_PARITY EEVDF features.
+
+Enable feature via /etc/tmpfiles.d/ configuration, if needed.
+  w+ /sys/kernel/debug/sched/features - - - - PLACE_LAG
+  w+ /sys/kernel/debug/sched/features - - - - RUN_TO_PARITY
+
+Or manually.
+  echo PLACE_LAG     | sudo tee /sys/kernel/debug/sched/features
+  echo RUN_TO_PARITY | sudo tee /sys/kernel/debug/sched/features
+
+Signed-off-by: Mario Roy <...>
+
+diff -uarp a/kernel/sched/features.h b/kernel/sched/features.h
+--- a/kernel/sched/features.h
++++ b/kernel/sched/features.h
+@@ -4,7 +4,7 @@
+  * Using the avg_vruntime, do the right thing and preserve lag across
+  * sleep+wake cycles. EEVDF placement strategy #1, #2 if disabled.
+  */
+-SCHED_FEAT(PLACE_LAG, true)
++SCHED_FEAT(PLACE_LAG, false)
+ /*
+  * Give new tasks half a slice to ease into the competition.
+  */
+@@ -17,7 +17,7 @@ SCHED_FEAT(PLACE_REL_DEADLINE, true)
+  * Inhibit (wakeup) preemption until the current task has either matched the
+  * 0-lag point or until is has exhausted it's slice.
+  */
+-SCHED_FEAT(RUN_TO_PARITY, true)
++SCHED_FEAT(RUN_TO_PARITY, false)
+ /*
+  * Allow wakeup of tasks with a shorter slice to cancel RUN_TO_PARITY for
+  * current.
+-- 
+2.47.0
+
+sched_ext: Always call put_prev_task() with scx_enabled
+https://lore.kernel.org/lkml/20241013173928.20738-1-andrea.righi@linux.dev/T/#u
+
+From: Andrea Righi @ 2024-10-13 17:39 UTC (permalink / raw)
+  To: Tejun Heo, David Vernet, Peter Zijlstra, Ingo Molnar, Juri Lelli,
+	Vincent Guittot
+  Cc: Dietmar Eggemann, Steven Rostedt, Ben Segall, Mel Gorman,
+	Valentin Schneider, linux-kernel
+
+With the consolidation of put_prev_task/set_next_task(), we are now
+skipping the sched_ext ops.stopping/running() transitions when the
+previous and next tasks are the same, see commit 436f3eed5c69 ("sched:
+Combine the last put_prev_task() and the first set_next_task()").
+
+While this optimization makes sense in general, it can negatively impact
+performance in some user-space schedulers, that expect to handle such
+transitions when tasks exhaust their timeslice (see SCX_OPS_ENQ_LAST).
+
+For example, scx_rustland suffers a significant performance regression
+(e.g., gaming benchmarks drop from ~60fps to ~10fps).
+
+To fix this, ensure that put_prev_task()/set_next_task() are never
+skipped when the scx scheduling class is enabled, allowing the scx class
+to handle such transitions.
+
+This change restores the previous behavior, fixing the performance
+regression in scx_rustland.
+
+Link: https://github.com/sched-ext/scx/issues/788
+Fixes: 7c65ae81ea86 ("sched_ext: Don't call put_prev_task_scx() before picking the next task")
+Signed-off-by: Andrea Righi <andrea.righi@linux.dev>
+---
+ kernel/sched/sched.h | 30 +++++++++++++++---------------
+ 1 file changed, 15 insertions(+), 15 deletions(-)
+
+diff --git a/kernel/sched/sched.h b/kernel/sched/sched.h
+index 6085ef50febf..44d736e49d06 100644
+--- a/kernel/sched/sched.h
++++ b/kernel/sched/sched.h
+@@ -2508,21 +2508,6 @@ __put_prev_set_next_dl_server(struct rq *rq,
+ 	rq->dl_server = NULL;
+ }
+ 
+-static inline void put_prev_set_next_task(struct rq *rq,
+-					  struct task_struct *prev,
+-					  struct task_struct *next)
+-{
+-	WARN_ON_ONCE(rq->curr != prev);
+-
+-	__put_prev_set_next_dl_server(rq, prev, next);
+-
+-	if (next == prev)
+-		return;
+-
+-	prev->sched_class->put_prev_task(rq, prev, next);
+-	next->sched_class->set_next_task(rq, next, true);
+-}
+-
+ /*
+  * Helper to define a sched_class instance; each one is placed in a separate
+  * section which is ordered by the linker script:
+@@ -2548,6 +2533,21 @@ DECLARE_STATIC_KEY_FALSE(__scx_switched_all);	/* all fair class tasks on SCX */
+ extern const struct sched_class fair_sched_class;
+ extern const struct sched_class idle_sched_class;
+ 
++static inline void put_prev_set_next_task(struct rq *rq,
++					  struct task_struct *prev,
++					  struct task_struct *next)
++{
++	WARN_ON_ONCE(rq->curr != prev);
++
++	__put_prev_set_next_dl_server(rq, prev, next);
++
++	if (next == prev && !scx_enabled())
++		return;
++
++	prev->sched_class->put_prev_task(rq, prev, next);
++	next->sched_class->set_next_task(rq, next, true);
++}
++
+ /*
+  * Iterate only active classes. SCX can take over all fair tasks or be
+  * completely disabled. If the former, skip fair. If the latter, skip SCX.
+-- 
+2.47.0
+
+Switch to gnu17, a GCC bug-fix version of the C11 standard.
+
+What is C17 and what changes have been made to the language?
+https://stackoverflow.com/questions/47529854/
+
+Signed-off-by: Mario Roy <...>
+
+diff -uarp a/arch/x86/Makefile b/arch/x86/Makefile
+--- a/arch/x86/Makefile
++++ b/arch/x86/Makefile
+@@ -47,8 +47,8 @@ endif
+ 
+ # How to compile the 16-bit code.  Note we always compile for -march=i386;
+ # that way we can complain to the user if the CPU is insufficient.
+-REALMODE_CFLAGS	:= -std=gnu11 -m16 -g -Os -DDISABLE_BRANCH_PROFILING -D__DISABLE_EXPORTS \
+-		   -Wall -Wstrict-prototypes -march=i386 -mregparm=3 \
++REALMODE_CFLAGS	:= -std=gnu17 -m16 -O2 -march=x86-64 -DDISABLE_BRANCH_PROFILING -D__DISABLE_EXPORTS \
++		   -Wall -Wstrict-prototypes -mregparm=3 \
+ 		   -fno-strict-aliasing -fomit-frame-pointer -fno-pic \
+ 		   -mno-mmx -mno-sse $(call cc-option,-fcf-protection=none)
+ 
+diff -uarp a/arch/x86/boot/compressed/Makefile b/arch/x86/boot/compressed/Makefile
+--- a/arch/x86/boot/compressed/Makefile
++++ b/arch/x86/boot/compressed/Makefile
+@@ -25,7 +25,7 @@ targets := vmlinux vmlinux.bin vmlinux.bin.gz vmlinux.bin.bz2 vmlinux.bin.lzma \
+ # avoid errors with '-march=i386', and future flags may depend on the target to
+ # be valid.
+ KBUILD_CFLAGS := -m$(BITS) -O2 $(CLANG_FLAGS)
+-KBUILD_CFLAGS += -std=gnu11
++KBUILD_CFLAGS += -std=gnu17
+ KBUILD_CFLAGS += -fno-strict-aliasing -fPIE
+ KBUILD_CFLAGS += -Wundef
+ KBUILD_CFLAGS += -DDISABLE_BRANCH_PROFILING
+diff -uarp a/drivers/firmware/efi/libstub/Makefile b/drivers/firmware/efi/libstub/Makefile
+--- a/drivers/firmware/efi/libstub/Makefile
++++ b/drivers/firmware/efi/libstub/Makefile
+@@ -11,7 +11,7 @@ cflags-y			:= $(KBUILD_CFLAGS)
+ 
+ cflags-$(CONFIG_X86_32)		:= -march=i386
+ cflags-$(CONFIG_X86_64)		:= -mcmodel=small
+-cflags-$(CONFIG_X86)		+= -m$(BITS) -D__KERNEL__ -std=gnu11 \
++cflags-$(CONFIG_X86)		+= -m$(BITS) -D__KERNEL__ -std=gnu17 \
+ 				   -fPIC -fno-strict-aliasing -mno-red-zone \
+ 				   -mno-mmx -mno-sse -fshort-wchar \
+ 				   -Wno-pointer-sign \
+diff -uarp a/Makefile b/Makefile
+--- a/Makefile
++++ b/Makefile
+@@ -462,7 +462,7 @@ HOSTRUSTC = rustc
+ HOSTPKG_CONFIG	= pkg-config
+ 
+ KBUILD_USERHOSTCFLAGS := -Wall -Wmissing-prototypes -Wstrict-prototypes \
+-			 -O2 -fomit-frame-pointer -std=gnu11
++			 -O2 -fomit-frame-pointer -std=gnu17
+ KBUILD_USERCFLAGS  := $(KBUILD_USERHOSTCFLAGS) $(USERCFLAGS)
+ KBUILD_USERLDFLAGS := $(USERLDFLAGS)
+ 
+@@ -576,7 +576,7 @@ LINUXINCLUDE    := \
+ KBUILD_AFLAGS   := -D__ASSEMBLY__ -fno-PIE
+ 
+ KBUILD_CFLAGS :=
+-KBUILD_CFLAGS += -std=gnu11
++KBUILD_CFLAGS += -std=gnu17
+ KBUILD_CFLAGS += -fshort-wchar
+ KBUILD_CFLAGS += -funsigned-char
+ KBUILD_CFLAGS += -fno-common
+-- 
+2.30.1
+
+Speed up compression
+
+diff -uarp a/scripts/Makefile.lib b/scripts/Makefile.lib
+--- a/scripts/Makefile.lib
++++ b/scripts/Makefile.lib
+@@ -522,13 +522,13 @@ quiet_cmd_xzmisc = XZMISC  $@
+ # be used because it would require zstd to allocate a 128 MB buffer.
+ 
+ quiet_cmd_zstd = ZSTD    $@
+-      cmd_zstd = cat $(real-prereqs) | $(ZSTD) -19 > $@
++      cmd_zstd = cat $(real-prereqs) | $(ZSTD) -6 > $@
+ 
+ quiet_cmd_zstd22 = ZSTD22  $@
+-      cmd_zstd22 = cat $(real-prereqs) | $(ZSTD) -22 --ultra > $@
++      cmd_zstd22 = cat $(real-prereqs) | $(ZSTD) -6 --ultra > $@
+ 
+ quiet_cmd_zstd22_with_size = ZSTD22  $@
+-      cmd_zstd22_with_size = { cat $(real-prereqs) | $(ZSTD) -22 --ultra; $(size_append); } > $@
++      cmd_zstd22_with_size = { cat $(real-prereqs) | $(ZSTD) -6 --ultra; $(size_append); } > $@
+ 
+ # ASM offsets
+ # ---------------------------------------------------------------------------
+-- 
+2.30.1
+
+Curated patches from XanMod Linux
+https://gitlab.com/xanmod/linux-patches
+
+# 0003-kbuild-Remove-GCC-minimal-function-alignment.patch
+
+From 67e174927705e71b0d254ab6fab5af40193376a4 Mon Sep 17 00:00:00 2001
+From: Alexandre Frade <kernel@xanmod.org>
+Date: Sat, 31 Aug 2024 16:57:41 +0000
+Subject: [PATCH 03/18] kbuild: Remove GCC minimal function alignment
+
+Signed-off-by: Alexandre Frade <kernel@xanmod.org>
+---
+ Makefile                       |  7 -------
+ arch/Kconfig                   | 12 ------------
+ include/linux/compiler_types.h | 10 +++++-----
+ 3 files changed, 5 insertions(+), 24 deletions(-)
+
+diff --git a/Makefile b/Makefile
+index 59a938a0c335..1f9ef37558df 100644
+--- a/Makefile
++++ b/Makefile
+@@ -1039,15 +1039,8 @@ export CC_FLAGS_FPU
+ export CC_FLAGS_NO_FPU
+ 
+ ifneq ($(CONFIG_FUNCTION_ALIGNMENT),0)
+-# Set the minimal function alignment. Use the newer GCC option
+-# -fmin-function-alignment if it is available, or fall back to -falign-funtions.
+-# See also CONFIG_CC_HAS_SANE_FUNCTION_ALIGNMENT.
+-ifdef CONFIG_CC_HAS_MIN_FUNCTION_ALIGNMENT
+-KBUILD_CFLAGS += -fmin-function-alignment=$(CONFIG_FUNCTION_ALIGNMENT)
+-else
+ KBUILD_CFLAGS += -falign-functions=$(CONFIG_FUNCTION_ALIGNMENT)
+ endif
+-endif
+ 
+ # arch Makefile may override CC so keep this after arch Makefile is included
+ NOSTDINC_FLAGS += -nostdinc
+diff --git a/arch/Kconfig b/arch/Kconfig
+index bd9f095d69fa..7c1f69a6dc37 100644
+--- a/arch/Kconfig
++++ b/arch/Kconfig
+@@ -1723,18 +1723,6 @@ config FUNCTION_ALIGNMENT
+ 	default 4 if FUNCTION_ALIGNMENT_4B
+ 	default 0
+ 
+-config CC_HAS_MIN_FUNCTION_ALIGNMENT
+-	# Detect availability of the GCC option -fmin-function-alignment which
+-	# guarantees minimal alignment for all functions, unlike
+-	# -falign-functions which the compiler ignores for cold functions.
+-	def_bool $(cc-option, -fmin-function-alignment=8)
+-
+-config CC_HAS_SANE_FUNCTION_ALIGNMENT
+-	# Set if the guaranteed alignment with -fmin-function-alignment is
+-	# available or extra care is required in the kernel. Clang provides
+-	# strict alignment always, even with -falign-functions.
+-	def_bool CC_HAS_MIN_FUNCTION_ALIGNMENT || CC_IS_CLANG
+-
+ config ARCH_NEED_CMPXCHG_1_EMU
+ 	bool
+ 
+diff --git a/include/linux/compiler_types.h b/include/linux/compiler_types.h
+index 1a957ea2f4fe..972bd5f84766 100644
+--- a/include/linux/compiler_types.h
++++ b/include/linux/compiler_types.h
+@@ -99,17 +99,17 @@ static inline void __chk_io_ptr(const volatile void __iomem *ptr) { }
+  *   gcc: https://gcc.gnu.org/onlinedocs/gcc/Label-Attributes.html#index-cold-label-attribute
+  *
+  * When -falign-functions=N is in use, we must avoid the cold attribute as
+- * GCC drops the alignment for cold functions. Worse, GCC can implicitly mark
+- * callees of cold functions as cold themselves, so it's not sufficient to add
+- * __function_aligned here as that will not ensure that callees are correctly
+- * aligned.
++ * contemporary versions of GCC drop the alignment for cold functions. Worse,
++ * GCC can implicitly mark callees of cold functions as cold themselves, so
++ * it's not sufficient to add __function_aligned here as that will not ensure
++ * that callees are correctly aligned.
+  *
+  * See:
+  *
+  *   https://lore.kernel.org/lkml/Y77%2FqVgvaJidFpYt@FVFF77S0Q05N
+  *   https://gcc.gnu.org/bugzilla/show_bug.cgi?id=88345#c9
+  */
+-#if defined(CONFIG_CC_HAS_SANE_FUNCTION_ALIGNMENT) || (CONFIG_FUNCTION_ALIGNMENT == 0)
++#if !defined(CONFIG_CC_IS_GCC) || (CONFIG_FUNCTION_ALIGNMENT == 0)
+ #define __cold				__attribute__((__cold__))
+ #else
+ #define __cold
+-- 
+2.45.2
+
+# 0006-XANMOD-block-mq-deadline-Increase-write-priority-to-.patch
+
+From d23f0554f1b381f082dc81a6f3c523b90043b941 Mon Sep 17 00:00:00 2001
+From: Alexandre Frade <kernel@xanmod.org>
+Date: Wed, 11 May 2022 18:56:51 +0000
+Subject: [PATCH 06/18] XANMOD: block/mq-deadline: Increase write priority to
+ improve responsiveness
+
+Signed-off-by: Alexandre Frade <kernel@xanmod.org>
+---
+ block/mq-deadline.c | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/block/mq-deadline.c b/block/mq-deadline.c
+index acdc28756d9d..9d7f63ebc000 100644
+--- a/block/mq-deadline.c
++++ b/block/mq-deadline.c
+@@ -4,6 +4,9 @@
+  *  for the blk-mq scheduling framework
+  *
+  *  Copyright (C) 2016 Jens Axboe <axboe@kernel.dk>
++ *
++ *  Tunes for responsiveness by Alexandre Frade
++ *  (C) 2022 Alexandre Frade <kernel@xanmod.org>
+  */
+ #include <linux/kernel.h>
+ #include <linux/fs.h>
+@@ -28,13 +31,13 @@
+  * See Documentation/block/deadline-iosched.rst
+  */
+ static const int read_expire = HZ / 2;  /* max time before a read is submitted. */
+-static const int write_expire = 5 * HZ; /* ditto for writes, these limits are SOFT! */
++static const int write_expire = HZ;     /* ditto for writes, these limits are SOFT! */
+ /*
+  * Time after which to dispatch lower priority requests even if higher
+  * priority requests are pending.
+  */
+ static const int prio_aging_expire = 10 * HZ;
+-static const int writes_starved = 2;    /* max times reads can starve a write */
++static const int writes_starved = 1;    /* max times reads can starve a write */
+ static const int fifo_batch = 16;       /* # of sequential requests treated as one
+ 				     by the above parameters. For throughput. */
+ 
+-- 
+2.45.2
+
+# 0007-XANMOD-block-mq-deadline-Disable-front_merges-by-def.patch
+
+From 8c3035b22be106d8659d85c2651e589f53e89cc5 Mon Sep 17 00:00:00 2001
+From: Alexandre Frade <kernel@xanmod.org>
+Date: Thu, 6 Jan 2022 16:59:01 +0000
+Subject: [PATCH 07/18] XANMOD: block/mq-deadline: Disable front_merges by
+ default
+
+Signed-off-by: Alexandre Frade <kernel@xanmod.org>
+---
+ block/mq-deadline.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/block/mq-deadline.c b/block/mq-deadline.c
+index 9d7f63ebc000..bf67b420b645 100644
+--- a/block/mq-deadline.c
++++ b/block/mq-deadline.c
+@@ -600,7 +600,7 @@ static int dd_init_sched(struct request_queue *q, struct elevator_type *e)
+ 	dd->fifo_expire[DD_READ] = read_expire;
+ 	dd->fifo_expire[DD_WRITE] = write_expire;
+ 	dd->writes_starved = writes_starved;
+-	dd->front_merges = 1;
++	dd->front_merges = 0;
+ 	dd->last_dir = DD_WRITE;
+ 	dd->fifo_batch = fifo_batch;
+ 	dd->prio_aging_expire = prio_aging_expire;
+-- 
+2.45.2
+
+# 0008-XANMOD-block-Set-rq_affinity-to-force-complete-I-O-r.patch
+
+From 3d1e3f450e9ca926a899a0502fd34df6d483efae Mon Sep 17 00:00:00 2001
+From: Alexandre Frade <kernel@xanmod.org>
+Date: Mon, 16 Sep 2024 15:36:01 +0000
+Subject: [PATCH 08/18] XANMOD: block: Set rq_affinity to force complete I/O
+ requests on same CPU
+
+Signed-off-by: Alexandre Frade <kernel@xanmod.org>
+---
+ include/linux/blkdev.h | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/include/linux/blkdev.h b/include/linux/blkdev.h
+index 50c3b959da28..e291cd33edcf 100644
+--- a/include/linux/blkdev.h
++++ b/include/linux/blkdev.h
+@@ -626,7 +626,8 @@ enum {
+ 	QUEUE_FLAG_MAX
+ };
+ 
+-#define QUEUE_FLAG_MQ_DEFAULT	(1UL << QUEUE_FLAG_SAME_COMP)
++#define QUEUE_FLAG_MQ_DEFAULT	((1UL << QUEUE_FLAG_SAME_COMP) |		\
++				 (1UL << QUEUE_FLAG_SAME_FORCE))
+ 
+ void blk_queue_flag_set(unsigned int flag, struct request_queue *q);
+ void blk_queue_flag_clear(unsigned int flag, struct request_queue *q);
+-- 
+2.45.2
+
+# 0009-XANMOD-blk-wbt-Set-wbt_default_latency_nsec-to-2msec.patch
+
+From 80e2bd58a4f13d1a946c6616e18d124b1291f2a7 Mon Sep 17 00:00:00 2001
+From: Alexandre Frade <kernel@xanmod.org>
+Date: Mon, 15 Jul 2024 04:50:34 +0000
+Subject: [PATCH 09/18] XANMOD: blk-wbt: Set wbt_default_latency_nsec() to
+ 2msec
+
+Signed-off-by: Alexandre Frade <kernel@xanmod.org>
+---
+ block/blk-wbt.c | 10 ++--------
+ 1 file changed, 2 insertions(+), 8 deletions(-)
+
+diff --git a/block/blk-wbt.c b/block/blk-wbt.c
+index 6dfc659d22e2..4cf65ad7c953 100644
+--- a/block/blk-wbt.c
++++ b/block/blk-wbt.c
+@@ -730,14 +730,8 @@ EXPORT_SYMBOL_GPL(wbt_enable_default);
+ 
+ u64 wbt_default_latency_nsec(struct request_queue *q)
+ {
+-	/*
+-	 * We default to 2msec for non-rotational storage, and 75msec
+-	 * for rotational storage.
+-	 */
+-	if (blk_queue_nonrot(q))
+-		return 2000000ULL;
+-	else
+-		return 75000000ULL;
++	/* XanMod defaults to 2msec for any type of storage */
++	return 2000000ULL;
+ }
+ 
+ static int wbt_data_dir(const struct request *rq)
+-- 
+2.45.2
+
+# 0011-XANMOD-dcache-cache_pressure-50-decreases-the-rate-a.patch
+
+From a047058c64e9d75db8e714a8c1202057920e21c7 Mon Sep 17 00:00:00 2001
+From: Alexandre Frade <kernel@xanmod.org>
+Date: Mon, 29 Jan 2018 16:59:22 +0000
+Subject: [PATCH 11/18] XANMOD: dcache: cache_pressure = 50 decreases the rate
+ at which VFS caches are reclaimed
+
+Signed-off-by: Alexandre Frade <kernel@xanmod.org>
+---
+ fs/dcache.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/fs/dcache.c b/fs/dcache.c
+index 0f6b16ba30d0..ad80bfd6244f 100644
+--- a/fs/dcache.c
++++ b/fs/dcache.c
+@@ -73,7 +73,7 @@
+  * If no ancestor relationship:
+  * arbitrary, since it's serialized on rename_lock
+  */
+-int sysctl_vfs_cache_pressure __read_mostly = 100;
++int sysctl_vfs_cache_pressure __read_mostly = 50;
+ EXPORT_SYMBOL_GPL(sysctl_vfs_cache_pressure);
+ 
+ __cacheline_aligned_in_smp DEFINE_SEQLOCK(rename_lock);
+-- 
+2.45.2
+
+# 0016-XANMOD-lib-kconfig.debug-disable-default-SYMBOLIC_ER.patch
+
+From 444f831f229a418b4865d11940b3987f55ab151f Mon Sep 17 00:00:00 2001
+From: Alexandre Frade <kernel@xanmod.org>
+Date: Mon, 16 Sep 2024 08:09:56 +0000
+Subject: [PATCH 16/18] XANMOD: lib/kconfig.debug: disable default
+ SYMBOLIC_ERRNAME and DEBUG_BUGVERBOSE
+
+Signed-off-by: Alexandre Frade <kernel@xanmod.org>
+---
+ fs/bcachefs/Kconfig | 1 -
+ lib/Kconfig.debug   | 4 ++--
+ 2 files changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/fs/bcachefs/Kconfig b/fs/bcachefs/Kconfig
+index 5bac803ea367..773befb92af1 100644
+--- a/fs/bcachefs/Kconfig
++++ b/fs/bcachefs/Kconfig
+@@ -24,7 +24,6 @@ config BCACHEFS_FS
+ 	select XOR_BLOCKS
+ 	select XXHASH
+ 	select SRCU
+-	select SYMBOLIC_ERRNAME
+ 	select MIN_HEAP
+ 	help
+ 	The bcachefs filesystem - a modern, copy on write filesystem, with
+diff --git a/lib/Kconfig.debug b/lib/Kconfig.debug
+index 7312ae7c3cc5..78f629791bdf 100644
+--- a/lib/Kconfig.debug
++++ b/lib/Kconfig.debug
+@@ -190,7 +190,7 @@ config DYNAMIC_DEBUG_CORE
+ 
+ config SYMBOLIC_ERRNAME
+ 	bool "Support symbolic error names in printf"
+-	default y if PRINTK
++	default n
+ 	help
+ 	  If you say Y here, the kernel's printf implementation will
+ 	  be able to print symbolic error names such as ENOSPC instead
+@@ -200,7 +200,7 @@ config SYMBOLIC_ERRNAME
+ config DEBUG_BUGVERBOSE
+ 	bool "Verbose BUG() reporting (adds 70K)" if DEBUG_KERNEL
+ 	depends on BUG && (GENERIC_BUG || HAVE_DEBUG_BUGVERBOSE)
+-	default y
++	default n
+ 	help
+ 	  Say Y here to make BUG() panics output the file name and line number
+ 	  of the BUG call as well as the EIP and oops trace.  This aids
+-- 
+2.45.2
+
+Curated patches from SUNLIGHT Linux
+https://github.com/sunlightlinux/linux-sunlight
+
+x86/tsc: Use rdtsc_ordered() when RDTSCP or LFENCE_RDTSC are supported
+
+Signed-off-by: Mario Limonciello <mario.limonciello@amd.com>
+Signed-off-by: Ionut Nechita <ionut_n2001@yahoo.com>
+
+diff --git a/arch/x86/include/asm/tsc.h b/arch/x86/include/asm/tsc.h
+--- a/arch/x86/include/asm/tsc.h
++++ b/arch/x86/include/asm/tsc.h
+@@ -24,6 +24,9 @@ static inline cycles_t get_cycles(void)
+ 	if (!IS_ENABLED(CONFIG_X86_TSC) &&
+ 	    !cpu_feature_enabled(X86_FEATURE_TSC))
+ 		return 0;
++	if (cpu_feature_enabled(X86_FEATURE_LFENCE_RDTSC) ||
++	    cpu_feature_enabled(X86_FEATURE_RDTSCP))
++		return rdtsc_ordered();
+ 	return rdtsc();
+ }
+ #define get_cycles get_cycles
+-- 
+2.43.0
+
+rcu: Change sched_setscheduler_nocheck() calls to SCHED_RR policy
+
+Signed-off-by: Alexandre Frade <kernel@xanmod.org>
+Signed-off-by: Ionut Nechita <ionut_n2001@yahoo.com>
+
+diff --git a/Documentation/admin-guide/kernel-parameters.txt b/Documentation/admin-guide/kernel-parameters.txt
+--- a/Documentation/admin-guide/kernel-parameters.txt
++++ b/Documentation/admin-guide/kernel-parameters.txt
+@@ -5252,7 +5252,7 @@
+ 			overwritten.
+ 
+ 	rcutree.kthread_prio= 	 [KNL,BOOT]
+-			Set the SCHED_FIFO priority of the RCU per-CPU
++			Set the SCHED_RR priority of the RCU per-CPU
+ 			kthreads (rcuc/N). This value is also used for
+ 			the priority of the RCU boost threads (rcub/N)
+ 			and for the RCU grace-period kthreads (rcu_bh,
+diff --git a/kernel/rcu/Kconfig b/kernel/rcu/Kconfig
+--- a/kernel/rcu/Kconfig
++++ b/kernel/rcu/Kconfig
+@@ -289,9 +289,9 @@ config RCU_NOCB_CPU_CB_BOOST
+ 	depends on RCU_NOCB_CPU && RCU_BOOST
+ 	default y if PREEMPT_RT
+ 	help
+-	  Use this option to invoke offloaded callbacks as SCHED_FIFO
++	  Use this option to invoke offloaded callbacks as SCHED_RR
+ 	  to avoid starvation by heavy SCHED_OTHER background load.
+-	  Of course, running as SCHED_FIFO during callback floods will
++	  Of course, running as SCHED_RR during callback floods will
+ 	  cause the rcuo[ps] kthreads to monopolize the CPU for hundreds
+ 	  of milliseconds or more.  Therefore, when enabling this option,
+ 	  it is your responsibility to ensure that latency-sensitive
+diff --git a/kernel/rcu/rcutorture.c b/kernel/rcu/rcutorture.c
+--- a/kernel/rcu/rcutorture.c
++++ b/kernel/rcu/rcutorture.c
+@@ -2572,13 +2572,13 @@ static int rcutorture_booster_init(unsigned int cpu)
+ 		t = per_cpu(ksoftirqd, cpu);
+ 		WARN_ON_ONCE(!t);
+ 		sp.sched_priority = 2;
+-		sched_setscheduler_nocheck(t, SCHED_FIFO, &sp);
++		sched_setscheduler_nocheck(t, SCHED_RR, &sp);
+ #ifdef CONFIG_IRQ_FORCED_THREADING
+ 		if (force_irqthreads()) {
+ 			t = per_cpu(ktimerd, cpu);
+ 			WARN_ON_ONCE(!t);
+ 			sp.sched_priority = 2;
+-			sched_setscheduler_nocheck(t, SCHED_FIFO, &sp);
++			sched_setscheduler_nocheck(t, SCHED_RR, &sp);
+ 		}
+ #endif
+ 	}
+diff --git a/kernel/rcu/tree.c b/kernel/rcu/tree.c
+--- a/kernel/rcu/tree.c
+--- b/kernel/rcu/tree.c
+@@ -4127,7 +4127,7 @@ static void __init rcu_start_exp_gp_kworker(void)
+ 	}
+ 
+ 	if (IS_ENABLED(CONFIG_RCU_EXP_KTHREAD))
+-		sched_setscheduler_nocheck(rcu_exp_gp_kworker->task, SCHED_FIFO, &param);
++		sched_setscheduler_nocheck(rcu_exp_gp_kworker->task, SCHED_RR, &param);
+ }
+ 
+ static void rcu_spawn_rnp_kthreads(struct rcu_node *rnp)
+@@ -4487,7 +4487,7 @@ static int __init rcu_spawn_gp_kthread(void)
+ 		return 0;
+ 	if (kthread_prio) {
+ 		sp.sched_priority = kthread_prio;
+-		sched_setscheduler_nocheck(t, SCHED_FIFO, &sp);
++		sched_setscheduler_nocheck(t, SCHED_RR, &sp);
+ 	}
+ 	rnp = rcu_get_root();
+ 	raw_spin_lock_irqsave_rcu_node(rnp, flags);
+diff --git a/kernel/rcu/tree_nocb.h b/kernel/rcu/tree_nocb.h
+--- a/kernel/rcu/tree_nocb.h
++++ b/kernel/rcu/tree_nocb.h
+@@ -1404,7 +1404,7 @@ static void rcu_spawn_cpu_nocb_kthread(int cpu)
+ 		}
+ 		WRITE_ONCE(rdp_gp->nocb_gp_kthread, t);
+ 		if (kthread_prio)
+-			sched_setscheduler_nocheck(t, SCHED_FIFO, &sp);
++			sched_setscheduler_nocheck(t, SCHED_RR, &sp);
+ 	}
+ 	mutex_unlock(&rdp_gp->nocb_gp_kthread_mutex);
+ 
+@@ -1420,7 +1420,7 @@ static void rcu_spawn_cpu_nocb_kthread(int cpu)
+ 		kthread_park(t);
+ 
+ 	if (IS_ENABLED(CONFIG_RCU_NOCB_CPU_CB_BOOST) && kthread_prio)
+-		sched_setscheduler_nocheck(t, SCHED_FIFO, &sp);
++		sched_setscheduler_nocheck(t, SCHED_RR, &sp);
+ 
+ 	WRITE_ONCE(rdp->nocb_cb_kthread, t);
+ 	WRITE_ONCE(rdp->nocb_gp_kthread, rdp_gp->nocb_gp_kthread);
+diff --git a/kernel/rcu/tree_plugin.h b/kernel/rcu/tree_plugin.h
+--- a/kernel/rcu/tree_plugin.h
++++ b/kernel/rcu/tree_plugin.h
+@@ -1021,7 +1021,7 @@ static void rcu_cpu_kthread_setup(unsigned int cpu)
+ 	struct sched_param sp;
+ 
+ 	sp.sched_priority = kthread_prio;
+-	sched_setscheduler_nocheck(current, SCHED_FIFO, &sp);
++	sched_setscheduler_nocheck(current, SCHED_RR, &sp);
+ #endif /* #ifdef CONFIG_RCU_BOOST */
+ 
+ 	WRITE_ONCE(rdp->rcuc_activity, jiffies);
+@@ -1220,7 +1220,7 @@ static void rcu_spawn_one_boost_kthread(struct rcu_node *rnp)
+ 	raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
+ 
+ 	sp.sched_priority = kthread_prio;
+-	sched_setscheduler_nocheck(t, SCHED_FIFO, &sp);
++	sched_setscheduler_nocheck(t, SCHED_RR, &sp);
+ 	rcu_thread_affine_rnp(t, rnp);
+ 	wake_up_process(t); /* get to TASK_INTERRUPTIBLE quickly. */
+ }
+-- 
+2.43.0
+
+Change default value for wq_cpu_intensive_thresh_us
+
+Description:
+ - 10ms -> 30ms
+ - By using new processors it helps to have
+   a higher threshold for thresh
+
+Bug: N/A
+Signed-off-by: Ionut Nechita <ionut_n2001@yahoo.com>
+
+diff --git a/kernel/workqueue.c b/kernel/workqueue.c
+--- a/kernel/workqueue.c
++++ b/kernel/workqueue.c
+@@ -7850,20 +7850,20 @@ static void __init wq_cpu_intensive_thresh_init(void)
+ 		return;
+ 
+ 	/*
+-	 * The default of 10ms is derived from the fact that most modern (as of
+-	 * 2023) processors can do a lot in 10ms and that it's just below what
++	 * The default of 30ms is derived from the fact that most modern (as of
++	 * 2023) processors can do a lot in 30ms and that it's just below what
+ 	 * most consider human-perceivable. However, the kernel also runs on a
+ 	 * lot slower CPUs including microcontrollers where the threshold is way
+ 	 * too low.
+ 	 *
+-	 * Let's scale up the threshold upto 1 second if BogoMips is below 4000.
++	 * Let's scale up the threshold upto 3 second if BogoMips is below 4000.
+ 	 * This is by no means accurate but it doesn't have to be. The mechanism
+ 	 * is still useful even when the threshold is fully scaled up. Also, as
+ 	 * the reports would usually be applicable to everyone, some machines
+ 	 * operating on longer thresholds won't significantly diminish their
+ 	 * usefulness.
+ 	 */
+-	thresh = 10 * USEC_PER_MSEC;
++	thresh = 30 * USEC_PER_MSEC;
+ 
+ 	/* see init/calibrate.c for lpj -> BogoMIPS calculation */
+ 	bogo = max_t(unsigned long, loops_per_jiffy / 500000 * HZ, 1);
+-- 
+2.43.0
+
+Minor change BLK_DEV_RUST_NULL with default n
+
+Description:
+ -  Minor change BLK_DEV_RUST_NULL with default n
+
+Signed-off-by: Ionut Nechita <ionut_n2001@yahoo.com>
+
+diff --git a/drivers/block/Kconfig b/drivers/block/Kconfig
+--- a/drivers/block/Kconfig
++++ b/drivers/block/Kconfig
+@@ -355,8 +355,9 @@ config VIRTIO_BLK
+           QEMU based VMMs (like KVM or Xen).  Say Y or M.
+ 
+ config BLK_DEV_RUST_NULL
+-	tristate "Rust null block driver (Experimental)"
++	bool "Rust null block driver (Experimental)"
+ 	depends on RUST
++	default n
+ 	help
+ 	  This is the Rust implementation of the null block driver. For now it
+ 	  is only a minimal stub.
+-- 
+2.43.0
+
+Add device IDs
+
+Signed-off-by: Mario Roy <...>
+
+diff -uarp a/drivers/bluetooth/btusb.c b/drivers/bluetooth/btusb.c
+--- a/drivers/bluetooth/btusb.c
++++ b/drivers/bluetooth/btusb.c
+@@ -536,6 +536,8 @@ static const struct usb_device_id quirks
+ 						     BTUSB_WIDEBAND_SPEECH },
+ 	{ USB_DEVICE(0x13d3, 0x3591), .driver_info = BTUSB_REALTEK |
+ 						     BTUSB_WIDEBAND_SPEECH },
++	{ USB_DEVICE(0x13d3, 0x3601), .driver_info = BTUSB_REALTEK |
++						     BTUSB_WIDEBAND_SPEECH },
+ 	{ USB_DEVICE(0x0489, 0xe123), .driver_info = BTUSB_REALTEK |
+ 						     BTUSB_WIDEBAND_SPEECH },
+ 	{ USB_DEVICE(0x0489, 0xe125), .driver_info = BTUSB_REALTEK |
+-- 
+2.43.0
+
+futex: Use a hashmask instead of hashsize
+https://lore.kernel.org/all/20250226091057.bX8vObR4@linutronix.de/
+
+The global hash uses futex_hashsize to save the amount of the hash
+buckets that have been allocated during system boot. On each
+futex_hash() invocation this number is substracted by one to get the
+mask. This can be optimized by saving directly the mask avoiding the
+substraction on each futex_hash() invocation.
+
+Rename futex_hashsize to futex_hashmask and save the mask of the
+allocated hash map.
+
+Signed-off-by: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
+Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
+Reviewed-by: Waiman Long <longman@redhat.com>
+
+diff --git a/kernel/futex/core.c b/kernel/futex/core.c
+index 3db8567f5a44e..cca15859a50be 100644
+--- a/kernel/futex/core.c
++++ b/kernel/futex/core.c
+@@ -50,10 +50,10 @@
+  */
+ static struct {
+ 	struct futex_hash_bucket *queues;
+-	unsigned long            hashsize;
++	unsigned long            hashmask;
+ } __futex_data __read_mostly __aligned(2*sizeof(long));
+ #define futex_queues   (__futex_data.queues)
+-#define futex_hashsize (__futex_data.hashsize)
++#define futex_hashmask (__futex_data.hashmask)
+ 
+ 
+ /*
+@@ -119,7 +119,7 @@ struct futex_hash_bucket *futex_hash(union futex_key *key)
+ 	u32 hash = jhash2((u32 *)key, offsetof(typeof(*key), both.offset) / 4,
+ 			  key->both.offset);
+ 
+-	return &futex_queues[hash & (futex_hashsize - 1)];
++	return &futex_queues[hash & futex_hashmask];
+ }
+ 
+ 
+@@ -1127,27 +1127,28 @@ void futex_exit_release(struct task_struct *tsk)
+ 
+ static int __init futex_init(void)
+ {
++	unsigned long hashsize, i;
+ 	unsigned int futex_shift;
+-	unsigned long i;
+ 
+ #ifdef CONFIG_BASE_SMALL
+-	futex_hashsize = 16;
++	hashsize = 16;
+ #else
+-	futex_hashsize = roundup_pow_of_two(256 * num_possible_cpus());
++	hashsize = roundup_pow_of_two(256 * num_possible_cpus());
+ #endif
+ 
+ 	futex_queues = alloc_large_system_hash("futex", sizeof(*futex_queues),
+-					       futex_hashsize, 0, 0,
++					       hashsize, 0, 0,
+ 					       &futex_shift, NULL,
+-					       futex_hashsize, futex_hashsize);
+-	futex_hashsize = 1UL << futex_shift;
++					       hashsize, hashsize);
++	hashsize = 1UL << futex_shift;
+ 
+-	for (i = 0; i < futex_hashsize; i++) {
++	for (i = 0; i < hashsize; i++) {
+ 		atomic_set(&futex_queues[i].waiters, 0);
+ 		plist_head_init(&futex_queues[i].chain);
+ 		spin_lock_init(&futex_queues[i].lock);
+ 	}
+ 
++	futex_hashmask = hashsize - 1;
+ 	return 0;
+ }
+ core_initcall(futex_init);
+-- 
+2.47.2
+
+x86/fpu: make WARN_ON_FPU get fully optimized out
+https://lore.kernel.org/all/20250127224523.94300-1-ebiggers@kernel.org/
+
+Currently WARN_ON_FPU evaluates its argument even if
+CONFIG_X86_DEBUG_FPU is disabled, which adds unnecessary instructions to
+several functions, for example kernel_fpu_begin().  Fix this by using
+BUILD_BUG_ON_INVALID(x) in the no-debug case rather than (void)(x).
+
+Fixes: 83242c5 ("x86/fpu: Make WARN_ON_FPU() more robust in the !CONFIG_X86_DEBUG_FPU case")
+Suggested-by: Sean Christopherson <seanjc@google.com>
+Signed-off-by: Eric Biggers <ebiggers@google.com>
+Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
+
+diff --git a/arch/x86/kernel/fpu/internal.h b/arch/x86/kernel/fpu/internal.h
+index dbdb31f55fc7f..975de070c9c98 100644
+--- a/arch/x86/kernel/fpu/internal.h
++++ b/arch/x86/kernel/fpu/internal.h
+@@ -16,11 +16,11 @@ static __always_inline __pure bool use_fxsr(void)
+ }
+ 
+ #ifdef CONFIG_X86_DEBUG_FPU
+ # define WARN_ON_FPU(x) WARN_ON_ONCE(x)
+ #else
+-# define WARN_ON_FPU(x) ({ (void)(x); 0; })
++# define WARN_ON_FPU(x) ({ BUILD_BUG_ON_INVALID(x); 0; })
+ #endif
+ 
+ /* Used in init.c */
+ extern void fpstate_init_user(struct fpstate *fpstate);
+ extern void fpstate_reset(struct fpu *fpu);
+
+base-commit: 805ba04cb7ccfc7d72e834ebd796e043142156ba
+-- 
+2.48.1
+
+exit: combine work under lock in synchronize_group_exit() and coredump_task_exit()
+https://lore.kernel.org/all/20250319195436.1864415-1-mjguzik@gmail.com/T/#u
+
+This reduces single-threaded overhead as it avoids one lock+irq trip on exit.
+
+It also improves scalability of spawning and killing threads within one
+process (just shy of 5% when doing it on 24 cores on my test jig).
+
+Both routines are moved below kcov and kmsan exit, which should be harmless.
+
+Signed-off-by: Mateusz Guzik <mjguzik@gmail.com>
+Reviewed-by: Oleg Nesterov <oleg@redhat.com>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+
+diff --git a/kernel/exit.c b/kernel/exit.c
+index f97a2bbc9db9..5ffa56bcd659 100644
+--- a/kernel/exit.c
++++ b/kernel/exit.c
+@@ -396,44 +396,30 @@ kill_orphaned_pgrp(struct task_struct *tsk, struct task_struct *parent)
+ 	}
+ }
+ 
+-static void coredump_task_exit(struct task_struct *tsk)
++static void coredump_task_exit(struct task_struct *tsk,
++			       struct core_state *core_state)
+ {
+-	struct core_state *core_state;
++	struct core_thread self;
+ 
++	self.task = tsk;
++	if (self.task->flags & PF_SIGNALED)
++		self.next = xchg(&core_state->dumper.next, &self);
++	else
++		self.task = NULL;
+ 	/*
+-	 * Serialize with any possible pending coredump.
+-	 * We must hold siglock around checking core_state
+-	 * and setting PF_POSTCOREDUMP.  The core-inducing thread
+-	 * will increment ->nr_threads for each thread in the
+-	 * group without PF_POSTCOREDUMP set.
++	 * Implies mb(), the result of xchg() must be visible
++	 * to core_state->dumper.
+ 	 */
+-	spin_lock_irq(&tsk->sighand->siglock);
+-	tsk->flags |= PF_POSTCOREDUMP;
+-	core_state = tsk->signal->core_state;
+-	spin_unlock_irq(&tsk->sighand->siglock);
+-	if (core_state) {
+-		struct core_thread self;
+-
+-		self.task = current;
+-		if (self.task->flags & PF_SIGNALED)
+-			self.next = xchg(&core_state->dumper.next, &self);
+-		else
+-			self.task = NULL;
+-		/*
+-		 * Implies mb(), the result of xchg() must be visible
+-		 * to core_state->dumper.
+-		 */
+-		if (atomic_dec_and_test(&core_state->nr_threads))
+-			complete(&core_state->startup);
++	if (atomic_dec_and_test(&core_state->nr_threads))
++		complete(&core_state->startup);
+ 
+-		for (;;) {
+-			set_current_state(TASK_IDLE|TASK_FREEZABLE);
+-			if (!self.task) /* see coredump_finish() */
+-				break;
+-			schedule();
+-		}
+-		__set_current_state(TASK_RUNNING);
++	for (;;) {
++		set_current_state(TASK_IDLE|TASK_FREEZABLE);
++		if (!self.task) /* see coredump_finish() */
++			break;
++		schedule();
+ 	}
++	__set_current_state(TASK_RUNNING);
+ }
+ 
+ #ifdef CONFIG_MEMCG
+@@ -861,6 +847,7 @@ static void synchronize_group_exit(struct task_struct *tsk, long code)
+ {
+ 	struct sighand_struct *sighand = tsk->sighand;
+ 	struct signal_struct *signal = tsk->signal;
++	struct core_state *core_state;
+ 
+ 	spin_lock_irq(&sighand->siglock);
+ 	signal->quick_threads--;
+@@ -870,7 +857,19 @@ static void synchronize_group_exit(struct task_struct *tsk, long code)
+ 		signal->group_exit_code = code;
+ 		signal->group_stop_count = 0;
+ 	}
++	/*
++	 * Serialize with any possible pending coredump.
++	 * We must hold siglock around checking core_state
++	 * and setting PF_POSTCOREDUMP.  The core-inducing thread
++	 * will increment ->nr_threads for each thread in the
++	 * group without PF_POSTCOREDUMP set.
++	 */
++	tsk->flags |= PF_POSTCOREDUMP;
++	core_state = signal->core_state;
+ 	spin_unlock_irq(&sighand->siglock);
++
++	if (unlikely(core_state))
++		coredump_task_exit(tsk, core_state);
+ }
+ 
+ void __noreturn do_exit(long code)
+@@ -879,15 +878,12 @@ void __noreturn do_exit(long code)
+ 	int group_dead;
+ 
+ 	WARN_ON(irqs_disabled());
+-
+-	synchronize_group_exit(tsk, code);
+-
+ 	WARN_ON(tsk->plug);
+ 
+ 	kcov_task_exit(tsk);
+ 	kmsan_task_exit(tsk);
+ 
+-	coredump_task_exit(tsk);
++	synchronize_group_exit(tsk, code);
+ 	ptrace_event(PTRACE_EVENT_EXIT, code);
+ 	user_events_exit(tsk);
+ 
+-- 
+2.43.0
+
+cpumask: Optimize cpumask_any_but()
+https://lore.kernel.org/all/20250117142658.297325-1-visitorckw@gmail.com/
+
+The cpumask_any_but() function can avoid using a loop to determine the
+CPU index to return. If the first set bit in the cpumask is not equal
+to the specified CPU, we can directly return the index of the first set
+bit. Otherwise, we return the next set bit's index.
+
+This optimization replaces the loop with a single if statement,
+allowing the compiler to generate more concise and efficient code.
+
+As a result, the size of the bzImage built with x86 defconfig is
+reduced by 4096 bytes:
+
+* Before:
+$ size arch/x86/boot/bzImage
+   text    data     bss     dec     hex filename
+13537280           1024       0 13538304         ce9400 arch/x86/boot/bzImage
+
+* After:
+$ size arch/x86/boot/bzImage
+   text    data     bss     dec     hex filename
+13533184           1024       0 13534208         ce8400 arch/x86/boot/bzImage
+
+Co-developed-by: Yu-Chun Lin <eleanor15x@xxxxxxxxx>
+Signed-off-by: Yu-Chun Lin <eleanor15x@xxxxxxxxx>
+Signed-off-by: Kuan-Wei Chiu <visitorckw@xxxxxxxxx>
+---
+Not sure how to measure the efficiency difference, but I guess this
+patch might be slightly more efficient or nearly the same as before. If
+you have any good ideas for measuring efficiency, please let me know!
+
+ include/linux/cpumask.h | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/include/linux/cpumask.h b/include/linux/cpumask.h
+index 9278a50d514f..b769fcdbaa10 100644
+--- a/include/linux/cpumask.h
++++ b/include/linux/cpumask.h
+@@ -404,10 +404,10 @@ unsigned int cpumask_any_but(const struct cpumask *mask, unsigned int cpu)
+ 	unsigned int i;
+ 
+ 	cpumask_check(cpu);
+-	for_each_cpu(i, mask)
+-		if (i != cpu)
+-			break;
+-	return i;
++	i = find_first_bit(cpumask_bits(mask), small_cpumask_bits);
++	if (i != cpu || i >= nr_cpu_ids)
++		return i;
++	return find_next_bit(cpumask_bits(mask), small_cpumask_bits, i + 1);
+ }
+ 
+ /**
+-- 
+2.34.1
+
+x86/mm: Simplify redundant overlap calculation
+https://lore.kernel.org/all/20240123163623.1342917-1-dave.hansen@linux.intel.com/
+
+There have been a couple of reports that the two sides of the
+overlaps() calculation are redundant.  I spent way too much time
+looking at this, but I became convinced that they are redundant
+when a little test program of mine produced identical disassembly
+for both versions of the check.
+
+Remove the second condition.  It is exactly the same as the first.
+
+Fixes: 91ee8f5c1f50 ("x86/mm/cpa: Allow range check for static protections")
+Reported-by: David Binderman <dcb314@xxxxxxxxxxx>
+Cc: Andy Lutomirski <luto@xxxxxxxxxx>
+Cc: Peter Zijlstra <peterz@xxxxxxxxxxxxx>
+Cc: Thomas Gleixner <tglx@xxxxxxxxxxxxx>
+Cc: Ingo Molnar <mingo@xxxxxxxxxx>
+Cc: Borislav Petkov <bp@xxxxxxxxx>
+Cc: x86@xxxxxxxxxx
+---
+ arch/x86/mm/pat/set_memory.c | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/arch/x86/mm/pat/set_memory.c b/arch/x86/mm/pat/set_memory.c
+index e9b448d1b1b70..fdc00516c0b54 100644
+--- a/arch/x86/mm/pat/set_memory.c
++++ b/arch/x86/mm/pat/set_memory.c
+@@ -433,8 +433,7 @@ static void cpa_flush(struct cpa_data *data, int cache)
+ static bool overlaps(unsigned long r1_start, unsigned long r1_end,
+ 		     unsigned long r2_start, unsigned long r2_end)
+ {
+-	return (r1_start <= r2_end && r1_end >= r2_start) ||
+-		(r2_start <= r1_end && r2_end >= r1_start);
++	return (r1_start <= r2_end && r1_end >= r2_start);
+ }
+ 
+ #ifdef CONFIG_PCI_BIOS
+--
+2.34.1
+
+sched/fair: Prevent from cpufreq not being updated when delayed-task is iowait
+https://lore.kernel.org/all/20250226114301.4900-1-xuewen.yan@unisoc.com/
+
+Because the sched-delayed task maybe in io-wait state,
+so we should place the requeue_delayed_entity() after the
+cpufreq_update_util(), to prevent not boosting iowait cpufreq
+before return.
+
+Signed-off-by: Xuewen Yan <xuewen.yan@xxxxxxxxxx>
+---
+ kernel/sched/fair.c | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
+index 2d6d5582c3e9..040674734128 100644
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -6986,11 +6986,6 @@ enqueue_task_fair(struct rq *rq, struct task_struct *p, int flags)
+ 	if (!(p->se.sched_delayed && (task_on_rq_migrating(p) || (flags & ENQUEUE_RESTORE))))
+ 		util_est_enqueue(&rq->cfs, p);
+ 
+-	if (flags & ENQUEUE_DELAYED) {
+-		requeue_delayed_entity(se);
+-		return;
+-	}
+-
+ 	/*
+ 	 * If in_iowait is set, the code below may not trigger any cpufreq
+ 	 * utilization updates, so do it here explicitly with the IOWAIT flag
+@@ -6999,6 +6994,11 @@ enqueue_task_fair(struct rq *rq, struct task_struct *p, int flags)
+ 	if (p->in_iowait)
+ 		cpufreq_update_util(rq, SCHED_CPUFREQ_IOWAIT);
+ 
++	if (flags & ENQUEUE_DELAYED) {
++		requeue_delayed_entity(se);
++		return;
++	}
++
+ 	if (task_new && se->sched_delayed)
+ 		h_nr_runnable = 0;
+ 
+-- 
+2.25.1
+
+sched/fair: Fixup wake_up_sync vs DELAYED_DEQUEUE
+https://lore.kernel.org/all/20250226024741.2274-1-xuewen.yan@unisoc.com/
+
+Delayed dequeued feature keeps a sleeping task enqueued until its
+lag has elapsed. As a result, it stays also visible in rq->nr_running.
+So when in ake_affine_idle(), we should use the real running-tasks
+in rq to check whether we should place the wake-up task to
+current cpu.
+
+Fixes: 152e11f6df29 ("sched/fair: Implement delayed dequeue")
+Signed-off-by: Xuewen Yan <xuewen.yan@xxxxxxxxxx>
+---
+ kernel/sched/fair.c | 11 +++++++++--
+ 1 file changed, 9 insertions(+), 2 deletions(-)
+
+diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
+index 1c0ef435a7aa..2d6d5582c3e9 100644
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -7410,8 +7410,15 @@ wake_affine_idle(int this_cpu, int prev_cpu, int sync)
+ 	if (available_idle_cpu(this_cpu) && cpus_share_cache(this_cpu, prev_cpu))
+ 		return available_idle_cpu(prev_cpu) ? prev_cpu : this_cpu;
+ 
+-	if (sync && cpu_rq(this_cpu)->nr_running == 1)
+-		return this_cpu;
++	if (sync) {
++		struct rq *rq = cpu_rq(this_cpu);
++		int nr_delayed;
++
++		nr_delayed = rq->cfs.h_nr_queued - rq->cfs.h_nr_idle;
++
++		if ((rq->nr_running - nr_delayed) == 1)
++			return this_cpu;
++	}
+ 
+ 	if (available_idle_cpu(prev_cpu))
+ 		return prev_cpu;
+-- 
+2.25.1
+
+sched/fair: Do not let idle entities preempt others
+https://lore.kernel.org/all/20250227085815.18131-2-wuyun.abel@bytedance.com/
+
+A task with SCHED_IDLE policy doesn't preempt others by definition, and
+the semantics are intended to be preserved when extending to cgroups
+introduced in commit 304000390f88 ("sched: Cgroup SCHED_IDLE support").
+
+But current implementation allows idle entities to preempt each other
+on wakeup, which seems not behave as expected especially after
+commit faa42d29419d ("sched/fair: Make SCHED_IDLE entity be preempted in strict hierarchy")
+so fix this by explicitly skip wakeup preemption for idle entities.
+
+Fixes: 304000390f88 ("sched: Cgroup SCHED_IDLE support")
+Signed-off-by: Abel Wu <wuyun.abel@xxxxxxxxxxxxx>
+Reviewed-by: Vincent Guittot <vincent.guittot@xxxxxxxxxx>
+Reviewed-by: Josh Don <joshdon@xxxxxxxxxx>
+Reviewed-by: Madadi Vineeth Reddy <vineethr@xxxxxxxxxxxxx>
+Tested-by: K Prateek Nayak <kprateek.nayak@xxxxxxx>
+---
+ kernel/sched/fair.c | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
+index d042e94a79c3..aaa9822e9562 100644
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -8853,8 +8853,7 @@ static void check_preempt_wakeup_fair(struct rq *rq, struct task_struct *p, int
+ 	pse_is_idle = se_is_idle(pse);
+ 
+ 	/*
+-	 * Preempt an idle entity in favor of a non-idle entity (and don't preempt
+-	 * in the inverse case).
++	 * Preempt an idle entity in favor of a non-idle entity.
+ 	 */
+ 	if (cse_is_idle && !pse_is_idle) {
+ 		/*
+@@ -8865,7 +8864,10 @@ static void check_preempt_wakeup_fair(struct rq *rq, struct task_struct *p, int
+ 		goto preempt;
+ 	}
+ 
+-	if (cse_is_idle != pse_is_idle)
++	/*
++	 * IDLE entities do not preempt others.
++	 */
++	if (unlikely(pse_is_idle))
+ 		return;
+ 
+ 	/*
+-- 
+2.37.3
+
+sched/fair: Fix premature check of WAKEUP_PREEMPTION
+https://lore.kernel.org/all/20250227085815.18131-3-wuyun.abel@bytedance.com/
+
+The commit 6bc912b71b6f ("sched: SCHED_OTHER vs SCHED_IDLE isolation")
+defines the behavior of SCHED_IDLE as following:
+
+ - no SCHED_IDLE buddies
+ - never let SCHED_IDLE preempt on wakeup
+ - always preempt SCHED_IDLE on wakeup
+ - limit SLEEPER fairness for SCHED_IDLE
+
+and the 3rd rule is broken if !WAKEUP_PREEMPTION due to recently merged
+commit faa42d29419d ("sched/fair: Make SCHED_IDLE entity be preempted in strict hierarchy")
+
+Although WAKEUP_PREEMPTION is mainly there for debug purpose to provide
+a way to check whether a performance degrade of certain workload is due
+to overscheduling or not, it is still kind of weird that we treat sched-
+idle cpus as idle but don't let the non-idle tasks preempt the sched-idle
+cpus in debug mode (!WAKEUP_PREEMPTION).
+
+Fix it by strictly following the aforementioned rules.
+
+Fixes: faa42d29419d ("sched/fair: Make SCHED_IDLE entity be preempted in strict hierarchy")
+Signed-off-by: Abel Wu <wuyun.abel@xxxxxxxxxxxxx>
+Acked-by: Vincent Guittot <vincent.guittot@xxxxxxxxxx>
+Tested-by: K Prateek Nayak <kprateek.nayak@xxxxxxx>
+---
+ kernel/sched/fair.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
+index aaa9822e9562..a7eeb72d57aa 100644
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -8843,9 +8843,6 @@ static void check_preempt_wakeup_fair(struct rq *rq, struct task_struct *p, int
+ 	if (test_tsk_need_resched(rq->curr))
+ 		return;
+ 
+-	if (!sched_feat(WAKEUP_PREEMPTION))
+-		return;
+-
+ 	find_matching_se(&se, &pse);
+ 	WARN_ON_ONCE(!pse);
+ 
+@@ -8864,6 +8861,9 @@ static void check_preempt_wakeup_fair(struct rq *rq, struct task_struct *p, int
+ 		goto preempt;
+ 	}
+ 
++	if (!sched_feat(WAKEUP_PREEMPTION))
++		return;
++
+ 	/*
+ 	 * IDLE entities do not preempt others.
+ 	 */
+-- 
+2.37.3
+
+sched/isolation: Make CONFIG_CPU_ISOLATION depend on CONFIG_SMP
+https://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git/commit/?h=sched/urgent&id=975776841e689dd8ba36df9fa72ac3eca3c2957a
+
+kernel/sched/isolation.c obviously makes no sense without CONFIG_SMP, but
+the Kconfig entry we have right now:
+
+	config CPU_ISOLATION
+		bool "CPU isolation"
+		depends on SMP || COMPILE_TEST
+
+allows the creation of pointless .config's which cause
+build failures.
+
+Reported-by: kernel test robot <lkp@xxxxxxxxxx>
+Signed-off-by: Oleg Nesterov <oleg@xxxxxxxxxx>
+Signed-off-by: Ingo Molnar <mingo@xxxxxxxxxx>
+Link: https://lore.kernel.org/r/20250330134955.GA7910@redhat.com
+
+Closes: https://lore.kernel.org/oe-kbuild-all/202503260646.lrUqD3j5-lkp@intel.com/
+---
+ init/Kconfig | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/init/Kconfig b/init/Kconfig
+index 681f38ee68db23..ab9b0c2c3d524e 100644
+--- a/init/Kconfig
++++ b/init/Kconfig
+@@ -715,7 +715,7 @@ endmenu # "CPU/Task time and stats accounting"
+ 
+ config CPU_ISOLATION
+ 	bool "CPU isolation"
+-	depends on SMP || COMPILE_TEST
++	depends on SMP
+ 	default y
+ 	help
+ 	  Make sure that CPUs running critical tasks are not disturbed by
+-- 
+cgit 1.2.3-korg
+
+x86/locking/atomic updates from 6.15:
+Improve performance by using asm_inline() for atomic locking instructions
+https://lore.kernel.org/all/20250309170955.48919-1-ubizjak@gmail.com/
+
+diff -uarp a/arch/x86/include/asm/atomic.h b/arch/x86/include/asm/atomic.h
+--- a/arch/x86/include/asm/atomic.h
++++ b/arch/x86/include/asm/atomic.h
+@@ -30,14 +30,14 @@ static __always_inline void arch_atomic_
+ 
+ static __always_inline void arch_atomic_add(int i, atomic_t *v)
+ {
+-	asm volatile(LOCK_PREFIX "addl %1,%0"
++	asm_inline volatile(LOCK_PREFIX "addl %1, %0"
+ 		     : "+m" (v->counter)
+ 		     : "ir" (i) : "memory");
+ }
+ 
+ static __always_inline void arch_atomic_sub(int i, atomic_t *v)
+ {
+-	asm volatile(LOCK_PREFIX "subl %1,%0"
++	asm_inline volatile(LOCK_PREFIX "subl %1, %0"
+ 		     : "+m" (v->counter)
+ 		     : "ir" (i) : "memory");
+ }
+@@ -50,14 +50,14 @@ static __always_inline bool arch_atomic_
+ 
+ static __always_inline void arch_atomic_inc(atomic_t *v)
+ {
+-	asm volatile(LOCK_PREFIX "incl %0"
++	asm_inline volatile(LOCK_PREFIX "incl %0"
+ 		     : "+m" (v->counter) :: "memory");
+ }
+ #define arch_atomic_inc arch_atomic_inc
+ 
+ static __always_inline void arch_atomic_dec(atomic_t *v)
+ {
+-	asm volatile(LOCK_PREFIX "decl %0"
++	asm_inline volatile(LOCK_PREFIX "decl %0"
+ 		     : "+m" (v->counter) :: "memory");
+ }
+ #define arch_atomic_dec arch_atomic_dec
+@@ -116,7 +116,7 @@ static __always_inline int arch_atomic_x
+ 
+ static __always_inline void arch_atomic_and(int i, atomic_t *v)
+ {
+-	asm volatile(LOCK_PREFIX "andl %1,%0"
++	asm_inline volatile(LOCK_PREFIX "andl %1, %0"
+ 			: "+m" (v->counter)
+ 			: "ir" (i)
+ 			: "memory");
+@@ -134,7 +134,7 @@ static __always_inline int arch_atomic_f
+ 
+ static __always_inline void arch_atomic_or(int i, atomic_t *v)
+ {
+-	asm volatile(LOCK_PREFIX "orl %1,%0"
++	asm_inline volatile(LOCK_PREFIX "orl %1, %0"
+ 			: "+m" (v->counter)
+ 			: "ir" (i)
+ 			: "memory");
+@@ -152,7 +152,7 @@ static __always_inline int arch_atomic_f
+ 
+ static __always_inline void arch_atomic_xor(int i, atomic_t *v)
+ {
+-	asm volatile(LOCK_PREFIX "xorl %1,%0"
++	asm_inline volatile(LOCK_PREFIX "xorl %1, %0"
+ 			: "+m" (v->counter)
+ 			: "ir" (i)
+ 			: "memory");
+diff -uarp a/arch/x86/include/asm/atomic64_64.h b/arch/x86/include/asm/atomic64_64.h
+--- a/arch/x86/include/asm/atomic64_64.h
++++ b/arch/x86/include/asm/atomic64_64.h
+@@ -22,14 +22,14 @@ static __always_inline void arch_atomic6
+ 
+ static __always_inline void arch_atomic64_add(s64 i, atomic64_t *v)
+ {
+-	asm volatile(LOCK_PREFIX "addq %1,%0"
++	asm_inline volatile(LOCK_PREFIX "addq %1, %0"
+ 		     : "=m" (v->counter)
+ 		     : "er" (i), "m" (v->counter) : "memory");
+ }
+ 
+ static __always_inline void arch_atomic64_sub(s64 i, atomic64_t *v)
+ {
+-	asm volatile(LOCK_PREFIX "subq %1,%0"
++	asm_inline volatile(LOCK_PREFIX "subq %1, %0"
+ 		     : "=m" (v->counter)
+ 		     : "er" (i), "m" (v->counter) : "memory");
+ }
+@@ -42,7 +42,7 @@ static __always_inline bool arch_atomic6
+ 
+ static __always_inline void arch_atomic64_inc(atomic64_t *v)
+ {
+-	asm volatile(LOCK_PREFIX "incq %0"
++	asm_inline volatile(LOCK_PREFIX "incq %0"
+ 		     : "=m" (v->counter)
+ 		     : "m" (v->counter) : "memory");
+ }
+@@ -50,7 +50,7 @@ static __always_inline void arch_atomic6
+ 
+ static __always_inline void arch_atomic64_dec(atomic64_t *v)
+ {
+-	asm volatile(LOCK_PREFIX "decq %0"
++	asm_inline volatile(LOCK_PREFIX "decq %0"
+ 		     : "=m" (v->counter)
+ 		     : "m" (v->counter) : "memory");
+ }
+@@ -110,7 +110,7 @@ static __always_inline s64 arch_atomic64
+ 
+ static __always_inline void arch_atomic64_and(s64 i, atomic64_t *v)
+ {
+-	asm volatile(LOCK_PREFIX "andq %1,%0"
++	asm_inline volatile(LOCK_PREFIX "andq %1, %0"
+ 			: "+m" (v->counter)
+ 			: "er" (i)
+ 			: "memory");
+@@ -128,7 +128,7 @@ static __always_inline s64 arch_atomic64
+ 
+ static __always_inline void arch_atomic64_or(s64 i, atomic64_t *v)
+ {
+-	asm volatile(LOCK_PREFIX "orq %1,%0"
++	asm_inline volatile(LOCK_PREFIX "orq %1, %0"
+ 			: "+m" (v->counter)
+ 			: "er" (i)
+ 			: "memory");
+@@ -146,7 +146,7 @@ static __always_inline s64 arch_atomic64
+ 
+ static __always_inline void arch_atomic64_xor(s64 i, atomic64_t *v)
+ {
+-	asm volatile(LOCK_PREFIX "xorq %1,%0"
++	asm_inline volatile(LOCK_PREFIX "xorq %1, %0"
+ 			: "+m" (v->counter)
+ 			: "er" (i)
+ 			: "memory");
+diff -uarp a/arch/x86/include/asm/bitops.h b/arch/x86/include/asm/bitops.h
+--- a/arch/x86/include/asm/bitops.h
++++ b/arch/x86/include/asm/bitops.h
+@@ -52,12 +52,12 @@ static __always_inline void
+ arch_set_bit(long nr, volatile unsigned long *addr)
+ {
+ 	if (__builtin_constant_p(nr)) {
+-		asm volatile(LOCK_PREFIX "orb %b1,%0"
++		asm_inline volatile(LOCK_PREFIX "orb %b1,%0"
+ 			: CONST_MASK_ADDR(nr, addr)
+ 			: "iq" (CONST_MASK(nr))
+ 			: "memory");
+ 	} else {
+-		asm volatile(LOCK_PREFIX __ASM_SIZE(bts) " %1,%0"
++		asm_inline volatile(LOCK_PREFIX __ASM_SIZE(bts) " %1,%0"
+ 			: : RLONG_ADDR(addr), "Ir" (nr) : "memory");
+ 	}
+ }
+@@ -72,11 +72,11 @@ static __always_inline void
+ arch_clear_bit(long nr, volatile unsigned long *addr)
+ {
+ 	if (__builtin_constant_p(nr)) {
+-		asm volatile(LOCK_PREFIX "andb %b1,%0"
++		asm_inline volatile(LOCK_PREFIX "andb %b1,%0"
+ 			: CONST_MASK_ADDR(nr, addr)
+ 			: "iq" (~CONST_MASK(nr)));
+ 	} else {
+-		asm volatile(LOCK_PREFIX __ASM_SIZE(btr) " %1,%0"
++		asm_inline volatile(LOCK_PREFIX __ASM_SIZE(btr) " %1,%0"
+ 			: : RLONG_ADDR(addr), "Ir" (nr) : "memory");
+ 	}
+ }
+@@ -98,7 +98,7 @@ static __always_inline bool arch_xor_unl
+ 		volatile unsigned long *addr)
+ {
+ 	bool negative;
+-	asm volatile(LOCK_PREFIX "xorb %2,%1"
++	asm_inline volatile(LOCK_PREFIX "xorb %2,%1"
+ 		CC_SET(s)
+ 		: CC_OUT(s) (negative), WBYTE_ADDR(addr)
+ 		: "iq" ((char)mask) : "memory");
+@@ -122,11 +122,11 @@ static __always_inline void
+ arch_change_bit(long nr, volatile unsigned long *addr)
+ {
+ 	if (__builtin_constant_p(nr)) {
+-		asm volatile(LOCK_PREFIX "xorb %b1,%0"
++		asm_inline volatile(LOCK_PREFIX "xorb %b1,%0"
+ 			: CONST_MASK_ADDR(nr, addr)
+ 			: "iq" (CONST_MASK(nr)));
+ 	} else {
+-		asm volatile(LOCK_PREFIX __ASM_SIZE(btc) " %1,%0"
++		asm_inline volatile(LOCK_PREFIX __ASM_SIZE(btc) " %1,%0"
+ 			: : RLONG_ADDR(addr), "Ir" (nr) : "memory");
+ 	}
+ }
+diff -uarp a/arch/x86/include/asm/cmpxchg.h b/arch/x86/include/asm/cmpxchg.h
+--- a/arch/x86/include/asm/cmpxchg.h
++++ b/arch/x86/include/asm/cmpxchg.h
+@@ -44,22 +44,22 @@ extern void __add_wrong_size(void)
+ 	        __typeof__ (*(ptr)) __ret = (arg);			\
+ 		switch (sizeof(*(ptr))) {				\
+ 		case __X86_CASE_B:					\
+-			asm volatile (lock #op "b %b0, %1\n"		\
++			asm_inline volatile (lock #op "b %b0, %1"	\
+ 				      : "+q" (__ret), "+m" (*(ptr))	\
+ 				      : : "memory", "cc");		\
+ 			break;						\
+ 		case __X86_CASE_W:					\
+-			asm volatile (lock #op "w %w0, %1\n"		\
++			asm_inline volatile (lock #op "w %w0, %1"	\
+ 				      : "+r" (__ret), "+m" (*(ptr))	\
+ 				      : : "memory", "cc");		\
+ 			break;						\
+ 		case __X86_CASE_L:					\
+-			asm volatile (lock #op "l %0, %1\n"		\
++			asm_inline volatile (lock #op "l %0, %1"	\
+ 				      : "+r" (__ret), "+m" (*(ptr))	\
+ 				      : : "memory", "cc");		\
+ 			break;						\
+ 		case __X86_CASE_Q:					\
+-			asm volatile (lock #op "q %q0, %1\n"		\
++			asm_inline volatile (lock #op "q %q0, %1"	\
+ 				      : "+r" (__ret), "+m" (*(ptr))	\
+ 				      : : "memory", "cc");		\
+ 			break;						\
+@@ -91,7 +91,7 @@ extern void __add_wrong_size(void)
+ 	case __X86_CASE_B:						\
+ 	{								\
+ 		volatile u8 *__ptr = (volatile u8 *)(ptr);		\
+-		asm volatile(lock "cmpxchgb %2,%1"			\
++		asm_inline volatile(lock "cmpxchgb %2, %1"		\
+ 			     : "=a" (__ret), "+m" (*__ptr)		\
+ 			     : "q" (__new), "0" (__old)			\
+ 			     : "memory");				\
+@@ -100,7 +100,7 @@ extern void __add_wrong_size(void)
+ 	case __X86_CASE_W:						\
+ 	{								\
+ 		volatile u16 *__ptr = (volatile u16 *)(ptr);		\
+-		asm volatile(lock "cmpxchgw %2,%1"			\
++		asm_inline volatile(lock "cmpxchgw %2, %1"		\
+ 			     : "=a" (__ret), "+m" (*__ptr)		\
+ 			     : "r" (__new), "0" (__old)			\
+ 			     : "memory");				\
+@@ -109,7 +109,7 @@ extern void __add_wrong_size(void)
+ 	case __X86_CASE_L:						\
+ 	{								\
+ 		volatile u32 *__ptr = (volatile u32 *)(ptr);		\
+-		asm volatile(lock "cmpxchgl %2,%1"			\
++		asm_inline volatile(lock "cmpxchgl %2, %1"		\
+ 			     : "=a" (__ret), "+m" (*__ptr)		\
+ 			     : "r" (__new), "0" (__old)			\
+ 			     : "memory");				\
+@@ -118,7 +118,7 @@ extern void __add_wrong_size(void)
+ 	case __X86_CASE_Q:						\
+ 	{								\
+ 		volatile u64 *__ptr = (volatile u64 *)(ptr);		\
+-		asm volatile(lock "cmpxchgq %2,%1"			\
++		asm_inline volatile(lock "cmpxchgq %2, %1"		\
+ 			     : "=a" (__ret), "+m" (*__ptr)		\
+ 			     : "r" (__new), "0" (__old)			\
+ 			     : "memory");				\
+@@ -165,7 +165,7 @@ extern void __add_wrong_size(void)
+ 	case __X86_CASE_B:						\
+ 	{								\
+ 		volatile u8 *__ptr = (volatile u8 *)(_ptr);		\
+-		asm volatile(lock "cmpxchgb %[new], %[ptr]"		\
++		asm_inline volatile(lock "cmpxchgb %[new], %[ptr]"	\
+ 			     CC_SET(z)					\
+ 			     : CC_OUT(z) (success),			\
+ 			       [ptr] "+m" (*__ptr),			\
+@@ -177,7 +177,7 @@ extern void __add_wrong_size(void)
+ 	case __X86_CASE_W:						\
+ 	{								\
+ 		volatile u16 *__ptr = (volatile u16 *)(_ptr);		\
+-		asm volatile(lock "cmpxchgw %[new], %[ptr]"		\
++		asm_inline volatile(lock "cmpxchgw %[new], %[ptr]"	\
+ 			     CC_SET(z)					\
+ 			     : CC_OUT(z) (success),			\
+ 			       [ptr] "+m" (*__ptr),			\
+@@ -189,7 +189,7 @@ extern void __add_wrong_size(void)
+ 	case __X86_CASE_L:						\
+ 	{								\
+ 		volatile u32 *__ptr = (volatile u32 *)(_ptr);		\
+-		asm volatile(lock "cmpxchgl %[new], %[ptr]"		\
++		asm_inline volatile(lock "cmpxchgl %[new], %[ptr]"	\
+ 			     CC_SET(z)					\
+ 			     : CC_OUT(z) (success),			\
+ 			       [ptr] "+m" (*__ptr),			\
+@@ -201,7 +201,7 @@ extern void __add_wrong_size(void)
+ 	case __X86_CASE_Q:						\
+ 	{								\
+ 		volatile u64 *__ptr = (volatile u64 *)(_ptr);		\
+-		asm volatile(lock "cmpxchgq %[new], %[ptr]"		\
++		asm_inline volatile(lock "cmpxchgq %[new], %[ptr]"	\
+ 			     CC_SET(z)					\
+ 			     : CC_OUT(z) (success),			\
+ 			       [ptr] "+m" (*__ptr),			\
+diff -uarp a/arch/x86/include/asm/cmpxchg_32.h b/arch/x86/include/asm/cmpxchg_32.h
+--- a/arch/x86/include/asm/cmpxchg_32.h
++++ b/arch/x86/include/asm/cmpxchg_32.h
+@@ -19,7 +19,7 @@ union __u64_halves {
+ 	union __u64_halves o = { .full = (_old), },			\
+ 			   n = { .full = (_new), };			\
+ 									\
+-	asm volatile(_lock "cmpxchg8b %[ptr]"				\
++	asm_inline volatile(_lock "cmpxchg8b %[ptr]"			\
+ 		     : [ptr] "+m" (*(_ptr)),				\
+ 		       "+a" (o.low), "+d" (o.high)			\
+ 		     : "b" (n.low), "c" (n.high)			\
+@@ -45,7 +45,7 @@ static __always_inline u64 __cmpxchg64_l
+ 			   n = { .full = (_new), };			\
+ 	bool ret;							\
+ 									\
+-	asm volatile(_lock "cmpxchg8b %[ptr]"				\
++	asm_inline volatile(_lock "cmpxchg8b %[ptr]"			\
+ 		     CC_SET(e)						\
+ 		     : CC_OUT(e) (ret),					\
+ 		       [ptr] "+m" (*(_ptr)),				\
+diff -uarp a/arch/x86/include/asm/cmpxchg_64.h b/arch/x86/include/asm/cmpxchg_64.h
+--- a/arch/x86/include/asm/cmpxchg_64.h
++++ b/arch/x86/include/asm/cmpxchg_64.h
+@@ -38,7 +38,7 @@ union __u128_halves {
+ 	union __u128_halves o = { .full = (_old), },			\
+ 			    n = { .full = (_new), };			\
+ 									\
+-	asm volatile(_lock "cmpxchg16b %[ptr]"				\
++	asm_inline volatile(_lock "cmpxchg16b %[ptr]"			\
+ 		     : [ptr] "+m" (*(_ptr)),				\
+ 		       "+a" (o.low), "+d" (o.high)			\
+ 		     : "b" (n.low), "c" (n.high)			\
+@@ -65,7 +65,7 @@ static __always_inline u128 arch_cmpxchg
+ 			    n = { .full = (_new), };			\
+ 	bool ret;							\
+ 									\
+-	asm volatile(_lock "cmpxchg16b %[ptr]"				\
++	asm_inline volatile(_lock "cmpxchg16b %[ptr]"			\
+ 		     CC_SET(e)						\
+ 		     : CC_OUT(e) (ret),					\
+ 		       [ptr] "+m" (*(_ptr)),				\
+diff -uarp a/arch/x86/include/asm/rmwcc.h b/arch/x86/include/asm/rmwcc.h
+--- a/arch/x86/include/asm/rmwcc.h
++++ b/arch/x86/include/asm/rmwcc.h
+@@ -29,7 +29,7 @@ cc_label:	c = true;						\
+ #define __GEN_RMWcc(fullop, _var, cc, clobbers, ...)			\
+ ({									\
+ 	bool c;								\
+-	asm volatile (fullop CC_SET(cc)					\
++	asm_inline volatile (fullop CC_SET(cc)				\
+ 			: [var] "+m" (_var), CC_OUT(cc) (c)		\
+ 			: __VA_ARGS__ : clobbers);			\
+ 	c;								\
+-- 
+2.43.0
+
+cpuidle, sched: Use smp_mb__after_atomic() in current_clr_polling()
+https://lore.kernel.org/all/20241230141624.155356-1-yujundong@pascal-lab.net/
+
+diff --git a/include/linux/sched/idle.h b/include/linux/sched/idle.h
+index e670ac282333..439f6029d3b9 100644
+--- a/include/linux/sched/idle.h
++++ b/include/linux/sched/idle.h
+@@ -79,6 +79,21 @@ static __always_inline bool __must_check current_clr_polling_and_test(void)
+ 	return unlikely(tif_need_resched());
+ }
+ 
++static __always_inline void current_clr_polling(void)
++{
++	__current_clr_polling();
++
++	/*
++	 * Ensure we check TIF_NEED_RESCHED after we clear the polling bit.
++	 * Once the bit is cleared, we'll get IPIs with every new
++	 * TIF_NEED_RESCHED and the IPI handler, scheduler_ipi(), will also
++	 * fold.
++	 */
++	smp_mb__after_atomic(); /* paired with resched_curr() */
++
++	preempt_fold_need_resched();
++}
++
+ #else
+ static inline void __current_set_polling(void) { }
+ static inline void __current_clr_polling(void) { }
+@@ -91,21 +106,15 @@ static inline bool __must_check current_clr_polling_and_test(void)
+ {
+ 	return unlikely(tif_need_resched());
+ }
+-#endif
+ 
+ static __always_inline void current_clr_polling(void)
+ {
+ 	__current_clr_polling();
+ 
+-	/*
+-	 * Ensure we check TIF_NEED_RESCHED after we clear the polling bit.
+-	 * Once the bit is cleared, we'll get IPIs with every new
+-	 * TIF_NEED_RESCHED and the IPI handler, scheduler_ipi(), will also
+-	 * fold.
+-	 */
+ 	smp_mb(); /* paired with resched_curr() */
+ 
+ 	preempt_fold_need_resched();
+ }
++#endif
+ 
+ #endif /* _LINUX_SCHED_IDLE_H */
+-- 
+2.47.1
+
+sched/fair: Adhere to place_entity() constraints
+https://lore.kernel.org/all/20250207111141.GD7145@noisy.programming.kicks-ass.net/
+
+sched/fair: Add null pointer check to pick_next_entity()
+https://lore.kernel.org/all/20250320205310.779888-1-pat@patcody.io/
+
+diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -3833,6 +3833,7 @@ static void reweight_entity(struct cfs_r
+ 		update_entity_lag(cfs_rq, se);
+ 		se->deadline -= se->vruntime;
+ 		se->rel_deadline = 1;
++		cfs_rq->nr_queued--;
+ 		if (!curr)
+ 			__dequeue_entity(cfs_rq, se);
+ 		update_load_sub(&cfs_rq->load, se->load.weight);
+@@ -3859,10 +3860,11 @@ static void reweight_entity(struct cfs_r
+ 
+ 	enqueue_load_avg(cfs_rq, se);
+ 	if (se->on_rq) {
+-		update_load_add(&cfs_rq->load, se->load.weight);
+ 		place_entity(cfs_rq, se, 0);
++		update_load_add(&cfs_rq->load, se->load.weight);
+ 		if (!curr)
+ 			__enqueue_entity(cfs_rq, se);
++		cfs_rq->nr_queued++;
+ 
+ 		/*
+ 		 * The entity's vruntime has been adjusted, so let's check
+@@ -5637,6 +5639,8 @@ pick_next_entity(struct rq *rq, struct c
+ 	}
+ 
+ 	se = pick_eevdf(cfs_rq);
++	if (!se)
++		return NULL;
+ 	if (se->sched_delayed) {
+ 		dequeue_entities(rq, se, DEQUEUE_SLEEP | DEQUEUE_DELAYED);
+ 		/*
+-- 
+2.43.0
+
