@@ -37,7 +37,7 @@ diff --git a/arch/x86/Makefile b/arch/x86/Makefile
 diff --git a/kernel/cpu.c b/kernel/cpu.c
 --- a/kernel/cpu.c
 +++ b/kernel/cpu.c
-@@ -3232,7 +3232,7 @@ EXPORT_SYMBOL_GPL(cpu_mitigations_auto_n
+@@ -3227,7 +3227,7 @@ EXPORT_SYMBOL_GPL(cpu_mitigations_auto_n
  #else
  static int __init mitigations_parse_cmdline(char *arg)
  {

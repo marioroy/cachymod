@@ -1,7 +1,7 @@
 diff -uar a/mm/Kconfig b/mm/Kconfig
 --- a/mm/Kconfig
 +++ b/mm/Kconfig
-@@ -878,7 +878,7 @@
+@@ -815,7 +815,7 @@
  
  menuconfig TRANSPARENT_HUGEPAGE
  	bool "Transparent Hugepage Support"
@@ -13,7 +13,7 @@ diff -uar a/mm/Kconfig b/mm/Kconfig
 diff -uar a/init/Kconfig b/init/Kconfig
 --- a/init/Kconfig
 +++ b/init/Kconfig
-@@ -940,7 +940,7 @@
+@@ -945,7 +945,7 @@
  	bool "Memory placement aware NUMA scheduler"
  	depends on ARCH_SUPPORTS_NUMA_BALANCING
  	depends on !ARCH_WANT_NUMA_VARIABLE_LOCALITY

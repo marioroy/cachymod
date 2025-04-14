@@ -8,7 +8,7 @@ Signed-off-by: Mario Roy <...>
 diff -uarp a/init/Kconfig b/init/Kconfig
 --- a/init/Kconfig
 +++ b/init/Kconfig
-@@ -1361,6 +1361,14 @@ config CHECKPOINT_RESTORE
+@@ -1366,6 +1366,14 @@ config CHECKPOINT_RESTORE
  
  	  If unsure, say N here.
  
@@ -205,10 +205,10 @@ diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
  
  	return clamp(vlag, -limit, limit);
  }
-@@ -926,6 +950,10 @@ static struct sched_entity *pick_eevdf(s
- 	 * until it gets a new slice. See the HACK in set_next_entity().
- 	 */
- 	if (sched_feat(RUN_TO_PARITY) && curr && curr->vlag == curr->deadline)
+@@ -942,6 +966,10 @@ static struct sched_entity *pick_eevdf(s
+ 		curr = NULL;
+ 
+ 	if (sched_feat(RUN_TO_PARITY) && curr && protect_slice(curr))
 +#ifdef CONFIG_SCHED_BORE
 +		/* Adaptively disabled if more than 2 tasks in a CFQ runqueue */
 +		if (cfs_rq->nr_running <= 2)
@@ -216,7 +216,7 @@ diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
  		return curr;
  
  	/* Pick the leftmost entity if it's eligible */
-@@ -984,6 +1012,7 @@ struct sched_entity *__pick_last_entity(
+@@ -1000,6 +1028,7 @@ struct sched_entity *__pick_last_entity(
   * Scheduling class statistics methods:
   */
  #ifdef CONFIG_SMP
@@ -224,7 +224,7 @@ diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
  int sched_update_scaling(void)
  {
  	unsigned int factor = get_update_sysctl_factor();
-@@ -995,6 +1024,7 @@ int sched_update_scaling(void)
+@@ -1011,6 +1040,7 @@ int sched_update_scaling(void)
  
  	return 0;
  }
@@ -232,7 +232,7 @@ diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
  #endif
  #endif
  
-@@ -5295,6 +5325,9 @@ place_entity(struct cfs_rq *cfs_rq, stru
+@@ -5311,6 +5341,9 @@ place_entity(struct cfs_rq *cfs_rq, stru
  	 *
  	 * EEVDF: placement strategy #1 / #2
  	 */
@@ -242,7 +242,7 @@ diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
  	if (sched_feat(PLACE_LAG) && cfs_rq->nr_running) {
  		struct sched_entity *curr = cfs_rq->curr;
  		unsigned long load;
-@@ -5376,7 +5409,11 @@ place_entity(struct cfs_rq *cfs_rq, stru
+@@ -5392,7 +5425,11 @@ place_entity(struct cfs_rq *cfs_rq, stru
  	 * on average, halfway through their slice, as such start tasks
  	 * off with half a slice to ease into the competition.
  	 */
@@ -254,7 +254,7 @@ diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
  		vslice /= 2;
  
  	/*
-@@ -9084,16 +9121,24 @@ static void yield_task_fair(struct rq *r
+@@ -9108,16 +9145,24 @@ static void yield_task_fair(struct rq *r
  	/*
  	 * Are we the only task in the tree?
  	 */
@@ -282,7 +282,7 @@ diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
 diff -uarp a/kernel/sched/sched.h b/kernel/sched/sched.h
 --- a/kernel/sched/sched.h
 +++ b/kernel/sched/sched.h
-@@ -2118,7 +2118,11 @@ static inline void update_sched_domain_d
+@@ -2117,7 +2117,11 @@ static inline void update_sched_domain_d
  static inline void dirty_sched_domain_sysctl(int cpu) { }
  #endif
  
@@ -294,7 +294,7 @@ diff -uarp a/kernel/sched/sched.h b/kernel/sched/sched.h
  
  static inline const struct cpumask *task_user_cpus(struct task_struct *p)
  {
-@@ -2828,7 +2832,12 @@ extern void wakeup_preempt(struct rq *rq
+@@ -2827,7 +2831,12 @@ extern void wakeup_preempt(struct rq *rq
  extern const_debug unsigned int sysctl_sched_nr_migrate;
  extern const_debug unsigned int sysctl_sched_migration_cost;
  

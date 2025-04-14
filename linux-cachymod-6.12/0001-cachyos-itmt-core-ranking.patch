@@ -213,7 +213,7 @@ diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
 index 3a3116dca89c..a27896a05103 100644
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -10029,6 +10029,8 @@ struct sg_lb_stats {
+@@ -10005,6 +10005,8 @@ struct sg_lb_stats {
  	unsigned int group_weight;
  	enum group_type group_type;
  	unsigned int group_asym_packing;	/* Tasks should be moved to preferred CPU */
@@ -222,7 +222,7 @@ index 3a3116dca89c..a27896a05103 100644
  	unsigned int group_smt_balance;		/* Task on busy SMT be moved */
  	unsigned long group_misfit_task_load;	/* A CPU has a task too big for its capacity */
  #ifdef CONFIG_NUMA_BALANCING
-@@ -10358,7 +10360,7 @@ sched_group_asym(struct lb_env *env, struct sg_lb_stats *sgs, struct sched_group
+@@ -10334,7 +10336,7 @@ sched_group_asym(struct lb_env *env, struct sg_lb_stats *sgs, struct sched_group
  	    (sgs->group_weight - sgs->idle_cpus != 1))
  		return false;
  
@@ -231,7 +231,7 @@ index 3a3116dca89c..a27896a05103 100644
  }
  
  /* One group has more than one SMT CPU while the other group does not */
-@@ -10439,6 +10441,17 @@ sched_reduced_capacity(struct rq *rq, struct sched_domain *sd)
+@@ -10415,6 +10417,17 @@ sched_reduced_capacity(struct rq *rq, struct sched_domain *sd)
  	return check_cpu_capacity(rq, sd);
  }
  
@@ -249,7 +249,7 @@ index 3a3116dca89c..a27896a05103 100644
  /**
   * update_sg_lb_stats - Update sched_group's statistics for load balancing.
   * @env: The load balancing environment.
-@@ -10455,11 +10468,13 @@ static inline void update_sg_lb_stats(struct lb_env *env,
+@@ -10431,11 +10444,13 @@ static inline void update_sg_lb_stats(struct lb_env *env,
  				      bool *sg_overloaded,
  				      bool *sg_overutilized)
  {
@@ -264,7 +264,7 @@ index 3a3116dca89c..a27896a05103 100644
  
  	for_each_cpu_and(i, sched_group_span(group), env->cpus) {
  		struct rq *rq = cpu_rq(i);
-@@ -10473,16 +10488,12 @@ static inline void update_sg_lb_stats(struct lb_env *env,
+@@ -10449,16 +10464,12 @@ static inline void update_sg_lb_stats(struct lb_env *env,
  		nr_running = rq->nr_running;
  		sgs->sum_nr_running += nr_running;
  
@@ -283,7 +283,7 @@ index 3a3116dca89c..a27896a05103 100644
  		/*
  		 * No need to call idle_cpu() if nr_running is not 0
  		 */
-@@ -10492,10 +10503,21 @@ static inline void update_sg_lb_stats(struct lb_env *env,
+@@ -10468,10 +10479,21 @@ static inline void update_sg_lb_stats(struct lb_env *env,
  			continue;
  		}
  
@@ -306,7 +306,7 @@ index 3a3116dca89c..a27896a05103 100644
  			/* Check for a misfit task on the cpu */
  			if (sgs->group_misfit_task_load < rq->misfit_task_load) {
  				sgs->group_misfit_task_load = rq->misfit_task_load;
-@@ -10590,7 +10612,7 @@ static bool update_sd_pick_busiest(struct lb_env *env,
+@@ -10566,7 +10588,7 @@ static bool update_sd_pick_busiest(struct lb_env *env,
  
  	case group_asym_packing:
  		/* Prefer to move from lowest priority CPU's work */
@@ -319,7 +319,7 @@ diff --git a/kernel/sched/sched.h b/kernel/sched/sched.h
 index da653eba7884..dee2797009e3 100644
 --- a/kernel/sched/sched.h
 +++ b/kernel/sched/sched.h
-@@ -2082,7 +2082,6 @@ struct sched_group {
+@@ -2048,7 +2048,6 @@ struct sched_group {
  	unsigned int		group_weight;
  	unsigned int		cores;
  	struct sched_group_capacity *sgc;

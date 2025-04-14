@@ -48,7 +48,7 @@ Signed-off-by: Peter Jung <admin@ptr1337.dev>
 diff -uarp a/init/Kconfig b/init/Kconfig
 --- a/init/Kconfig
 +++ b/init/Kconfig
-@@ -255,6 +255,19 @@ config BUILD_SALT
+@@ -260,6 +260,19 @@ config BUILD_SALT
  	  This is mostly useful for distributions which want to ensure the
  	  build is unique between builds. It's safe to leave the default.
  
@@ -76,7 +76,7 @@ diff -uarp a/Makefile b/Makefile
  KBUILD_RUSTFLAGS += -Coverflow-checks=$(if $(CONFIG_RUST_OVERFLOW_CHECKS),y,n)
  
 +ifdef CONFIG_POLLY_CLANG
-+KBUILD_LDFLAGS	+= --lto-O3 --lto-CGO3
++KBUILD_LDFLAGS	+= --lto-O3 --lto-CGO3 --thinlto-jobs=3
 +KBUILD_CFLAGS	+= -fplugin=LLVMPolly.so \
 +		   -fmerge-all-constants \
 +		   -mllvm -inline-threshold=1000 \
