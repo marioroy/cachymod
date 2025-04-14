@@ -25,6 +25,9 @@
 # Patch0164: 0164-KVM-VMX-make-vmx-init-a-late-init-call-to-get-to-ini.patch
 # Patch0165: slack.patch
 # Patch0167: 0167-net-sock-increase-default-number-of-_SK_MEM_PACKETS-.patch
+# Patch0169: 0169-mm-mincore-improve-performance-by-adding-an-unlikely.patch
+# Patch0170: 0170-sched-Add-unlikey-branch-hints-to-several-system-cal.patch
+# Patch0171: 0171-kcmp-improve-performance-adding-an-unlikely-hint-to-.patch
 ##
 
 # Allow disabling the LDT (local descriptor table).
@@ -32,7 +35,7 @@
 diff -uar a/arch/x86/Kconfig b/arch/x86/Kconfig
 --- a/arch/x86/Kconfig
 +++ b/arch/x86/Kconfig
-@@ -1247,7 +1247,7 @@
+@@ -1248,7 +1248,7 @@
  	default X86_LEGACY_VM86
  
  config X86_16BIT
@@ -41,7 +44,7 @@ diff -uar a/arch/x86/Kconfig b/arch/x86/Kconfig
  	default y
  	depends on MODIFY_LDT_SYSCALL
  	help
-@@ -2389,7 +2389,7 @@
+@@ -2390,7 +2390,7 @@
  	  be set to 'N' under normal conditions.
  
  config MODIFY_LDT_SYSCALL
@@ -56,7 +59,7 @@ diff -uar a/arch/x86/Kconfig b/arch/x86/Kconfig
 diff -uar a/init/Kconfig b/init/Kconfig
 --- a/init/Kconfig
 +++ b/init/Kconfig
-@@ -1583,7 +1583,7 @@
+@@ -1588,7 +1588,7 @@
  	  Only use this if you really know what you are doing.
  
  config UID16
@@ -65,7 +68,7 @@ diff -uar a/init/Kconfig b/init/Kconfig
  	depends on HAVE_UID16 && MULTIUSER
  	default y
  	help
-@@ -1614,7 +1614,7 @@
+@@ -1619,7 +1619,7 @@
  	  If unsure, leave the default option here.
  
  config SYSFS_SYSCALL
@@ -791,4 +794,168 @@ index 54ca8dcbfb43..9adc51e8085b 100644
  #define SK_RMEM_MAX		(_SK_MEM_OVERHEAD * _SK_MEM_PACKETS)
 -- 
 2.44.0
+
+# Patch0169: 0169-mm-mincore-improve-performance-by-adding-an-unlikely.patch
+
+From d2d33210a595ce1b1ec9ca94edc8bd40af0f66c5 Mon Sep 17 00:00:00 2001
+From: Colin Ian King <colin.i.king@gmail.com>
+Date: Wed, 19 Feb 2025 08:36:07 +0000
+Subject: [PATCH] mm/mincore: improve performance by adding an unlikely hint
+
+Adding an unlikely() hint on the masked start comparison error return path
+improves run-time performance of the mincore system call.
+
+Benchmarking on an i9-12900 shows an improvement of 7ns on mincore calls
+on a 256KB mmap'd region where 50% of the pages we resident.  Improvement
+was from ~970 ns down to 963 ns, so a small ~0.7% improvement.
+
+Results based on running 20 tests with turbo disabled (to reduce clock
+freq turbo changes), with 10 second run per test and comparing the number
+of mincores calls per second.  The % standard deviation of the 20 tests
+was ~0.10%, so results are reliable.
+
+Link: https://lkml.kernel.org/r/20250219083607.5183-1-colin.i.king@gmail.com
+Signed-off-by: Colin Ian King <colin.i.king@gmail.com>
+Cc: Matthew Wilcow <willy@infradead.org>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+---
+ mm/mincore.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/mm/mincore.c b/mm/mincore.c
+index d6bd19e520fc..832f29f46767 100644
+--- a/mm/mincore.c
++++ b/mm/mincore.c
+@@ -239,7 +239,7 @@ SYSCALL_DEFINE3(mincore, unsigned long, start, size_t, len,
+ 	start = untagged_addr(start);
+ 
+ 	/* Check the start address: needs to be page-aligned.. */
+-	if (start & ~PAGE_MASK)
++	if (unlikely(start & ~PAGE_MASK))
+ 		return -EINVAL;
+ 
+ 	/* ..and we need to be passed a valid user-space range */
+-- 
+2.48.1
+
+# Patch0170: 0170-sched-Add-unlikey-branch-hints-to-several-system-cal.patch
+
+From 1a5d3492f8e14719184945893c610e0802c05533 Mon Sep 17 00:00:00 2001
+From: Colin Ian King <colin.i.king@gmail.com>
+Date: Wed, 19 Feb 2025 14:24:23 +0000
+Subject: [PATCH] sched: Add unlikey branch hints to several system calls
+
+Adding an unlikely() hint on early error return paths improves the
+run-time performance of several sched related system calls.
+
+Benchmarking on an i9-12900 shows the following per system call
+performance improvements:
+
+		       before     after     improvement
+sched_getattr          182.4ns    170.6ns      ~6.5%
+sched_setattr          284.3ns    267.6ns      ~5.9%
+sched_getparam         161.6ns    148.1ns      ~8.4%
+sched_setparam        1265.4ns   1227.6ns      ~3.0%
+sched_getscheduler     129.4ns    118.2ns      ~8.7%
+sched_setscheduler    1237.3ns   1216.7ns      ~1.7%
+
+Results are based on running 20 tests with turbo disabled (to reduce
+clock freq turbo changes), with 10 second run per test based on the
+number of system calls per second. The % standard deviation of the
+measurements for the 20 tests was 0.05% to 0.40%, so the results are
+reliable.
+
+Tested on kernel build with gcc 14.2.1
+
+Signed-off-by: Colin Ian King <colin.i.king@gmail.com>
+Signed-off-by: Peter Zijlstra (Intel) <peterz@infradead.org>
+Link: https://lkml.kernel.org/r/20250219142423.45516-1-colin.i.king@gmail.com
+---
+ kernel/sched/syscalls.c | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/kernel/sched/syscalls.c b/kernel/sched/syscalls.c
+index 456d339be98f..9f40348f1dc7 100644
+--- a/kernel/sched/syscalls.c
++++ b/kernel/sched/syscalls.c
+@@ -885,7 +885,7 @@ do_sched_setscheduler(pid_t pid, int policy, struct sched_param __user *param)
+ {
+ 	struct sched_param lparam;
+ 
+-	if (!param || pid < 0)
++	if (unlikely(!param || pid < 0))
+ 		return -EINVAL;
+ 	if (copy_from_user(&lparam, param, sizeof(struct sched_param)))
+ 		return -EFAULT;
+@@ -994,7 +994,7 @@ SYSCALL_DEFINE3(sched_setattr, pid_t, pid, struct sched_attr __user *, uattr,
+ 	struct sched_attr attr;
+ 	int retval;
+ 
+-	if (!uattr || pid < 0 || flags)
++	if (unlikely(!uattr || pid < 0 || flags))
+ 		return -EINVAL;
+ 
+ 	retval = sched_copy_attr(uattr, &attr);
+@@ -1059,7 +1059,7 @@ SYSCALL_DEFINE2(sched_getparam, pid_t, pid, struct sched_param __user *, param)
+ 	struct task_struct *p;
+ 	int retval;
+ 
+-	if (!param || pid < 0)
++	if (unlikely(!param || pid < 0))
+ 		return -EINVAL;
+ 
+ 	scoped_guard (rcu) {
+@@ -1095,8 +1095,8 @@ SYSCALL_DEFINE4(sched_getattr, pid_t, pid, struct sched_attr __user *, uattr,
+ 	struct task_struct *p;
+ 	int retval;
+ 
+-	if (!uattr || pid < 0 || usize > PAGE_SIZE ||
+-	    usize < SCHED_ATTR_SIZE_VER0 || flags)
++	if (unlikely(!uattr || pid < 0 || usize > PAGE_SIZE ||
++		      usize < SCHED_ATTR_SIZE_VER0 || flags))
+ 		return -EINVAL;
+ 
+ 	scoped_guard (rcu) {
+-- 
+2.48.1
+
+# Patch0171: 0171-kcmp-improve-performance-adding-an-unlikely-hint-to-.patch
+
+From d1c735d44c12544cea9b04ca88d65c12892c0539 Mon Sep 17 00:00:00 2001
+From: Colin Ian King <colin.i.king@gmail.com>
+Date: Thu, 13 Feb 2025 16:39:16 +0000
+Subject: [PATCH] kcmp: improve performance adding an unlikely hint to task
+ comparisons
+
+Adding an unlikely() hint on task comparisons on an unlikely error
+return path improves run-time performance of the kcmp system call.
+
+Benchmarking on an i9-12900 shows an improvement of ~5.5% on kcmp().
+Results based on running 20 tests with turbo disabled (to reduce
+clock freq turbo changes), with 10 second run per test and comparing
+the number of kcmp calls per second. The % Standard deviation of 20
+tests was ~0.25%, results are reliable.
+
+Signed-off-by: Colin Ian King <colin.i.king@gmail.com>
+Link: https://lore.kernel.org/r/20250213163916.709392-1-colin.i.king@gmail.com
+Signed-off-by: Christian Brauner <brauner@kernel.org>
+---
+ kernel/kcmp.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/kernel/kcmp.c b/kernel/kcmp.c
+index 2c596851f8a9..7c1a65bd5f8d 100644
+--- a/kernel/kcmp.c
++++ b/kernel/kcmp.c
+@@ -145,7 +145,7 @@ SYSCALL_DEFINE5(kcmp, pid_t, pid1, pid_t, pid2, int, type,
+ 	 */
+ 	task1 = find_task_by_vpid(pid1);
+ 	task2 = find_task_by_vpid(pid2);
+-	if (!task1 || !task2)
++	if (unlikely(!task1 || !task2))
+ 		goto err_no_task;
+ 
+ 	get_task_struct(task1);
+-- 
+2.48.1
 

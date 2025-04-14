@@ -8,7 +8,7 @@ Signed-off-by: Mario Roy <...>
 diff -uarp a/init/Kconfig b/init/Kconfig
 --- a/init/Kconfig
 +++ b/init/Kconfig
-@@ -1362,6 +1362,14 @@ config CHECKPOINT_RESTORE
+@@ -1367,6 +1367,14 @@ config CHECKPOINT_RESTORE
  
  	  If unsure, say N here.
  
@@ -205,10 +205,10 @@ diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
  
  	se->vlag = clamp(vlag, -limit, limit);
  }
-@@ -921,6 +945,10 @@ static struct sched_entity *pick_eevdf(s
- 	 * until it gets a new slice. See the HACK in set_next_entity().
- 	 */
- 	if (sched_feat(RUN_TO_PARITY) && curr && curr->vlag == curr->deadline)
+@@ -937,6 +961,10 @@ static struct sched_entity *pick_eevdf(s
+ 		curr = NULL;
+ 
+ 	if (sched_feat(RUN_TO_PARITY) && curr && protect_slice(curr))
 +#ifdef CONFIG_SCHED_BORE
 +		/* Adaptively disabled if more than 2 tasks in a CFQ runqueue */
 +		if (cfs_rq->nr_running <= 2)
@@ -216,7 +216,7 @@ diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
  		return curr;
  
  	/* Pick the leftmost entity if it's eligible */
-@@ -979,6 +1007,7 @@ struct sched_entity *__pick_last_entity(
+@@ -995,6 +1023,7 @@ struct sched_entity *__pick_last_entity(
   * Scheduling class statistics methods:
   */
  #ifdef CONFIG_SMP
@@ -224,7 +224,7 @@ diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
  int sched_update_scaling(void)
  {
  	unsigned int factor = get_update_sysctl_factor();
-@@ -990,6 +1019,7 @@ int sched_update_scaling(void)
+@@ -1006,6 +1035,7 @@ int sched_update_scaling(void)
  
  	return 0;
  }
@@ -232,7 +232,7 @@ diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
  #endif
  #endif
  
-@@ -5267,7 +5297,11 @@ place_entity(struct cfs_rq *cfs_rq, stru
+@@ -5283,7 +5313,11 @@ place_entity(struct cfs_rq *cfs_rq, stru
  	 * on average, halfway through their slice, as such start tasks
  	 * off with half a slice to ease into the competition.
  	 */
@@ -244,7 +244,7 @@ diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
  		vslice /= 2;
  
  	/*
-@@ -8969,16 +9003,24 @@ static void yield_task_fair(struct rq *r
+@@ -8993,16 +9027,24 @@ static void yield_task_fair(struct rq *r
  	/*
  	 * Are we the only task in the tree?
  	 */

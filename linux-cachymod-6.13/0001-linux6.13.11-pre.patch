@@ -1,0 +1,162 @@
+
+x86/tdx: Fix arch_safe_halt() execution for TDX VMs
+https://lore.kernel.org/all/20250410180423.GA3430900@ax162/
+
+Add missing dependency in 6.13.11
+x86/paravirt: Move halt paravirt calls under CONFIG_PARAVIRT
+https://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git/commit/?id=22cc5ca5de52
+
+Signed-off-by: Mario Roy <...>
+
+diff -uarp a/arch/x86/include/asm/irqflags.h b/arch/x86/include/asm/irqflags.h
+--- a/arch/x86/include/asm/irqflags.h
++++ b/arch/x86/include/asm/irqflags.h
+@@ -76,6 +76,28 @@ static __always_inline void native_local
+ 
+ #endif
+ 
++#ifndef CONFIG_PARAVIRT
++#ifndef __ASSEMBLY__
++/*
++ * Used in the idle loop; sti takes one instruction cycle
++ * to complete:
++ */
++static __always_inline void arch_safe_halt(void)
++{
++	native_safe_halt();
++}
++
++/*
++ * Used when interrupts are already enabled or to
++ * shutdown the processor:
++ */
++static __always_inline void halt(void)
++{
++	native_halt();
++}
++#endif /* __ASSEMBLY__ */
++#endif /* CONFIG_PARAVIRT */
++
+ #ifdef CONFIG_PARAVIRT_XXL
+ #include <asm/paravirt.h>
+ #else
+@@ -98,24 +120,6 @@ static __always_inline void arch_local_i
+ }
+ 
+ /*
+- * Used in the idle loop; sti takes one instruction cycle
+- * to complete:
+- */
+-static __always_inline void arch_safe_halt(void)
+-{
+-	native_safe_halt();
+-}
+-
+-/*
+- * Used when interrupts are already enabled or to
+- * shutdown the processor:
+- */
+-static __always_inline void halt(void)
+-{
+-	native_halt();
+-}
+-
+-/*
+  * For spinlocks, etc:
+  */
+ static __always_inline unsigned long arch_local_irq_save(void)
+diff -uarp a/arch/x86/include/asm/paravirt.h b/arch/x86/include/asm/paravirt.h
+--- a/arch/x86/include/asm/paravirt.h
++++ b/arch/x86/include/asm/paravirt.h
+@@ -107,6 +107,16 @@ static inline void notify_page_enc_statu
+ 	PVOP_VCALL3(mmu.notify_page_enc_status_changed, pfn, npages, enc);
+ }
+ 
++static __always_inline void arch_safe_halt(void)
++{
++	PVOP_VCALL0(irq.safe_halt);
++}
++
++static inline void halt(void)
++{
++	PVOP_VCALL0(irq.halt);
++}
++
+ #ifdef CONFIG_PARAVIRT_XXL
+ static inline void load_sp0(unsigned long sp0)
+ {
+@@ -170,16 +180,6 @@ static inline void __write_cr4(unsigned
+ 	PVOP_VCALL1(cpu.write_cr4, x);
+ }
+ 
+-static __always_inline void arch_safe_halt(void)
+-{
+-	PVOP_VCALL0(irq.safe_halt);
+-}
+-
+-static inline void halt(void)
+-{
+-	PVOP_VCALL0(irq.halt);
+-}
+-
+ extern noinstr void pv_native_wbinvd(void);
+ 
+ static __always_inline void wbinvd(void)
+diff -uarp a/arch/x86/include/asm/paravirt_types.h b/arch/x86/include/asm/paravirt_types.h
+--- a/arch/x86/include/asm/paravirt_types.h
++++ b/arch/x86/include/asm/paravirt_types.h
+@@ -122,10 +122,9 @@ struct pv_irq_ops {
+ 	struct paravirt_callee_save save_fl;
+ 	struct paravirt_callee_save irq_disable;
+ 	struct paravirt_callee_save irq_enable;
+-
++#endif
+ 	void (*safe_halt)(void);
+ 	void (*halt)(void);
+-#endif
+ } __no_randomize_layout;
+ 
+ struct pv_mmu_ops {
+diff -uarp a/arch/x86/kernel/paravirt.c b/arch/x86/kernel/paravirt.c
+--- a/arch/x86/kernel/paravirt.c
++++ b/arch/x86/kernel/paravirt.c
+@@ -100,6 +100,11 @@ int paravirt_disable_iospace(void)
+ 	return request_resource(&ioport_resource, &reserve_ioports);
+ }
+ 
++static noinstr void pv_native_safe_halt(void)
++{
++	native_safe_halt();
++}
++
+ #ifdef CONFIG_PARAVIRT_XXL
+ static noinstr void pv_native_write_cr2(unsigned long val)
+ {
+@@ -120,11 +125,6 @@ noinstr void pv_native_wbinvd(void)
+ {
+ 	native_wbinvd();
+ }
+-
+-static noinstr void pv_native_safe_halt(void)
+-{
+-	native_safe_halt();
+-}
+ #endif
+ 
+ struct pv_info pv_info = {
+@@ -182,9 +182,11 @@ struct paravirt_patch_template pv_ops =
+ 	.irq.save_fl		= __PV_IS_CALLEE_SAVE(pv_native_save_fl),
+ 	.irq.irq_disable	= __PV_IS_CALLEE_SAVE(pv_native_irq_disable),
+ 	.irq.irq_enable		= __PV_IS_CALLEE_SAVE(pv_native_irq_enable),
++#endif /* CONFIG_PARAVIRT_XXL */
++
++	/* Irq HLT ops. */
+ 	.irq.safe_halt		= pv_native_safe_halt,
+ 	.irq.halt		= native_halt,
+-#endif /* CONFIG_PARAVIRT_XXL */
+ 
+ 	/* Mmu ops. */
+ 	.mmu.flush_tlb_user	= native_flush_tlb_local,
+-- 
+cgit
+

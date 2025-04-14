@@ -103,7 +103,7 @@ set -e
 #        possibly lower runtime performance than full
 # polly: Build kernel with clang polyhedral loop optimizer, suffix "-polly"
 # gcc:   Build kernel with gcc, suffix "-gcc"
-: "${_buildtype:=polly}"
+: "${_buildtype:=thin}"
 
 # Add extra sources here: opt-in for the USB pollrate patch
 # Refer to https://github.com/GloriousEggroll/Linux-Pollrate-Patch

@@ -80,15 +80,48 @@
 #        possibly lower runtime performance than full
 # polly: Build the kernel with clang polyhedral loop optimizer, suffix "-polly"
 # gcc:   Build the kernel with gcc, suffix "-gcc"
-: "${_buildtype:=polly}"
+: "${_buildtype:=thin}"
 
 # Build a debug package with non-stripped vmlinux
 : "${_build_debug:=no}"
+
+# Enable AUTOFDO_CLANG for the first compilation to create a kernel, which can be used for profiling
+# Workflow:
+# https://cachyos.org/blog/2411-kernel-autofdo/
+# 1. Compile Kernel with _autofdo=yes and _build_debug=yes
+# 2. Boot the kernel in QEMU or on your system, see Workload
+# 3. Profile the kernel and convert the profile, see Generating the Profile for AutoFDO
+# 4. Put the profile into the sourcedir
+# 5. Run kernel build again with the _autofdo_profile_name path to profile specified
+: "${_autofdo:=yes}"
+
+# Name for the AutoFDO profile
+: "${_autofdo_profile_name:=cachymod.afdo}"
+
+# Propeller should be applied, after the kernel is optimized with AutoFDO
+# Workflow:
+# 1. Proceed with above AutoFDO Optimization, but enable at the final compilation also _propeller
+# 2. Boot into the AutoFDO Kernel and profile it
+# 3. Convert the profile into the propeller profile, example:
+# create_llvm_prof --binary=/usr/src/debug/linux-cachyos-rc/vmlinux --profile=propeller.data --format=propeller --propeller_output_module_name --out=propeller_cc_profile.txt --propeller_symorder=propeller_ld_profile.txt
+# 4. Place the propeller_cc_profile.txt and propeller_ld_profile.txt into the srcdir
+# 5. Enable _propeller_prefix
+: "${_propeller:=yes}"
+
+# Enable this after the profiles have been generated
+: "${_propeller_profiles:=yes}"
 
 
 # ATTENTION: Do not modify after this line
 
 [[ "$_build_debug" =~ ^(yes|y|1)$ ]] && _disable_debug_info="no"
+
+if [[ "$_buildtype" =~ ^(gcc|polly)$ ]]; then
+    _autofdo="no"
+    _autofdo_profile_name=""
+    _propeller="no"
+    _propeller_profiles="no"
+fi
 
 if [[ "$_buildtype" = "thin" || "$_buildtype" = "full" ]]; then
     buildtype="lto"
@@ -107,7 +140,7 @@ fi
 
 _pkgsuffix=cachymod-613
 _major=6.13
-_minor=9
+_minor=11
 pkgver=${_major}.${_minor}
 _stable=${_major}.${_minor}
 #_stable=${_major}
@@ -137,8 +170,13 @@ source=(
     "trim.sh"
     "auto-cpu-optimization.sh"
     "mkinitcpio.template"
+    "0001-linux6.13.11-pre.patch"
     "0001-rt.patch"
-    "0001-cachyos-base-all.patch"
+    "0001-cachyos-base-partial.patch"
+    "0001-cachyos-amd-tlb-broadcast.patch"
+    "0001-cachyos-bbr3.patch"
+    "0001-cachyos-itmt-core-ranking.patch"
+    "0001-cachyos-zstd.patch"
     "0001-reduce-tasklist-lock-hold-time.patch"
     "0001-sched-ext-high-performance-clock.patch"
     "0001-sched-fair-remove-cachy-mods.patch"
@@ -151,11 +189,13 @@ else
 fi
 
 source+=(
+    "0002-drm-amdgpu-mes-version.patch"
+    "0002-drm-amdgpu-protect-fpu.patch"
     "0002-kconfig-add-800Hz.patch"
     "0100-mm-kconfig-enable-rt-thp.patch"
     "0200-clearlinux-extras.patch"
     "0210-cachymod-misc.patch"
-    "0220-upstream-commits.patch"
+    "0220-v4l2loopback.patch"
 )
 
 if [[ "$_prevent_avx2" =~ ^(yes|y|1)$ ]]; then
@@ -192,6 +232,21 @@ fi
 [ -n "$_extra_patch_or_url9" ] && source+=("$_extra_patch_or_url9")
 
 _die() { error "$@" ; exit 1; }
+
+# Use generated AutoFDO Profile
+if [ "$_autofdo" = "yes" ] && [ -n "$_autofdo_profile_name" ]; then
+    if [ -e "$_autofdo_profile_name" ]; then
+        source+=("$_autofdo_profile_name")
+    else
+        _die "Failed to find file ${_autofdo_profile_name}"
+    fi
+fi
+
+# Use generated Propeller Profile
+if [ "$_propeller" = "yes" ] && [ "$_propeller_profiles" = "yes" ]; then
+    source+=(propeller_cc_profile.txt
+             propeller_ld_profile.txt)
+fi
 
 pkgbase="linux-$_pkgsuffix"
 if [ "$_preempt" = "rt" ]; then
@@ -373,6 +428,27 @@ prepare() {
 
     echo "Selecting '$_hugepage' TRANSPARENT_HUGEPAGE config..."
 
+    # Enable Clang AutoFDO
+    # Add additonal check if Thin or Full LTO is enabled otherwise die
+    if [ "$_autofdo" = "yes" ]; then
+        scripts/config -e AUTOFDO_CLANG
+    fi
+
+    if [ "$_autofdo" = "yes" ] && [ -n "$_autofdo_profile_name" ]; then
+        echo "AutoFDO profile has been found..."
+        BUILD_FLAGS+=(CLANG_AUTOFDO_PROFILE="${srcdir}/${_autofdo_profile_name}")
+    fi
+
+    # Propeller Optimization
+    if [ "$_propeller" = "yes" ]; then
+        scripts/config -e PROPELLER_CLANG
+    fi
+
+    if [ "$_propeller" = "yes" ] && [ "$_propeller_profiles" = "yes" ]; then
+        echo "Propeller profile has been found..."
+        BUILD_FLAGS+=(CLANG_PROPELLER_PROFILE_PREFIX="${srcdir}/propeller")
+    fi
+
     echo "Enabling USER_NS_UNPRIVILEGED"
     scripts/config -e USER_NS
 
@@ -425,13 +501,13 @@ prepare() {
         if [ -e "$_localmodcfg_path" ]; then
             echo "Running Steven Rostedt's make localmodconfig now"
             ( cat "$_localmodcfg_path"
-              # Include RAM disk, exfat, ntsync, and modules for Docker
+              # Include RAM disk, exfat, ntsync, ttm, and modules for Docker
               for module in \
-                  brd bridge exfat llc nf_conntrack nf_conntrack_netlink \
-                  nf_defrag_ipv4 nf_defrag_ipv6 nf_nat nf_tables \
-                  nft_chain_nat nft_compat ntsync overlay stp veth \
-                  xfrm_algo xfrm_user xt_addrtype xt_conntrack \
-                  xt_MASQUERADE xt_nat xt_tcpudp \
+                  brd bridge exfat drm_ttm_helper llc nf_conntrack \
+                  nf_conntrack_netlink nf_defrag_ipv4 nf_defrag_ipv6 \
+                  nf_nat nf_tables nft_chain_nat nft_compat ntsync \
+                  overlay stp ttm veth xfrm_algo xfrm_user xt_addrtype \
+                  xt_conntrack xt_MASQUERADE xt_nat xt_tcpudp \
               ;do echo "$module"; done
             ) | sort -u > "/tmp/modprobed.db.$$"
             make "${BUILD_FLAGS[@]}" LSMOD="/tmp/modprobed.db.$$" localmodconfig
