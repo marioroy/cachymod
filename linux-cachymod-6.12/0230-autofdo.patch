@@ -399,7 +399,7 @@ index a578178468f1..a2d251917629 100644
  AUXILIARY BUS DRIVER
  M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
  R:	Dave Ertman <david.m.ertman@intel.com>
-@@ -18520,6 +18527,13 @@ S:	Maintained
+@@ -18514,6 +18521,13 @@ S:	Maintained
  F:	include/linux/psi*
  F:	kernel/sched/psi.c
  
@@ -705,7 +705,7 @@ diff --git a/tools/objtool/check.c b/tools/objtool/check.c
 index f0d8796b984a..634a67dba86c 100644
 --- a/tools/objtool/check.c
 +++ b/tools/objtool/check.c
-@@ -4532,6 +4532,8 @@ static int validate_ibt(struct objtool_file *file)
+@@ -4535,6 +4535,8 @@ static int validate_ibt(struct objtool_file *file)
  		    !strcmp(sec->name, "__jump_table")			||
  		    !strcmp(sec->name, "__mcount_loc")			||
  		    !strcmp(sec->name, ".kcfi_traps")			||

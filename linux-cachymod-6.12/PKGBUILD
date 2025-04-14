@@ -146,7 +146,7 @@ _stable=${_major}.${_minor}
 
 _srcname=linux-${_stable}
 pkgdesc='CachyMod Linux Kernel with other patches and improvements'
-pkgrel=1
+pkgrel=2
 _kernver="$pkgver-$pkgrel"
 _kernuname="${pkgver}-${_pkgsuffix}"
 arch=('x86_64')
@@ -164,6 +164,7 @@ source=(
     "auto-cpu-optimization.sh"
     "mkinitcpio.template"
     "0001-linux6.12.23-pre.patch"
+    "0001-linux6.12.23-update.patch"
     "0001-rt.patch"
     "0001-rt-update.patch"
     "0001-cachyos-base-partial.patch"

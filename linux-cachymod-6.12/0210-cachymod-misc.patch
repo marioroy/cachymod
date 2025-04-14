@@ -2353,3 +2353,22 @@ diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
 -- 
 2.43.0
 
+staging: bcm2835-camera: Initialise dev in v4l2_dev
+https://lore.kernel.org/all/20250414-staging-bcm2835-v4l2-fix-v1-1-2b2db9a8f293@raspberrypi.com/
+
+diff --git a/drivers/staging/vc04_services/bcm2835-camera/bcm2835-camera.c b/drivers/staging/vc04_services/bcm2835-camera/bcm2835-camera.c
+index b839b50ac26a..fa7ea4ca4c36 100644
+--- a/drivers/staging/vc04_services/bcm2835-camera/bcm2835-camera.c
++++ b/drivers/staging/vc04_services/bcm2835-camera/bcm2835-camera.c
+@@ -1902,6 +1902,7 @@ static int bcm2835_mmal_probe(struct vchiq_device *device)
+ 				__func__, ret);
+ 			goto free_dev;
+ 		}
++		dev->v4l2_dev.dev = &device->dev;
+ 
+ 		/* setup v4l controls */
+ 		ret = bcm2835_mmal_init_controls(dev, &dev->ctrl_handler);
+
+-- 
+2.43.0
+

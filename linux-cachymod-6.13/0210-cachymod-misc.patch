@@ -2282,3 +2282,65 @@ diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
 -- 
 2.43.0
 
+staging: bcm2835-camera: Initialise dev in v4l2_dev
+https://lore.kernel.org/all/20250414-staging-bcm2835-v4l2-fix-v1-1-2b2db9a8f293@raspberrypi.com/
+
+diff --git a/drivers/staging/vc04_services/bcm2835-camera/bcm2835-camera.c b/drivers/staging/vc04_services/bcm2835-camera/bcm2835-camera.c
+index b839b50ac26a..fa7ea4ca4c36 100644
+--- a/drivers/staging/vc04_services/bcm2835-camera/bcm2835-camera.c
++++ b/drivers/staging/vc04_services/bcm2835-camera/bcm2835-camera.c
+@@ -1902,6 +1902,7 @@ static int bcm2835_mmal_probe(struct vchiq_device *device)
+ 				__func__, ret);
+ 			goto free_dev;
+ 		}
++		dev->v4l2_dev.dev = &device->dev;
+ 
+ 		/* setup v4l controls */
+ 		ret = bcm2835_mmal_init_controls(dev, &dev->ctrl_handler);
+
+-- 
+2.43.0
+
+Increased memory usage on NUMA nodes with ICE driver after upgrade to 6.13.y
+(regression in commit 492a044508ad)
+https://lore.kernel.org/all/CAK8fFZ4hY6GUJNENz3wY9jaYLZXGfpr7dnZxzGMYoE44caRbgw@mail.gmail.com/
+
+Revert ice: Add support for persistent NAPI config
+https://lore.kernel.org/all/20241113185431.1289708-6-anthony.l.nguyen@intel.com/
+
+Signed-off-by: Jaroslav Pulchart <...>
+
+diff --git a/drivers/net/ethernet/intel/ice/ice_base.c b/drivers/net/ethernet/intel/ice/ice_base.c
+index 3a8e156d7d86cf..82a9cd4ec7aec9 100644
+--- a/drivers/net/ethernet/intel/ice/ice_base.c
++++ b/drivers/net/ethernet/intel/ice/ice_base.c
+@@ -156,8 +156,7 @@ static int ice_vsi_alloc_q_vector(struct ice_vsi *vsi, u16 v_idx)
+ 	 * handler here (i.e. resume, reset/rebuild, etc.)
+ 	 */
+ 	if (vsi->netdev)
+-		netif_napi_add_config(vsi->netdev, &q_vector->napi,
+-				      ice_napi_poll, v_idx);
++		netif_napi_add(vsi->netdev, &q_vector->napi, ice_napi_poll);
+ 
+ out:
+ 	/* tie q_vector and VSI together */
+diff --git a/drivers/net/ethernet/intel/ice/ice_lib.c b/drivers/net/ethernet/intel/ice/ice_lib.c
+index d4e74f96a8ad5d..a7d45a8ce7ac00 100644
+--- a/drivers/net/ethernet/intel/ice/ice_lib.c
++++ b/drivers/net/ethernet/intel/ice/ice_lib.c
+@@ -2777,10 +2777,8 @@ void ice_napi_add(struct ice_vsi *vsi)
+ 		return;
+ 
+ 	ice_for_each_q_vector(vsi, v_idx)
+-		netif_napi_add_config(vsi->netdev,
+-				      &vsi->q_vectors[v_idx]->napi,
+-				      ice_napi_poll,
+-				      v_idx);
++		netif_napi_add(vsi->netdev, &vsi->q_vectors[v_idx]->napi,
++			       ice_napi_poll);
+ }
+ 
+ /**
+-- 
+2.42.0
+
