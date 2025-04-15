@@ -1006,7 +1006,7 @@ diff --git a/drivers/block/Kconfig b/drivers/block/Kconfig
 -- 
 2.43.0
 
-Add device IDs
+Add bluetooth device ID
 
 Signed-off-by: Mario Roy <...>
 

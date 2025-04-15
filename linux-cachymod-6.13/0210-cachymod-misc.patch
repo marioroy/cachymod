@@ -396,12 +396,12 @@ diff -uarp a/scripts/Makefile.lib b/scripts/Makefile.lib
 Curated patches from XanMod Linux
 https://gitlab.com/xanmod/linux-patches
 
-# 0003-kbuild-Remove-GCC-minimal-function-alignment.patch
+# 0004-kbuild-Remove-GCC-minimal-function-alignment.patch
 
-From 67e174927705e71b0d254ab6fab5af40193376a4 Mon Sep 17 00:00:00 2001
+From 3eebc9aeefe53c4f02204890326581dd215b5825 Mon Sep 17 00:00:00 2001
 From: Alexandre Frade <kernel@xanmod.org>
 Date: Sat, 31 Aug 2024 16:57:41 +0000
-Subject: [PATCH 03/18] kbuild: Remove GCC minimal function alignment
+Subject: [PATCH 04/19] kbuild: Remove GCC minimal function alignment
 
 Signed-off-by: Alexandre Frade <kernel@xanmod.org>
 ---
@@ -411,7 +411,7 @@ Signed-off-by: Alexandre Frade <kernel@xanmod.org>
  3 files changed, 5 insertions(+), 24 deletions(-)
 
 diff --git a/Makefile b/Makefile
-index 59a938a0c335..1f9ef37558df 100644
+index ec8506143331..310a20d4e59b 100644
 --- a/Makefile
 +++ b/Makefile
 @@ -1038,15 +1038,8 @@ export CC_FLAGS_FPU
@@ -431,7 +431,7 @@ index 59a938a0c335..1f9ef37558df 100644
  # arch Makefile may override CC so keep this after arch Makefile is included
  NOSTDINC_FLAGS += -nostdinc
 diff --git a/arch/Kconfig b/arch/Kconfig
-index bd9f095d69fa..7c1f69a6dc37 100644
+index 6682b2a53e34..874bd8c8e7a4 100644
 --- a/arch/Kconfig
 +++ b/arch/Kconfig
 @@ -1715,18 +1715,6 @@ config FUNCTION_ALIGNMENT
@@ -454,7 +454,7 @@ index bd9f095d69fa..7c1f69a6dc37 100644
  	bool
  
 diff --git a/include/linux/compiler_types.h b/include/linux/compiler_types.h
-index 1a957ea2f4fe..972bd5f84766 100644
+index 981cc3d7e3aa..1bdb4d019bab 100644
 --- a/include/linux/compiler_types.h
 +++ b/include/linux/compiler_types.h
 @@ -99,17 +99,17 @@ static inline void __chk_io_ptr(const volatile void __iomem *ptr) { }
@@ -483,12 +483,12 @@ index 1a957ea2f4fe..972bd5f84766 100644
 -- 
 2.45.2
 
-# 0006-XANMOD-block-mq-deadline-Increase-write-priority-to-.patch
+# 0007-XANMOD-block-mq-deadline-Increase-write-priority-to-.patch
 
-From d23f0554f1b381f082dc81a6f3c523b90043b941 Mon Sep 17 00:00:00 2001
+From 544ec693d6c13f2d8d934d01842e072467aed0ec Mon Sep 17 00:00:00 2001
 From: Alexandre Frade <kernel@xanmod.org>
 Date: Wed, 11 May 2022 18:56:51 +0000
-Subject: [PATCH 06/18] XANMOD: block/mq-deadline: Increase write priority to
+Subject: [PATCH 07/19] XANMOD: block/mq-deadline: Increase write priority to
  improve responsiveness
 
 Signed-off-by: Alexandre Frade <kernel@xanmod.org>
@@ -497,7 +497,7 @@ Signed-off-by: Alexandre Frade <kernel@xanmod.org>
  1 file changed, 5 insertions(+), 2 deletions(-)
 
 diff --git a/block/mq-deadline.c b/block/mq-deadline.c
-index acdc28756d9d..9d7f63ebc000 100644
+index 5528347b5fcf..648ceb0b84f5 100644
 --- a/block/mq-deadline.c
 +++ b/block/mq-deadline.c
 @@ -4,6 +4,9 @@
@@ -529,12 +529,12 @@ index acdc28756d9d..9d7f63ebc000 100644
 -- 
 2.45.2
 
-# 0007-XANMOD-block-mq-deadline-Disable-front_merges-by-def.patch
+# 0008-XANMOD-block-mq-deadline-Disable-front_merges-by-def.patch
 
-From 8c3035b22be106d8659d85c2651e589f53e89cc5 Mon Sep 17 00:00:00 2001
+From f76e4f5a75c94418a035bd7e9ae73f418182fb40 Mon Sep 17 00:00:00 2001
 From: Alexandre Frade <kernel@xanmod.org>
 Date: Thu, 6 Jan 2022 16:59:01 +0000
-Subject: [PATCH 07/18] XANMOD: block/mq-deadline: Disable front_merges by
+Subject: [PATCH 08/19] XANMOD: block/mq-deadline: Disable front_merges by
  default
 
 Signed-off-by: Alexandre Frade <kernel@xanmod.org>
@@ -543,7 +543,7 @@ Signed-off-by: Alexandre Frade <kernel@xanmod.org>
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/block/mq-deadline.c b/block/mq-deadline.c
-index 9d7f63ebc000..bf67b420b645 100644
+index 648ceb0b84f5..adcf1dbb8252 100644
 --- a/block/mq-deadline.c
 +++ b/block/mq-deadline.c
 @@ -600,7 +600,7 @@ static int dd_init_sched(struct request_queue *q, struct elevator_type *e)
@@ -558,12 +558,12 @@ index 9d7f63ebc000..bf67b420b645 100644
 -- 
 2.45.2
 
-# 0008-XANMOD-block-Set-rq_affinity-to-force-complete-I-O-r.patch
+# 0009-XANMOD-block-Set-rq_affinity-to-force-complete-I-O-r.patch
 
-From 3d1e3f450e9ca926a899a0502fd34df6d483efae Mon Sep 17 00:00:00 2001
+From 7223e165c8bfae24ae100d208521b5e493cd1df3 Mon Sep 17 00:00:00 2001
 From: Alexandre Frade <kernel@xanmod.org>
 Date: Mon, 16 Sep 2024 15:36:01 +0000
-Subject: [PATCH 08/18] XANMOD: block: Set rq_affinity to force complete I/O
+Subject: [PATCH 09/19] XANMOD: block: Set rq_affinity to force complete I/O
  requests on same CPU
 
 Signed-off-by: Alexandre Frade <kernel@xanmod.org>
@@ -572,7 +572,7 @@ Signed-off-by: Alexandre Frade <kernel@xanmod.org>
  1 file changed, 2 insertions(+), 1 deletion(-)
 
 diff --git a/include/linux/blkdev.h b/include/linux/blkdev.h
-index 50c3b959da28..e291cd33edcf 100644
+index 378d3a1a22fc..be9da151f2eb 100644
 --- a/include/linux/blkdev.h
 +++ b/include/linux/blkdev.h
 @@ -622,7 +622,8 @@ enum {
@@ -588,12 +588,12 @@ index 50c3b959da28..e291cd33edcf 100644
 -- 
 2.45.2
 
-# 0009-XANMOD-blk-wbt-Set-wbt_default_latency_nsec-to-2msec.patch
+# 0010-XANMOD-blk-wbt-Set-wbt_default_latency_nsec-to-2msec.patch
 
-From 80e2bd58a4f13d1a946c6616e18d124b1291f2a7 Mon Sep 17 00:00:00 2001
+From 73c07eebbc5a5e23cc6ce4f97a799bfc20b30e60 Mon Sep 17 00:00:00 2001
 From: Alexandre Frade <kernel@xanmod.org>
 Date: Mon, 15 Jul 2024 04:50:34 +0000
-Subject: [PATCH 09/18] XANMOD: blk-wbt: Set wbt_default_latency_nsec() to
+Subject: [PATCH 10/19] XANMOD: blk-wbt: Set wbt_default_latency_nsec() to
  2msec
 
 Signed-off-by: Alexandre Frade <kernel@xanmod.org>
@@ -625,12 +625,12 @@ index 6dfc659d22e2..4cf65ad7c953 100644
 -- 
 2.45.2
 
-# 0011-XANMOD-dcache-cache_pressure-50-decreases-the-rate-a.patch
+# 0012-XANMOD-dcache-cache_pressure-50-decreases-the-rate-a.patch
 
-From a047058c64e9d75db8e714a8c1202057920e21c7 Mon Sep 17 00:00:00 2001
+From 5d19c732e7f954d61a028c6abffd67f1a76d94f5 Mon Sep 17 00:00:00 2001
 From: Alexandre Frade <kernel@xanmod.org>
 Date: Mon, 29 Jan 2018 16:59:22 +0000
-Subject: [PATCH 11/18] XANMOD: dcache: cache_pressure = 50 decreases the rate
+Subject: [PATCH 12/19] XANMOD: dcache: cache_pressure = 50 decreases the rate
  at which VFS caches are reclaimed
 
 Signed-off-by: Alexandre Frade <kernel@xanmod.org>
@@ -639,7 +639,7 @@ Signed-off-by: Alexandre Frade <kernel@xanmod.org>
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/fs/dcache.c b/fs/dcache.c
-index 0f6b16ba30d0..ad80bfd6244f 100644
+index b4d5e9e1e43d..c49f55be9166 100644
 --- a/fs/dcache.c
 +++ b/fs/dcache.c
 @@ -73,7 +73,7 @@
@@ -654,12 +654,12 @@ index 0f6b16ba30d0..ad80bfd6244f 100644
 -- 
 2.45.2
 
-# 0016-XANMOD-lib-kconfig.debug-disable-default-SYMBOLIC_ER.patch
+# 0017-XANMOD-lib-kconfig.debug-disable-default-SYMBOLIC_ER.patch
 
-From 444f831f229a418b4865d11940b3987f55ab151f Mon Sep 17 00:00:00 2001
+From d803807c2a24c94434d72f045fe95a6e3d3ea8b2 Mon Sep 17 00:00:00 2001
 From: Alexandre Frade <kernel@xanmod.org>
 Date: Mon, 16 Sep 2024 08:09:56 +0000
-Subject: [PATCH 16/18] XANMOD: lib/kconfig.debug: disable default
+Subject: [PATCH 17/19] XANMOD: lib/kconfig.debug: disable default
  SYMBOLIC_ERRNAME and DEBUG_BUGVERBOSE
 
 Signed-off-by: Alexandre Frade <kernel@xanmod.org>
@@ -669,7 +669,7 @@ Signed-off-by: Alexandre Frade <kernel@xanmod.org>
  2 files changed, 2 insertions(+), 3 deletions(-)
 
 diff --git a/fs/bcachefs/Kconfig b/fs/bcachefs/Kconfig
-index 5bac803ea367..773befb92af1 100644
+index ab6c95b895b3..b04d55d0d9e7 100644
 --- a/fs/bcachefs/Kconfig
 +++ b/fs/bcachefs/Kconfig
 @@ -23,7 +23,6 @@ config BCACHEFS_FS
@@ -681,7 +681,7 @@ index 5bac803ea367..773befb92af1 100644
  	help
  	The bcachefs filesystem - a modern, copy on write filesystem, with
 diff --git a/lib/Kconfig.debug b/lib/Kconfig.debug
-index 7312ae7c3cc5..78f629791bdf 100644
+index f3d723705879..b6cff9b200c1 100644
 --- a/lib/Kconfig.debug
 +++ b/lib/Kconfig.debug
 @@ -190,7 +190,7 @@ config DYNAMIC_DEBUG_CORE
@@ -911,7 +911,7 @@ diff --git a/drivers/block/Kconfig b/drivers/block/Kconfig
 -- 
 2.43.0
 
-Add device IDs
+Add bluetooth device ID
 
 Signed-off-by: Mario Roy <...>
 
