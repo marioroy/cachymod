@@ -10078,42 +10078,8 @@ index 0cf3a55b05e1..a27d4344a4e8 100644
 -- 
 2.48.0.rc1
 
-From 503960f258c82557bc8618975e648fba6a28187a Mon Sep 17 00:00:00 2001
-From: Wen Gong <quic_wgong@quicinc.com>
-Date: Fri, 17 Jan 2025 14:17:37 +0800
-Subject: [PATCH] wifi: ath11k: update channel list in worker when wait flag is
- set
-
-With previous patch "wifi: ath11k: move update channel list from update
-reg worker to reg notifier", ath11k_reg_update_chan_list() will be
-called during reg_process_self_managed_hint().
-
-reg_process_self_managed_hint() will hold rtnl_lock all the time.
-But ath11k_reg_update_chan_list() may increase the occupation time of
-rtnl_lock, because when wait flag is set, wait_for_completion_timeout()
-will be called during 11d/hw scan.
-
-Should minimize the occupation time of rtnl_lock as much as possible
-to avoid interfering with rest of the system. So move the update channel
-list operation to a new worker, so that wait_for_completion_timeout()
-won't be called and will not increase the occupation time of rtnl_lock.
-
-Tested-on: WCN6855 hw2.0 PCI WLAN.HSP.1.1-03125-QCAHSPSWPL_V1_V2_SILICONZ_LITE-3
-
-Signed-off-by: Wen Gong <quic_wgong@quicinc.com>
-Co-developed-by: Kang Yang <quic_kangyang@quicinc.com>
-Signed-off-by: Kang Yang <quic_kangyang@quicinc.com>
-Reviewed-by: Aditya Kumar Singh <quic_adisi@quicinc.com>
-Link: https://patch.msgid.link/20250117061737.1921-3-quic_kangyang@quicinc.com
-Signed-off-by: Jeff Johnson <jeff.johnson@oss.qualcomm.com>
----
- drivers/net/wireless/ath/ath11k/core.c |  1 +
- drivers/net/wireless/ath/ath11k/core.h |  5 +-
- drivers/net/wireless/ath/ath11k/mac.c  | 14 +++++
- drivers/net/wireless/ath/ath11k/reg.c  | 85 ++++++++++++++++++--------
- drivers/net/wireless/ath/ath11k/reg.h  |  3 +-
- drivers/net/wireless/ath/ath11k/wmi.h  |  1 +
- 6 files changed, 81 insertions(+), 28 deletions(-)
+wifi: ath11k: update channel list in worker when wait flag is set
+https://lore.kernel.org/all/20250117061737.1921-3-quic_kangyang@quicinc.com/
 
 diff --git a/drivers/net/wireless/ath/ath11k/core.c b/drivers/net/wireless/ath/ath11k/core.c
 index c576bbba52bf15..e4db3cdecf296d 100644

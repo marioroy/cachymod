@@ -10140,3 +10140,298 @@ index 2361ed4d2b15..37a9afffb59e 100644
 -- 
 2.48.1
 
+wifi: ath11k: fix data out of sync for channel list for reg update
+https://lore.kernel.org/all/20250117061737.1921-1-quic_kangyang@quicinc.com/
+
+diff --git a/drivers/net/wireless/ath/ath11k/reg.c b/drivers/net/wireless/ath/ath11k/reg.c
+index b0f289784dd3..7bfe47ad62a0 100644
+--- a/drivers/net/wireless/ath/ath11k/reg.c
++++ b/drivers/net/wireless/ath/ath11k/reg.c
+@@ -1,7 +1,7 @@
+ // SPDX-License-Identifier: BSD-3-Clause-Clear
+ /*
+  * Copyright (c) 2018-2019 The Linux Foundation. All rights reserved.
+- * Copyright (c) 2021-2024 Qualcomm Innovation Center, Inc. All rights reserved.
++ * Copyright (c) 2021-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+  */
+ #include <linux/rtnetlink.h>
+ 
+@@ -55,6 +55,19 @@ ath11k_reg_notifier(struct wiphy *wiphy, struct regulatory_request *request)
+ 	ath11k_dbg(ar->ab, ATH11K_DBG_REG,
+ 		   "Regulatory Notification received for %s\n", wiphy_name(wiphy));
+ 
++	if (request->initiator == NL80211_REGDOM_SET_BY_DRIVER) {
++		ath11k_dbg(ar->ab, ATH11K_DBG_REG,
++			   "driver initiated regd update\n");
++		if (ar->state != ATH11K_STATE_ON)
++			return;
++
++		ret = ath11k_reg_update_chan_list(ar, true);
++		if (ret)
++			ath11k_warn(ar->ab, "failed to update channel list: %d\n", ret);
++
++		return;
++	}
++
+ 	/* Currently supporting only General User Hints. Cell base user
+ 	 * hints to be handled later.
+ 	 * Hints from other sources like Core, Beacons are not expected for
+@@ -293,12 +306,6 @@ int ath11k_regd_update(struct ath11k *ar)
+ 	if (ret)
+ 		goto err;
+ 
+-	if (ar->state == ATH11K_STATE_ON) {
+-		ret = ath11k_reg_update_chan_list(ar, true);
+-		if (ret)
+-			goto err;
+-	}
+-
+ 	return 0;
+ err:
+ 	ath11k_warn(ab, "failed to perform regd update : %d\n", ret);
+@@ -977,6 +984,7 @@ void ath11k_regd_update_work(struct work_struct *work)
+ void ath11k_reg_init(struct ath11k *ar)
+ {
+ 	ar->hw->wiphy->regulatory_flags = REGULATORY_WIPHY_SELF_MANAGED;
++	ar->hw->wiphy->flags |= WIPHY_FLAG_NOTIFY_REGDOM_BY_DRIVER;
+ 	ar->hw->wiphy->reg_notifier = ath11k_reg_notifier;
+ }
+ 
+diff --git a/drivers/net/wireless/ath/ath11k/core.c b/drivers/net/wireless/ath/ath11k/core.c
+index c576bbba52bf15..e4db3cdecf296d 100644
+--- a/drivers/net/wireless/ath/ath11k/core.c
++++ b/drivers/net/wireless/ath/ath11k/core.c
+@@ -1924,6 +1924,7 @@ void ath11k_core_halt(struct ath11k *ar)
+ 	ath11k_mac_scan_finish(ar);
+ 	ath11k_mac_peer_cleanup_all(ar);
+ 	cancel_delayed_work_sync(&ar->scan.timeout);
++	cancel_work_sync(&ar->channel_update_work);
+ 	cancel_work_sync(&ar->regd_update_work);
+ 	cancel_work_sync(&ab->update_11d_work);
+ 
+diff --git a/drivers/net/wireless/ath/ath11k/core.h b/drivers/net/wireless/ath/ath11k/core.h
+index a9dc7fe7765a14..c142b79ba543bb 100644
+--- a/drivers/net/wireless/ath/ath11k/core.h
++++ b/drivers/net/wireless/ath/ath11k/core.h
+@@ -687,7 +687,7 @@ struct ath11k {
+ 	struct mutex conf_mutex;
+ 	/* protects the radio specific data like debug stats, ppdu_stats_info stats,
+ 	 * vdev_stop_status info, scan data, ath11k_sta info, ath11k_vif info,
+-	 * channel context data, survey info, test mode data.
++	 * channel context data, survey info, test mode data, channel_update_queue.
+ 	 */
+ 	spinlock_t data_lock;
+ 
+@@ -745,6 +745,9 @@ struct ath11k {
+ 	struct completion bss_survey_done;
+ 
+ 	struct work_struct regd_update_work;
++	struct work_struct channel_update_work;
++	/* protected with data_lock */
++	struct list_head channel_update_queue;
+ 
+ 	struct work_struct wmi_mgmt_tx_work;
+ 	struct sk_buff_head wmi_mgmt_tx_queue;
+diff --git a/drivers/net/wireless/ath/ath11k/mac.c b/drivers/net/wireless/ath/ath11k/mac.c
+index 1556392f7ad489..b8080065cfc755 100644
+--- a/drivers/net/wireless/ath/ath11k/mac.c
++++ b/drivers/net/wireless/ath/ath11k/mac.c
+@@ -6289,6 +6289,7 @@ static void ath11k_mac_op_stop(struct ieee80211_hw *hw, bool suspend)
+ {
+ 	struct ath11k *ar = hw->priv;
+ 	struct htt_ppdu_stats_info *ppdu_stats, *tmp;
++	struct scan_chan_list_params *params;
+ 	int ret;
+ 
+ 	ath11k_mac_drain_tx(ar);
+@@ -6304,6 +6305,7 @@ static void ath11k_mac_op_stop(struct ieee80211_hw *hw, bool suspend)
+ 	mutex_unlock(&ar->conf_mutex);
+ 
+ 	cancel_delayed_work_sync(&ar->scan.timeout);
++	cancel_work_sync(&ar->channel_update_work);
+ 	cancel_work_sync(&ar->regd_update_work);
+ 	cancel_work_sync(&ar->ab->update_11d_work);
+ 
+@@ -6313,10 +6315,19 @@ static void ath11k_mac_op_stop(struct ieee80211_hw *hw, bool suspend)
+ 	}
+ 
+ 	spin_lock_bh(&ar->data_lock);
++
+ 	list_for_each_entry_safe(ppdu_stats, tmp, &ar->ppdu_stats_info, list) {
+ 		list_del(&ppdu_stats->list);
+ 		kfree(ppdu_stats);
+ 	}
++
++	while ((params = list_first_entry_or_null(&ar->channel_update_queue,
++						  struct scan_chan_list_params,
++						  list))) {
++		list_del(&params->list);
++		kfree(params);
++	}
++
+ 	spin_unlock_bh(&ar->data_lock);
+ 
+ 	rcu_assign_pointer(ar->ab->pdevs_active[ar->pdev_idx], NULL);
+@@ -10019,6 +10030,7 @@ static const struct wiphy_iftype_ext_capab ath11k_iftypes_ext_capa[] = {
+ 
+ static void __ath11k_mac_unregister(struct ath11k *ar)
+ {
++	cancel_work_sync(&ar->channel_update_work);
+ 	cancel_work_sync(&ar->regd_update_work);
+ 
+ 	ieee80211_unregister_hw(ar->hw);
+@@ -10418,6 +10430,8 @@ int ath11k_mac_allocate(struct ath11k_base *ab)
+ 		init_completion(&ar->thermal.wmi_sync);
+ 
+ 		INIT_DELAYED_WORK(&ar->scan.timeout, ath11k_scan_timeout_work);
++		INIT_WORK(&ar->channel_update_work, ath11k_regd_update_chan_list_work);
++		INIT_LIST_HEAD(&ar->channel_update_queue);
+ 		INIT_WORK(&ar->regd_update_work, ath11k_regd_update_work);
+ 
+ 		INIT_WORK(&ar->wmi_mgmt_tx_work, ath11k_mgmt_over_wmi_tx_work);
+diff --git a/drivers/net/wireless/ath/ath11k/reg.c b/drivers/net/wireless/ath/ath11k/reg.c
+index b0f289784dd3a2..8d5cb1bdbfc8a3 100644
+--- a/drivers/net/wireless/ath/ath11k/reg.c
++++ b/drivers/net/wireless/ath/ath11k/reg.c
+@@ -124,32 +124,7 @@ int ath11k_reg_update_chan_list(struct ath11k *ar, bool wait)
+ 	struct channel_param *ch;
+ 	enum nl80211_band band;
+ 	int num_channels = 0;
+-	int i, ret, left;
+-
+-	if (wait && ar->state_11d != ATH11K_11D_IDLE) {
+-		left = wait_for_completion_timeout(&ar->completed_11d_scan,
+-						   ATH11K_SCAN_TIMEOUT_HZ);
+-		if (!left) {
+-			ath11k_dbg(ar->ab, ATH11K_DBG_REG,
+-				   "failed to receive 11d scan complete: timed out\n");
+-			ar->state_11d = ATH11K_11D_IDLE;
+-		}
+-		ath11k_dbg(ar->ab, ATH11K_DBG_REG,
+-			   "11d scan wait left time %d\n", left);
+-	}
+-
+-	if (wait &&
+-	    (ar->scan.state == ATH11K_SCAN_STARTING ||
+-	    ar->scan.state == ATH11K_SCAN_RUNNING)) {
+-		left = wait_for_completion_timeout(&ar->scan.completed,
+-						   ATH11K_SCAN_TIMEOUT_HZ);
+-		if (!left)
+-			ath11k_dbg(ar->ab, ATH11K_DBG_REG,
+-				   "failed to receive hw scan complete: timed out\n");
+-
+-		ath11k_dbg(ar->ab, ATH11K_DBG_REG,
+-			   "hw scan wait left time %d\n", left);
+-	}
++	int i, ret = 0;
+ 
+ 	if (ar->state == ATH11K_STATE_RESTARTING)
+ 		return 0;
+@@ -231,6 +206,16 @@ int ath11k_reg_update_chan_list(struct ath11k *ar, bool wait)
+ 		}
+ 	}
+ 
++	if (wait) {
++		spin_lock_bh(&ar->data_lock);
++		list_add_tail(&params->list, &ar->channel_update_queue);
++		spin_unlock_bh(&ar->data_lock);
++
++		queue_work(ar->ab->workqueue, &ar->channel_update_work);
++
++		return 0;
++	}
++
+ 	ret = ath11k_wmi_send_scan_chan_list_cmd(ar, params);
+ 	kfree(params);
+ 
+@@ -811,6 +796,54 @@ ath11k_reg_build_regd(struct ath11k_base *ab,
+ 	return new_regd;
+ }
+ 
++void ath11k_regd_update_chan_list_work(struct work_struct *work)
++{
++	struct ath11k *ar = container_of(work, struct ath11k,
++					 channel_update_work);
++	struct scan_chan_list_params *params;
++	struct list_head local_update_list;
++	int left;
++
++	INIT_LIST_HEAD(&local_update_list);
++
++	spin_lock_bh(&ar->data_lock);
++	list_splice_tail_init(&ar->channel_update_queue, &local_update_list);
++	spin_unlock_bh(&ar->data_lock);
++
++	while ((params = list_first_entry_or_null(&local_update_list,
++						  struct scan_chan_list_params,
++						  list))) {
++		if (ar->state_11d != ATH11K_11D_IDLE) {
++			left = wait_for_completion_timeout(&ar->completed_11d_scan,
++							   ATH11K_SCAN_TIMEOUT_HZ);
++			if (!left) {
++				ath11k_dbg(ar->ab, ATH11K_DBG_REG,
++					   "failed to receive 11d scan complete: timed out\n");
++				ar->state_11d = ATH11K_11D_IDLE;
++			}
++
++			ath11k_dbg(ar->ab, ATH11K_DBG_REG,
++				   "reg 11d scan wait left time %d\n", left);
++		}
++
++		if ((ar->scan.state == ATH11K_SCAN_STARTING ||
++		     ar->scan.state == ATH11K_SCAN_RUNNING)) {
++			left = wait_for_completion_timeout(&ar->scan.completed,
++							   ATH11K_SCAN_TIMEOUT_HZ);
++			if (!left)
++				ath11k_dbg(ar->ab, ATH11K_DBG_REG,
++					   "failed to receive hw scan complete: timed out\n");
++
++			ath11k_dbg(ar->ab, ATH11K_DBG_REG,
++				   "reg hw scan wait left time %d\n", left);
++		}
++
++		ath11k_wmi_send_scan_chan_list_cmd(ar, params);
++		list_del(&params->list);
++		kfree(params);
++	}
++}
++
+ static bool ath11k_reg_is_world_alpha(char *alpha)
+ {
+ 	if (alpha[0] == '0' && alpha[1] == '0')
+diff --git a/drivers/net/wireless/ath/ath11k/reg.h b/drivers/net/wireless/ath/ath11k/reg.h
+index 263ea90619483e..72b48359401576 100644
+--- a/drivers/net/wireless/ath/ath11k/reg.h
++++ b/drivers/net/wireless/ath/ath11k/reg.h
+@@ -1,7 +1,7 @@
+ /* SPDX-License-Identifier: BSD-3-Clause-Clear */
+ /*
+  * Copyright (c) 2019 The Linux Foundation. All rights reserved.
+- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
++ * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+  */
+ 
+ #ifndef ATH11K_REG_H
+@@ -33,6 +33,7 @@ void ath11k_reg_init(struct ath11k *ar);
+ void ath11k_reg_reset_info(struct cur_regulatory_info *reg_info);
+ void ath11k_reg_free(struct ath11k_base *ab);
+ void ath11k_regd_update_work(struct work_struct *work);
++void ath11k_regd_update_chan_list_work(struct work_struct *work);
+ struct ieee80211_regdomain *
+ ath11k_reg_build_regd(struct ath11k_base *ab,
+ 		      struct cur_regulatory_info *reg_info, bool intersect,
+diff --git a/drivers/net/wireless/ath/ath11k/wmi.h b/drivers/net/wireless/ath/ath11k/wmi.h
+index 8982b909c821e6..30b4b0c1768269 100644
+--- a/drivers/net/wireless/ath/ath11k/wmi.h
++++ b/drivers/net/wireless/ath/ath11k/wmi.h
+@@ -3817,6 +3817,7 @@ struct wmi_stop_scan_cmd {
+ };
+ 
+ struct scan_chan_list_params {
++	struct list_head list;
+ 	u32 pdev_id;
+ 	u16 nallchans;
+ 	struct channel_param ch_param[];
+-- 
+2.48.0
+
