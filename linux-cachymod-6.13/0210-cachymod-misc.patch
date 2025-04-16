@@ -1752,6 +1752,25 @@ index 681f38ee68db23..ab9b0c2c3d524e 100644
 -- 
 cgit 1.2.3-korg
 
+ext4: goto right label 'out_mmap_sem' in ext4_setattr()
+https://lore.kernel.org/all/2025041627-CVE-2025-22120-24ce@gregkh/
+
+diff --git a/fs/ext4/inode.c b/fs/ext4/inode.c
+index 891bd1e2d19f80..4009f9017a0e97 100644
+--- a/fs/ext4/inode.c
++++ b/fs/ext4/inode.c
+@@ -5492,7 +5492,7 @@ int ext4_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
+ 			    oldsize & (inode->i_sb->s_blocksize - 1)) {
+ 				error = ext4_inode_attach_jinode(inode);
+ 				if (error)
+-					goto err_out;
++					goto out_mmap_sem;
+ 			}
+ 
+ 			handle = ext4_journal_start(inode, EXT4_HT_INODE, 3);
+-- 
+2.22.3
+
 sched/rt: Fix race in push_rt_task
 https://lore.kernel.org/lkml/174413913083.31282.6439737092347995378.tip-bot2@tip-bot2/
 
