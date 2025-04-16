@@ -67,9 +67,6 @@ scripts/config -e HUGETLB_PAGE_OPTIMIZE_VMEMMAP_DEFAULT_ON
 ### Set tree-based hierarchical RCU fanout value. (default 64)
 scripts/config --set-val RCU_FANOUT 32
 
-### Offload RCU callback processing from all CPUs by default.
-scripts/config -e RCU_NOCB_CPU_DEFAULT_ALL
-
 ### Disable hardware monitors.
 scripts/config -d IGB_HWMON
 scripts/config -d IXGBE_HWMON
