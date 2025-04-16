@@ -441,7 +441,7 @@ index 5c9517190713..f3e15e9efa76 100644
 + */
 +static inline s64 time_delta(u64 after, u64 before)
 +{
-+	return (s64)(after - before) > 0 ? : 0;
++	return (s64)(after - before) > 0 ? (s64)(after - before) : 0;
 +}
 +
 +/**

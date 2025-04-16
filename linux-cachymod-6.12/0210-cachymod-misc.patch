@@ -213,92 +213,6 @@ index 4357ec2a0bfc2c..89ecd57c9d4234 100644
 -- 
 cgit 1.2.3-korg
 
-sched_ext: Always call put_prev_task() with scx_enabled
-https://lore.kernel.org/lkml/20241013173928.20738-1-andrea.righi@linux.dev/T/#u
-
-From: Andrea Righi @ 2024-10-13 17:39 UTC (permalink / raw)
-  To: Tejun Heo, David Vernet, Peter Zijlstra, Ingo Molnar, Juri Lelli,
-	Vincent Guittot
-  Cc: Dietmar Eggemann, Steven Rostedt, Ben Segall, Mel Gorman,
-	Valentin Schneider, linux-kernel
-
-With the consolidation of put_prev_task/set_next_task(), we are now
-skipping the sched_ext ops.stopping/running() transitions when the
-previous and next tasks are the same, see commit 436f3eed5c69 ("sched:
-Combine the last put_prev_task() and the first set_next_task()").
-
-While this optimization makes sense in general, it can negatively impact
-performance in some user-space schedulers, that expect to handle such
-transitions when tasks exhaust their timeslice (see SCX_OPS_ENQ_LAST).
-
-For example, scx_rustland suffers a significant performance regression
-(e.g., gaming benchmarks drop from ~60fps to ~10fps).
-
-To fix this, ensure that put_prev_task()/set_next_task() are never
-skipped when the scx scheduling class is enabled, allowing the scx class
-to handle such transitions.
-
-This change restores the previous behavior, fixing the performance
-regression in scx_rustland.
-
-Link: https://github.com/sched-ext/scx/issues/788
-Fixes: 7c65ae81ea86 ("sched_ext: Don't call put_prev_task_scx() before picking the next task")
-Signed-off-by: Andrea Righi <andrea.righi@linux.dev>
----
- kernel/sched/sched.h | 30 +++++++++++++++---------------
- 1 file changed, 15 insertions(+), 15 deletions(-)
-
-diff --git a/kernel/sched/sched.h b/kernel/sched/sched.h
-index 6085ef50febf..44d736e49d06 100644
---- a/kernel/sched/sched.h
-+++ b/kernel/sched/sched.h
-@@ -2489,21 +2489,6 @@ __put_prev_set_next_dl_server(struct rq *rq,
- 	rq->dl_server = NULL;
- }
- 
--static inline void put_prev_set_next_task(struct rq *rq,
--					  struct task_struct *prev,
--					  struct task_struct *next)
--{
--	WARN_ON_ONCE(rq->curr != prev);
--
--	__put_prev_set_next_dl_server(rq, prev, next);
--
--	if (next == prev)
--		return;
--
--	prev->sched_class->put_prev_task(rq, prev, next);
--	next->sched_class->set_next_task(rq, next, true);
--}
--
- /*
-  * Helper to define a sched_class instance; each one is placed in a separate
-  * section which is ordered by the linker script:
-@@ -2529,6 +2514,21 @@ DECLARE_STATIC_KEY_FALSE(__scx_switched_all);	/* all fair class tasks on SCX */
- extern const struct sched_class fair_sched_class;
- extern const struct sched_class idle_sched_class;
- 
-+static inline void put_prev_set_next_task(struct rq *rq,
-+					  struct task_struct *prev,
-+					  struct task_struct *next)
-+{
-+	WARN_ON_ONCE(rq->curr != prev);
-+
-+	__put_prev_set_next_dl_server(rq, prev, next);
-+
-+	if (next == prev && !scx_enabled())
-+		return;
-+
-+	prev->sched_class->put_prev_task(rq, prev, next);
-+	next->sched_class->set_next_task(rq, next, true);
-+}
-+
- /*
-  * Iterate only active classes. SCX can take over all fair tasks or be
-  * completely disabled. If the former, skip fair. If the latter, skip SCX.
--- 
-2.47.0
-
 Move PREEMPT_RT before PREEMPT in vermagic.
 https://lore.kernel.org/all/fedd0c6b-a870-4b8f-8f52-6e11df936678@suse.com/
 
@@ -1933,6 +1847,94 @@ index 681f38ee68db23..ab9b0c2c3d524e 100644
 -- 
 cgit 1.2.3-korg
 
+sched/rt: Fix race in push_rt_task
+https://lore.kernel.org/lkml/174413913083.31282.6439737092347995378.tip-bot2@tip-bot2/
+
+diff --git a/kernel/sched/rt.c b/kernel/sched/rt.c
+index 778911b..e40422c 100644
+--- a/kernel/sched/rt.c
++++ b/kernel/sched/rt.c
+@@ -1895,6 +1895,26 @@ static int find_lowest_rq(struct task_struct *task)
+ 	return -1;
+ }
+ 
++static struct task_struct *pick_next_pushable_task(struct rq *rq)
++{
++	struct task_struct *p;
++
++	if (!has_pushable_tasks(rq))
++		return NULL;
++
++	p = plist_first_entry(&rq->rt.pushable_tasks,
++			      struct task_struct, pushable_tasks);
++
++	BUG_ON(rq->cpu != task_cpu(p));
++	BUG_ON(task_current(rq, p));
++	BUG_ON(p->nr_cpus_allowed <= 1);
++
++	BUG_ON(!task_on_rq_queued(p));
++	BUG_ON(!rt_task(p));
++
++	return p;
++}
++
+ /* Will lock the rq it finds */
+ static struct rq *find_lock_lowest_rq(struct task_struct *task, struct rq *rq)
+ {
+@@ -1925,18 +1946,16 @@ static struct rq *find_lock_lowest_rq(struct task_struct *task, struct rq *rq)
+ 			/*
+ 			 * We had to unlock the run queue. In
+ 			 * the mean time, task could have
+-			 * migrated already or had its affinity changed.
+-			 * Also make sure that it wasn't scheduled on its rq.
++			 * migrated already or had its affinity changed,
++			 * therefore check if the task is still at the
++			 * head of the pushable tasks list.
+ 			 * It is possible the task was scheduled, set
+ 			 * "migrate_disabled" and then got preempted, so we must
+ 			 * check the task migration disable flag here too.
+ 			 */
+-			if (unlikely(task_rq(task) != rq ||
++			if (unlikely(is_migration_disabled(task) ||
+ 				     !cpumask_test_cpu(lowest_rq->cpu, &task->cpus_mask) ||
+-				     task_on_cpu(rq, task) ||
+-				     !rt_task(task) ||
+-				     is_migration_disabled(task) ||
+-				     !task_on_rq_queued(task))) {
++				     task != pick_next_pushable_task(rq))) {
+ 
+ 				double_unlock_balance(rq, lowest_rq);
+ 				lowest_rq = NULL;
+@@ -1956,26 +1974,6 @@ static struct rq *find_lock_lowest_rq(struct task_struct *task, struct rq *rq)
+ 	return lowest_rq;
+ }
+ 
+-static struct task_struct *pick_next_pushable_task(struct rq *rq)
+-{
+-	struct task_struct *p;
+-
+-	if (!has_pushable_tasks(rq))
+-		return NULL;
+-
+-	p = plist_first_entry(&rq->rt.pushable_tasks,
+-			      struct task_struct, pushable_tasks);
+-
+-	BUG_ON(rq->cpu != task_cpu(p));
+-	BUG_ON(task_current(rq, p));
+-	BUG_ON(p->nr_cpus_allowed <= 1);
+-
+-	BUG_ON(!task_on_rq_queued(p));
+-	BUG_ON(!rt_task(p));
+-
+-	return p;
+-}
+-
+ /*
+  * If the current CPU has more than one RT task, see if the non
+  * running task can migrate over to a CPU that is running a task
+-- 
+2.22.3
+
 x86/locking/atomic updates from 6.15:
 Improve performance by using asm_inline() for atomic locking instructions
 https://lore.kernel.org/all/20250309170955.48919-1-ubizjak@gmail.com/
@@ -2334,24 +2336,6 @@ index e670ac282333..439f6029d3b9 100644
  #endif /* _LINUX_SCHED_IDLE_H */
 -- 
 2.47.1
-
-sched/fair: Add null pointer check to pick_next_entity()
-https://lore.kernel.org/all/20250320205310.779888-1-pat@patcody.io/
-
-diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
---- a/kernel/sched/fair.c
-+++ b/kernel/sched/fair.c
-@@ -5734,6 +5734,8 @@ pick_next_entity(struct rq *rq, struct c
- 	}
- 
- 	struct sched_entity *se = pick_eevdf(cfs_rq);
-+	if (!se)
-+		return NULL;
- 	if (se->sched_delayed) {
- 		dequeue_entities(rq, se, DEQUEUE_SLEEP | DEQUEUE_DELAYED);
- 		/*
--- 
-2.43.0
 
 staging: bcm2835-camera: Initialise dev in v4l2_dev
 https://lore.kernel.org/all/20250414-staging-bcm2835-v4l2-fix-v1-1-2b2db9a8f293@raspberrypi.com/

@@ -1597,7 +1597,6 @@ scripts/config -d INTEL_CHTWC_INT33FE
 scripts/config -d PCENGINES_APU2
 scripts/config -d BARCO_P50_GPIO
 scripts/config -d SONYPI_COMPAT
-scripts/config -d SERIAL_MULTI_INSTANTIATE
 scripts/config -d TOUCHSCREEN_DMI
 scripts/config -d SEL3350_PLATFORM
 scripts/config -d LMK04832
