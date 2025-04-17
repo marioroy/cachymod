@@ -76,7 +76,7 @@ diff -uarp a/Makefile b/Makefile
  KBUILD_RUSTFLAGS += -Coverflow-checks=$(if $(CONFIG_RUST_OVERFLOW_CHECKS),y,n)
  
 +ifdef CONFIG_POLLY_CLANG
-+KBUILD_LDFLAGS	+= --lto-O3 --lto-CGO3 --thinlto-jobs=3
++KBUILD_LDFLAGS	+= --lto-O3 --lto-CGO3 --thinlto-jobs=5
 +KBUILD_CFLAGS	+= -fplugin=LLVMPolly.so \
 +		   -fmerge-all-constants \
 +		   -mllvm -inline-threshold=1000 \
