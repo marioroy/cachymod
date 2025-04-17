@@ -1,6 +1,6 @@
 # CachyMod
 
-Run a kernel with lazy preemption capability on [CachyOS](https://cachyos.org/).
+Run a custom kernel on [CachyOS](https://cachyos.org/).
 
 If running NVIDIA graphics, first switch to DKMS for future proof CachyOS
 updating the NVIDIA stack to a later release.
@@ -28,13 +28,13 @@ Select `_preempt=rt` for the realtime kernel.
 ```bash
 bash build.sh
 
-# lazy
+# full or lazy preemption
 sudo pacman -U linux-cachymod-612-bore-lto-{6,h}*.zst
 sudo pacman -U linux-cachymod-612-bore-polly-{6,h}*.zst
 sudo pacman -U linux-cachymod-612-bore-clang-{6,h}*.zst
 sudo pacman -U linux-cachymod-612-bore-gcc-{6,h}*.zst
 
-# lazy-rt
+# rt preemption
 sudo pacman -U linux-cachymod-612-bore-lto-rt*.zst
 sudo pacman -U linux-cachymod-612-bore-polly-rt*.zst
 sudo pacman -U linux-cachymod-612-bore-clang-rt*.zst
@@ -46,12 +46,12 @@ and build type accordingly to { 612, 613, 614 }, { bore, eevdf }, and
 { lto, polly, gcc }, respectively.
 
 ```text
-# lazy
+# full or lazy preemption
 sudo pacman -Rsn \
   linux-cachymod-612-bore-gcc \
   linux-cachymod-612-bore-gcc-headers
 
-# lazy-rt
+# rt preemption
 sudo pacman -Rsn \
   linux-cachymod-612-bore-gcc-rt \
   linux-cachymod-612-bore-gcc-rt-headers
@@ -64,11 +64,11 @@ you like, and edit that file. I have four depending on the
 type of kernel I want to build.
 
 ```text
-# Fast localmod build.
+# fast localmod build
 mario.fast
 mario.fast-rt
 
-# Same thing, but without localmod.
+# same thing, but without localmod
 mario.lazy
 mario.lazy-rt
 ```
