@@ -60,10 +60,6 @@ scripts/config -d MSDOS_FS -e FAT_FS -e VFAT_FS
 scripts/config -e EXT4_FS -e FS_MBCACHE -e JBD2
 scripts/config -e BTRFS_FS -e F2FS_FS -e XFS_FS
 
-### Default HugeTLB Vmemmap Optimization (HVO) to on. It can be disabled via
-### hugetlb_free_vmemmap=off (cmdline) or vm.hugetlb_optimize_vmemmap (sysctl).
-scripts/config -e HUGETLB_PAGE_OPTIMIZE_VMEMMAP_DEFAULT_ON
-
 ### Set tree-based hierarchical RCU fanout value. (default 64)
 scripts/config --set-val RCU_FANOUT 32
 
