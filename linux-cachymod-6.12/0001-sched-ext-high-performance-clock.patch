@@ -2,21 +2,14 @@
 sched_ext: Support high-performance monotonically non-decreasing clock
 https://lore.kernel.org/lkml/20250109131456.7055-3-changwoo@igalia.com/T/
 
-From git@z Thu Jan  1 00:00:00 1970
 Subject: [PATCH v8 1/6] sched_ext: Relocate scx_enabled() related code
-From: Changwoo Min <changwoo@igalia.com>
-Date: Thu, 09 Jan 2025 22:14:51 +0900
-Message-Id: <20250109131456.7055-2-changwoo@igalia.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
 
 scx_enabled() will be used in scx_rq_clock_update/invalidate()
 in the following patch, so relocate the scx_enabled() related code
 to the proper location.
 
-Signed-off-by: Changwoo Min <changwoo@igalia.com>
-Acked-by: Andrea Righi <arighi@nvidia.com>
+Signed-off-by: Changwoo Min <changwoo@xxxxxxxxxx>
+Acked-by: Andrea Righi <arighi@xxxxxxxxxx>
 ---
  kernel/sched/sched.h | 26 +++++++++++++-------------
  1 file changed, 13 insertions(+), 13 deletions(-)
@@ -68,14 +61,7 @@ index 76f5f53a645f..440ecedf871b 100644
 -- 
 2.47.1
 
-From git@z Thu Jan  1 00:00:00 1970
 Subject: [PATCH v8 2/6] sched_ext: Implement scx_bpf_now()
-From: Changwoo Min <changwoo@igalia.com>
-Date: Thu, 09 Jan 2025 22:14:52 +0900
-Message-Id: <20250109131456.7055-3-changwoo@igalia.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
 
 Returns a high-performance monotonically non-decreasing clock for the current
 CPU. The clock returned is in nanoseconds.
@@ -138,9 +124,9 @@ clock value rather than returning the old one (T2).
 
 [1] https://github.com/sched-ext/scx/blob/main/scheds/c/scx_central.bpf.c
 
-Signed-off-by: Changwoo Min <changwoo@igalia.com>
-Acked-by: Peter Zijlstra (Intel) <peterz@infradead.org>
-Acked-by: Andrea Righi <arighi@nvidia.com>
+Signed-off-by: Changwoo Min <changwoo@xxxxxxxxxx>
+Acked-by: Peter Zijlstra (Intel) <peterz@xxxxxxxxxx>
+Acked-by: Andrea Righi <arighi@xxxxxxxxxx>
 ---
  kernel/sched/core.c  |  6 +++-
  kernel/sched/ext.c   | 74 +++++++++++++++++++++++++++++++++++++++++++-
@@ -346,20 +332,13 @@ index 440ecedf871b..a97f96a06615 100644
 -- 
 2.47.1
 
-From git@z Thu Jan  1 00:00:00 1970
 Subject: [PATCH v8 3/6] sched_ext: Add scx_bpf_now() for BPF scheduler
-From: Changwoo Min <changwoo@igalia.com>
-Date: Thu, 09 Jan 2025 22:14:53 +0900
-Message-Id: <20250109131456.7055-4-changwoo@igalia.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
 
 scx_bpf_now() is added to the header files so the BPF scheduler
 can use it.
 
-Signed-off-by: Changwoo Min <changwoo@igalia.com>
-Acked-by: Andrea Righi <arighi@nvidia.com>
+Signed-off-by: Changwoo Min <changwoo@xxxxxxxxxx>
+Acked-by: Andrea Righi <arighi@xxxxxxxxxx>
 ---
  tools/sched_ext/include/scx/common.bpf.h | 1 +
  tools/sched_ext/include/scx/compat.bpf.h | 5 +++++
@@ -396,14 +375,7 @@ index d56520100a26..50e1499ae093 100644
 -- 
 2.47.1
 
-From git@z Thu Jan  1 00:00:00 1970
 Subject: [PATCH v8 4/6] sched_ext: Add time helpers for BPF schedulers
-From: Changwoo Min <changwoo@igalia.com>
-Date: Thu, 09 Jan 2025 22:14:54 +0900
-Message-Id: <20250109131456.7055-5-changwoo@igalia.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
 
 The following functions are added for BPF schedulers:
 - time_delta(after, before)
@@ -414,8 +386,8 @@ The following functions are added for BPF schedulers:
 - time_in_range(a, b, c)
 - time_in_range_open(a, b, c)
 
-Signed-off-by: Changwoo Min <changwoo@igalia.com>
-Acked-by: Andrea Righi <arighi@nvidia.com>
+Signed-off-by: Changwoo Min <changwoo@xxxxxxxxxx>
+Acked-by: Andrea Righi <arighi@xxxxxxxxxx>
 ---
  tools/sched_ext/include/scx/common.bpf.h | 94 ++++++++++++++++++++++++
  1 file changed, 94 insertions(+)
@@ -528,21 +500,14 @@ index 5c9517190713..f3e15e9efa76 100644
 -- 
 2.47.1
 
-From git@z Thu Jan  1 00:00:00 1970
 Subject: [PATCH v8 5/6] sched_ext: Replace bpf_ktime_get_ns() to
  scx_bpf_now()
-From: Changwoo Min <changwoo@igalia.com>
-Date: Thu, 09 Jan 2025 22:14:55 +0900
-Message-Id: <20250109131456.7055-6-changwoo@igalia.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
 
 In the BPF schedulers that use bpf_ktime_get_ns() -- scx_central and
 scx_flatcg, replace bpf_ktime_get_ns() calls to scx_bpf_now().
 
-Signed-off-by: Changwoo Min <changwoo@igalia.com>
-Acked-by: Andrea Righi <arighi@nvidia.com>
+Signed-off-by: Changwoo Min <changwoo@xxxxxxxxxx>
+Acked-by: Andrea Righi <arighi@xxxxxxxxxx>
 ---
  tools/sched_ext/scx_central.bpf.c | 4 ++--
  tools/sched_ext/scx_flatcg.bpf.c  | 2 +-
@@ -586,19 +551,12 @@ index 3dbfa82883be..5f588963fb2f 100644
 -- 
 2.47.1
 
-From git@z Thu Jan  1 00:00:00 1970
 Subject: [PATCH v8 6/6] sched_ext: Use time helpers in BPF schedulers
-From: Changwoo Min <changwoo@igalia.com>
-Date: Thu, 09 Jan 2025 22:14:56 +0900
-Message-Id: <20250109131456.7055-7-changwoo@igalia.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
 
 Modify the BPF schedulers to use time helpers defined in common.bpf.h
 
-Signed-off-by: Changwoo Min <changwoo@igalia.com>
-Acked-by: Andrea Righi <arighi@nvidia.com>
+Signed-off-by: Changwoo Min <changwoo@xxxxxxxxxx>
+Acked-by: Andrea Righi <arighi@xxxxxxxxxx>
 ---
  tools/sched_ext/scx_central.bpf.c |  7 +------
  tools/sched_ext/scx_flatcg.bpf.c  | 21 ++++++++-------------

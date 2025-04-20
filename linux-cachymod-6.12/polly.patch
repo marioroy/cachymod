@@ -1,9 +1,6 @@
 https://polly.llvm.org/docs/UsingPollyWithClang.html
 
-From 836c16fbbd981fcf4f6b39faad2e7e7be13d5434 Mon Sep 17 00:00:00 2001
-From: Peter Jung <admin@ptr1337.dev>
-Date: Thu, 12 Dec 2024 17:28:45 +0100
-Subject: [PATCH 1/3] kbuild: Add support for Clang's polyhedral loop optimizer.
+Subject: kbuild: Add support for Clang's polyhedral loop optimizer.
 
 Polly is able to optimize various loops throughout the kernel for cache
 locality. A mathematical representation of the program, based on
@@ -39,7 +36,7 @@ Compile times were one percent different at best, which is well within
 the range of noise. Therefore, I can say with certainty that Polly has
 a minimal effect on compile times, if none.
 
-Signed-off-by: Peter Jung <admin@ptr1337.dev>
+Signed-off-by: Peter Jung <admin@xxxxxxxxxx>
 ---
  init/Kconfig | 13 +++++++++++++
  Makefile     | 17 ++++++++++++++++

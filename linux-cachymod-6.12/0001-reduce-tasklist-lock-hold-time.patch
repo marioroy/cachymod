@@ -3,15 +3,8 @@ reduce tasklist_lock hold time on exit and do some pid cleanup
 https://lore.kernel.org/lkml/20250206164415.450051-1-mjguzik@gmail.com/
 
 
-From git@z Thu Jan  1 00:00:00 1970
 Subject: [PATCH v6 1/5] exit: perform add_device_randomness() without
  tasklist_lock
-From: Mateusz Guzik <mjguzik@gmail.com>
-Date: Thu, 06 Feb 2025 17:44:10 +0100
-Message-Id: <20250206164415.450051-2-mjguzik@gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
 
 Parallel calls to add_device_randomness() contend on their own.
 
@@ -19,9 +12,9 @@ The clone side aleady runs outside of tasklist_lock, which in turn means
 any caller on the exit side extends the tasklist_lock hold time while
 contending on the random-private lock.
 
-Reviewed-by: Oleg Nesterov <oleg@redhat.com>
-Signed-off-by: Mateusz Guzik <mjguzik@gmail.com>
-Acked-by: Liam R. Howlett <Liam.Howlett@Oracle.com>
+Reviewed-by: Oleg Nesterov <oleg@xxxxxxxxxx>
+Signed-off-by: Mateusz Guzik <mjguzik@xxxxxxxxxx>
+Acked-by: Liam R. Howlett <Liam.Howlett@xxxxxxxxxx>
 ---
  kernel/exit.c | 5 ++---
  1 file changed, 2 insertions(+), 3 deletions(-)
@@ -52,21 +45,14 @@ index 3485e5fc499e..9d7acd7b0040 100644
 -- 
 2.43.0
 
-From git@z Thu Jan  1 00:00:00 1970
 Subject: [PATCH v6 2/5] exit: hoist get_pid() in release_task() outside of
  tasklist_lock
-From: Mateusz Guzik <mjguzik@gmail.com>
-Date: Thu, 06 Feb 2025 17:44:11 +0100
-Message-Id: <20250206164415.450051-3-mjguzik@gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
 
 Reduces hold time as get_pid() contains an atomic.
 
-Reviewed-by: Oleg Nesterov <oleg@redhat.com>
-Signed-off-by: Mateusz Guzik <mjguzik@gmail.com>
-Acked-by: Liam R. Howlett <Liam.Howlett@Oracle.com>
+Reviewed-by: Oleg Nesterov <oleg@xxxxxxxxxx>
+Signed-off-by: Mateusz Guzik <mjguzik@xxxxxxxxxx>
+Acked-by: Liam R. Howlett <Liam.Howlett@xxxxxxxxxx>
 ---
  kernel/exit.c | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
@@ -90,21 +76,14 @@ index 9d7acd7b0040..8c39c84582b7 100644
 -- 
 2.43.0
 
-From git@z Thu Jan  1 00:00:00 1970
 Subject: [PATCH v6 3/5] pid: sprinkle tasklist_lock asserts
-From: Mateusz Guzik <mjguzik@gmail.com>
-Date: Thu, 06 Feb 2025 17:44:12 +0100
-Message-Id: <20250206164415.450051-4-mjguzik@gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
 
 They cost nothing on production kernels and document the requirement of
 holding the tasklist_lock lock in respective routines.
 
-Reviewed-by: Oleg Nesterov <oleg@redhat.com>
-Signed-off-by: Mateusz Guzik <mjguzik@gmail.com>
-Acked-by: Liam R. Howlett <Liam.Howlett@Oracle.com>
+Reviewed-by: Oleg Nesterov <oleg@xxxxxxxxxx>
+Signed-off-by: Mateusz Guzik <mjguzik@xxxxxxxxxx>
+Acked-by: Liam R. Howlett <Liam.Howlett@xxxxxxxxxx>
 ---
  kernel/pid.c | 15 ++++++++++++---
  1 file changed, 12 insertions(+), 3 deletions(-)
@@ -160,15 +139,8 @@ index 924084713be8..2ae872f689a7 100644
 -- 
 2.43.0
 
-From git@z Thu Jan  1 00:00:00 1970
 Subject: [PATCH v6 4/5] pid: perform free_pid() calls outside of
  tasklist_lock
-From: Mateusz Guzik <mjguzik@gmail.com>
-Date: Thu, 06 Feb 2025 17:44:13 +0100
-Message-Id: <20250206164415.450051-5-mjguzik@gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
 
 As the clone side already executes pid allocation with only pidmap_lock
 held, issuing free_pid() while still holding tasklist_lock exacerbates
@@ -178,9 +150,9 @@ More things may show up later which require initial clean up with the
 lock held and allow finishing without it. For that reason a struct to
 collect such work is added instead of merely passing the pid array.
 
-Reviewed-by: Oleg Nesterov <oleg@redhat.com>
-Signed-off-by: Mateusz Guzik <mjguzik@gmail.com>
-Acked-by: Liam R. Howlett <Liam.Howlett@Oracle.com>
+Reviewed-by: Oleg Nesterov <oleg@xxxxxxxxxx>
+Signed-off-by: Mateusz Guzik <mjguzik@xxxxxxxxxx>
+Acked-by: Liam R. Howlett <Liam.Howlett@xxxxxxxxxx>
 ---
  include/linux/pid.h |  7 ++++---
  kernel/exit.c       | 28 ++++++++++++++++++++--------
@@ -460,21 +432,14 @@ index cb366ff8703a..4efca8a97d62 100644
 -- 
 2.43.0
 
-From git@z Thu Jan  1 00:00:00 1970
 Subject: [PATCH v6 5/5] pid: drop irq disablement around pidmap_lock
-From: Mateusz Guzik <mjguzik@gmail.com>
-Date: Thu, 06 Feb 2025 17:44:14 +0100
-Message-Id: <20250206164415.450051-6-mjguzik@gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
 
 It no longer serves any purpose now that the tasklist_lock ->
 pidmap_lock ordering got eliminated.
 
-Reviewed-by: Oleg Nesterov <oleg@redhat.com>
-Signed-off-by: Mateusz Guzik <mjguzik@gmail.com>
-Acked-by: Liam R. Howlett <Liam.Howlett@Oracle.com>
+Reviewed-by: Oleg Nesterov <oleg@xxxxxxxxxx>
+Signed-off-by: Mateusz Guzik <mjguzik@xxxxxxxxxx>
+Acked-by: Liam R. Howlett <Liam.Howlett@xxxxxxxxxx>
 ---
  kernel/pid.c | 23 +++++++++++------------
  1 file changed, 11 insertions(+), 12 deletions(-)

@@ -163,9 +163,6 @@ diff --git a/mm/vma.c b/mm/vma.c
 CachyOS amd-tlb-broadcast patch
 https://github.com/torvalds/linux/compare/master...CachyOS:linux:6.14/amd-tlb-broadcast
 
-From 973ebc21fb837af7c0d800e214617c6bf3f512bf Mon Sep 17 00:00:00 2001
-From: Rik van Riel <riel@surriel.com>
-Date: Thu, 13 Feb 2025 11:13:52 -0500
 Subject: [PATCH 01/14] x86/mm: make MMU_GATHER_RCU_TABLE_FREE unconditional
 
 Currently x86 uses CONFIG_MMU_GATHER_TABLE_FREE when using
@@ -192,11 +189,11 @@ as an implicit way to block RCU frees.
 
 That makes it safe to use INVLPGB on AMD CPUs.
 
-Signed-off-by: Rik van Riel <riel@surriel.com>
-Suggested-by: Peter Zijlstra <peterz@infradead.org>
-Tested-by: Manali Shukla <Manali.Shukla@amd.com>
-Tested-by: Brendan Jackman <jackmanb@google.com>
-Tested-by: Michael Kelley <mhklinux@outlook.com>
+Signed-off-by: Rik van Riel <riel@xxxxxxxxxx>
+Suggested-by: Peter Zijlstra <peterz@xxxxxxxxxx>
+Tested-by: Manali Shukla <Manali.Shukla@xxxxxxxxxx>
+Tested-by: Brendan Jackman <jackmanb@xxxxxxxxxx>
+Tested-by: Michael Kelley <mhklinux@xxxxxxxxxx>
 ---
  arch/x86/Kconfig           |  2 +-
  arch/x86/kernel/paravirt.c |  7 +------
@@ -232,7 +229,7 @@ index 1ccaa3397a6708..527f5605aa3e55 100644
  struct static_key paravirt_steal_enabled;
  struct static_key paravirt_steal_rq_enabled;
  
-@@ -193,7 +188,7 @@ struct paravirt_patch_template pv_ops = {
+@@ -194,7 +189,7 @@ struct paravirt_patch_template pv_ops = {
  	.mmu.flush_tlb_kernel	= native_flush_tlb_global,
  	.mmu.flush_tlb_one_user	= native_flush_tlb_one_user,
  	.mmu.flush_tlb_multi	= native_flush_tlb_multi,
@@ -296,9 +293,6 @@ index 1fef5ad32d5a8b..b1c1f72c1fd1ba 100644
  #endif	/* CONFIG_PGTABLE_LEVELS > 4 */
  #endif	/* CONFIG_PGTABLE_LEVELS > 3 */
 
-From 6be14a9a10efc607f64a317bc7b55b66bf603525 Mon Sep 17 00:00:00 2001
-From: Rik van Riel <riel@surriel.com>
-Date: Thu, 13 Feb 2025 11:13:53 -0500
 Subject: [PATCH 02/14] x86/mm: remove pv_ops.mmu.tlb_remove_table call
 
 Every pv_ops.mmu.tlb_remove_table call ends up calling tlb_remove_table.
@@ -306,11 +300,11 @@ Every pv_ops.mmu.tlb_remove_table call ends up calling tlb_remove_table.
 Get rid of the indirection by simply calling tlb_remove_table directly,
 and not going through the paravirt function pointers.
 
-Signed-off-by: Rik van Riel <riel@surriel.com>
-Suggested-by: Qi Zheng <zhengqi.arch@bytedance.com>
-Tested-by: Manali Shukla <Manali.Shukla@amd.com>
-Tested-by: Brendan Jackman <jackmanb@google.com>
-Tested-by: Michael Kelley <mhklinux@outlook.com>
+Signed-off-by: Rik van Riel <riel@xxxxxxxxxx>
+Suggested-by: Qi Zheng <zhengqi.arch@xxxxxxxxxx>
+Tested-by: Manali Shukla <Manali.Shukla@xxxxxxxxxx>
+Tested-by: Brendan Jackman <jackmanb@xxxxxxxxxx>
+Tested-by: Michael Kelley <mhklinux@xxxxxxxxxx>
 ---
  arch/x86/hyperv/mmu.c                 | 1 -
  arch/x86/include/asm/paravirt.h       | 5 -----
@@ -375,7 +369,7 @@ diff --git a/arch/x86/kernel/paravirt.c b/arch/x86/kernel/paravirt.c
 index 527f5605aa3e55..2aa251d0b30891 100644
 --- a/arch/x86/kernel/paravirt.c
 +++ b/arch/x86/kernel/paravirt.c
-@@ -188,7 +188,6 @@ struct paravirt_patch_template pv_ops = {
+@@ -189,7 +189,6 @@ struct paravirt_patch_template pv_ops = {
  	.mmu.flush_tlb_kernel	= native_flush_tlb_global,
  	.mmu.flush_tlb_one_user	= native_flush_tlb_one_user,
  	.mmu.flush_tlb_multi	= native_flush_tlb_multi,
@@ -396,19 +390,16 @@ index 2c70cd35e72c59..a0b3715571254d 100644
  		.pgd_alloc = xen_pgd_alloc,
  		.pgd_free = xen_pgd_free,
 
-From c488cbd98454d0614e368dc9aa8d21c092f877ca Mon Sep 17 00:00:00 2001
-From: Rik van Riel <riel@surriel.com>
-Date: Tue, 25 Feb 2025 22:00:36 -0500
 Subject: [PATCH 03/14] x86/mm: Consolidate full flush threshold decision
 
 Reduce code duplication by consolidating the decision point for whether to do
 individual invalidations or a full flush inside get_flush_tlb_info().
 
-Suggested-by: Dave Hansen <dave.hansen@intel.com>
-Signed-off-by: Rik van Riel <riel@surriel.com>
-Signed-off-by: Borislav Petkov (AMD) <bp@alien8.de>
-Reviewed-by: Borislav Petkov (AMD) <bp@alien8.de>
-Acked-by: Dave Hansen <dave.hansen@intel.com>
+Suggested-by: Dave Hansen <dave.hansen@xxxxxxxxxx>
+Signed-off-by: Rik van Riel <riel@xxxxxxxxxx>
+Signed-off-by: Borislav Petkov (AMD) <bp@xxxxxxxxxx>
+Reviewed-by: Borislav Petkov (AMD) <bp@xxxxxxxxxx>
+Acked-by: Dave Hansen <dave.hansen@xxxxxxxxxx>
 Link: https://lore.kernel.org/r/20250226030129.530345-2-riel@surriel.com
 ---
  arch/x86/mm/tlb.c | 41 +++++++++++++++++++----------------------
@@ -486,9 +477,6 @@ index 6cf881a942bbed..ac2149a6281edc 100644
  
  /*
 
-From a3fc0ddf023a4f60f59d7dad3710421e0bd80afa Mon Sep 17 00:00:00 2001
-From: Rik van Riel <riel@surriel.com>
-Date: Tue, 25 Feb 2025 22:00:37 -0500
 Subject: [PATCH 04/14] x86/mm: Add INVLPGB feature and Kconfig entry
 
 In addition, the CPU advertises the maximum number of pages that can be
@@ -497,8 +485,8 @@ for later use.
 
   [ bp: use cpu_has(), typos, massage. ]
 
-Signed-off-by: Rik van Riel <riel@surriel.com>
-Signed-off-by: Borislav Petkov (AMD) <bp@alien8.de>
+Signed-off-by: Rik van Riel <riel@xxxxxxxxxx>
+Signed-off-by: Borislav Petkov (AMD) <bp@xxxxxxxxxx>
 Link: https://lore.kernel.org/r/20250226030129.530345-3-riel@surriel.com
 ---
  arch/x86/Kconfig.cpu                     | 4 ++++
@@ -600,9 +588,6 @@ index 54194f5995de37..7a72ef47a98382 100644
  
  static const struct cpu_dev amd_cpu_dev = {
 
-From b532d90759aade1a0a99d90f7b069fd6266ea80b Mon Sep 17 00:00:00 2001
-From: Rik van Riel <riel@surriel.com>
-Date: Fri, 28 Feb 2025 20:32:30 +0100
 Subject: [PATCH 05/14] x86/mm: Add INVLPGB support code
 
 Add helper functions and definitions needed to use broadcast TLB
@@ -617,8 +602,8 @@ invalidation on AMD CPUs.
 	can't do DCE properly yet and looks at the inline asm and
 	complains about it getting a u64 argument on 32-bit code ]
 
-Signed-off-by: Rik van Riel <riel@surriel.com>
-Signed-off-by: Borislav Petkov (AMD) <bp@alien8.de>
+Signed-off-by: Rik van Riel <riel@xxxxxxxxxx>
+Signed-off-by: Borislav Petkov (AMD) <bp@xxxxxxxxxx>
 Link: https://lore.kernel.org/r/20250226030129.530345-4-riel@surriel.com
 ---
  arch/x86/include/asm/tlb.h | 132 +++++++++++++++++++++++++++++++++++++
@@ -773,9 +758,6 @@ index 77f52bc1578a75..31f6db40fa0d05 100644
 +}
  #endif /* _ASM_X86_TLB_H */
 
-From 0e923e7f6630f32a7c638a03dbde02ef12c05d3a Mon Sep 17 00:00:00 2001
-From: Rik van Riel <riel@surriel.com>
-Date: Tue, 25 Feb 2025 22:00:39 -0500
 Subject: [PATCH 06/14] x86/mm: Use INVLPGB for kernel TLB flushes
 
 Use broadcast TLB invalidation for kernel addresses when available.
@@ -784,8 +766,8 @@ Remove the need to send IPIs for kernel TLB flushes.
    [ bp: Integrate dhansen's comments additions, merge the
      flush_tlb_all() change into this one too. ]
 
-Signed-off-by: Rik van Riel <riel@surriel.com>
-Signed-off-by: Borislav Petkov (AMD) <bp@alien8.de>
+Signed-off-by: Rik van Riel <riel@xxxxxxxxxx>
+Signed-off-by: Borislav Petkov (AMD) <bp@xxxxxxxxxx>
 Link: https://lore.kernel.org/r/20250226030129.530345-5-riel@surriel.com
 ---
  arch/x86/mm/tlb.c | 48 +++++++++++++++++++++++++++++++++++++++++++----
@@ -873,9 +855,6 @@ index ac2149a6281edc..487ed82e234bd3 100644
  	put_flush_tlb_info();
  }
 
-From c275ccee221cbeaf6478effe140b6d2d1750bc08 Mon Sep 17 00:00:00 2001
-From: Rik van Riel <riel@surriel.com>
-Date: Tue, 25 Feb 2025 22:00:41 -0500
 Subject: [PATCH 07/14] x86/mm: Use broadcast TLB flushing in page reclaim
 
 Page reclaim tracks only the CPU(s) where the TLB needs to be flushed, rather
@@ -885,8 +864,8 @@ Use broadcast TLB flushing when that is available.
 
   [ bp: Massage commit message. ]
 
-Signed-off-by: Rik van Riel <riel@surriel.com>
-Signed-off-by: Borislav Petkov (AMD) <bp@alien8.de>
+Signed-off-by: Rik van Riel <riel@xxxxxxxxxx>
+Signed-off-by: Borislav Petkov (AMD) <bp@xxxxxxxxxx>
 Link: https://lore.kernel.org/r/20250226030129.530345-7-riel@surriel.com
 ---
  arch/x86/mm/tlb.c | 4 +++-
@@ -908,9 +887,6 @@ index 487ed82e234bd3..b619cc230ed42c 100644
  	} else if (cpumask_test_cpu(cpu, &batch->cpumask)) {
  		lockdep_assert_irqs_enabled();
 
-From 716c4b22b89b1083d80ca425b1c36ea3f617338f Mon Sep 17 00:00:00 2001
-From: Rik van Riel <riel@surriel.com>
-Date: Tue, 25 Feb 2025 22:00:42 -0500
 Subject: [PATCH 08/14] x86/mm: Add global ASID allocation helper functions
 
 Add functions to manage global ASID space. Multithreaded processes that are
@@ -925,8 +901,8 @@ through AMD INVLPGB or Intel RAR for these processes.
    - s/X86_BROADCAST_TLB_FLUSH/BROADCAST_TLB_FLUSH/g
    - other touchups ]
 
-Signed-off-by: Rik van Riel <riel@surriel.com>
-Signed-off-by: Borislav Petkov (AMD) <bp@alien8.de>
+Signed-off-by: Rik van Riel <riel@xxxxxxxxxx>
+Signed-off-by: Borislav Petkov (AMD) <bp@xxxxxxxxxx>
 Link: https://lore.kernel.org/r/20250226030129.530345-8-riel@surriel.com
 ---
  arch/x86/include/asm/mmu.h         |  12 +++
@@ -1203,9 +1179,6 @@ index b619cc230ed42c..2392611d4339be 100644
   * Given an ASID, flush the corresponding user ASID.  We can delay this
   * until the next time we switch to it.
 
-From 23b0f863aa05832c212d361fbd1b2a24ccea6114 Mon Sep 17 00:00:00 2001
-From: Rik van Riel <riel@surriel.com>
-Date: Tue, 25 Feb 2025 22:00:43 -0500
 Subject: [PATCH 09/14] x86/mm: Handle global ASID context switch and TLB flush
 
 Do context switch and TLB flush support for processes that use a global
@@ -1224,8 +1197,8 @@ process is not running on a CPU.
    - :%s/\<static_cpu_has\>/cpu_feature_enabled/cgi
   ]
 
-Signed-off-by: Rik van Riel <riel@surriel.com>
-Signed-off-by: Borislav Petkov (AMD) <bp@alien8.de>
+Signed-off-by: Rik van Riel <riel@xxxxxxxxxx>
+Signed-off-by: Borislav Petkov (AMD) <bp@xxxxxxxxxx>
 Link: https://lore.kernel.org/r/20250226030129.530345-9-riel@surriel.com
 ---
  arch/x86/include/asm/tlbflush.h | 14 ++++++
@@ -1423,9 +1396,6 @@ index 2392611d4339be..7cd0e3475e99e3 100644
  	else
  		on_each_cpu_cond_mask(should_flush_tlb, flush_tlb_func,
 
-From 92645143d28ad555eb6e1b38715045bd7d21b46c Mon Sep 17 00:00:00 2001
-From: Rik van Riel <riel@surriel.com>
-Date: Tue, 25 Feb 2025 22:00:44 -0500
 Subject: [PATCH 10/14] x86/mm: Add global ASID process exit helpers
 
 A global ASID is allocated for the lifetime of a process. Free the global ASID
@@ -1433,8 +1403,8 @@ at process exit time.
 
   [ bp: Massage, create helpers, hide details inside them. ]
 
-Signed-off-by: Rik van Riel <riel@surriel.com>
-Signed-off-by: Borislav Petkov (AMD) <bp@alien8.de>
+Signed-off-by: Rik van Riel <riel@xxxxxxxxxx>
+Signed-off-by: Borislav Petkov (AMD) <bp@xxxxxxxxxx>
 Link: https://lore.kernel.org/r/20250226030129.530345-10-riel@surriel.com
 ---
  arch/x86/include/asm/mmu_context.h | 8 +++++++-
@@ -1516,9 +1486,6 @@ index 6e34ad3fd6a550..dca2838fb7230b 100644
  static inline bool mm_in_asid_transition(struct mm_struct *mm) { return false; }
  #endif /* CONFIG_BROADCAST_TLB_FLUSH */
 
-From 93440fc003f302343f2bf4a8025c94149d0cb3a9 Mon Sep 17 00:00:00 2001
-From: Rik van Riel <riel@surriel.com>
-Date: Tue, 25 Feb 2025 22:00:45 -0500
 Subject: [PATCH 11/14] x86/mm: Enable broadcast TLB invalidation for
  multi-threaded processes
 
@@ -1582,9 +1549,9 @@ https://www.phoronix.com/news/AMD-INVLPGB-Linux-Benefits
    - Fold in a 0day bot fix: https://lore.kernel.org/oe-kbuild-all/202503040000.GtiWUsBm-lkp@intel.com
    ]
 
-Signed-off-by: Rik van Riel <riel@surriel.com>
-Signed-off-by: Borislav Petkov (AMD) <bp@alien8.de>
-Reviewed-by: Nadav Amit <nadav.amit@gmail.com>
+Signed-off-by: Rik van Riel <riel@xxxxxxxxxx>
+Signed-off-by: Borislav Petkov (AMD) <bp@xxxxxxxxxx>
+Reviewed-by: Nadav Amit <nadav.amit@xxxxxxxxxx>
 Link: https://lore.kernel.org/r/20250226030129.530345-11-riel@surriel.com
 ---
  arch/x86/include/asm/tlbflush.h |   6 ++
@@ -1740,9 +1707,6 @@ index 7cd0e3475e99e3..7505c2d94bc055 100644
  		lockdep_assert_irqs_enabled();
  		local_irq_disable();
 
-From ea21963ef3ac2ce81619e7dca9fb1d9fe5b4ff96 Mon Sep 17 00:00:00 2001
-From: Rik van Riel <riel@surriel.com>
-Date: Tue, 25 Feb 2025 22:00:47 -0500
 Subject: [PATCH 12/14] x86/mm: Enable AMD translation cache extensions
 
 With AMD TCE (translation cache extensions) only the intermediate mappings
@@ -1765,8 +1729,8 @@ unrelated upper-level entries intact.
 
   [ bp: use cpu_has()... I know, it is a mess. ]
 
-Signed-off-by: Rik van Riel <riel@surriel.com>
-Signed-off-by: Borislav Petkov (AMD) <bp@alien8.de>
+Signed-off-by: Rik van Riel <riel@xxxxxxxxxx>
+Signed-off-by: Borislav Petkov (AMD) <bp@xxxxxxxxxx>
 Link: https://lore.kernel.org/r/20250226030129.530345-13-riel@surriel.com
 ---
  arch/x86/include/asm/msr-index.h       | 2 ++
@@ -1830,9 +1794,6 @@ index 3ae84c3b8e6dba..dc1c1057f26e45 100644
  
  /*
 
-From c1be982b2a9c933bdd6606edb7fac3e9971d7ecc Mon Sep 17 00:00:00 2001
-From: Tom Lendacky <thomas.lendacky@amd.com>
-Date: Tue, 4 Mar 2025 12:59:56 +0100
 Subject: [PATCH 13/14] x86/mm: Always set the ASID valid bit for the INVLPGB
  instruction
 
@@ -1851,8 +1812,8 @@ So to limit the host TLB flushing reach, always set the ASID valid bit using an
 ASID value of 0 (which represents the host/hypervisor). This will will result in
 the desired effect in both host and guest.
 
-Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
-Signed-off-by: Borislav Petkov (AMD) <bp@alien8.de>
+Signed-off-by: Tom Lendacky <thomas.lendacky@xxxxxxxxxx>
+Signed-off-by: Borislav Petkov (AMD) <bp@xxxxxxxxxx>
 Link: https://lore.kernel.org/r/20250304120449.GHZ8bsYYyEBOKQIxBm@fat_crate.local
 ---
  arch/x86/include/asm/tlb.h | 58 +++++++++++++++++++++-----------------
@@ -1955,9 +1916,6 @@ index 31f6db40fa0d05..866ea78ba156ae 100644
  						unsigned long addr,
  						u16 nr, bool stride)
 
-From 6f8669ae8b42aaa60b1910a6c9cb63a7bda1f207 Mon Sep 17 00:00:00 2001
-From: tip-bot2 for Rik van Riel <tip-bot2@linutronix.de>
-Date: Wed, 19 Mar 2025 21:11:50 +0000
 Subject: [PATCH 14/14] x86/mm: Only do broadcast flush from reclaim if pages
  were unmapped
 
@@ -1976,12 +1934,12 @@ cache pages and/or slab memory were reclaimed, which is fairly common.
   before, and it seems to capture most of the benefit due to how common
   it is to reclaim only page cache. )
 
-Signed-off-by: Rik van Riel <riel@surriel.com>
-Signed-off-by: Ingo Molnar <mingo@kernel.org>
-Cc: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: Andy Lutomirski <luto@kernel.org>
-Cc: Peter Zijlstra <peterz@infradead.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>
+Signed-off-by: Rik van Riel <riel@xxxxxxxxxx>
+Signed-off-by: Ingo Molnar <mingo@xxxxxxxxxx>
+Cc: Dave Hansen <dave.hansen@xxxxxxxxxx>
+Cc: Andy Lutomirski <luto@xxxxxxxxxx>
+Cc: Peter Zijlstra <peterz@xxxxxxxxxx>
+Cc: Linus Torvalds <torvalds@xxxxxxxxxx>
 Link: https://lore.kernel.org/r/20250319132520.6b10ad90@fangorn
 ---
  arch/x86/include/asm/tlbbatch.h | 5 +++++

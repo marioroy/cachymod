@@ -366,7 +366,7 @@ index d401577b5a6a..e6ec15a89924 100644
                          active
                            Use intel_pstate driver to bypass the scaling
                            governors layer of cpufreq and provides it own
-@@ -4473,6 +4476,15 @@
+@@ -4475,6 +4478,15 @@
  		nomsi		[MSI] If the PCI_MSI kernel config parameter is
  				enabled, this kernel boot option can be used to
  				disable the use of MSI interrupts system-wide.
@@ -1154,7 +1154,7 @@ diff --git a/drivers/ata/ahci.c b/drivers/ata/ahci.c
 index 45f63b09828a..d8bcb8b7544f 100644
 --- a/drivers/ata/ahci.c
 +++ b/drivers/ata/ahci.c
-@@ -1618,7 +1618,7 @@ static irqreturn_t ahci_thunderx_irq_handler(int irq, void *dev_instance)
+@@ -1629,7 +1629,7 @@ static irqreturn_t ahci_thunderx_irq_handler(int irq, void *dev_instance)
  }
  #endif
  
@@ -1163,7 +1163,7 @@ index 45f63b09828a..d8bcb8b7544f 100644
  		struct ahci_host_priv *hpriv)
  {
  	int i;
-@@ -1631,7 +1631,7 @@ static void ahci_remap_check(struct pci_dev *pdev, int bar,
+@@ -1642,7 +1642,7 @@ static void ahci_remap_check(struct pci_dev *pdev, int bar,
  	    pci_resource_len(pdev, bar) < SZ_512K ||
  	    bar != AHCI_PCI_BAR_STANDARD ||
  	    !(readl(hpriv->mmio + AHCI_VSCAP) & 1))
@@ -1172,7 +1172,7 @@ index 45f63b09828a..d8bcb8b7544f 100644
  
  	cap = readq(hpriv->mmio + AHCI_REMAP_CAP);
  	for (i = 0; i < AHCI_MAX_REMAP; i++) {
-@@ -1646,18 +1646,11 @@ static void ahci_remap_check(struct pci_dev *pdev, int bar,
+@@ -1657,18 +1657,11 @@ static void ahci_remap_check(struct pci_dev *pdev, int bar,
  	}
  
  	if (!hpriv->remapped_nvme)
@@ -1195,7 +1195,7 @@ index 45f63b09828a..d8bcb8b7544f 100644
  }
  
  static int ahci_get_irq_vector(struct ata_host *host, int port)
-@@ -1896,7 +1889,9 @@ static int ahci_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
+@@ -1907,7 +1900,9 @@ static int ahci_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
  	hpriv->mmio = pcim_iomap_table(pdev)[ahci_pci_bar];
  
  	/* detect remapped nvme devices */
@@ -5833,7 +5833,7 @@ diff --git a/drivers/hid/hid-ids.h b/drivers/hid/hid-ids.h
 index ceb3b1a72e23..0ba4dd865718 100644
 --- a/drivers/hid/hid-ids.h
 +++ b/drivers/hid/hid-ids.h
-@@ -211,6 +211,7 @@
+@@ -217,6 +217,7 @@
  #define USB_DEVICE_ID_ASUSTEK_ROG_NKEY_KEYBOARD2	0x19b6
  #define USB_DEVICE_ID_ASUSTEK_ROG_NKEY_KEYBOARD3	0x1a30
  #define USB_DEVICE_ID_ASUSTEK_ROG_Z13_LIGHTBAR		0x18c6
