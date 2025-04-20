@@ -1,12 +1,9 @@
 CachyOS bbr3 patch
 https://github.com/torvalds/linux/compare/master...CachyOS:linux:6.14/bbr3
 
-From 0fe64fca0c98ab4b802743c3d345fa518e35176b Mon Sep 17 00:00:00 2001
-From: Oleksandr Natalenko <oleksandr@natalenko.name>
-Date: Mon, 22 Jan 2024 20:21:40 +0100
 Subject: [PATCH 1/4] tcp/bbr3: initial import
 
-Signed-off-by: Oleksandr Natalenko <oleksandr@natalenko.name>
+Signed-off-by: Oleksandr Natalenko <oleksandr@xxxxxxxxxx>
 ---
  include/linux/tcp.h                |    4 +-
  include/net/inet_connection_sock.h |    4 +-
@@ -3385,12 +3382,9 @@ index b412ed88ccd9a8..d70f8b742b214d 100644
  	event = icsk->icsk_pending;
  
 
-From d7239eefb999e7532f770d8ca7fb02e961950c7f Mon Sep 17 00:00:00 2001
-From: Oleksandr Natalenko <oleksandr@natalenko.name>
-Date: Sat, 15 Mar 2025 22:31:15 +0100
 Subject: [PATCH 2/4] bbr3-6.14: resync with latest changes
 
-Signed-off-by: Oleksandr Natalenko <oleksandr@natalenko.name>
+Signed-off-by: Oleksandr Natalenko <oleksandr@xxxxxxxxxx>
 ---
  include/linux/tcp.h      | 10 +++++-----
  include/uapi/linux/tcp.h |  2 +-
@@ -3494,9 +3488,6 @@ index a180fa648d5e6d..9b31b4e5943ef3 100644
  	struct tcp_sock *tp = tcp_sk(sk);
  	struct bbr *bbr = inet_csk_ca(sk);
 
-From 70274e0957bdacd85cf54f921349e3f2973a7c0e Mon Sep 17 00:00:00 2001
-From: Oleksandr Natalenko <oleksandr@natalenko.name>
-Date: Tue, 18 Mar 2025 09:47:46 +0100
 Subject: [PATCH 3/4] tcp_bbr: silence -Wconstant-logical-operand
 
 The `ecn_thresh` and `ecn_factor` params are just consts in a public
@@ -3513,7 +3504,7 @@ of BBRv3 to stay as close to the original code as possible.
 Link: https://lore.kernel.org/lkml/4616579.LvFx2qVVIh@natalenko.name/T/#u
 Link: https://groups.google.com/g/bbr-dev/c/4vwZGw0nxdQ/m/fWt9xmbzAwAJ
 Closes: https://codeberg.org/pf-kernel/linux/issues/11
-Signed-off-by: Oleksandr Natalenko <oleksandr@natalenko.name>
+Signed-off-by: Oleksandr Natalenko <oleksandr@xxxxxxxxxx>
 ---
  net/ipv4/tcp_bbr.c | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
@@ -3550,12 +3541,9 @@ index 9b31b4e5943ef3..a12b1f79d0355c 100644
  		bbr_ecn_lower_bounds(sk, &ecn_inflight_lo);
  	}
 
-From e6b1719c23e9b50dc4e4771a5fd00037c69889ef Mon Sep 17 00:00:00 2001
-From: Oleksandr Natalenko <oleksandr@natalenko.name>
-Date: Tue, 18 Mar 2025 14:16:56 +0100
 Subject: [PATCH 4/4] bbr3-6.14: resync latest comments
 
-Signed-off-by: Oleksandr Natalenko <oleksandr@natalenko.name>
+Signed-off-by: Oleksandr Natalenko <oleksandr@xxxxxxxxxx>
 ---
  net/ipv4/tcp_bbr.c | 5 ++---
  1 file changed, 2 insertions(+), 3 deletions(-)

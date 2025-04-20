@@ -184,7 +184,7 @@ diff --git a/kernel/sched/Makefile b/kernel/sched/Makefile
 index 976092b7bd..293aad6754 100644
 --- a/kernel/sched/Makefile
 +++ b/kernel/sched/Makefile
-@@ -32,3 +32,4 @@ obj-y += core.o
+@@ -37,3 +37,4 @@ obj-y += core.o
  obj-y += fair.o
  obj-y += build_policy.o
  obj-y += build_utility.o

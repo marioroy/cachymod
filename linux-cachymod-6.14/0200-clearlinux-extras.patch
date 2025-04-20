@@ -117,9 +117,6 @@ diff -uar a/mm/Kconfig.debug b/mm/Kconfig.debug
 
 # Patch0104: 0104-pci-pme-wakeups.patch
 
-From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
-From: Arjan van de Ven <arjan@linux.intel.com>
-Date: Mon, 14 Mar 2016 11:10:58 -0600
 Subject: [PATCH] pci pme wakeups
 
 Reduce wakeups for PME checks, which are a workaround for miswired
@@ -146,9 +143,6 @@ https://clearlinux.org
 
 # Patch0108: 0108-smpboot-reuse-timer-calibration.patch
 
-From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
-From: Arjan van de Ven <arjan@linux.intel.com>
-Date: Wed, 11 Feb 2015 17:28:14 -0600
 Subject: [PATCH] smpboot: reuse timer calibration
 
 NO point recalibrating for known-constant tsc ...
@@ -176,9 +170,6 @@ https://clearlinux.org
 
 # Patch0111: 0111-ipv4-tcp-allow-the-memory-tuning-for-tcp-to-go-a-lit.patch
 
-From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
-From: Arjan van de Ven <arjan@linux.intel.com>
-Date: Fri, 6 Jan 2017 15:34:09 +0000
 Subject: [PATCH] ipv4/tcp: allow the memory tuning for tcp to go a little
  bigger than default
 
@@ -206,9 +197,6 @@ https://clearlinux.org
 
 # Patch0116: 0116-migrate-some-systemd-defaults-to-the-kernel-defaults.patch
 
-From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
-From: Auke Kok <auke-jan.h.kok@intel.com>
-Date: Thu, 2 Aug 2018 12:03:22 -0700
 Subject: [PATCH] migrate some systemd defaults to the kernel defaults.
 
 These settings are needed to prevent networking issues when
@@ -253,9 +241,6 @@ https://clearlinux.org
 
 # Patch0117: 0117-xattr-allow-setting-user.-attributes-on-symlinks-by-.patch
 
-From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
-From: Alan Cox <alan@linux.intel.com>
-Date: Thu, 10 Mar 2016 15:11:28 +0000
 Subject: [PATCH] xattr: allow setting user.* attributes on symlinks by owner
 
 Kvmtool and clear containers supports using user attributes to label host
@@ -272,7 +257,7 @@ patch enables updating the attributes on a symbolic link IFF you are the
 owner of the synlink (as permissions are not usually meaningful on the link
 itself).
 
-Signed-off-by: Alan Cox <alan@linux.intel.com>
+Signed-off-by: Alan Cox <alan@xxxxxxxxxx>
 ---
  fs/xattr.c | 15 ++++++++-------
  1 file changed, 8 insertions(+), 7 deletions(-)
@@ -311,9 +296,6 @@ https://clearlinux.org
 
 # Patch0128: 0128-itmt_epb-use-epb-to-scale-itmt.patch
 
-From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
-From: Arjan van de Ven <arjan.van.de.ven@intel.com>
-Date: Tue, 16 Nov 2021 17:39:25 +0000
 Subject: [PATCH] itmt_epb: use epb to scale itmt
 
 ---
@@ -405,9 +387,6 @@ https://clearlinux.org
 
 # Patch0130: 0130-itmt2-ADL-fixes.patch
 
-From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
-From: Srinivas Pandruvada <srinivas.pandruvada@linux.intel.com>
-Date: Thu, 18 Nov 2021 16:09:47 +0000
 Subject: [PATCH] itmt2 ADL fixes
 
 On systems with overclocking enabled, CPPC Highest Performance can be
@@ -422,7 +401,7 @@ Due to legacy reasons, we can't solely depend on MSR_HWP_CAPABILITIES as
 in some older systems CPPC Highest Performance is the only way to identify
 different performing cores.
 
-Signed-off-by: Srinivas Pandruvada <srinivas.pandruvada@linux.intel.com>
+Signed-off-by: Srinivas Pandruvada <srinivas.pandruvada@xxxxxxxxxx>
 ---
  drivers/cpufreq/intel_pstate.c | 7 +++++++
  1 file changed, 7 insertions(+)
@@ -450,9 +429,6 @@ https://clearlinux.org
 
 # Patch0131: 0131-add-a-per-cpu-minimum-high-watermark-an-tune-batch-s.patch
 
-From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
-From: Arjan van de Ven <arjan.van.de.ven@intel.com>
-Date: Tue, 23 Nov 2021 17:38:50 +0000
 Subject: [PATCH] add a per cpu minimum high watermark an tune batch size
 
 make sure there's at least 1024 per cpu pages... a reasonably small
@@ -484,9 +460,6 @@ https://clearlinux.org
 
 # Patch0135: 0135-initcall-only-print-non-zero-initcall-debug-to-speed.patch
 
-From 496f1bc8c53f359a2fe07204d3c5ffdba963994e Mon Sep 17 00:00:00 2001
-From: Colin Ian King <colin.king@intel.com>
-Date: Fri, 20 Jan 2023 11:16:42 +0000
 Subject: [PATCH] initcall: only print non-zero initcall debug to speed up boot
 
 Printing initcall timings that successfully return after 0 usecs
@@ -495,7 +468,7 @@ to do so. Disable the initcall timings for these specific cases. On
 an Alderlake i9-12900 this reduces kernel boot time by 0.67% (timed
 up to the invocation of systemd starting) based on 10 boot measurements.
 
-Signed-off-by: Colin Ian King <colin.king@intel.com>
+Signed-off-by: Colin Ian King <colin.king@xxxxxxxxxx>
 ---
  init/main.c | 7 +++++--
  1 file changed, 5 insertions(+), 2 deletions(-)
@@ -556,12 +529,9 @@ Place libraries right below the binary for PIE binaries, this helps code localit
 
 # Patch0148: 0002-sched-core-add-some-branch-hints-based-on-gcov-analy.patch
 
-From ccf1330dad77ddc2a6d38192fa86f36fc7c24d92 Mon Sep 17 00:00:00 2001
-From: Colin Ian King <colin.king@intel.com>
-Date: Wed, 1 Feb 2023 11:53:51 +0000
 Subject: [PATCH] sched/core: add some branch hints based on gcov analysis
 
-Signed-off-by: Colin Ian King <colin.king@intel.com>
+Signed-off-by: Colin Ian King <colin.king@xxxxxxxxxx>
 ---
  kernel/sched/core.c | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
@@ -611,9 +581,6 @@ index f730b6fe94a7..ee0ec4ab7d1c 100644
 
 # Patch0156: ratelimit-sched-yield.patch
 
-From 467904416b3786c9f2b29ca683d36cb2523ae7ce Mon Sep 17 00:00:00 2001
-From: Colin Ian King <colin.i.king@intel.com>
-Date: Thu, 17 Oct 2024 16:29:50 +0100
 Subject: [PATCH] handle sched_yield gracefully when being hammered
 
 Some misguided apps hammer sched_yield() in a tight loop (they should be using futexes instead)
@@ -621,7 +588,7 @@ which causes massive lock contention even if there is little work to do or to yi
 rare limit yielding since the base scheduler does a pretty good job already about just
 running the right things
 
-Signed-off-by: Colin Ian King <colin.i.king@intel.com>
+Signed-off-by: Colin Ian King <colin.i.king@xxxxxxxxxx>
 ---
  kernel/sched/syscalls.c | 12 ++++++++++++
  1 file changed, 12 insertions(+)
@@ -662,7 +629,7 @@ diff --git a/include/net/sock.h b/include/net/sock.h
 index 4e787285fc66..3e045f6eb6ee 100644
 --- a/include/net/sock.h
 +++ b/include/net/sock.h
-@@ -1586,10 +1586,17 @@ static inline void sk_mem_charge(struct sock *sk, int size)
+@@ -1592,10 +1592,17 @@ static inline void sk_mem_charge(struct sock *sk, int size)
  
  static inline void sk_mem_uncharge(struct sock *sk, int size)
  {
@@ -680,17 +647,14 @@ index 4e787285fc66..3e045f6eb6ee 100644
 +	}
  }
  
- /*
+ #if IS_ENABLED(CONFIG_PROVE_LOCKING) && IS_ENABLED(CONFIG_MODULES)
 
 # Patch0158: 0158-clocksource-only-perform-extended-clocksource-checks.patch
 
-From a9b2afb45dbf18398c22d9504402dc1258859bec Mon Sep 17 00:00:00 2001
-From: Colin Ian King <colin.king@intel.com>
-Date: Wed, 3 May 2023 17:31:05 +0100
 Subject: [PATCH] clocksource: only perform extended clocksource checks for AMD
  systems
 
-Signed-off-by: Colin Ian King <colin.king@intel.com>
+Signed-off-by: Colin Ian King <colin.king@xxxxxxxxxx>
 ---
  drivers/clocksource/acpi_pm.c | 7 +++++--
  1 file changed, 5 insertions(+), 2 deletions(-)
@@ -723,9 +687,6 @@ index 82338773602c..d84f0e29452e 100644
 
 # Patch0164: 0164-KVM-VMX-make-vmx-init-a-late-init-call-to-get-to-ini.patch
 
-From 4e6585f34be8b87fe5258233aaa8c002ab561897 Mon Sep 17 00:00:00 2001
-From: Colin Ian King <colin.i.king@intel.com>
-Date: Tue, 10 Oct 2023 12:41:00 +0100
 Subject: [PATCH] KVM: VMX: make vmx_init a late init call to get to init process faster
 
 Making vmx_init a late initcall improves QEMU kernel boot times to
@@ -733,7 +694,7 @@ get to the init process. Average of 100 boots, QEMU boot average
 reduced from 0.776 seconds to 0.622 seconds (~19.8% faster) on
 Alderlake i9-12900 and ~0.5% faster for non-QEMU UEFI boots.
 
-Signed-off-by: Colin Ian King <colin.i.king@intel.com>
+Signed-off-by: Colin Ian King <colin.i.king@xxxxxxxxxx>
 ---
  arch/x86/kvm/vmx/vmx.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
@@ -767,14 +728,11 @@ index bc6f0fea48b4..e671fbe70d5a 100644
 
 # Patch0167: 0167-net-sock-increase-default-number-of-_SK_MEM_PACKETS-.patch
 
-From 4ba5a01513a6b3487613e7186cac4f3f2f4c5091 Mon Sep 17 00:00:00 2001
-From: Colin Ian King <colin.i.king@intel.com>
-Date: Wed, 24 Apr 2024 16:45:47 +0100
 Subject: [PATCH] net: sock: increase default number of _SK_MEM_PACKETS to 1024
 
 scale these by a factor of 4 to improve socket performance
 
-Signed-off-by: Colin Ian King <colin.i.king@intel.com>
+Signed-off-by: Colin Ian King <colin.i.king@xxxxxxxxxx>
 ---
  include/net/sock.h | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
@@ -783,7 +741,7 @@ diff --git a/include/net/sock.h b/include/net/sock.h
 index 54ca8dcbfb43..9adc51e8085b 100644
 --- a/include/net/sock.h
 +++ b/include/net/sock.h
-@@ -2857,7 +2857,7 @@ void sk_get_meminfo(const struct sock *sk, u32 *meminfo);
+@@ -2893,7 +2893,7 @@ void sk_get_meminfo(const struct sock *sk, u32 *meminfo);
   * platforms.  This makes socket queueing behavior and performance
   * not depend upon such differences.
   */
@@ -797,9 +755,6 @@ index 54ca8dcbfb43..9adc51e8085b 100644
 
 # Patch0169: 0169-mm-mincore-improve-performance-by-adding-an-unlikely.patch
 
-From d2d33210a595ce1b1ec9ca94edc8bd40af0f66c5 Mon Sep 17 00:00:00 2001
-From: Colin Ian King <colin.i.king@gmail.com>
-Date: Wed, 19 Feb 2025 08:36:07 +0000
 Subject: [PATCH] mm/mincore: improve performance by adding an unlikely hint
 
 Adding an unlikely() hint on the masked start comparison error return path
@@ -815,9 +770,9 @@ of mincores calls per second.  The % standard deviation of the 20 tests
 was ~0.10%, so results are reliable.
 
 Link: https://lkml.kernel.org/r/20250219083607.5183-1-colin.i.king@gmail.com
-Signed-off-by: Colin Ian King <colin.i.king@gmail.com>
-Cc: Matthew Wilcow <willy@infradead.org>
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+Signed-off-by: Colin Ian King <colin.i.king@xxxxxxxxxx>
+Cc: Matthew Wilcow <willy@xxxxxxxxxx>
+Signed-off-by: Andrew Morton <akpm@xxxxxxxxxx>
 ---
  mm/mincore.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
@@ -840,9 +795,6 @@ index d6bd19e520fc..832f29f46767 100644
 
 # Patch0170: 0170-sched-Add-unlikey-branch-hints-to-several-system-cal.patch
 
-From 1a5d3492f8e14719184945893c610e0802c05533 Mon Sep 17 00:00:00 2001
-From: Colin Ian King <colin.i.king@gmail.com>
-Date: Wed, 19 Feb 2025 14:24:23 +0000
 Subject: [PATCH] sched: Add unlikey branch hints to several system calls
 
 Adding an unlikely() hint on early error return paths improves the
@@ -867,8 +819,8 @@ reliable.
 
 Tested on kernel build with gcc 14.2.1
 
-Signed-off-by: Colin Ian King <colin.i.king@gmail.com>
-Signed-off-by: Peter Zijlstra (Intel) <peterz@infradead.org>
+Signed-off-by: Colin Ian King <colin.i.king@xxxxxxxxxx>
+Signed-off-by: Peter Zijlstra (Intel) <peterz@xxxxxxxxxx>
 Link: https://lkml.kernel.org/r/20250219142423.45516-1-colin.i.king@gmail.com
 ---
  kernel/sched/syscalls.c | 10 +++++-----
@@ -921,9 +873,6 @@ index 456d339be98f..9f40348f1dc7 100644
 
 # Patch0171: 0171-kcmp-improve-performance-adding-an-unlikely-hint-to-.patch
 
-From d1c735d44c12544cea9b04ca88d65c12892c0539 Mon Sep 17 00:00:00 2001
-From: Colin Ian King <colin.i.king@gmail.com>
-Date: Thu, 13 Feb 2025 16:39:16 +0000
 Subject: [PATCH] kcmp: improve performance adding an unlikely hint to task
  comparisons
 
@@ -936,9 +885,9 @@ clock freq turbo changes), with 10 second run per test and comparing
 the number of kcmp calls per second. The % Standard deviation of 20
 tests was ~0.25%, results are reliable.
 
-Signed-off-by: Colin Ian King <colin.i.king@gmail.com>
+Signed-off-by: Colin Ian King <colin.i.king@xxxxxxxxxx>
 Link: https://lore.kernel.org/r/20250213163916.709392-1-colin.i.king@gmail.com
-Signed-off-by: Christian Brauner <brauner@kernel.org>
+Signed-off-by: Christian Brauner <brauner@xxxxxxxxxx>
 ---
  kernel/kcmp.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

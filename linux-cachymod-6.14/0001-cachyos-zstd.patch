@@ -1,9 +1,6 @@
 CachyOS zstd patch
 https://github.com/torvalds/linux/compare/master...CachyOS:linux:6.14/zstd
 
-From 78025cb45c93ed13814ea58481fba38db76eb290 Mon Sep 17 00:00:00 2001
-From: Nick Terrell <terrelln@fb.com>
-Date: Thu, 13 Mar 2025 13:59:21 -0700
 Subject: [PATCH 1/4] zstd: Import upstream v1.5.7
 
 In addition to keeping the kernel's copy of zstd up to date, this update
@@ -59,7 +56,7 @@ v1.5.4: https://github.com/facebook/zstd/releases/tag/v1.5.4
 * Improve copmression speed of levels 5-11 on ARM.
 * Improve dictionary compression speed.
 
-Signed-off-by: Nick Terrell <terrelln@fb.com>
+Signed-off-by: Nick Terrell <terrelln@xxxxxxxxxx>
 ---
  include/linux/zstd.h                          |   87 +-
  include/linux/zstd_errors.h                   |   30 +-
@@ -4359,7 +4356,7 @@ index 0e3b2c0a527db7..05286af726835e 100644
 -  #if ((defined(__clang__) && __has_attribute(__target__)) \
 +#  if ((defined(__clang__) && __has_attribute(__target__)) \
        || (defined(__GNUC__) \
-           && (__GNUC__ >= 5 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 8)))) \
+           && (__GNUC__ >= 11))) \
 -      && (defined(__x86_64__) || defined(_M_X64)) \
 +      && (defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)) \
        && !defined(__BMI2__)
@@ -23586,9 +23583,6 @@ index 469fc3059be097..0ae819f0c927d2 100644
  EXPORT_SYMBOL(zstd_reset_dstream);
  
 
-From fd60e7ea9aa2eacf6755d888e132516a1911379e Mon Sep 17 00:00:00 2001
-From: Kees Cook <keescook@chromium.org>
-Date: Mon, 22 Jan 2024 16:27:56 -0800
 Subject: [PATCH 2/4] lib: zstd: Refactor intentional wrap-around test
 
 In an effort to separate intentional arithmetic wrap-around from
@@ -23614,12 +23608,12 @@ Link: https://git.kernel.org/linus/68df3755e383e6fecf2354a67b08f92f18536594 [1]
 Link: https://github.com/KSPP/linux/issues/26 [2]
 Link: https://github.com/KSPP/linux/issues/27 [3]
 Link: https://github.com/KSPP/linux/issues/344 [4]
-Cc: Nick Terrell <terrelln@fb.com>
-Cc: Paul Jones <paul@pauljones.id.au>
-Cc: Sedat Dilek <sedat.dilek@gmail.com>
-Cc: Oleksandr Natalenko <oleksandr@natalenko.name>
-Cc: Xin Gao <gaoxin@cdjrlc.com>
-Signed-off-by: Kees Cook <keescook@chromium.org>
+Cc: Nick Terrell <terrelln@xxxxxxxxxx>
+Cc: Paul Jones <paul@xxxxxxxxxx>
+Cc: Sedat Dilek <sedat.dilek@xxxxxxxxxx>
+Cc: Oleksandr Natalenko <oleksandr@xxxxxxxxxx>
+Cc: Xin Gao <gaoxin@xxxxxxxxxx>
+Signed-off-by: Kees Cook <keescook@xxxxxxxxxx>
 ---
  lib/zstd/decompress/zstd_decompress.c | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
@@ -23647,9 +23641,6 @@ index bb009554e3a612..da8b4cf116e33e 100644
              totalDstSize += fcs;
          }
 
-From 3ddee2370f4e750784bad4a05a61081b207b67c8 Mon Sep 17 00:00:00 2001
-From: David Sterba <dsterba@suse.com>
-Date: Tue, 4 Mar 2025 13:46:58 +0100
 Subject: [PATCH 3/4] MAINTAINERS: add myself to co-maintain ZSTD
 
 Recently the ZSTD tree has been removed from linux-next due to lack of
@@ -23660,8 +23651,8 @@ get the ZSTD upstream to linux, Nick is OK with that [2].
 [1] https://lore.kernel.org/all/20250216224200.50b9dd6a@canb.auug.org.au/
 [2] https://github.com/facebook/zstd/issues/4262#issuecomment-2691527952
 
-CC: Nick Terrell <terrelln@fb.com>
-Signed-off-by: David Sterba <dsterba@suse.com>
+CC: Nick Terrell <terrelln@xxxxxxxxxx>
+Signed-off-by: David Sterba <dsterba@xxxxxxxxxx>
 ---
  MAINTAINERS | 1 +
  1 file changed, 1 insertion(+)
@@ -23679,9 +23670,6 @@ index efee40ea589f70..cb3b17e6fbf5c0 100644
  B:	https://github.com/facebook/zstd/issues
  T:	git https://github.com/terrelln/linux.git
 
-From 697ca9fe2b764b66bc02812cd7ef27b91b09a078 Mon Sep 17 00:00:00 2001
-From: Nick Terrell <terrelln@meta.com>
-Date: Sat, 22 Mar 2025 22:07:49 -0700
 Subject: [PATCH 4/4] zstd: Work around gcc segfault on versions older than
  11.4
 
@@ -23701,10 +23689,10 @@ I've compiled & run basic tests for gcc-9 and gcc-14.2. I've reproed the
 gcc segfault before the fix, and it compiles after.
 
 Link: https://lore.kernel.org/lkml/SN6PR02MB415723FBCD79365E8D72CA5FD4D82@SN6PR02MB4157.namprd02.prod.outlook.com/
-CC: Ingo Molnar <mingo@redhat.com>
-CC: Michael Kelley <mhklinux@outlook.com>
-CC: Borislav Petkov <bp@alien8.de>
-Signed-off-by: Nick Terrell <terrelln@fb.com>
+CC: Ingo Molnar <mingo@xxxxxxxxxx>
+CC: Michael Kelley <mhklinux@xxxxxxxxxx>
+CC: Borislav Petkov <bp@xxxxxxxxxx>
+Signed-off-by: Nick Terrell <terrelln@xxxxxxxxxx>
 ---
  lib/zstd/common/portability_macros.h | 6 ++++--
  1 file changed, 4 insertions(+), 2 deletions(-)
@@ -23725,7 +23713,7 @@ index 05286af726835e..efae9465d57d4f 100644
  #ifndef DYNAMIC_BMI2
  #  if ((defined(__clang__) && __has_attribute(__target__)) \
        || (defined(__GNUC__) \
--          && (__GNUC__ >= 5 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 8)))) \
+-          && (__GNUC__ >= 11))) \
 +          && (__GNUC__ >= 12 || (__GNUC__ == 11 && __GNUC_MINOR__ >= 4)))) \
        && (defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)) \
        && !defined(__BMI2__)

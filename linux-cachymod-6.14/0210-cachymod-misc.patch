@@ -97,12 +97,9 @@ https://gitlab.com/xanmod/linux-patches
 
 # 0004-kbuild-Remove-GCC-minimal-function-alignment.patch
 
-From 6e1157f40aa2de736b79766c53f87dfe7de36bb5 Mon Sep 17 00:00:00 2001
-From: Alexandre Frade <kernel@xanmod.org>
-Date: Sat, 31 Aug 2024 16:57:41 +0000
 Subject: [PATCH 04/19] kbuild: Remove GCC minimal function alignment
 
-Signed-off-by: Alexandre Frade <kernel@xanmod.org>
+Signed-off-by: Alexandre Frade <kernel@xxxxxxxxxx>
 ---
  Makefile                       |  7 -------
  arch/Kconfig                   | 12 ------------
@@ -184,13 +181,10 @@ index 981cc3d7e3aa..1bdb4d019bab 100644
 
 # 0007-XANMOD-block-mq-deadline-Increase-write-priority-to-.patch
 
-From f91c466320368433d644a1bbaeb303b682c6b7d1 Mon Sep 17 00:00:00 2001
-From: Alexandre Frade <kernel@xanmod.org>
-Date: Wed, 11 May 2022 18:56:51 +0000
 Subject: [PATCH 07/19] XANMOD: block/mq-deadline: Increase write priority to
  improve responsiveness
 
-Signed-off-by: Alexandre Frade <kernel@xanmod.org>
+Signed-off-by: Alexandre Frade <kernel@xxxxxxxxxx>
 ---
  block/mq-deadline.c | 7 +++++--
  1 file changed, 5 insertions(+), 2 deletions(-)
@@ -230,13 +224,10 @@ index 754f6b7415cd..233c9712ec57 100644
 
 # 0008-XANMOD-block-mq-deadline-Disable-front_merges-by-def.patch
 
-From 99aceb32885686182f2e38ed6c19a380828249b7 Mon Sep 17 00:00:00 2001
-From: Alexandre Frade <kernel@xanmod.org>
-Date: Thu, 6 Jan 2022 16:59:01 +0000
 Subject: [PATCH 08/19] XANMOD: block/mq-deadline: Disable front_merges by
  default
 
-Signed-off-by: Alexandre Frade <kernel@xanmod.org>
+Signed-off-by: Alexandre Frade <kernel@xxxxxxxxxx>
 ---
  block/mq-deadline.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
@@ -259,13 +250,10 @@ index 233c9712ec57..0f8218a2650a 100644
 
 # 0009-XANMOD-block-Set-rq_affinity-to-force-complete-I-O-r.patch
 
-From e664c30c44caccc43b50a7cde90d4ad2a57faef2 Mon Sep 17 00:00:00 2001
-From: Alexandre Frade <kernel@xanmod.org>
-Date: Mon, 16 Sep 2024 15:36:01 +0000
 Subject: [PATCH 09/19] XANMOD: block: Set rq_affinity to force complete I/O
  requests on same CPU
 
-Signed-off-by: Alexandre Frade <kernel@xanmod.org>
+Signed-off-by: Alexandre Frade <kernel@xxxxxxxxxx>
 ---
  include/linux/blkdev.h | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
@@ -289,13 +277,10 @@ index d37751789bf5..507d1bcaaea8 100644
 
 # 0010-XANMOD-blk-wbt-Set-wbt_default_latency_nsec-to-2msec.patch
 
-From 34db71a0c7669de56fb221bacb4955012f52efa8 Mon Sep 17 00:00:00 2001
-From: Alexandre Frade <kernel@xanmod.org>
-Date: Mon, 15 Jul 2024 04:50:34 +0000
 Subject: [PATCH 10/19] XANMOD: blk-wbt: Set wbt_default_latency_nsec() to
  2msec
 
-Signed-off-by: Alexandre Frade <kernel@xanmod.org>
+Signed-off-by: Alexandre Frade <kernel@xxxxxxxxxx>
 ---
  block/blk-wbt.c | 10 ++--------
  1 file changed, 2 insertions(+), 8 deletions(-)
@@ -326,13 +311,10 @@ index 6dfc659d22e2..4cf65ad7c953 100644
 
 # 0012-XANMOD-dcache-cache_pressure-50-decreases-the-rate-a.patch
 
-From 269ed90bb0c714fc237be05611c82804f81b7038 Mon Sep 17 00:00:00 2001
-From: Alexandre Frade <kernel@xanmod.org>
-Date: Mon, 29 Jan 2018 16:59:22 +0000
 Subject: [PATCH 12/19] XANMOD: dcache: cache_pressure = 50 decreases the rate
  at which VFS caches are reclaimed
 
-Signed-off-by: Alexandre Frade <kernel@xanmod.org>
+Signed-off-by: Alexandre Frade <kernel@xxxxxxxxxx>
 ---
  fs/dcache.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
@@ -355,13 +337,10 @@ index e3634916ffb9..95ebc9a430c4 100644
 
 # 0017-XANMOD-lib-kconfig.debug-disable-default-SYMBOLIC_ER.patch
 
-From f2c2f7ec98ca5bfda92d4691af46403348ae0d77 Mon Sep 17 00:00:00 2001
-From: Alexandre Frade <kernel@xanmod.org>
-Date: Mon, 16 Sep 2024 08:09:56 +0000
 Subject: [PATCH 17/19] XANMOD: lib/kconfig.debug: disable default
  SYMBOLIC_ERRNAME and DEBUG_BUGVERBOSE
 
-Signed-off-by: Alexandre Frade <kernel@xanmod.org>
+Signed-off-by: Alexandre Frade <kernel@xxxxxxxxxx>
 ---
  fs/bcachefs/Kconfig | 1 -
  lib/Kconfig.debug   | 4 ++--
@@ -409,8 +388,8 @@ https://github.com/sunlightlinux/linux-sunlight
 
 x86/tsc: Use rdtsc_ordered() when RDTSCP or LFENCE_RDTSC are supported
 
-Signed-off-by: Mario Limonciello <mario.limonciello@amd.com>
-Signed-off-by: Ionut Nechita <ionut_n2001@yahoo.com>
+Signed-off-by: Mario Limonciello <mario.limonciello@xxxxxxxxxx>
+Signed-off-by: Ionut Nechita <ionut_n2001@xxxxxxxxxx>
 
 diff --git a/arch/x86/include/asm/tsc.h b/arch/x86/include/asm/tsc.h
 --- a/arch/x86/include/asm/tsc.h
@@ -430,13 +409,13 @@ diff --git a/arch/x86/include/asm/tsc.h b/arch/x86/include/asm/tsc.h
 
 rcu: Change sched_setscheduler_nocheck() calls to SCHED_RR policy
 
-Signed-off-by: Alexandre Frade <kernel@xanmod.org>
-Signed-off-by: Ionut Nechita <ionut_n2001@yahoo.com>
+Signed-off-by: Alexandre Frade <kernel@xxxxxxxxxx>
+Signed-off-by: Ionut Nechita <ionut_n2001@xxxxxxxxxx>
 
 diff --git a/Documentation/admin-guide/kernel-parameters.txt b/Documentation/admin-guide/kernel-parameters.txt
 --- a/Documentation/admin-guide/kernel-parameters.txt
 +++ b/Documentation/admin-guide/kernel-parameters.txt
-@@ -5252,7 +5252,7 @@
+@@ -5254,7 +5254,7 @@
  			overwritten.
  
  	rcutree.kthread_prio= 	 [KNL,BOOT]
@@ -553,7 +532,7 @@ Description:
    a higher threshold for thresh
 
 Bug: N/A
-Signed-off-by: Ionut Nechita <ionut_n2001@yahoo.com>
+Signed-off-by: Ionut Nechita <ionut_n2001@xxxxxxxxxx>
 
 diff --git a/kernel/workqueue.c b/kernel/workqueue.c
 --- a/kernel/workqueue.c
@@ -591,7 +570,7 @@ Minor change BLK_DEV_RUST_NULL with default n
 Description:
  -  Minor change BLK_DEV_RUST_NULL with default n
 
-Signed-off-by: Ionut Nechita <ionut_n2001@yahoo.com>
+Signed-off-by: Ionut Nechita <ionut_n2001@xxxxxxxxxx>
 
 diff --git a/drivers/block/Kconfig b/drivers/block/Kconfig
 --- a/drivers/block/Kconfig
@@ -617,7 +596,7 @@ Signed-off-by: Mario Roy <...>
 diff -uarp a/drivers/bluetooth/btusb.c b/drivers/bluetooth/btusb.c
 --- a/drivers/bluetooth/btusb.c
 +++ b/drivers/bluetooth/btusb.c
-@@ -536,6 +536,8 @@ static const struct usb_device_id quirks
+@@ -564,6 +564,8 @@ static const struct usb_device_id quirks
  						     BTUSB_WIDEBAND_SPEECH },
  	{ USB_DEVICE(0x13d3, 0x3591), .driver_info = BTUSB_REALTEK |
  						     BTUSB_WIDEBAND_SPEECH },
@@ -641,9 +620,9 @@ substraction on each futex_hash() invocation.
 Rename futex_hashsize to futex_hashmask and save the mask of the
 allocated hash map.
 
-Signed-off-by: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
-Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
-Reviewed-by: Waiman Long <longman@redhat.com>
+Signed-off-by: Sebastian Andrzej Siewior <bigeasy@xxxxxxxxxx>
+Signed-off-by: Thomas Gleixner <tglx@xxxxxxxxxx>
+Reviewed-by: Waiman Long <longman@xxxxxxxxxx>
 
 diff --git a/kernel/futex/core.c b/kernel/futex/core.c
 index 3db8567f5a44e..cca15859a50be 100644
@@ -719,9 +698,9 @@ several functions, for example kernel_fpu_begin().  Fix this by using
 BUILD_BUG_ON_INVALID(x) in the no-debug case rather than (void)(x).
 
 Fixes: 83242c5 ("x86/fpu: Make WARN_ON_FPU() more robust in the !CONFIG_X86_DEBUG_FPU case")
-Suggested-by: Sean Christopherson <seanjc@google.com>
-Signed-off-by: Eric Biggers <ebiggers@google.com>
-Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
+Suggested-by: Sean Christopherson <seanjc@xxxxxxxxxx>
+Signed-off-by: Eric Biggers <ebiggers@xxxxxxxxxx>
+Signed-off-by: Dave Hansen <dave.hansen@xxxxxxxxxx>
 
 diff --git a/arch/x86/kernel/fpu/internal.h b/arch/x86/kernel/fpu/internal.h
 index dbdb31f55fc7f..975de070c9c98 100644
@@ -755,9 +734,9 @@ process (just shy of 5% when doing it on 24 cores on my test jig).
 
 Both routines are moved below kcov and kmsan exit, which should be harmless.
 
-Signed-off-by: Mateusz Guzik <mjguzik@gmail.com>
-Reviewed-by: Oleg Nesterov <oleg@redhat.com>
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+Signed-off-by: Mateusz Guzik <mjguzik@xxxxxxxxxx>
+Reviewed-by: Oleg Nesterov <oleg@xxxxxxxxxx>
+Signed-off-by: Andrew Morton <akpm@xxxxxxxxxx>
 
 diff --git a/kernel/exit.c b/kernel/exit.c
 index f97a2bbc9db9..5ffa56bcd659 100644
@@ -898,9 +877,9 @@ $ size arch/x86/boot/bzImage
    text    data     bss     dec     hex filename
 13533184           1024       0 13534208         ce8400 arch/x86/boot/bzImage
 
-Co-developed-by: Yu-Chun Lin <eleanor15x@xxxxxxxxx>
-Signed-off-by: Yu-Chun Lin <eleanor15x@xxxxxxxxx>
-Signed-off-by: Kuan-Wei Chiu <visitorckw@xxxxxxxxx>
+Co-developed-by: Yu-Chun Lin <eleanor15x@xxxxxxxxxx>
+Signed-off-by: Yu-Chun Lin <eleanor15x@xxxxxxxxxx>
+Signed-off-by: Kuan-Wei Chiu <visitorckw@xxxxxxxxxx>
 ---
 Not sure how to measure the efficiency difference, but I guess this
 patch might be slightly more efficient or nearly the same as before. If
@@ -943,12 +922,12 @@ for both versions of the check.
 Remove the second condition.  It is exactly the same as the first.
 
 Fixes: 91ee8f5c1f50 ("x86/mm/cpa: Allow range check for static protections")
-Reported-by: David Binderman <dcb314@xxxxxxxxxxx>
+Reported-by: David Binderman <dcb314@xxxxxxxxxx>
 Cc: Andy Lutomirski <luto@xxxxxxxxxx>
-Cc: Peter Zijlstra <peterz@xxxxxxxxxxxxx>
-Cc: Thomas Gleixner <tglx@xxxxxxxxxxxxx>
+Cc: Peter Zijlstra <peterz@xxxxxxxxxx>
+Cc: Thomas Gleixner <tglx@xxxxxxxxxx>
 Cc: Ingo Molnar <mingo@xxxxxxxxxx>
-Cc: Borislav Petkov <bp@xxxxxxxxx>
+Cc: Borislav Petkov <bp@xxxxxxxxxx>
 Cc: x86@xxxxxxxxxx
 ---
  arch/x86/mm/pat/set_memory.c | 3 +--
@@ -1068,11 +1047,11 @@ commit faa42d29419d ("sched/fair: Make SCHED_IDLE entity be preempted in strict 
 so fix this by explicitly skip wakeup preemption for idle entities.
 
 Fixes: 304000390f88 ("sched: Cgroup SCHED_IDLE support")
-Signed-off-by: Abel Wu <wuyun.abel@xxxxxxxxxxxxx>
+Signed-off-by: Abel Wu <wuyun.abel@xxxxxxxxxx>
 Reviewed-by: Vincent Guittot <vincent.guittot@xxxxxxxxxx>
 Reviewed-by: Josh Don <joshdon@xxxxxxxxxx>
-Reviewed-by: Madadi Vineeth Reddy <vineethr@xxxxxxxxxxxxx>
-Tested-by: K Prateek Nayak <kprateek.nayak@xxxxxxx>
+Reviewed-by: Madadi Vineeth Reddy <vineethr@xxxxxxxxxx>
+Tested-by: K Prateek Nayak <kprateek.nayak@xxxxxxxxxx>
 ---
  kernel/sched/fair.c | 8 +++++---
  1 file changed, 5 insertions(+), 3 deletions(-)
@@ -1129,9 +1108,9 @@ cpus in debug mode (!WAKEUP_PREEMPTION).
 Fix it by strictly following the aforementioned rules.
 
 Fixes: faa42d29419d ("sched/fair: Make SCHED_IDLE entity be preempted in strict hierarchy")
-Signed-off-by: Abel Wu <wuyun.abel@xxxxxxxxxxxxx>
+Signed-off-by: Abel Wu <wuyun.abel@xxxxxxxxxx>
 Acked-by: Vincent Guittot <vincent.guittot@xxxxxxxxxx>
-Tested-by: K Prateek Nayak <kprateek.nayak@xxxxxxx>
+Tested-by: K Prateek Nayak <kprateek.nayak@xxxxxxxxxx>
 ---
  kernel/sched/fair.c | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
@@ -1663,6 +1642,58 @@ index d4e74f96a8ad5d..a7d45a8ce7ac00 100644
  }
  
  /**
+-- 
+2.42.0
+
+wifi: iwlwifi: pcie: set state to no-FW before reset handshake
+https://lore.kernel.org/all/20250411104054.63aa4f56894d.Ife70cfe997db03f0d07fdef2b164695739a05a63@changeid/
+
+The reset handshake attempts to kill the firmware, and it'll go
+into a pretty much dead state once we do that. However, if it
+times out, then we'll attempt to dump the firmware to be able
+to see why it didn't respond. During this dump, we cannot treat
+it as if it was still running, since we just tried to kill it,
+otherwise dumping will attempt to send a DBGC stop command. As
+this command will time out, we'll go into a reset loop.
+
+For now, fix this by setting the trans->state to say firmware
+isn't running before doing the reset handshake. In the longer
+term, we should clean up the way this state is handled.
+
+It's not entirely clear but it seems likely that this issue was
+introduced by my rework of the error handling, prior to that it
+would've been synchronous at that point and (I think) not have
+attempted to reset since it was already doing down.
+
+Closes: https://bugzilla.kernel.org/show_bug.cgi?id=219967
+Closes: https://bugzilla.kernel.org/show_bug.cgi?id=219968
+Fixes: 7391b2a4f7db ("wifi: iwlwifi: rework firmware error handling")
+Signed-off-by: Johannes Berg <johannes.berg@xxxxxxxxxx>
+Change-Id: Ife70cfe997db03f0d07fdef2b164695739a05a63
+---
+ drivers/net/wireless/intel/iwlwifi/pcie/trans-gen2.c | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/net/wireless/intel/iwlwifi/pcie/trans-gen2.c b/drivers/net/wireless/intel/iwlwifi/pcie/trans-gen2.c
+index 793514a1852a3d..e37fa5ae97f649 100644
+--- a/drivers/net/wireless/intel/iwlwifi/pcie/trans-gen2.c
++++ b/drivers/net/wireless/intel/iwlwifi/pcie/trans-gen2.c
+@@ -147,8 +147,14 @@ static void _iwl_trans_pcie_gen2_stop_device(struct iwl_trans *trans)
+ 		return;
+ 
+ 	if (trans->state >= IWL_TRANS_FW_STARTED &&
+-	    trans_pcie->fw_reset_handshake)
++	    trans_pcie->fw_reset_handshake) {
++		/*
++		 * Reset handshake can dump firmware on timeout, but that
++		 * should assume that the firmware is already dead.
++		 */
++		trans->state = IWL_TRANS_NO_FW;
+ 		iwl_trans_pcie_fw_reset_handshake(trans);
++	}
+ 
+ 	trans_pcie->is_down = true;
+ 
 -- 
 2.42.0
 

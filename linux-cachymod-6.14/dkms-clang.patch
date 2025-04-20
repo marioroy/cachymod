@@ -1,10 +1,7 @@
-From 1e5a4a3f9c67c5abea53df6881192c8c5f43765c Mon Sep 17 00:00:00 2001
-From: Eric Naim <dnaim@cachyos.org>
-Date: Sat, 21 Sep 2024 23:46:05 +0800
-Subject: [PATCH] Remove some Werror CFLAGS to increase compatibility with some
+Subject: Remove some Werror CFLAGS to increase compatibility with some
  DKMS modules in clang-built kernels
 
-Signed-off-by: Eric Naim <dnaim@cachyos.org>
+Signed-off-by: Eric Naim <dnaim@xxxxxxxxxx>
 ---
  scripts/Makefile.clang     | 2 --
  scripts/Makefile.extrawarn | 4 ----

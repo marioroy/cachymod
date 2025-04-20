@@ -140,7 +140,7 @@ fi
 
 _pkgsuffix=cachymod-614
 _major=6.14
-_minor=2
+_minor=3
 pkgver=${_major}.${_minor}
 _stable=${_major}.${_minor}
 #_stable=${_major}
@@ -152,7 +152,7 @@ _stable=${_major}.${_minor}
 
 _srcname=linux-${_stable}
 pkgdesc='CachyMod Linux Kernel with other patches and improvements'
-pkgrel=5
+pkgrel=1
 _kernver="$pkgver-$pkgrel"
 _kernuname="${pkgver}-${_pkgsuffix}"
 arch=('x86_64')
@@ -170,7 +170,7 @@ source=(
     "trim.sh"
     "auto-cpu-optimization.sh"
     "mkinitcpio.template"
-    "0001-linux6.14.2-update.patch"
+    "0001-linux6.14.3-update.patch"
     "0001-rt.patch"
     "0001-cachyos-base-partial.patch"
     "0001-cachyos-amd-tlb-broadcast.patch"
@@ -186,6 +186,7 @@ else
 fi
 
 source+=(
+    "0002-drm-amdgpu-crash-fixes.patch"
     "0002-kconfig-add-800Hz.patch"
     "0002-pipe_read-fix.patch"
     "0100-mm-kconfig-enable-rt-thp.patch"
@@ -208,7 +209,7 @@ fi
 # LLVM makedepends
 if [[ "$buildtype" =~ (lto|polly) ]]; then
     makedepends+=( clang llvm lld polly )
-    source+=("dkms-clang.patch" "polly.patch")
+    source+=("dkms-clang.patch" "polly.patch" "thinlto.patch")
     BUILD_FLAGS=( CC=clang LD=ld.lld LLVM_IAS=1 )
     CLANG_BIN=$(which clang) ; CLANG_BIN="${CLANG_BIN%clang}"
     [ "$CLANG_BIN"  = "/usr/bin/" ] && BUILD_FLAGS+=( LLVM=1 )
@@ -323,15 +324,15 @@ prepare() {
 
     case "$_buildtype" in
         thin)
-            scripts/config -e LTO -e LTO_CLANG -e ARCH_SUPPORTS_LTO_CLANG -e ARCH_SUPPORTS_LTO_CLANG_THIN -e HAS_LTO_CLANG -d LTO_NONE -d LTO_CLANG_FULL -e LTO_CLANG_THIN -e HAVE_GCC_PLUGINS
+            scripts/config -e LTO -e LTO_CLANG -e ARCH_SUPPORTS_LTO_CLANG -e ARCH_SUPPORTS_LTO_CLANG_THIN -e HAS_LTO_CLANG -d LTO_NONE -d LTO_CLANG_FULL -d LTO_CLANG_THIN -e LTO_CLANG_THIN_DIST -e HAVE_GCC_PLUGINS
             scripts/config -e POLLY_CLANG
             ;;
         full)
-            scripts/config -e LTO -e LTO_CLANG -e ARCH_SUPPORTS_LTO_CLANG -e ARCH_SUPPORTS_LTO_CLANG_THIN -e HAS_LTO_CLANG -d LTO_NONE -e LTO_CLANG_FULL -d LTO_CLANG_THIN -e HAVE_GCC_PLUGINS
+            scripts/config -e LTO -e LTO_CLANG -e ARCH_SUPPORTS_LTO_CLANG -e ARCH_SUPPORTS_LTO_CLANG_THIN -e HAS_LTO_CLANG -d LTO_NONE -e LTO_CLANG_FULL -d LTO_CLANG_THIN -d LTO_CLANG_THIN_DIST -e HAVE_GCC_PLUGINS
             scripts/config -e POLLY_CLANG
             ;;
         polly)
-            scripts/config -e LTO -e LTO_CLANG -e ARCH_SUPPORTS_LTO_CLANG -e ARCH_SUPPORTS_LTO_CLANG_THIN -e HAS_LTO_CLANG -e LTO_NONE -d LTO_CLANG_FULL -d LTO_CLANG_THIN -e HAVE_GCC_PLUGINS
+            scripts/config -e LTO -e LTO_CLANG -e ARCH_SUPPORTS_LTO_CLANG -e ARCH_SUPPORTS_LTO_CLANG_THIN -e HAS_LTO_CLANG -e LTO_NONE -d LTO_CLANG_FULL -d LTO_CLANG_THIN -d LTO_CLANG_THIN_DIST -e HAVE_GCC_PLUGINS
             scripts/config -e POLLY_CLANG
             ;;
         gcc)
