@@ -21,7 +21,7 @@ sudo pacman -Sy nvidia-open-dkms   # 6.13 needs 565.77-5 or later
 
 ## Building and Installation
 
-Copy a `linux-cachymod-6.12/13/14` folder to a work area and change
+Copy a `linux-cachymod-6.12/14` folder to a work area and change
 directory. Optionally, adjust the build options in `build.sh`.
 Select `_preempt=rt` for the realtime kernel.
 
@@ -42,7 +42,7 @@ sudo pacman -U linux-cachymod-612-bore-gcc-rt*.zst
 ```
 
 Removal is via pacman as well. Change the kernel version, build tag,
-and build type accordingly to { 612, 613, 614 }, { bore, eevdf }, and
+and build type accordingly to { 612, 614 }, { bore, eevdf }, and
 { lto, polly, gcc }, respectively.
 
 ```text
