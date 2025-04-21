@@ -425,10 +425,10 @@ Add AutoFDO and Propeller support.
 
 Signed-off-by: Mario Roy <...>
 
-diff -uar a/scripts/Makefile.autofdo b/scripts/Makefile.autofdo
+diff -uarp a/scripts/Makefile.autofdo b/scripts/Makefile.autofdo
 --- a/scripts/Makefile.autofdo
 +++ b/scripts/Makefile.autofdo
-@@ -13,11 +13,15 @@
+@@ -13,7 +13,7 @@ ifdef CLANG_AUTOFDO_PROFILE
    CFLAGS_AUTOFDO_CLANG += -fsplit-machine-functions
  endif
  
@@ -437,19 +437,10 @@ diff -uar a/scripts/Makefile.autofdo b/scripts/Makefile.autofdo
    ifdef CLANG_AUTOFDO_PROFILE
      KBUILD_LDFLAGS += --lto-sample-profile=$(CLANG_AUTOFDO_PROFILE)
    endif
--  KBUILD_LDFLAGS += --mllvm=-enable-fs-discriminator=true --mllvm=-improved-fs-discriminator=true -plugin-opt=thinlto
-+  ifdef CONFIG_LTO_CLANG_THIN
-+    KBUILD_LDFLAGS += --mllvm=-enable-fs-discriminator=true --mllvm=-improved-fs-discriminator=true -plugin-opt=thinlto
-+  else
-+    KBUILD_LDFLAGS += --mllvm=-enable-fs-discriminator=true --mllvm=-improved-fs-discriminator=true
-+  endif
-   KBUILD_LDFLAGS += -plugin-opt=-split-machine-functions
- endif
- 
-diff -uar a/scripts/Makefile.propeller b/scripts/Makefile.propeller
+diff -uarp a/scripts/Makefile.propeller b/scripts/Makefile.propeller
 --- a/scripts/Makefile.propeller
 +++ b/scripts/Makefile.propeller
-@@ -24,7 +24,7 @@
+@@ -24,7 +24,7 @@ ifndef CONFIG_DEBUG_INFO
    endif
  endif
  

@@ -1,36 +1,3 @@
-From f055d4bed77deb6391fde2a4eb2bc8cc365833e3 Mon Sep 17 00:00:00 2001
-From: Eric Naim <dnaim@cachyos.org>
-Date: Mon, 14 Apr 2025 10:12:38 +0800
-Subject: [PATCH] drm/xe: Reapply "drm/i915: Disable DSB in Xe KMD"
-
-This reapplies commit c27f010aa1884276ee5dae72034d84987060c769
-
-DSB is still broken and causes refresh rate of the desktop be halved and
-causes an overall choppy desktop experience
-
-Link: https://gitlab.freedesktop.org/drm/xe/kernel/-/issues/4305
-Signed-off-by: Eric Naim <dnaim@cachyos.org>
----
- drivers/gpu/drm/i915/display/intel_dsb.c | 4 ++++
- 1 file changed, 4 insertions(+)
-
-diff --git a/drivers/gpu/drm/i915/display/intel_dsb.c b/drivers/gpu/drm/i915/display/intel_dsb.c
-index e6f8fc743fb405..73f6febfb6c464 100644
---- a/drivers/gpu/drm/i915/display/intel_dsb.c
-+++ b/drivers/gpu/drm/i915/display/intel_dsb.c
-@@ -763,6 +763,10 @@ struct intel_dsb *intel_dsb_prepare(struct intel_atomic_state *state,
- 	if (!i915->display.params.enable_dsb)
- 		return NULL;
- 
-+	/* TODO: DSB is broken in Xe KMD, so disabling it until fixed */
-+	if (!IS_ENABLED(I915))
-+		return NULL;
-+
- 	dsb = kzalloc(sizeof(*dsb), GFP_KERNEL);
- 	if (!dsb)
- 		goto out;
-
-
 CachyOS 6.14 partial base-all patch
 
   Subject: [PATCH 1/9] amd-pstate
@@ -1843,9 +1810,9 @@ index 7fe0981a7e46..dde5212d256c 100644
 -- 
 2.48.0.rc1
 
-From 6bf715698eb8316613e1dbd3c1542cd9978381b8 Mon Sep 17 00:00:00 2001
+From 9a73ad96afdfd2a8095026eff238741ec57574f0 Mon Sep 17 00:00:00 2001
 From: Peter Jung <admin@ptr1337.dev>
-Date: Thu, 10 Apr 2025 16:08:27 +0200
+Date: Sun, 20 Apr 2025 15:32:17 +0200
 Subject: [PATCH 5/9] cachy
 
 Signed-off-by: Peter Jung <admin@ptr1337.dev>
@@ -1925,7 +1892,7 @@ Signed-off-by: Peter Jung <admin@ptr1337.dev>
  create mode 100644 drivers/scsi/vhba/vhba.c
 
 diff --git a/Documentation/admin-guide/kernel-parameters.txt b/Documentation/admin-guide/kernel-parameters.txt
-index fb8752b42ec8..753f36fd9361 100644
+index aa7447f8837c..00e111ab9a0b 100644
 --- a/Documentation/admin-guide/kernel-parameters.txt
 +++ b/Documentation/admin-guide/kernel-parameters.txt
 @@ -2277,6 +2277,9 @@
@@ -1955,7 +1922,7 @@ index fb8752b42ec8..753f36fd9361 100644
  				Safety option to keep boot IRQs enabled. This
  				should never be necessary.
 diff --git a/Makefile b/Makefile
-index 907a4565f06a..8c6156cca394 100644
+index 93870f58505f..9265996043dd 100644
 --- a/Makefile
 +++ b/Makefile
 @@ -861,11 +861,19 @@ KBUILD_CFLAGS	+= -fno-delete-null-pointer-checks
@@ -4114,7 +4081,7 @@ index 45d1c3e630f7..4f5ab2429a7f 100644
  obj-$(CONFIG_MTD)		+= mtd/
  obj-$(CONFIG_SPI)		+= spi/
 diff --git a/drivers/ata/ahci.c b/drivers/ata/ahci.c
-index f813dbdc2346..86af3e5190e0 100644
+index f3a6bfe098cd..e926c78380a2 100644
 --- a/drivers/ata/ahci.c
 +++ b/drivers/ata/ahci.c
 @@ -1629,7 +1629,7 @@ static irqreturn_t ahci_thunderx_irq_handler(int irq, void *dev_instance)
@@ -4303,7 +4270,7 @@ index 0e16432d9a72..867bc5c5ce67 100644
  bool amdgpu_atombios_has_dce_engine_info(struct amdgpu_device *adev);
  
 diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu_device.c b/drivers/gpu/drm/amd/amdgpu/amdgpu_device.c
-index f5909977eed4..dea5c2e5f6f6 100644
+index 9a8f6cb2b836..b888eaaaec23 100644
 --- a/drivers/gpu/drm/amd/amdgpu/amdgpu_device.c
 +++ b/drivers/gpu/drm/amd/amdgpu/amdgpu_device.c
 @@ -4472,8 +4472,7 @@ int amdgpu_device_init(struct amdgpu_device *adev,
@@ -4717,7 +4684,7 @@ index c1b79b379447..261c3bc4d46e 100644
  	struct dc *dc,
  	size_t slave_address)
 diff --git a/drivers/gpu/drm/amd/display/dc/dc.h b/drivers/gpu/drm/amd/display/dc/dc.h
-index 053481ab69ef..0c2c0fc45ae5 100644
+index ab77dcbc1058..1f9c8bb6c79d 100644
 --- a/drivers/gpu/drm/amd/display/dc/dc.h
 +++ b/drivers/gpu/drm/amd/display/dc/dc.h
 @@ -1949,6 +1949,9 @@ int dc_link_aux_transfer_raw(struct ddc_service *ddc,
@@ -6916,7 +6883,7 @@ index 2ddb827e3bea..464049c4af3f 100644
  
  	return state;
 diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
-index 89c7260103e1..61a9b56eb53c 100644
+index e197b0edcfb2..7e0ac34b351d 100644
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
 @@ -76,10 +76,19 @@ unsigned int sysctl_sched_tunable_scaling = SCHED_TUNABLESCALING_LOG;
@@ -7200,7 +7167,7 @@ index bd5183dfd879..3a410f53a07c 100644
  
  /*
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index c767d71c43d7..d10fbd4c901f 100644
+index fada3b35aff8..04d97600f3e4 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
 @@ -200,7 +200,11 @@ struct scan_control {
@@ -7229,11 +7196,11 @@ index e4decfb270fa..38bff2d8a740 100644
  		release_sock(sk);
  		if (reqsk_queue_empty(&icsk->icsk_accept_queue))
 -- 
-2.48.0.rc1
+2.49.0.391.g4bbb303af6
 
-From bfa0cc9be5844254ee1a9c100e03859fef51a0c3 Mon Sep 17 00:00:00 2001
+From cebdaab1a3aebe9e8986c80bd47e14e4e45b0db7 Mon Sep 17 00:00:00 2001
 From: Peter Jung <admin@ptr1337.dev>
-Date: Thu, 10 Apr 2025 16:08:39 +0200
+Date: Sun, 20 Apr 2025 15:32:29 +0200
 Subject: [PATCH 6/9] crypto
 
 Signed-off-by: Peter Jung <admin@ptr1337.dev>
@@ -7279,7 +7246,7 @@ index 00e94bec401e..3e00f5654f60 100644
  CREATIVE SB0540
  M:	Bastien Nocera <hadess@hadess.net>
 diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
-index 836a1dc8139e..b1f920b09cf3 100644
+index 088f7555e1ac..8dc1133e3384 100644
 --- a/arch/x86/Kconfig
 +++ b/arch/x86/Kconfig
 @@ -77,7 +77,7 @@ config X86
@@ -9724,11 +9691,11 @@ index 000000000000..aa678a50897d
 +    else:
 +        raise ValueError(f'Unknown consts_type: {consts_type}')
 -- 
-2.48.0.rc1
+2.49.0.391.g4bbb303af6
 
-From 914a5a93e160ffb98b89ae0a186dc6ccffc1c1c6 Mon Sep 17 00:00:00 2001
+From 2eaa8ef2cc85b6e23313a3d15d972ce132450584 Mon Sep 17 00:00:00 2001
 From: Peter Jung <admin@ptr1337.dev>
-Date: Thu, 10 Apr 2025 16:08:48 +0200
+Date: Sun, 20 Apr 2025 15:32:39 +0200
 Subject: [PATCH 7/9] fixes
 
 Signed-off-by: Peter Jung <admin@ptr1337.dev>
@@ -9738,13 +9705,15 @@ Signed-off-by: Peter Jung <admin@ptr1337.dev>
  crypto/crc32c_generic.c                       |  1 +
  drivers/gpu/drm/amd/amdgpu/mes_v11_0.c        |  4 +
  drivers/gpu/drm/amd/amdgpu/mes_v12_0.c        | 21 +++--
- .../amd/display/dc/dml2/dml21/dml21_wrapper.c | 17 +++-
- .../drm/amd/display/dc/dml2/dml2_wrapper.c    |  9 ++
+ .../amd/display/dc/dml2/dml21/dml21_wrapper.c | 28 +++++--
+ .../drm/amd/display/dc/dml2/dml2_wrapper.c    | 15 +++-
+ drivers/gpu/drm/i915/display/intel_dsb.c      |  4 +
+ .../wireless/intel/iwlwifi/pcie/trans-gen2.c  |  8 +-
  lib/Kconfig.debug                             |  9 ++
  lib/Makefile                                  |  2 +
  lib/longest_symbol_kunit.c                    | 82 +++++++++++++++++++
  scripts/package/PKGBUILD                      |  5 ++
- 11 files changed, 143 insertions(+), 14 deletions(-)
+ 13 files changed, 164 insertions(+), 22 deletions(-)
  create mode 100644 lib/longest_symbol_kunit.c
 
 diff --git a/arch/Kconfig b/arch/Kconfig
@@ -9849,10 +9818,41 @@ index 0fd0fa6ed518..6b121c2723d6 100644
  	return 0;
  }
 diff --git a/drivers/gpu/drm/amd/display/dc/dml2/dml21/dml21_wrapper.c b/drivers/gpu/drm/amd/display/dc/dml2/dml21/dml21_wrapper.c
-index fb80ba9287b6..d124c38fbfd3 100644
+index fb80ba9287b6..d6fd13f43c08 100644
 --- a/drivers/gpu/drm/amd/display/dc/dml2/dml21/dml21_wrapper.c
 +++ b/drivers/gpu/drm/amd/display/dc/dml2/dml21/dml21_wrapper.c
-@@ -86,6 +86,8 @@ static void dml21_init(const struct dc *in_dc, struct dml2_context **dml_ctx, co
+@@ -2,6 +2,7 @@
+ //
+ // Copyright 2024 Advanced Micro Devices, Inc.
+ 
++#include <linux/vmalloc.h>
+ 
+ #include "dml2_internal_types.h"
+ #include "dml_top.h"
+@@ -13,11 +14,11 @@
+ 
+ static bool dml21_allocate_memory(struct dml2_context **dml_ctx)
+ {
+-	*dml_ctx = kzalloc(sizeof(struct dml2_context), GFP_KERNEL);
++	*dml_ctx = vzalloc(sizeof(struct dml2_context));
+ 	if (!(*dml_ctx))
+ 		return false;
+ 
+-	(*dml_ctx)->v21.dml_init.dml2_instance = kzalloc(sizeof(struct dml2_instance), GFP_KERNEL);
++	(*dml_ctx)->v21.dml_init.dml2_instance = vzalloc(sizeof(struct dml2_instance));
+ 	if (!((*dml_ctx)->v21.dml_init.dml2_instance))
+ 		return false;
+ 
+@@ -27,7 +28,7 @@ static bool dml21_allocate_memory(struct dml2_context **dml_ctx)
+ 	(*dml_ctx)->v21.mode_support.display_config = &(*dml_ctx)->v21.display_config;
+ 	(*dml_ctx)->v21.mode_programming.display_config = (*dml_ctx)->v21.mode_support.display_config;
+ 
+-	(*dml_ctx)->v21.mode_programming.programming = kzalloc(sizeof(struct dml2_display_cfg_programming), GFP_KERNEL);
++	(*dml_ctx)->v21.mode_programming.programming = vzalloc(sizeof(struct dml2_display_cfg_programming));
+ 	if (!((*dml_ctx)->v21.mode_programming.programming))
+ 		return false;
+ 
+@@ -86,6 +87,8 @@ static void dml21_init(const struct dc *in_dc, struct dml2_context **dml_ctx, co
  	/* Store configuration options */
  	(*dml_ctx)->config = *config;
  
@@ -9861,7 +9861,7 @@ index fb80ba9287b6..d124c38fbfd3 100644
  	/*Initialize SOCBB and DCNIP params */
  	dml21_initialize_soc_bb_params(&(*dml_ctx)->v21.dml_init, config, in_dc);
  	dml21_initialize_ip_params(&(*dml_ctx)->v21.dml_init, config, in_dc);
-@@ -96,6 +98,8 @@ static void dml21_init(const struct dc *in_dc, struct dml2_context **dml_ctx, co
+@@ -96,6 +99,8 @@ static void dml21_init(const struct dc *in_dc, struct dml2_context **dml_ctx, co
  
  	/*Initialize DML21 instance */
  	dml2_initialize_instance(&(*dml_ctx)->v21.dml_init);
@@ -9870,7 +9870,18 @@ index fb80ba9287b6..d124c38fbfd3 100644
  }
  
  bool dml21_create(const struct dc *in_dc, struct dml2_context **dml_ctx, const struct dml2_configuration_options *config)
-@@ -269,11 +273,16 @@ bool dml21_validate(const struct dc *in_dc, struct dc_state *context, struct dml
+@@ -111,8 +116,8 @@ bool dml21_create(const struct dc *in_dc, struct dml2_context **dml_ctx, const s
+ 
+ void dml21_destroy(struct dml2_context *dml2)
+ {
+-	kfree(dml2->v21.dml_init.dml2_instance);
+-	kfree(dml2->v21.mode_programming.programming);
++	vfree(dml2->v21.dml_init.dml2_instance);
++	vfree(dml2->v21.mode_programming.programming);
+ }
+ 
+ static void dml21_calculate_rq_and_dlg_params(const struct dc *dc, struct dc_state *context, struct resource_context *out_new_hw_state,
+@@ -269,11 +274,16 @@ bool dml21_validate(const struct dc *in_dc, struct dc_state *context, struct dml
  {
  	bool out = false;
  
@@ -9889,7 +9900,7 @@ index fb80ba9287b6..d124c38fbfd3 100644
  	return out;
  }
  
-@@ -412,8 +421,12 @@ void dml21_copy(struct dml2_context *dst_dml_ctx,
+@@ -412,8 +422,12 @@ void dml21_copy(struct dml2_context *dst_dml_ctx,
  
  	dst_dml_ctx->v21.mode_programming.programming = dst_dml2_programming;
  
@@ -9903,10 +9914,19 @@ index fb80ba9287b6..d124c38fbfd3 100644
  
  bool dml21_create_copy(struct dml2_context **dst_dml_ctx,
 diff --git a/drivers/gpu/drm/amd/display/dc/dml2/dml2_wrapper.c b/drivers/gpu/drm/amd/display/dc/dml2/dml2_wrapper.c
-index 68b882d28195..9cd140df132a 100644
+index 68b882d28195..d0f9df2daeb4 100644
 --- a/drivers/gpu/drm/amd/display/dc/dml2/dml2_wrapper.c
 +++ b/drivers/gpu/drm/amd/display/dc/dml2/dml2_wrapper.c
-@@ -732,11 +732,16 @@ bool dml2_validate(const struct dc *in_dc, struct dc_state *context, struct dml2
+@@ -24,6 +24,8 @@
+  *
+  */
+ 
++#include <linux/vmalloc.h>
++
+ #include "display_mode_core.h"
+ #include "dml2_internal_types.h"
+ #include "dml2_utils.h"
+@@ -732,17 +734,22 @@ bool dml2_validate(const struct dc *in_dc, struct dc_state *context, struct dml2
  		return out;
  	}
  
@@ -9923,7 +9943,14 @@ index 68b882d28195..9cd140df132a 100644
  	return out;
  }
  
-@@ -776,11 +781,15 @@ static void dml2_init(const struct dc *in_dc, const struct dml2_configuration_op
+ static inline struct dml2_context *dml2_allocate_memory(void)
+ {
+-	return (struct dml2_context *) kzalloc(sizeof(struct dml2_context), GFP_KERNEL);
++	return (struct dml2_context *) vzalloc(sizeof(struct dml2_context));
+ }
+ 
+ static void dml2_init(const struct dc *in_dc, const struct dml2_configuration_options *config, struct dml2_context **dml2)
+@@ -776,11 +783,15 @@ static void dml2_init(const struct dc *in_dc, const struct dml2_configuration_op
  		break;
  	}
  
@@ -9939,6 +9966,50 @@ index 68b882d28195..9cd140df132a 100644
  }
  
  bool dml2_create(const struct dc *in_dc, const struct dml2_configuration_options *config, struct dml2_context **dml2)
+@@ -806,7 +817,7 @@ void dml2_destroy(struct dml2_context *dml2)
+ 
+ 	if (dml2->architecture == dml2_architecture_21)
+ 		dml21_destroy(dml2);
+-	kfree(dml2);
++	vfree(dml2);
+ }
+ 
+ void dml2_extract_dram_and_fclk_change_support(struct dml2_context *dml2,
+diff --git a/drivers/gpu/drm/i915/display/intel_dsb.c b/drivers/gpu/drm/i915/display/intel_dsb.c
+index e6f8fc743fb4..73f6febfb6c4 100644
+--- a/drivers/gpu/drm/i915/display/intel_dsb.c
++++ b/drivers/gpu/drm/i915/display/intel_dsb.c
+@@ -763,6 +763,10 @@ struct intel_dsb *intel_dsb_prepare(struct intel_atomic_state *state,
+ 	if (!i915->display.params.enable_dsb)
+ 		return NULL;
+ 
++	/* TODO: DSB is broken in Xe KMD, so disabling it until fixed */
++	if (!IS_ENABLED(I915))
++		return NULL;
++
+ 	dsb = kzalloc(sizeof(*dsb), GFP_KERNEL);
+ 	if (!dsb)
+ 		goto out;
+diff --git a/drivers/net/wireless/intel/iwlwifi/pcie/trans-gen2.c b/drivers/net/wireless/intel/iwlwifi/pcie/trans-gen2.c
+index 793514a1852a..e37fa5ae97f6 100644
+--- a/drivers/net/wireless/intel/iwlwifi/pcie/trans-gen2.c
++++ b/drivers/net/wireless/intel/iwlwifi/pcie/trans-gen2.c
+@@ -147,8 +147,14 @@ static void _iwl_trans_pcie_gen2_stop_device(struct iwl_trans *trans)
+ 		return;
+ 
+ 	if (trans->state >= IWL_TRANS_FW_STARTED &&
+-	    trans_pcie->fw_reset_handshake)
++	    trans_pcie->fw_reset_handshake) {
++		/*
++		 * Reset handshake can dump firmware on timeout, but that
++		 * should assume that the firmware is already dead.
++		 */
++		trans->state = IWL_TRANS_NO_FW;
+ 		iwl_trans_pcie_fw_reset_handshake(trans);
++	}
+ 
+ 	trans_pcie->is_down = true;
+ 
 diff --git a/lib/Kconfig.debug b/lib/Kconfig.debug
 index 35796c290ca3..a6da7f4411f4 100644
 --- a/lib/Kconfig.debug
@@ -9960,7 +10031,7 @@ index 35796c290ca3..a6da7f4411f4 100644
  	bool "Test hw_breakpoint constraints accounting" if !KUNIT_ALL_TESTS
  	depends on HAVE_HW_BREAKPOINT
 diff --git a/lib/Makefile b/lib/Makefile
-index d5cfc7afbbb8..e8fec9defec2 100644
+index 4f3d00a2fd65..9a54526008d0 100644
 --- a/lib/Makefile
 +++ b/lib/Makefile
 @@ -398,6 +398,8 @@ obj-$(CONFIG_FORTIFY_KUNIT_TEST) += fortify_kunit.o
@@ -10077,5 +10148,5 @@ index 0cf3a55b05e1..a27d4344a4e8 100644
  	mkdir -p "${builddir}"
  	cp System.map "${builddir}/System.map"
 -- 
-2.48.0.rc1
+2.49.0.391.g4bbb303af6
 

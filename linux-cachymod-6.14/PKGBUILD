@@ -152,7 +152,7 @@ _stable=${_major}.${_minor}
 
 _srcname=linux-${_stable}
 pkgdesc='CachyMod Linux Kernel with other patches and improvements'
-pkgrel=1
+pkgrel=2
 _kernver="$pkgver-$pkgrel"
 _kernuname="${pkgver}-${_pkgsuffix}"
 arch=('x86_64')
@@ -186,7 +186,6 @@ else
 fi
 
 source+=(
-    "0002-drm-amdgpu-crash-fixes.patch"
     "0002-kconfig-add-800Hz.patch"
     "0002-pipe_read-fix.patch"
     "0100-mm-kconfig-enable-rt-thp.patch"
@@ -501,7 +500,7 @@ prepare() {
             ( cat "$_localmodcfg_path"
               # Include RAM disk, exfat, ntsync, ttm, and modules for Docker
               for module in \
-                  brd bridge exfat drm_ttm_helper llc nf_conntrack \
+                  brd bridge exfat drm_ttm_helper llc irqbypass nf_conntrack \
                   nf_conntrack_netlink nf_defrag_ipv4 nf_defrag_ipv6 \
                   nf_nat nf_tables nft_chain_nat nft_compat ntsync \
                   overlay stp ttm veth xfrm_algo xfrm_user xt_addrtype \
