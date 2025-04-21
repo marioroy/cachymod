@@ -146,7 +146,7 @@ _stable=${_major}.${_minor}
 
 _srcname=linux-${_stable}
 pkgdesc='CachyMod Linux Kernel with other patches and improvements'
-pkgrel=1
+pkgrel=2
 _kernver="$pkgver-$pkgrel"
 _kernuname="${pkgver}-${_pkgsuffix}"
 arch=('x86_64')
@@ -207,7 +207,7 @@ fi
 # LLVM makedepends
 if [[ "$buildtype" =~ (lto|polly) ]]; then
     makedepends+=( clang llvm lld polly )
-    source+=("dkms-clang.patch" "polly.patch")
+    source+=("dkms-clang.patch" "polly.patch" "thinlto.patch")
     BUILD_FLAGS=( CC=clang LD=ld.lld LLVM_IAS=1 )
     CLANG_BIN=$(which clang) ; CLANG_BIN="${CLANG_BIN%clang}"
     [ "$CLANG_BIN"  = "/usr/bin/" ] && BUILD_FLAGS+=( LLVM=1 )
@@ -322,15 +322,15 @@ prepare() {
 
     case "$_buildtype" in
         thin)
-            scripts/config -e LTO -e LTO_CLANG -e ARCH_SUPPORTS_LTO_CLANG -e ARCH_SUPPORTS_LTO_CLANG_THIN -e HAS_LTO_CLANG -d LTO_NONE -d LTO_CLANG_FULL -e LTO_CLANG_THIN -e HAVE_GCC_PLUGINS
+            scripts/config -e LTO -e LTO_CLANG -e ARCH_SUPPORTS_LTO_CLANG -e ARCH_SUPPORTS_LTO_CLANG_THIN -e HAS_LTO_CLANG -d LTO_NONE -d LTO_CLANG_FULL -d LTO_CLANG_THIN -e LTO_CLANG_THIN_DIST -e HAVE_GCC_PLUGINS
             scripts/config -e POLLY_CLANG
             ;;
         full)
-            scripts/config -e LTO -e LTO_CLANG -e ARCH_SUPPORTS_LTO_CLANG -e ARCH_SUPPORTS_LTO_CLANG_THIN -e HAS_LTO_CLANG -d LTO_NONE -e LTO_CLANG_FULL -d LTO_CLANG_THIN -e HAVE_GCC_PLUGINS
+            scripts/config -e LTO -e LTO_CLANG -e ARCH_SUPPORTS_LTO_CLANG -e ARCH_SUPPORTS_LTO_CLANG_THIN -e HAS_LTO_CLANG -d LTO_NONE -e LTO_CLANG_FULL -d LTO_CLANG_THIN -d LTO_CLANG_THIN_DIST -e HAVE_GCC_PLUGINS
             scripts/config -e POLLY_CLANG
             ;;
         polly)
-            scripts/config -e LTO -e LTO_CLANG -e ARCH_SUPPORTS_LTO_CLANG -e ARCH_SUPPORTS_LTO_CLANG_THIN -e HAS_LTO_CLANG -e LTO_NONE -d LTO_CLANG_FULL -d LTO_CLANG_THIN -e HAVE_GCC_PLUGINS
+            scripts/config -e LTO -e LTO_CLANG -e ARCH_SUPPORTS_LTO_CLANG -e ARCH_SUPPORTS_LTO_CLANG_THIN -e HAS_LTO_CLANG -e LTO_NONE -d LTO_CLANG_FULL -d LTO_CLANG_THIN -d LTO_CLANG_THIN_DIST -e HAVE_GCC_PLUGINS
             scripts/config -e POLLY_CLANG
             ;;
         gcc)
@@ -501,7 +501,7 @@ prepare() {
             ( cat "$_localmodcfg_path"
               # Include RAM disk, exfat, ntsync, ttm, and modules for Docker
               for module in \
-                  brd bridge exfat drm_ttm_helper llc nf_conntrack \
+                  brd bridge exfat drm_ttm_helper llc irqbypass nf_conntrack \
                   nf_conntrack_netlink nf_defrag_ipv4 nf_defrag_ipv6 \
                   nf_nat nf_tables nft_chain_nat nft_compat ntsync \
                   overlay stp ttm veth xfrm_algo xfrm_user xt_addrtype \
