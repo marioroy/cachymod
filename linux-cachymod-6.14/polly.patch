@@ -68,7 +68,7 @@ diff -uarp a/init/Kconfig b/init/Kconfig
 diff -uarp a/Makefile b/Makefile
 --- a/Makefile
 +++ b/Makefile
-@@ -879,6 +879,33 @@ KBUILD_CFLAGS += $(call cc-option,-fmodu
+@@ -878,6 +878,33 @@ KBUILD_CFLAGS += $(call cc-option,-fmodu
  KBUILD_RUSTFLAGS += -Cdebug-assertions=$(if $(CONFIG_RUST_DEBUG_ASSERTIONS),y,n)
  KBUILD_RUSTFLAGS += -Coverflow-checks=$(if $(CONFIG_RUST_OVERFLOW_CHECKS),y,n)
  

@@ -55,7 +55,7 @@ diff -uarp a/Makefile b/Makefile
  KBUILD_USERCFLAGS  := $(KBUILD_USERHOSTCFLAGS) $(USERCFLAGS)
  KBUILD_USERLDFLAGS := $(USERLDFLAGS)
  
-@@ -576,7 +576,7 @@ LINUXINCLUDE    := \
+@@ -575,7 +575,7 @@ LINUXINCLUDE    := \
  KBUILD_AFLAGS   := -D__ASSEMBLY__ -fno-PIE
  
  KBUILD_CFLAGS :=
@@ -110,7 +110,7 @@ diff --git a/Makefile b/Makefile
 index cfc55c5b88ff..e71d960567e3 100644
 --- a/Makefile
 +++ b/Makefile
-@@ -1039,15 +1039,8 @@ export CC_FLAGS_FPU
+@@ -1038,15 +1038,8 @@ export CC_FLAGS_FPU
  export CC_FLAGS_NO_FPU
  
  ifneq ($(CONFIG_FUNCTION_ALIGNMENT),0)
@@ -853,63 +853,6 @@ index f97a2bbc9db9..5ffa56bcd659 100644
 -- 
 2.43.0
 
-cpumask: Optimize cpumask_any_but()
-https://lore.kernel.org/all/20250117142658.297325-1-visitorckw@gmail.com/
-
-The cpumask_any_but() function can avoid using a loop to determine the
-CPU index to return. If the first set bit in the cpumask is not equal
-to the specified CPU, we can directly return the index of the first set
-bit. Otherwise, we return the next set bit's index.
-
-This optimization replaces the loop with a single if statement,
-allowing the compiler to generate more concise and efficient code.
-
-As a result, the size of the bzImage built with x86 defconfig is
-reduced by 4096 bytes:
-
-* Before:
-$ size arch/x86/boot/bzImage
-   text    data     bss     dec     hex filename
-13537280           1024       0 13538304         ce9400 arch/x86/boot/bzImage
-
-* After:
-$ size arch/x86/boot/bzImage
-   text    data     bss     dec     hex filename
-13533184           1024       0 13534208         ce8400 arch/x86/boot/bzImage
-
-Co-developed-by: Yu-Chun Lin <eleanor15x@xxxxxxxxxx>
-Signed-off-by: Yu-Chun Lin <eleanor15x@xxxxxxxxxx>
-Signed-off-by: Kuan-Wei Chiu <visitorckw@xxxxxxxxxx>
----
-Not sure how to measure the efficiency difference, but I guess this
-patch might be slightly more efficient or nearly the same as before. If
-you have any good ideas for measuring efficiency, please let me know!
-
- include/linux/cpumask.h | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
-
-diff --git a/include/linux/cpumask.h b/include/linux/cpumask.h
-index 9278a50d514f..b769fcdbaa10 100644
---- a/include/linux/cpumask.h
-+++ b/include/linux/cpumask.h
-@@ -404,10 +404,10 @@ unsigned int cpumask_any_but(const struct cpumask *mask, unsigned int cpu)
- 	unsigned int i;
- 
- 	cpumask_check(cpu);
--	for_each_cpu(i, mask)
--		if (i != cpu)
--			break;
--	return i;
-+	i = find_first_bit(cpumask_bits(mask), small_cpumask_bits);
-+	if (i != cpu || i >= nr_cpu_ids)
-+		return i;
-+	return find_next_bit(cpumask_bits(mask), small_cpumask_bits, i + 1);
- }
- 
- /**
--- 
-2.34.1
-
 x86/mm: Simplify redundant overlap calculation
 https://lore.kernel.org/all/20240123163623.1342917-1-dave.hansen@linux.intel.com/
 
@@ -949,6 +892,29 @@ index e9b448d1b1b70..fdc00516c0b54 100644
  #ifdef CONFIG_PCI_BIOS
 --
 2.34.1
+
+sched/core: Tweak wait_task_inactive() to force dequeue sched_delayed tasks
+https://lore.kernel.org/all/20250425195757.2139558-1-jstultz@google.com/
+
+diff --git a/kernel/sched/core.c b/kernel/sched/core.c
+index c81cf642dba05..b986cd2fb19b7 100644
+--- a/kernel/sched/core.c
++++ b/kernel/sched/core.c
+@@ -2280,6 +2280,12 @@ unsigned long wait_task_inactive(struct task_struct *p, unsigned int match_state
+ 		 * just go back and repeat.
+ 		 */
+ 		rq = task_rq_lock(p, &rf);
++		/*
++		 * If task is sched_delayed, force dequeue it, to avoid always
++		 * hitting the tick timeout in the queued case
++		 */
++		if (p->se.sched_delayed)
++			dequeue_task(rq, p, DEQUEUE_SLEEP | DEQUEUE_DELAYED);
+ 		trace_sched_wait_task(p);
+ 		running = task_on_cpu(rq, p);
+ 		queued = task_on_rq_queued(p);
+-- 
+2.49.0.850.g28803427d3-goog
 
 sched/fair: Prevent from cpufreq not being updated when delayed-task is iowait
 https://lore.kernel.org/all/20250226114301.4900-1-xuewen.yan@unisoc.com/
@@ -994,153 +960,94 @@ index 2d6d5582c3e9..040674734128 100644
 -- 
 2.25.1
 
-sched/fair: Fixup wake_up_sync vs DELAYED_DEQUEUE
-https://lore.kernel.org/all/20250226024741.2274-1-xuewen.yan@unisoc.com/
+sched/eevdf: Fix se->slice being set to U64_MAX and resulting crash
+https://lore.kernel.org/all/174565777736.31282.9126332941284995798.tip-bot2@tip-bot2/
 
-Delayed dequeued feature keeps a sleeping task enqueued until its
-lag has elapsed. As a result, it stays also visible in rq->nr_running.
-So when in ake_affine_idle(), we should use the real running-tasks
-in rq to check whether we should place the wake-up task to
-current cpu.
-
-Fixes: 152e11f6df29 ("sched/fair: Implement delayed dequeue")
-Signed-off-by: Xuewen Yan <xuewen.yan@xxxxxxxxxx>
----
- kernel/sched/fair.c | 11 +++++++++--
- 1 file changed, 9 insertions(+), 2 deletions(-)
-
-diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
-index 1c0ef435a7aa..2d6d5582c3e9 100644
+diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -7410,8 +7410,15 @@ wake_affine_idle(int this_cpu, int prev_cpu, int sync)
- 	if (available_idle_cpu(this_cpu) && cpus_share_cache(this_cpu, prev_cpu))
- 		return available_idle_cpu(prev_cpu) ? prev_cpu : this_cpu;
- 
--	if (sync && cpu_rq(this_cpu)->nr_running == 1)
--		return this_cpu;
-+	if (sync) {
-+		struct rq *rq = cpu_rq(this_cpu);
-+		int nr_delayed;
-+
-+		nr_delayed = rq->cfs.h_nr_queued - rq->cfs.h_nr_idle;
-+
-+		if ((rq->nr_running - nr_delayed) == 1)
-+			return this_cpu;
-+	}
- 
- 	if (available_idle_cpu(prev_cpu))
- 		return prev_cpu;
--- 
-2.25.1
-
-sched/fair: Do not let idle entities preempt others
-https://lore.kernel.org/all/20250227085815.18131-2-wuyun.abel@bytedance.com/
-
-A task with SCHED_IDLE policy doesn't preempt others by definition, and
-the semantics are intended to be preserved when extending to cgroups
-introduced in commit 304000390f88 ("sched: Cgroup SCHED_IDLE support").
-
-But current implementation allows idle entities to preempt each other
-on wakeup, which seems not behave as expected especially after
-commit faa42d29419d ("sched/fair: Make SCHED_IDLE entity be preempted in strict hierarchy")
-so fix this by explicitly skip wakeup preemption for idle entities.
-
-Fixes: 304000390f88 ("sched: Cgroup SCHED_IDLE support")
-Signed-off-by: Abel Wu <wuyun.abel@xxxxxxxxxx>
-Reviewed-by: Vincent Guittot <vincent.guittot@xxxxxxxxxx>
-Reviewed-by: Josh Don <joshdon@xxxxxxxxxx>
-Reviewed-by: Madadi Vineeth Reddy <vineethr@xxxxxxxxxx>
-Tested-by: K Prateek Nayak <kprateek.nayak@xxxxxxxxxx>
----
- kernel/sched/fair.c | 8 +++++---
- 1 file changed, 5 insertions(+), 3 deletions(-)
-
-diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
-index d042e94a79c3..aaa9822e9562 100644
---- a/kernel/sched/fair.c
-+++ b/kernel/sched/fair.c
-@@ -8853,8 +8853,7 @@ static void check_preempt_wakeup_fair(struct rq *rq, struct task_struct *p, int
- 	pse_is_idle = se_is_idle(pse);
- 
- 	/*
--	 * Preempt an idle entity in favor of a non-idle entity (and don't preempt
--	 * in the inverse case).
-+	 * Preempt an idle entity in favor of a non-idle entity.
- 	 */
- 	if (cse_is_idle && !pse_is_idle) {
- 		/*
-@@ -8865,7 +8864,10 @@ static void check_preempt_wakeup_fair(struct rq *rq, struct task_struct *p, int
- 		goto preempt;
+@@ -7123,9 +7123,6 @@ static int dequeue_entities(struct rq *rq, struct sched_entity *se, int flags)
+ 		h_nr_idle = task_has_idle_policy(p);
+ 		if (task_sleep || task_delayed || !se->sched_delayed)
+ 			h_nr_runnable = 1;
+-	} else {
+-		cfs_rq = group_cfs_rq(se);
+-		slice = cfs_rq_min_slice(cfs_rq);
  	}
  
--	if (cse_is_idle != pse_is_idle)
-+	/*
-+	 * IDLE entities do not preempt others.
-+	 */
-+	if (unlikely(pse_is_idle))
- 		return;
+ 	for_each_sched_entity(se) {
+@@ -7135,6 +7132,7 @@ static int dequeue_entities(struct rq *rq, struct sched_entity *se, int flags)
+ 			if (p && &p->se == se)
+ 				return -1;
  
- 	/*
++			slice = cfs_rq_min_slice(cfs_rq);
+ 			break;
+ 		}
+ 
 -- 
-2.37.3
-
-sched/fair: Fix premature check of WAKEUP_PREEMPTION
-https://lore.kernel.org/all/20250227085815.18131-3-wuyun.abel@bytedance.com/
-
-The commit 6bc912b71b6f ("sched: SCHED_OTHER vs SCHED_IDLE isolation")
-defines the behavior of SCHED_IDLE as following:
-
- - no SCHED_IDLE buddies
- - never let SCHED_IDLE preempt on wakeup
- - always preempt SCHED_IDLE on wakeup
- - limit SLEEPER fairness for SCHED_IDLE
-
-and the 3rd rule is broken if !WAKEUP_PREEMPTION due to recently merged
-commit faa42d29419d ("sched/fair: Make SCHED_IDLE entity be preempted in strict hierarchy")
-
-Although WAKEUP_PREEMPTION is mainly there for debug purpose to provide
-a way to check whether a performance degrade of certain workload is due
-to overscheduling or not, it is still kind of weird that we treat sched-
-idle cpus as idle but don't let the non-idle tasks preempt the sched-idle
-cpus in debug mode (!WAKEUP_PREEMPTION).
-
-Fix it by strictly following the aforementioned rules.
-
-Fixes: faa42d29419d ("sched/fair: Make SCHED_IDLE entity be preempted in strict hierarchy")
-Signed-off-by: Abel Wu <wuyun.abel@xxxxxxxxxx>
-Acked-by: Vincent Guittot <vincent.guittot@xxxxxxxxxx>
-Tested-by: K Prateek Nayak <kprateek.nayak@xxxxxxxxxx>
----
- kernel/sched/fair.c | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
-
-diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
-index aaa9822e9562..a7eeb72d57aa 100644
---- a/kernel/sched/fair.c
-+++ b/kernel/sched/fair.c
-@@ -8843,9 +8843,6 @@ static void check_preempt_wakeup_fair(struct rq *rq, struct task_struct *p, int
- 	if (test_tsk_need_resched(rq->curr))
- 		return;
+2.42.0
  
--	if (!sched_feat(WAKEUP_PREEMPTION))
--		return;
--
- 	find_matching_se(&se, &pse);
- 	WARN_ON_ONCE(!pse);
+staging: bcm2835-camera: Initialise dev in v4l2_dev
+https://lore.kernel.org/all/20250414-staging-bcm2835-v4l2-fix-v1-1-2b2db9a8f293@raspberrypi.com/
+
+diff --git a/drivers/staging/vc04_services/bcm2835-camera/bcm2835-camera.c b/drivers/staging/vc04_services/bcm2835-camera/bcm2835-camera.c
+index b839b50ac26a..fa7ea4ca4c36 100644
+--- a/drivers/staging/vc04_services/bcm2835-camera/bcm2835-camera.c
++++ b/drivers/staging/vc04_services/bcm2835-camera/bcm2835-camera.c
+@@ -1902,6 +1902,7 @@ static int bcm2835_mmal_probe(struct vchiq_device *device)
+ 				__func__, ret);
+ 			goto free_dev;
+ 		}
++		dev->v4l2_dev.dev = &device->dev;
  
-@@ -8864,6 +8861,9 @@ static void check_preempt_wakeup_fair(struct rq *rq, struct task_struct *p, int
- 		goto preempt;
- 	}
- 
-+	if (!sched_feat(WAKEUP_PREEMPTION))
-+		return;
-+
- 	/*
- 	 * IDLE entities do not preempt others.
+ 		/* setup v4l controls */
+ 		ret = bcm2835_mmal_init_controls(dev, &dev->ctrl_handler);
+
+-- 
+2.43.0
+
+Increased memory usage on NUMA nodes with ICE driver after upgrade to 6.13.y
+(regression in commit 492a044508ad)
+https://lore.kernel.org/all/CAK8fFZ4hY6GUJNENz3wY9jaYLZXGfpr7dnZxzGMYoE44caRbgw@mail.gmail.com/
+
+Revert ice: Add support for persistent NAPI config
+https://lore.kernel.org/all/20241113185431.1289708-6-anthony.l.nguyen@intel.com/
+
+Signed-off-by: Jaroslav Pulchart <...>
+
+diff --git a/drivers/net/ethernet/intel/ice/ice_base.c b/drivers/net/ethernet/intel/ice/ice_base.c
+index 3a8e156d7d86cf..82a9cd4ec7aec9 100644
+--- a/drivers/net/ethernet/intel/ice/ice_base.c
++++ b/drivers/net/ethernet/intel/ice/ice_base.c
+@@ -156,8 +156,7 @@ static int ice_vsi_alloc_q_vector(struct ice_vsi *vsi, u16 v_idx)
+ 	 * handler here (i.e. resume, reset/rebuild, etc.)
  	 */
+ 	if (vsi->netdev)
+-		netif_napi_add_config(vsi->netdev, &q_vector->napi,
+-				      ice_napi_poll, v_idx);
++		netif_napi_add(vsi->netdev, &q_vector->napi, ice_napi_poll);
+ 
+ out:
+ 	/* tie q_vector and VSI together */
+diff --git a/drivers/net/ethernet/intel/ice/ice_lib.c b/drivers/net/ethernet/intel/ice/ice_lib.c
+index d4e74f96a8ad5d..a7d45a8ce7ac00 100644
+--- a/drivers/net/ethernet/intel/ice/ice_lib.c
++++ b/drivers/net/ethernet/intel/ice/ice_lib.c
+@@ -2783,10 +2783,8 @@ void ice_napi_add(struct ice_vsi *vsi)
+ 		return;
+ 
+ 	ice_for_each_q_vector(vsi, v_idx)
+-		netif_napi_add_config(vsi->netdev,
+-				      &vsi->q_vectors[v_idx]->napi,
+-				      ice_napi_poll,
+-				      v_idx);
++		netif_napi_add(vsi->netdev, &vsi->q_vectors[v_idx]->napi,
++			       ice_napi_poll);
+ }
+ 
+ /**
 -- 
-2.37.3
+2.42.0
 
 sched/isolation: Make CONFIG_CPU_ISOLATION depend on CONFIG_SMP
 https://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git/commit/?h=sched/urgent&id=975776841e689dd8ba36df9fa72ac3eca3c2957a
@@ -1582,66 +1489,4 @@ index e670ac282333..439f6029d3b9 100644
  #endif /* _LINUX_SCHED_IDLE_H */
 -- 
 2.47.1
-
-staging: bcm2835-camera: Initialise dev in v4l2_dev
-https://lore.kernel.org/all/20250414-staging-bcm2835-v4l2-fix-v1-1-2b2db9a8f293@raspberrypi.com/
-
-diff --git a/drivers/staging/vc04_services/bcm2835-camera/bcm2835-camera.c b/drivers/staging/vc04_services/bcm2835-camera/bcm2835-camera.c
-index b839b50ac26a..fa7ea4ca4c36 100644
---- a/drivers/staging/vc04_services/bcm2835-camera/bcm2835-camera.c
-+++ b/drivers/staging/vc04_services/bcm2835-camera/bcm2835-camera.c
-@@ -1902,6 +1902,7 @@ static int bcm2835_mmal_probe(struct vchiq_device *device)
- 				__func__, ret);
- 			goto free_dev;
- 		}
-+		dev->v4l2_dev.dev = &device->dev;
- 
- 		/* setup v4l controls */
- 		ret = bcm2835_mmal_init_controls(dev, &dev->ctrl_handler);
-
--- 
-2.43.0
-
-Increased memory usage on NUMA nodes with ICE driver after upgrade to 6.13.y
-(regression in commit 492a044508ad)
-https://lore.kernel.org/all/CAK8fFZ4hY6GUJNENz3wY9jaYLZXGfpr7dnZxzGMYoE44caRbgw@mail.gmail.com/
-
-Revert ice: Add support for persistent NAPI config
-https://lore.kernel.org/all/20241113185431.1289708-6-anthony.l.nguyen@intel.com/
-
-Signed-off-by: Jaroslav Pulchart <...>
-
-diff --git a/drivers/net/ethernet/intel/ice/ice_base.c b/drivers/net/ethernet/intel/ice/ice_base.c
-index 3a8e156d7d86cf..82a9cd4ec7aec9 100644
---- a/drivers/net/ethernet/intel/ice/ice_base.c
-+++ b/drivers/net/ethernet/intel/ice/ice_base.c
-@@ -156,8 +156,7 @@ static int ice_vsi_alloc_q_vector(struct ice_vsi *vsi, u16 v_idx)
- 	 * handler here (i.e. resume, reset/rebuild, etc.)
- 	 */
- 	if (vsi->netdev)
--		netif_napi_add_config(vsi->netdev, &q_vector->napi,
--				      ice_napi_poll, v_idx);
-+		netif_napi_add(vsi->netdev, &q_vector->napi, ice_napi_poll);
- 
- out:
- 	/* tie q_vector and VSI together */
-diff --git a/drivers/net/ethernet/intel/ice/ice_lib.c b/drivers/net/ethernet/intel/ice/ice_lib.c
-index d4e74f96a8ad5d..a7d45a8ce7ac00 100644
---- a/drivers/net/ethernet/intel/ice/ice_lib.c
-+++ b/drivers/net/ethernet/intel/ice/ice_lib.c
-@@ -2783,10 +2783,8 @@ void ice_napi_add(struct ice_vsi *vsi)
- 		return;
- 
- 	ice_for_each_q_vector(vsi, v_idx)
--		netif_napi_add_config(vsi->netdev,
--				      &vsi->q_vectors[v_idx]->napi,
--				      ice_napi_poll,
--				      v_idx);
-+		netif_napi_add(vsi->netdev, &vsi->q_vectors[v_idx]->napi,
-+			       ice_napi_poll);
- }
- 
- /**
--- 
-2.42.0
 

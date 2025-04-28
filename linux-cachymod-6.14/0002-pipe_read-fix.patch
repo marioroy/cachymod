@@ -4,35 +4,25 @@ https://lore.kernel.org/lkml/20250102140715.GA7091@redhat.com/
 
 Testing: Linux 6.14 PREEMPT_LAZY
 
-# x86-64-v3 machine (32-Core, 64-Thread)
+# x86-64-v3 machine (32-Core/64-Thread)
 
 $ chameneos-redux 6000000 [1]
   Before: 76.660  76.134  75.124  75.564  77.321  78.260
    After: 74.755  74.884  74.357  73.992  73.997  74.425
 
-$ chameneos-redux 1000000 [1]
-  Before: 13.471  13.051  13.009  12.200  13.066  12.940
-   After: 12.684  12.378  12.572  12.382  12.134  12.423
-
 $ hackbench -pTl 40000
   Before:  3.993   4.004   3.963 
    After:  2.170   2.188   2.130 
 
-# Zen5 X3D machine (8-Core, 16-Thread)
+# Zen5 X3D machine (8-Core/16-Thread)
 
 $ chameneos-redux 6000000 [1]
   Before: 38.657  38.749  38.380  38.981  38.736  38.536
    After: 38.239  38.299  38.439  38.336  38.383  38.187
 
-$ chameneos-redux 1000000 [1]
-  Before:  6.460   6.417   6.492   6.455   6.464   6.444
-   After:  6.387   6.383   6.378   6.367   6.364   6.390
-
 $ hackbench -pTl 40000
   Before:  4.537   4.600   4.595
    After:  1.943   1.961   1.959
-
-# About Chameneos benchmark
 
 [1] chameneos-redux using pipes for synchronization (pipe2.pl)
     https://github.com/marioroy/mce-examples/tree/main/chameneos

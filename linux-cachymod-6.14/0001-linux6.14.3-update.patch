@@ -1063,7 +1063,7 @@ diff --git a/tools/objtool/check.c b/tools/objtool/check.c
 index 159fb130e2827..9a46f77f3e351 100644
 --- a/tools/objtool/check.c
 +++ b/tools/objtool/check.c
-@@ -3860,6 +3860,9 @@ static int validate_unret(struct objtool_file *file, struct instruction *insn)
+@@ -3861,6 +3861,9 @@ static int validate_unret(struct objtool_file *file, struct instruction *insn)
  			break;
  		}
  
@@ -1470,7 +1470,7 @@ diff --git a/drivers/nvme/target/fc.c b/drivers/nvme/target/fc.c
 index 3ef4beacde325..a3a6dfe98d6fc 100644
 --- a/drivers/nvme/target/fc.c
 +++ b/drivers/nvme/target/fc.c
-@@ -1042,33 +1042,24 @@ nvmet_fc_alloc_hostport(struct nvmet_fc_tgtport *tgtport, void *hosthandle)
+@@ -1028,33 +1028,24 @@ nvmet_fc_alloc_hostport(struct nvmet_fc_tgtport *tgtport, void *hosthandle)
  	struct nvmet_fc_hostport *newhost, *match = NULL;
  	unsigned long flags;
  
@@ -1510,7 +1510,7 @@ index 3ef4beacde325..a3a6dfe98d6fc 100644
  
  	spin_lock_irqsave(&tgtport->lock, flags);
  	match = nvmet_fc_match_hostport(tgtport, hosthandle);
-@@ -1077,6 +1068,7 @@ nvmet_fc_alloc_hostport(struct nvmet_fc_tgtport *tgtport, void *hosthandle)
+@@ -1063,6 +1054,7 @@ nvmet_fc_alloc_hostport(struct nvmet_fc_tgtport *tgtport, void *hosthandle)
  		kfree(newhost);
  		newhost = match;
  	} else {
@@ -1541,7 +1541,7 @@ diff --git a/drivers/nvme/target/fc.c b/drivers/nvme/target/fc.c
 index a3a6dfe98d6fc..0dfffb3f39b06 100644
 --- a/drivers/nvme/target/fc.c
 +++ b/drivers/nvme/target/fc.c
-@@ -1103,7 +1103,8 @@ static void
+@@ -1089,7 +1089,8 @@ static void
  nvmet_fc_schedule_delete_assoc(struct nvmet_fc_tgt_assoc *assoc)
  {
  	nvmet_fc_tgtport_get(assoc->tgtport);
