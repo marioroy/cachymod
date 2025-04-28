@@ -140,13 +140,13 @@ fi
 
 _pkgsuffix=cachymod-612
 _major=6.12
-_minor=24
+_minor=25
 pkgver=${_major}.${_minor}
 _stable=${_major}.${_minor}
 
 _srcname=linux-${_stable}
 pkgdesc='CachyMod Linux Kernel with other patches and improvements'
-pkgrel=2
+pkgrel=1
 _kernver="$pkgver-$pkgrel"
 _kernuname="${pkgver}-${_pkgsuffix}"
 arch=('x86_64')
@@ -183,8 +183,6 @@ else
 fi
 
 source+=(
-    "0002-drm-amdgpu-mes-version.patch"
-    "0002-drm-amdgpu-protect-fpu.patch"
     "0002-drm-amdgpu-crash-fixes.patch"
     "0002-kconfig-add-800Hz.patch"
     "0100-mm-kconfig-enable-rt-thp.patch"
@@ -192,6 +190,8 @@ source+=(
     "0210-cachymod-misc.patch"
     "0220-v4l2loopback.patch"
     "0230-autofdo.patch"
+    "0240-pipe-update.patch"
+    "0250-amdgpu-update.patch"
 )
 
 if [[ "$_prevent_avx2" =~ ^(yes|y|1)$ ]]; then

@@ -171,23 +171,6 @@ diff --git a/include/linux/vermagic.h b/include/linux/vermagic.h
 -- 
 2.34.1
 
-Remove EXPERT restriction
-
-diff -uarp a/kernel/Kconfig.preempt b/kernel/Kconfig.preempt
---- a/kernel/Kconfig.preempt
-+++ b/kernel/Kconfig.preempt
-@@ -100,7 +100,7 @@ endchoice
- 
- config PREEMPT_RT
- 	bool "Fully Preemptible Kernel (Real-Time)"
--	depends on EXPERT && ARCH_SUPPORTS_RT
-+	depends on ARCH_SUPPORTS_RT
- 	select PREEMPTION
- 	help
- 	  This option turns the kernel into a real-time kernel by replacing
--- 
-2.30.1
-
 sched_idle: Optimize the generic idle loop by removing needless memory barrier
 https://lore.kernel.org/all/20241009093745.9504-1-quic_zhonhan@quicinc.com/
 
@@ -233,6 +216,23 @@ index d2f096bb274c..ab911d1335ba 100644
  		 * Interrupts shouldn't be re-enabled from that point on until
 -- 
 2.25.1
+
+Remove EXPERT restriction
+
+diff -uar a/kernel/Kconfig.preempt b/kernel/Kconfig.preempt
+--- a/kernel/Kconfig.preempt
++++ b/kernel/Kconfig.preempt
+@@ -100,7 +100,7 @@
+ 
+ config PREEMPT_RT
+ 	bool "Fully Preemptible Kernel (Real-Time)"
+-	depends on EXPERT && ARCH_SUPPORTS_RT
++	depends on ARCH_SUPPORTS_RT
+ 	select PREEMPTION
+ 	help
+ 	  This option turns the kernel into a real-time kernel by replacing
+-- 
+2.30.1
 
 Switch to gnu17, a GCC bug-fix version of the C11 standard.
 
@@ -291,7 +291,7 @@ diff -uarp a/Makefile b/Makefile
  KBUILD_USERCFLAGS  := $(KBUILD_USERHOSTCFLAGS) $(USERCFLAGS)
  KBUILD_USERLDFLAGS := $(USERLDFLAGS)
  
-@@ -550,7 +550,7 @@ LINUXINCLUDE    := \
+@@ -549,7 +549,7 @@ LINUXINCLUDE    := \
  KBUILD_AFLAGS   := -D__ASSEMBLY__ -fno-PIE
  
  KBUILD_CFLAGS :=
@@ -346,7 +346,7 @@ diff --git a/Makefile b/Makefile
 index 59a938a0c335..1f9ef37558df 100644
 --- a/Makefile
 +++ b/Makefile
-@@ -987,15 +987,8 @@ export CC_FLAGS_FPU
+@@ -986,15 +986,8 @@ export CC_FLAGS_FPU
  export CC_FLAGS_NO_FPU
  
  ifneq ($(CONFIG_FUNCTION_ALIGNMENT),0)
@@ -1423,63 +1423,6 @@ index a5860bf6d16f..40706cb36920 100644
 -- 
 2.25.1
 
-cpumask: Optimize cpumask_any_but()
-https://lore.kernel.org/all/20250117142658.297325-1-visitorckw@gmail.com/
-
-The cpumask_any_but() function can avoid using a loop to determine the
-CPU index to return. If the first set bit in the cpumask is not equal
-to the specified CPU, we can directly return the index of the first set
-bit. Otherwise, we return the next set bit's index.
-
-This optimization replaces the loop with a single if statement,
-allowing the compiler to generate more concise and efficient code.
-
-As a result, the size of the bzImage built with x86 defconfig is
-reduced by 4096 bytes:
-
-* Before:
-$ size arch/x86/boot/bzImage
-   text    data     bss     dec     hex filename
-13537280           1024       0 13538304         ce9400 arch/x86/boot/bzImage
-
-* After:
-$ size arch/x86/boot/bzImage
-   text    data     bss     dec     hex filename
-13533184           1024       0 13534208         ce8400 arch/x86/boot/bzImage
-
-Co-developed-by: Yu-Chun Lin <eleanor15x@xxxxxxxxxx>
-Signed-off-by: Yu-Chun Lin <eleanor15x@xxxxxxxxxx>
-Signed-off-by: Kuan-Wei Chiu <visitorckw@xxxxxxxxxx>
----
-Not sure how to measure the efficiency difference, but I guess this
-patch might be slightly more efficient or nearly the same as before. If
-you have any good ideas for measuring efficiency, please let me know!
-
- include/linux/cpumask.h | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
-
-diff --git a/include/linux/cpumask.h b/include/linux/cpumask.h
-index 9278a50d514f..b769fcdbaa10 100644
---- a/include/linux/cpumask.h
-+++ b/include/linux/cpumask.h
-@@ -404,10 +404,10 @@ unsigned int cpumask_any_but(const struct cpumask *mask, unsigned int cpu)
- 	unsigned int i;
- 
- 	cpumask_check(cpu);
--	for_each_cpu(i, mask)
--		if (i != cpu)
--			break;
--	return i;
-+	i = find_first_bit(cpumask_bits(mask), small_cpumask_bits);
-+	if (i != cpu || i >= nr_cpu_ids)
-+		return i;
-+	return find_next_bit(cpumask_bits(mask), small_cpumask_bits, i + 1);
- }
- 
- /**
--- 
-2.34.1
-
 x86/mm: Simplify redundant overlap calculation
 https://lore.kernel.org/all/20240123163623.1342917-1-dave.hansen@linux.intel.com/
 
@@ -1519,6 +1462,29 @@ index e9b448d1b1b70..fdc00516c0b54 100644
  #ifdef CONFIG_PCI_BIOS
 --
 2.34.1
+
+sched/core: Tweak wait_task_inactive() to force dequeue sched_delayed tasks
+https://lore.kernel.org/all/20250425195757.2139558-1-jstultz@google.com/
+
+diff --git a/kernel/sched/core.c b/kernel/sched/core.c
+index c81cf642dba05..b986cd2fb19b7 100644
+--- a/kernel/sched/core.c
++++ b/kernel/sched/core.c
+@@ -2281,6 +2281,12 @@ unsigned long wait_task_inactive(struct task_struct *p, unsigned int match_state
+ 		 * just go back and repeat.
+ 		 */
+ 		rq = task_rq_lock(p, &rf);
++		/*
++		 * If task is sched_delayed, force dequeue it, to avoid always
++		 * hitting the tick timeout in the queued case
++		 */
++		if (p->se.sched_delayed)
++			dequeue_task(rq, p, DEQUEUE_SLEEP | DEQUEUE_DELAYED);
+ 		trace_sched_wait_task(p);
+ 		running = task_on_cpu(rq, p);
+ 		queued = task_on_rq_queued(p);
+-- 
+2.49.0.850.g28803427d3-goog
 
 sched/fair: Prevent from cpufreq not being updated when delayed-task is iowait
 https://lore.kernel.org/all/20250226114301.4900-1-xuewen.yan@unisoc.com/
@@ -1564,153 +1530,51 @@ index 2d6d5582c3e9..040674734128 100644
 -- 
 2.25.1
 
-sched/fair: Fixup wake_up_sync vs DELAYED_DEQUEUE
-https://lore.kernel.org/all/20250226024741.2274-1-xuewen.yan@unisoc.com/
+sched/eevdf: Fix se->slice being set to U64_MAX and resulting crash
+https://lore.kernel.org/all/174565777736.31282.9126332941284995798.tip-bot2@tip-bot2/
 
-Delayed dequeued feature keeps a sleeping task enqueued until its
-lag has elapsed. As a result, it stays also visible in rq->nr_running.
-So when in ake_affine_idle(), we should use the real running-tasks
-in rq to check whether we should place the wake-up task to
-current cpu.
-
-Fixes: 152e11f6df29 ("sched/fair: Implement delayed dequeue")
-Signed-off-by: Xuewen Yan <xuewen.yan@xxxxxxxxxx>
----
- kernel/sched/fair.c | 11 +++++++++--
- 1 file changed, 9 insertions(+), 2 deletions(-)
-
-diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
-index 1c0ef435a7aa..2d6d5582c3e9 100644
+diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -7512,8 +7512,15 @@ wake_affine_idle(int this_cpu, int prev_cpu, int sync)
- 	if (available_idle_cpu(this_cpu) && cpus_share_cache(this_cpu, prev_cpu))
- 		return available_idle_cpu(prev_cpu) ? prev_cpu : this_cpu;
- 
--	if (sync && cpu_rq(this_cpu)->nr_running == 1)
--		return this_cpu;
-+	if (sync) {
-+		struct rq *rq = cpu_rq(this_cpu);
-+		int nr_delayed;
-+
-+		nr_delayed = rq->cfs.h_nr_running - rq->cfs.idle_h_nr_running;
-+
-+		if ((rq->nr_running - nr_delayed) == 1)
-+			return this_cpu;
-+	}
- 
- 	if (available_idle_cpu(prev_cpu))
- 		return prev_cpu;
--- 
-2.25.1
-
-sched/fair: Do not let idle entities preempt others
-https://lore.kernel.org/all/20250227085815.18131-2-wuyun.abel@bytedance.com/
-
-A task with SCHED_IDLE policy doesn't preempt others by definition, and
-the semantics are intended to be preserved when extending to cgroups
-introduced in commit 304000390f88 ("sched: Cgroup SCHED_IDLE support").
-
-But current implementation allows idle entities to preempt each other
-on wakeup, which seems not behave as expected especially after
-commit faa42d29419d ("sched/fair: Make SCHED_IDLE entity be preempted in strict hierarchy")
-so fix this by explicitly skip wakeup preemption for idle entities.
-
-Fixes: 304000390f88 ("sched: Cgroup SCHED_IDLE support")
-Signed-off-by: Abel Wu <wuyun.abel@xxxxxxxxxx>
-Reviewed-by: Vincent Guittot <vincent.guittot@xxxxxxxxxx>
-Reviewed-by: Josh Don <joshdon@xxxxxxxxxx>
-Reviewed-by: Madadi Vineeth Reddy <vineethr@xxxxxxxxxx>
-Tested-by: K Prateek Nayak <kprateek.nayak@xxxxxxxxxx>
----
- kernel/sched/fair.c | 8 +++++---
- 1 file changed, 5 insertions(+), 3 deletions(-)
-
-diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
-index d042e94a79c3..aaa9822e9562 100644
---- a/kernel/sched/fair.c
-+++ b/kernel/sched/fair.c
-@@ -8955,8 +8955,7 @@ static void check_preempt_wakeup_fair(struct rq *rq, struct task_struct *p, int
- 	pse_is_idle = se_is_idle(pse);
- 
- 	/*
--	 * Preempt an idle entity in favor of a non-idle entity (and don't preempt
--	 * in the inverse case).
-+	 * Preempt an idle entity in favor of a non-idle entity.
- 	 */
- 	if (cse_is_idle && !pse_is_idle) {
- 		/*
-@@ -8967,7 +8966,10 @@ static void check_preempt_wakeup_fair(struct rq *rq, struct task_struct *p, int
- 		goto preempt;
+@@ -7225,9 +7225,6 @@ static int dequeue_entities(struct rq *rq, struct sched_entity *se, int flags)
+ 		idle_h_nr_running = task_has_idle_policy(p);
+ 		if (!task_sleep && !task_delayed)
+ 			h_nr_delayed = !!se->sched_delayed;
+-	} else {
+-		cfs_rq = group_cfs_rq(se);
+-		slice = cfs_rq_min_slice(cfs_rq);
  	}
  
--	if (cse_is_idle != pse_is_idle)
-+	/*
-+	 * IDLE entities do not preempt others.
-+	 */
-+	if (unlikely(pse_is_idle))
- 		return;
+ 	for_each_sched_entity(se) {
+@@ -7237,6 +7234,7 @@ static int dequeue_entities(struct rq *rq, struct sched_entity *se, int flags)
+ 			if (p && &p->se == se)
+ 				return -1;
  
- 	/*
++			slice = cfs_rq_min_slice(cfs_rq);
+ 			break;
+ 		}
+ 
 -- 
-2.37.3
-
-sched/fair: Fix premature check of WAKEUP_PREEMPTION
-https://lore.kernel.org/all/20250227085815.18131-3-wuyun.abel@bytedance.com/
-
-The commit 6bc912b71b6f ("sched: SCHED_OTHER vs SCHED_IDLE isolation")
-defines the behavior of SCHED_IDLE as following:
-
- - no SCHED_IDLE buddies
- - never let SCHED_IDLE preempt on wakeup
- - always preempt SCHED_IDLE on wakeup
- - limit SLEEPER fairness for SCHED_IDLE
-
-and the 3rd rule is broken if !WAKEUP_PREEMPTION due to recently merged
-commit faa42d29419d ("sched/fair: Make SCHED_IDLE entity be preempted in strict hierarchy")
-
-Although WAKEUP_PREEMPTION is mainly there for debug purpose to provide
-a way to check whether a performance degrade of certain workload is due
-to overscheduling or not, it is still kind of weird that we treat sched-
-idle cpus as idle but don't let the non-idle tasks preempt the sched-idle
-cpus in debug mode (!WAKEUP_PREEMPTION).
-
-Fix it by strictly following the aforementioned rules.
-
-Fixes: faa42d29419d ("sched/fair: Make SCHED_IDLE entity be preempted in strict hierarchy")
-Signed-off-by: Abel Wu <wuyun.abel@xxxxxxxxxx>
-Acked-by: Vincent Guittot <vincent.guittot@xxxxxxxxxx>
-Tested-by: K Prateek Nayak <kprateek.nayak@xxxxxxxxxx>
----
- kernel/sched/fair.c | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
-
-diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
-index aaa9822e9562..a7eeb72d57aa 100644
---- a/kernel/sched/fair.c
-+++ b/kernel/sched/fair.c
-@@ -8945,9 +8945,6 @@ static void check_preempt_wakeup_fair(struct rq *rq, struct task_struct *p, int
- 	if (test_tsk_need_resched(curr))
- 		return;
+2.42.0
  
--	if (!sched_feat(WAKEUP_PREEMPTION))
--		return;
--
- 	find_matching_se(&se, &pse);
- 	WARN_ON_ONCE(!pse);
+staging: bcm2835-camera: Initialise dev in v4l2_dev
+https://lore.kernel.org/all/20250414-staging-bcm2835-v4l2-fix-v1-1-2b2db9a8f293@raspberrypi.com/
+
+diff --git a/drivers/staging/vc04_services/bcm2835-camera/bcm2835-camera.c b/drivers/staging/vc04_services/bcm2835-camera/bcm2835-camera.c
+index b839b50ac26a..fa7ea4ca4c36 100644
+--- a/drivers/staging/vc04_services/bcm2835-camera/bcm2835-camera.c
++++ b/drivers/staging/vc04_services/bcm2835-camera/bcm2835-camera.c
+@@ -1902,6 +1902,7 @@ static int bcm2835_mmal_probe(struct vchiq_device *device)
+ 				__func__, ret);
+ 			goto free_dev;
+ 		}
++		dev->v4l2_dev.dev = &device->dev;
  
-@@ -8966,6 +8963,9 @@ static void check_preempt_wakeup_fair(struct rq *rq, struct task_struct *p, int
- 		goto preempt;
- 	}
- 
-+	if (!sched_feat(WAKEUP_PREEMPTION))
-+		return;
-+
- 	/*
- 	 * IDLE entities do not preempt others.
- 	 */
+ 		/* setup v4l controls */
+ 		ret = bcm2835_mmal_init_controls(dev, &dev->ctrl_handler);
+
 -- 
-2.37.3
+2.43.0
 
 sched/isolation: Make CONFIG_CPU_ISOLATION depend on CONFIG_SMP
 https://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git/commit/?h=sched/urgent&id=975776841e689dd8ba36df9fa72ac3eca3c2957a
@@ -1750,139 +1614,6 @@ index 681f38ee68db23..ab9b0c2c3d524e 100644
  	  Make sure that CPUs running critical tasks are not disturbed by
 -- 
 cgit 1.2.3-korg
-
-CVE-2025-22126: md: fix mddev uaf while iterating all_mddevs list
-https://lore.kernel.org/all/2025041629-CVE-2025-22126-50e3@gregkh/
-
-Subject: [PATCH] md: fix mddev uaf while iterating all_mddevs list
-
-[ Upstream commit 8542870237c3a48ff049b6c5df5f50c8728284fa ]
-
-While iterating all_mddevs list from md_notify_reboot() and md_exit(),
-list_for_each_entry_safe is used, and this can race with deletint the
-next mddev, causing UAF:
-
-t1:
-spin_lock
-//list_for_each_entry_safe(mddev, n, ...)
- mddev_get(mddev1)
- // assume mddev2 is the next entry
- spin_unlock
-            t2:
-            //remove mddev2
-            ...
-            mddev_free
-            spin_lock
-            list_del
-            spin_unlock
-            kfree(mddev2)
- mddev_put(mddev1)
- spin_lock
- //continue dereference mddev2->all_mddevs
-
-The old helper for_each_mddev() actually grab the reference of mddev2
-while holding the lock, to prevent from being freed. This problem can be
-fixed the same way, however, the code will be complex.
-
-Hence switch to use list_for_each_entry, in this case mddev_put() can free
-the mddev1 and it's not safe as well. Refer to md_seq_show(), also factor
-out a helper mddev_put_locked() to fix this problem.
-
-Cc: Christoph Hellwig <hch@xxxxxxxxxx>
-Link: https://lore.kernel.org/linux-raid/20250220124348.845222-1-yukuai1@huaweicloud.com
-Fixes: f26514342255 ("md: stop using for_each_mddev in md_notify_reboot")
-Fixes: 16648bac862f ("md: stop using for_each_mddev in md_exit")
-Reported-and-tested-by: Guillaume Morin <guillaume@xxxxxxxxxx>
-Closes: https://lore.kernel.org/all/Z7Y0SURoA8xwg7vn@bender.morinfr.org/
-Signed-off-by: Yu Kuai <yukuai3@xxxxxxxxxx>
-Reviewed-by: Christoph Hellwig <hch@xxxxxxxxxx>
-Signed-off-by: Sasha Levin <sashal@xxxxxxxxxx>
----
- drivers/md/md.c | 22 +++++++++++++---------
- 1 file changed, 13 insertions(+), 9 deletions(-)
-
-diff --git a/drivers/md/md.c b/drivers/md/md.c
-index 827646b3eb5946..f501bc5f68f1a3 100644
---- a/drivers/md/md.c
-+++ b/drivers/md/md.c
-@@ -629,6 +629,12 @@ static void __mddev_put(struct mddev *mddev)
- 	queue_work(md_misc_wq, &mddev->del_work);
- }
- 
-+static void mddev_put_locked(struct mddev *mddev)
-+{
-+	if (atomic_dec_and_test(&mddev->active))
-+		__mddev_put(mddev);
-+}
-+
- void mddev_put(struct mddev *mddev)
- {
- 	if (!atomic_dec_and_lock(&mddev->active, &all_mddevs_lock))
-@@ -8461,9 +8467,7 @@ static int md_seq_show(struct seq_file *seq, void *v)
- 	if (mddev == list_last_entry(&all_mddevs, struct mddev, all_mddevs))
- 		status_unused(seq);
- 
--	if (atomic_dec_and_test(&mddev->active))
--		__mddev_put(mddev);
--
-+	mddev_put_locked(mddev);
- 	return 0;
- }
- 
-@@ -9886,11 +9890,11 @@ EXPORT_SYMBOL_GPL(rdev_clear_badblocks);
- static int md_notify_reboot(struct notifier_block *this,
- 			    unsigned long code, void *x)
- {
--	struct mddev *mddev, *n;
-+	struct mddev *mddev;
- 	int need_delay = 0;
- 
- 	spin_lock(&all_mddevs_lock);
--	list_for_each_entry_safe(mddev, n, &all_mddevs, all_mddevs) {
-+	list_for_each_entry(mddev, &all_mddevs, all_mddevs) {
- 		if (!mddev_get(mddev))
- 			continue;
- 		spin_unlock(&all_mddevs_lock);
-@@ -9902,8 +9906,8 @@ static int md_notify_reboot(struct notifier_block *this,
- 			mddev_unlock(mddev);
- 		}
- 		need_delay = 1;
--		mddev_put(mddev);
- 		spin_lock(&all_mddevs_lock);
-+		mddev_put_locked(mddev);
- 	}
- 	spin_unlock(&all_mddevs_lock);
- 
-@@ -10236,7 +10240,7 @@ void md_autostart_arrays(int part)
- 
- static __exit void md_exit(void)
- {
--	struct mddev *mddev, *n;
-+	struct mddev *mddev;
- 	int delay = 1;
- 
- 	unregister_blkdev(MD_MAJOR,"md");
-@@ -10257,7 +10261,7 @@ static __exit void md_exit(void)
- 	remove_proc_entry("mdstat", NULL);
- 
- 	spin_lock(&all_mddevs_lock);
--	list_for_each_entry_safe(mddev, n, &all_mddevs, all_mddevs) {
-+	list_for_each_entry(mddev, &all_mddevs, all_mddevs) {
- 		if (!mddev_get(mddev))
- 			continue;
- 		spin_unlock(&all_mddevs_lock);
-@@ -10269,8 +10273,8 @@ static __exit void md_exit(void)
- 		 * the mddev for destruction by a workqueue, and the
- 		 * destroy_workqueue() below will wait for that to complete.
- 		 */
--		mddev_put(mddev);
- 		spin_lock(&all_mddevs_lock);
-+		mddev_put_locked(mddev);
- 	}
- 	spin_unlock(&all_mddevs_lock);
- 
--- 
-2.42.0
 
 ext4: goto right label 'out_mmap_sem' in ext4_setattr()
 https://lore.kernel.org/all/2025041627-CVE-2025-22120-24ce@gregkh/
@@ -2392,697 +2123,4 @@ index e670ac282333..439f6029d3b9 100644
  #endif /* _LINUX_SCHED_IDLE_H */
 -- 
 2.47.1
-
-staging: bcm2835-camera: Initialise dev in v4l2_dev
-https://lore.kernel.org/all/20250414-staging-bcm2835-v4l2-fix-v1-1-2b2db9a8f293@raspberrypi.com/
-
-diff --git a/drivers/staging/vc04_services/bcm2835-camera/bcm2835-camera.c b/drivers/staging/vc04_services/bcm2835-camera/bcm2835-camera.c
-index b839b50ac26a..fa7ea4ca4c36 100644
---- a/drivers/staging/vc04_services/bcm2835-camera/bcm2835-camera.c
-+++ b/drivers/staging/vc04_services/bcm2835-camera/bcm2835-camera.c
-@@ -1902,6 +1902,7 @@ static int bcm2835_mmal_probe(struct vchiq_device *device)
- 				__func__, ret);
- 			goto free_dev;
- 		}
-+		dev->v4l2_dev.dev = &device->dev;
- 
- 		/* setup v4l controls */
- 		ret = bcm2835_mmal_init_controls(dev, &dev->ctrl_handler);
-
--- 
-2.43.0
-
-Preserve the request order in the block layer
-https://lore.kernel.org/all/20250418175401.1936152-1-bvanassche@acm.org/
-
-[PATCH 1/3] block: remove rq_list_move
-https://lore.kernel.org/all/20250418175401.1936152-2-bvanassche@acm.org/
-
-Upstream commit e8225ab15006fbcdb14cef426a0a54475292fbbc.
-
-Unused now.
-
-Signed-off-by: Christoph Hellwig <hch@xxxxxxxxxx>
-Link: https://lore.kernel.org/r/20241113152050.157179-4-hch@lst.de
-Signed-off-by: Jens Axboe <axboe@xxxxxxxxxx>
-Signed-off-by: Bart Van Assche <bvanassche@xxxxxxxxxx>
----
- include/linux/blk-mq.h | 17 -----------------
- 1 file changed, 17 deletions(-)
-
-diff --git a/include/linux/blk-mq.h b/include/linux/blk-mq.h
-index 7b5e5388c380..cd04e71ecb88 100644
---- a/include/linux/blk-mq.h
-+++ b/include/linux/blk-mq.h
-@@ -269,23 +269,6 @@ static inline unsigned short req_get_ioprio(struct request *req)
- #define rq_list_next(rq)	(rq)->rq_next
- #define rq_list_empty(list)	((list) == (struct request *) NULL)
- 
--/**
-- * rq_list_move() - move a struct request from one list to another
-- * @src: The source list @rq is currently in
-- * @dst: The destination list that @rq will be appended to
-- * @rq: The request to move
-- * @prev: The request preceding @rq in @src (NULL if @rq is the head)
-- */
--static inline void rq_list_move(struct request **src, struct request **dst,
--				struct request *rq, struct request *prev)
--{
--	if (prev)
--		prev->rq_next = rq->rq_next;
--	else
--		*src = rq->rq_next;
--	rq_list_add(dst, rq);
--}
--
- /**
-  * enum blk_eh_timer_return - How the timeout handler should proceed
-  * @BLK_EH_DONE: The block driver completed the command or will complete it at
--- 
-2.42.0
-
-[PATCH 2/3] block: add a rq_list type
-https://lore.kernel.org/all/20250418175401.1936152-3-bvanassche@acm.org/
-
-Upstream commit a3396b99990d8b4e5797e7b16fdeb64c15ae97bb.
-
-Replace the semi-open coded request list helpers with a proper rq_list
-type that mirrors the bio_list and has head and tail pointers.  Besides
-better type safety this actually allows to insert at the tail of the
-list, which will be useful soon.
-
-Signed-off-by: Christoph Hellwig <hch@xxxxxxxxxx>
-Link: https://lore.kernel.org/r/20241113152050.157179-5-hch@lst.de
-Signed-off-by: Jens Axboe <axboe@xxxxxxxxxx>
-Signed-off-by: Bart Van Assche <bvanassche@xxxxxxxxxx>
----
- block/blk-core.c              |  6 +--
- block/blk-merge.c             |  2 +-
- block/blk-mq.c                | 40 ++++++++--------
- block/blk-mq.h                |  2 +-
- drivers/block/null_blk/main.c |  9 ++--
- drivers/block/virtio_blk.c    | 13 +++---
- drivers/nvme/host/apple.c     |  2 +-
- drivers/nvme/host/pci.c       | 15 +++---
- include/linux/blk-mq.h        | 88 +++++++++++++++++++++--------------
- include/linux/blkdev.h        | 11 +++--
- io_uring/rw.c                 |  4 +-
- 11 files changed, 104 insertions(+), 88 deletions(-)
-
-diff --git a/block/blk-core.c b/block/blk-core.c
-index 42023addf9cd..c7b6c1f76359 100644
---- a/block/blk-core.c
-+++ b/block/blk-core.c
-@@ -1121,8 +1121,8 @@ void blk_start_plug_nr_ios(struct blk_plug *plug, unsigned short nr_ios)
- 		return;
- 
- 	plug->cur_ktime = 0;
--	plug->mq_list = NULL;
--	plug->cached_rq = NULL;
-+	rq_list_init(&plug->mq_list);
-+	rq_list_init(&plug->cached_rqs);
- 	plug->nr_ios = min_t(unsigned short, nr_ios, BLK_MAX_REQUEST_COUNT);
- 	plug->rq_count = 0;
- 	plug->multiple_queues = false;
-@@ -1218,7 +1218,7 @@ void __blk_flush_plug(struct blk_plug *plug, bool from_schedule)
- 	 * queue for cached requests, we don't want a blocked task holding
- 	 * up a queue freeze/quiesce event.
- 	 */
--	if (unlikely(!rq_list_empty(plug->cached_rq)))
-+	if (unlikely(!rq_list_empty(&plug->cached_rqs)))
- 		blk_mq_free_plug_rqs(plug);
- 
- 	plug->cur_ktime = 0;
-diff --git a/block/blk-merge.c b/block/blk-merge.c
-index 5baa950f34fe..ceac64e796ea 100644
---- a/block/blk-merge.c
-+++ b/block/blk-merge.c
-@@ -1175,7 +1175,7 @@ bool blk_attempt_plug_merge(struct request_queue *q, struct bio *bio,
- 	struct blk_plug *plug = current->plug;
- 	struct request *rq;
- 
--	if (!plug || rq_list_empty(plug->mq_list))
-+	if (!plug || rq_list_empty(&plug->mq_list))
- 		return false;
- 
- 	rq_list_for_each(&plug->mq_list, rq) {
-diff --git a/block/blk-mq.c b/block/blk-mq.c
-index 662e52ab0646..c7fb3722d620 100644
---- a/block/blk-mq.c
-+++ b/block/blk-mq.c
-@@ -506,7 +506,7 @@ __blk_mq_alloc_requests_batch(struct blk_mq_alloc_data *data)
- 		prefetch(tags->static_rqs[tag]);
- 		tag_mask &= ~(1UL << i);
- 		rq = blk_mq_rq_ctx_init(data, tags, tag);
--		rq_list_add(data->cached_rq, rq);
-+		rq_list_add_head(data->cached_rqs, rq);
- 		nr++;
- 	}
- 	if (!(data->rq_flags & RQF_SCHED_TAGS))
-@@ -515,7 +515,7 @@ __blk_mq_alloc_requests_batch(struct blk_mq_alloc_data *data)
- 	percpu_ref_get_many(&data->q->q_usage_counter, nr - 1);
- 	data->nr_tags -= nr;
- 
--	return rq_list_pop(data->cached_rq);
-+	return rq_list_pop(data->cached_rqs);
- }
- 
- static struct request *__blk_mq_alloc_requests(struct blk_mq_alloc_data *data)
-@@ -612,7 +612,7 @@ static struct request *blk_mq_rq_cache_fill(struct request_queue *q,
- 		.flags		= flags,
- 		.cmd_flags	= opf,
- 		.nr_tags	= plug->nr_ios,
--		.cached_rq	= &plug->cached_rq,
-+		.cached_rqs	= &plug->cached_rqs,
- 	};
- 	struct request *rq;
- 
-@@ -637,14 +637,14 @@ static struct request *blk_mq_alloc_cached_request(struct request_queue *q,
- 	if (!plug)
- 		return NULL;
- 
--	if (rq_list_empty(plug->cached_rq)) {
-+	if (rq_list_empty(&plug->cached_rqs)) {
- 		if (plug->nr_ios == 1)
- 			return NULL;
- 		rq = blk_mq_rq_cache_fill(q, plug, opf, flags);
- 		if (!rq)
- 			return NULL;
- 	} else {
--		rq = rq_list_peek(&plug->cached_rq);
-+		rq = rq_list_peek(&plug->cached_rqs);
- 		if (!rq || rq->q != q)
- 			return NULL;
- 
-@@ -653,7 +653,7 @@ static struct request *blk_mq_alloc_cached_request(struct request_queue *q,
- 		if (op_is_flush(rq->cmd_flags) != op_is_flush(opf))
- 			return NULL;
- 
--		plug->cached_rq = rq_list_next(rq);
-+		rq_list_pop(&plug->cached_rqs);
- 		blk_mq_rq_time_init(rq, 0);
- 	}
- 
-@@ -830,7 +830,7 @@ void blk_mq_free_plug_rqs(struct blk_plug *plug)
- {
- 	struct request *rq;
- 
--	while ((rq = rq_list_pop(&plug->cached_rq)) != NULL)
-+	while ((rq = rq_list_pop(&plug->cached_rqs)) != NULL)
- 		blk_mq_free_request(rq);
- }
- 
-@@ -1386,8 +1386,7 @@ static void blk_add_rq_to_plug(struct blk_plug *plug, struct request *rq)
- 	 */
- 	if (!plug->has_elevator && (rq->rq_flags & RQF_SCHED_TAGS))
- 		plug->has_elevator = true;
--	rq->rq_next = NULL;
--	rq_list_add(&plug->mq_list, rq);
-+	rq_list_add_head(&plug->mq_list, rq);
- 	plug->rq_count++;
- }
- 
-@@ -2781,7 +2780,7 @@ static void blk_mq_plug_issue_direct(struct blk_plug *plug)
- 	blk_status_t ret = BLK_STS_OK;
- 
- 	while ((rq = rq_list_pop(&plug->mq_list))) {
--		bool last = rq_list_empty(plug->mq_list);
-+		bool last = rq_list_empty(&plug->mq_list);
- 
- 		if (hctx != rq->mq_hctx) {
- 			if (hctx) {
-@@ -2824,8 +2823,7 @@ static void blk_mq_dispatch_plug_list(struct blk_plug *plug, bool from_sched)
- {
- 	struct blk_mq_hw_ctx *this_hctx = NULL;
- 	struct blk_mq_ctx *this_ctx = NULL;
--	struct request *requeue_list = NULL;
--	struct request **requeue_lastp = &requeue_list;
-+	struct rq_list requeue_list = {};
- 	unsigned int depth = 0;
- 	bool is_passthrough = false;
- 	LIST_HEAD(list);
-@@ -2839,12 +2837,12 @@ static void blk_mq_dispatch_plug_list(struct blk_plug *plug, bool from_sched)
- 			is_passthrough = blk_rq_is_passthrough(rq);
- 		} else if (this_hctx != rq->mq_hctx || this_ctx != rq->mq_ctx ||
- 			   is_passthrough != blk_rq_is_passthrough(rq)) {
--			rq_list_add_tail(&requeue_lastp, rq);
-+			rq_list_add_tail(&requeue_list, rq);
- 			continue;
- 		}
- 		list_add(&rq->queuelist, &list);
- 		depth++;
--	} while (!rq_list_empty(plug->mq_list));
-+	} while (!rq_list_empty(&plug->mq_list));
- 
- 	plug->mq_list = requeue_list;
- 	trace_block_unplug(this_hctx->queue, depth, !from_sched);
-@@ -2899,19 +2897,19 @@ void blk_mq_flush_plug_list(struct blk_plug *plug, bool from_schedule)
- 		if (q->mq_ops->queue_rqs) {
- 			blk_mq_run_dispatch_ops(q,
- 				__blk_mq_flush_plug_list(q, plug));
--			if (rq_list_empty(plug->mq_list))
-+			if (rq_list_empty(&plug->mq_list))
- 				return;
- 		}
- 
- 		blk_mq_run_dispatch_ops(q,
- 				blk_mq_plug_issue_direct(plug));
--		if (rq_list_empty(plug->mq_list))
-+		if (rq_list_empty(&plug->mq_list))
- 			return;
- 	}
- 
- 	do {
- 		blk_mq_dispatch_plug_list(plug, from_schedule);
--	} while (!rq_list_empty(plug->mq_list));
-+	} while (!rq_list_empty(&plug->mq_list));
- }
- 
- static void blk_mq_try_issue_list_directly(struct blk_mq_hw_ctx *hctx,
-@@ -2976,7 +2974,7 @@ static struct request *blk_mq_get_new_requests(struct request_queue *q,
- 	if (plug) {
- 		data.nr_tags = plug->nr_ios;
- 		plug->nr_ios = 1;
--		data.cached_rq = &plug->cached_rq;
-+		data.cached_rqs = &plug->cached_rqs;
- 	}
- 
- 	rq = __blk_mq_alloc_requests(&data);
-@@ -2999,7 +2997,7 @@ static struct request *blk_mq_peek_cached_request(struct blk_plug *plug,
- 
- 	if (!plug)
- 		return NULL;
--	rq = rq_list_peek(&plug->cached_rq);
-+	rq = rq_list_peek(&plug->cached_rqs);
- 	if (!rq || rq->q != q)
- 		return NULL;
- 	if (type != rq->mq_hctx->type &&
-@@ -3013,14 +3011,14 @@ static struct request *blk_mq_peek_cached_request(struct blk_plug *plug,
- static void blk_mq_use_cached_rq(struct request *rq, struct blk_plug *plug,
- 		struct bio *bio)
- {
--	WARN_ON_ONCE(rq_list_peek(&plug->cached_rq) != rq);
-+	if (rq_list_pop(&plug->cached_rqs) != rq)
-+		WARN_ON_ONCE(1);
- 
- 	/*
- 	 * If any qos ->throttle() end up blocking, we will have flushed the
- 	 * plug and hence killed the cached_rq list as well. Pop this entry
- 	 * before we throttle.
- 	 */
--	plug->cached_rq = rq_list_next(rq);
- 	rq_qos_throttle(rq->q, bio);
- 
- 	blk_mq_rq_time_init(rq, 0);
-diff --git a/block/blk-mq.h b/block/blk-mq.h
-index 364c0415293c..a80d3b3105f9 100644
---- a/block/blk-mq.h
-+++ b/block/blk-mq.h
-@@ -155,7 +155,7 @@ struct blk_mq_alloc_data {
- 
- 	/* allocate multiple requests/tags in one go */
- 	unsigned int nr_tags;
--	struct request **cached_rq;
-+	struct rq_list *cached_rqs;
- 
- 	/* input & output parameter */
- 	struct blk_mq_ctx *ctx;
-diff --git a/drivers/block/null_blk/main.c b/drivers/block/null_blk/main.c
-index c479348ce8ff..f10369ad90f7 100644
---- a/drivers/block/null_blk/main.c
-+++ b/drivers/block/null_blk/main.c
-@@ -1638,10 +1638,9 @@ static blk_status_t null_queue_rq(struct blk_mq_hw_ctx *hctx,
- 	return BLK_STS_OK;
- }
- 
--static void null_queue_rqs(struct request **rqlist)
-+static void null_queue_rqs(struct rq_list *rqlist)
- {
--	struct request *requeue_list = NULL;
--	struct request **requeue_lastp = &requeue_list;
-+	struct rq_list requeue_list = {};
- 	struct blk_mq_queue_data bd = { };
- 	blk_status_t ret;
- 
-@@ -1651,8 +1650,8 @@ static void null_queue_rqs(struct request **rqlist)
- 		bd.rq = rq;
- 		ret = null_queue_rq(rq->mq_hctx, &bd);
- 		if (ret != BLK_STS_OK)
--			rq_list_add_tail(&requeue_lastp, rq);
--	} while (!rq_list_empty(*rqlist));
-+			rq_list_add_tail(&requeue_list, rq);
-+	} while (!rq_list_empty(rqlist));
- 
- 	*rqlist = requeue_list;
- }
-diff --git a/drivers/block/virtio_blk.c b/drivers/block/virtio_blk.c
-index 44a6937a4b65..2069bf9701f5 100644
---- a/drivers/block/virtio_blk.c
-+++ b/drivers/block/virtio_blk.c
-@@ -472,7 +472,7 @@ static bool virtblk_prep_rq_batch(struct request *req)
- }
- 
- static void virtblk_add_req_batch(struct virtio_blk_vq *vq,
--					struct request **rqlist)
-+		struct rq_list *rqlist)
- {
- 	struct request *req;
- 	unsigned long flags;
-@@ -499,11 +499,10 @@ static void virtblk_add_req_batch(struct virtio_blk_vq *vq,
- 		virtqueue_notify(vq->vq);
- }
- 
--static void virtio_queue_rqs(struct request **rqlist)
-+static void virtio_queue_rqs(struct rq_list *rqlist)
- {
--	struct request *submit_list = NULL;
--	struct request *requeue_list = NULL;
--	struct request **requeue_lastp = &requeue_list;
-+	struct rq_list submit_list = { };
-+	struct rq_list requeue_list = { };
- 	struct virtio_blk_vq *vq = NULL;
- 	struct request *req;
- 
-@@ -515,9 +514,9 @@ static void virtio_queue_rqs(struct request **rqlist)
- 		vq = this_vq;
- 
- 		if (virtblk_prep_rq_batch(req))
--			rq_list_add(&submit_list, req); /* reverse order */
-+			rq_list_add_head(&submit_list, req); /* reverse order */
- 		else
--			rq_list_add_tail(&requeue_lastp, req);
-+			rq_list_add_tail(&requeue_list, req);
- 	}
- 
- 	if (vq)
-diff --git a/drivers/nvme/host/apple.c b/drivers/nvme/host/apple.c
-index e79a0adf1395..328f5a103628 100644
---- a/drivers/nvme/host/apple.c
-+++ b/drivers/nvme/host/apple.c
-@@ -650,7 +650,7 @@ static bool apple_nvme_handle_cq(struct apple_nvme_queue *q, bool force)
- 
- 	found = apple_nvme_poll_cq(q, &iob);
- 
--	if (!rq_list_empty(iob.req_list))
-+	if (!rq_list_empty(&iob.req_list))
- 		apple_nvme_complete_batch(&iob);
- 
- 	return found;
-diff --git a/drivers/nvme/host/pci.c b/drivers/nvme/host/pci.c
-index af45a1b865ee..e943c1be0fca 100644
---- a/drivers/nvme/host/pci.c
-+++ b/drivers/nvme/host/pci.c
-@@ -985,7 +985,7 @@ static blk_status_t nvme_queue_rq(struct blk_mq_hw_ctx *hctx,
- 	return BLK_STS_OK;
- }
- 
--static void nvme_submit_cmds(struct nvme_queue *nvmeq, struct request **rqlist)
-+static void nvme_submit_cmds(struct nvme_queue *nvmeq, struct rq_list *rqlist)
- {
- 	struct request *req;
- 
-@@ -1013,11 +1013,10 @@ static bool nvme_prep_rq_batch(struct nvme_queue *nvmeq, struct request *req)
- 	return nvme_prep_rq(nvmeq->dev, req) == BLK_STS_OK;
- }
- 
--static void nvme_queue_rqs(struct request **rqlist)
-+static void nvme_queue_rqs(struct rq_list *rqlist)
- {
--	struct request *submit_list = NULL;
--	struct request *requeue_list = NULL;
--	struct request **requeue_lastp = &requeue_list;
-+	struct rq_list submit_list = { };
-+	struct rq_list requeue_list = { };
- 	struct nvme_queue *nvmeq = NULL;
- 	struct request *req;
- 
-@@ -1027,9 +1026,9 @@ static void nvme_queue_rqs(struct request **rqlist)
- 		nvmeq = req->mq_hctx->driver_data;
- 
- 		if (nvme_prep_rq_batch(nvmeq, req))
--			rq_list_add(&submit_list, req); /* reverse order */
-+			rq_list_add_head(&submit_list, req); /* reverse order */
- 		else
--			rq_list_add_tail(&requeue_lastp, req);
-+			rq_list_add_tail(&requeue_list, req);
- 	}
- 
- 	if (nvmeq)
-@@ -1176,7 +1175,7 @@ static irqreturn_t nvme_irq(int irq, void *data)
- 	DEFINE_IO_COMP_BATCH(iob);
- 
- 	if (nvme_poll_cq(nvmeq, &iob)) {
--		if (!rq_list_empty(iob.req_list))
-+		if (!rq_list_empty(&iob.req_list))
- 			nvme_pci_complete_batch(&iob);
- 		return IRQ_HANDLED;
- 	}
-diff --git a/include/linux/blk-mq.h b/include/linux/blk-mq.h
-index cd04e71ecb88..b160d131204e 100644
---- a/include/linux/blk-mq.h
-+++ b/include/linux/blk-mq.h
-@@ -230,44 +230,60 @@ static inline unsigned short req_get_ioprio(struct request *req)
- #define rq_dma_dir(rq) \
- 	(op_is_write(req_op(rq)) ? DMA_TO_DEVICE : DMA_FROM_DEVICE)
- 
--#define rq_list_add(listptr, rq)	do {		\
--	(rq)->rq_next = *(listptr);			\
--	*(listptr) = rq;				\
--} while (0)
--
--#define rq_list_add_tail(lastpptr, rq)	do {		\
--	(rq)->rq_next = NULL;				\
--	**(lastpptr) = rq;				\
--	*(lastpptr) = &rq->rq_next;			\
--} while (0)
--
--#define rq_list_pop(listptr)				\
--({							\
--	struct request *__req = NULL;			\
--	if ((listptr) && *(listptr))	{		\
--		__req = *(listptr);			\
--		*(listptr) = __req->rq_next;		\
--	}						\
--	__req;						\
--})
-+static inline int rq_list_empty(const struct rq_list *rl)
-+{
-+	return rl->head == NULL;
-+}
- 
--#define rq_list_peek(listptr)				\
--({							\
--	struct request *__req = NULL;			\
--	if ((listptr) && *(listptr))			\
--		__req = *(listptr);			\
--	__req;						\
--})
-+static inline void rq_list_init(struct rq_list *rl)
-+{
-+	rl->head = NULL;
-+	rl->tail = NULL;
-+}
-+
-+static inline void rq_list_add_tail(struct rq_list *rl, struct request *rq)
-+{
-+	rq->rq_next = NULL;
-+	if (rl->tail)
-+		rl->tail->rq_next = rq;
-+	else
-+		rl->head = rq;
-+	rl->tail = rq;
-+}
-+
-+static inline void rq_list_add_head(struct rq_list *rl, struct request *rq)
-+{
-+	rq->rq_next = rl->head;
-+	rl->head = rq;
-+	if (!rl->tail)
-+		rl->tail = rq;
-+}
-+
-+static inline struct request *rq_list_pop(struct rq_list *rl)
-+{
-+	struct request *rq = rl->head;
-+
-+	if (rq) {
-+		rl->head = rl->head->rq_next;
-+		if (!rl->head)
-+			rl->tail = NULL;
-+		rq->rq_next = NULL;
-+	}
-+
-+	return rq;
-+}
- 
--#define rq_list_for_each(listptr, pos)			\
--	for (pos = rq_list_peek((listptr)); pos; pos = rq_list_next(pos))
-+static inline struct request *rq_list_peek(struct rq_list *rl)
-+{
-+	return rl->head;
-+}
- 
--#define rq_list_for_each_safe(listptr, pos, nxt)			\
--	for (pos = rq_list_peek((listptr)), nxt = rq_list_next(pos);	\
--		pos; pos = nxt, nxt = pos ? rq_list_next(pos) : NULL)
-+#define rq_list_for_each(rl, pos)					\
-+	for (pos = rq_list_peek((rl)); (pos); pos = pos->rq_next)
- 
--#define rq_list_next(rq)	(rq)->rq_next
--#define rq_list_empty(list)	((list) == (struct request *) NULL)
-+#define rq_list_for_each_safe(rl, pos, nxt)				\
-+	for (pos = rq_list_peek((rl)), nxt = pos->rq_next;		\
-+		pos; pos = nxt, nxt = pos ? pos->rq_next : NULL)
- 
- /**
-  * enum blk_eh_timer_return - How the timeout handler should proceed
-@@ -560,7 +576,7 @@ struct blk_mq_ops {
- 	 * empty the @rqlist completely, then the rest will be queued
- 	 * individually by the block layer upon return.
- 	 */
--	void (*queue_rqs)(struct request **rqlist);
-+	void (*queue_rqs)(struct rq_list *rqlist);
- 
- 	/**
- 	 * @get_budget: Reserve budget before queue request, once .queue_rq is
-@@ -893,7 +909,7 @@ static inline bool blk_mq_add_to_batch(struct request *req,
- 	else if (iob->complete != complete)
- 		return false;
- 	iob->need_ts |= blk_mq_need_time_stamp(req);
--	rq_list_add(&iob->req_list, req);
-+	rq_list_add_head(&iob->req_list, req);
- 	return true;
- }
- 
-diff --git a/include/linux/blkdev.h b/include/linux/blkdev.h
-index 8f37c5dd52b2..402a7d7fe98d 100644
---- a/include/linux/blkdev.h
-+++ b/include/linux/blkdev.h
-@@ -996,6 +996,11 @@ extern void blk_put_queue(struct request_queue *);
- 
- void blk_mark_disk_dead(struct gendisk *disk);
- 
-+struct rq_list {
-+	struct request *head;
-+	struct request *tail;
-+};
-+
- #ifdef CONFIG_BLOCK
- /*
-  * blk_plug permits building a queue of related requests by holding the I/O
-@@ -1009,10 +1014,10 @@ void blk_mark_disk_dead(struct gendisk *disk);
-  * blk_flush_plug() is called.
-  */
- struct blk_plug {
--	struct request *mq_list; /* blk-mq requests */
-+	struct rq_list mq_list; /* blk-mq requests */
- 
- 	/* if ios_left is > 1, we can batch tag/rq allocations */
--	struct request *cached_rq;
-+	struct rq_list cached_rqs;
- 	u64 cur_ktime;
- 	unsigned short nr_ios;
- 
-@@ -1661,7 +1666,7 @@ int bdev_thaw(struct block_device *bdev);
- void bdev_fput(struct file *bdev_file);
- 
- struct io_comp_batch {
--	struct request *req_list;
-+	struct rq_list req_list;
- 	bool need_ts;
- 	void (*complete)(struct io_comp_batch *);
- };
-diff --git a/io_uring/rw.c b/io_uring/rw.c
-index 6abc495602a4..a1ed64760eba 100644
---- a/io_uring/rw.c
-+++ b/io_uring/rw.c
-@@ -1190,12 +1190,12 @@ int io_do_iopoll(struct io_ring_ctx *ctx, bool force_nonspin)
- 			poll_flags |= BLK_POLL_ONESHOT;
- 
- 		/* iopoll may have completed current req */
--		if (!rq_list_empty(iob.req_list) ||
-+		if (!rq_list_empty(&iob.req_list) ||
- 		    READ_ONCE(req->iopoll_completed))
- 			break;
- 	}
- 
--	if (!rq_list_empty(iob.req_list))
-+	if (!rq_list_empty(&iob.req_list))
- 		iob.complete(&iob);
- 	else if (!pos)
- 		return 0;
--- 
-2.42.0
-
-[PATCH 3/3] block: don't reorder requests in blk_add_rq_to_plug
-https://lore.kernel.org/all/20250418175401.1936152-4-bvanassche@acm.org/
-
-Upstream commit e70c301faece15b618e54b613b1fd6ece3dd05b4.
-
-Add requests to the tail of the list instead of the front so that they
-are queued up in submission order.
-
-Remove the re-reordering in blk_mq_dispatch_plug_list, virtio_queue_rqs
-and nvme_queue_rqs now that the list is ordered as expected.
-
-Signed-off-by: Christoph Hellwig <hch@xxxxxxxxxx>
-Link: https://lore.kernel.org/r/20241113152050.157179-6-hch@lst.de
-Signed-off-by: Jens Axboe <axboe@xxxxxxxxxx>
-Signed-off-by: Bart Van Assche <bvanassche@xxxxxxxxxx>
----
- block/blk-mq.c             | 4 ++--
- drivers/block/virtio_blk.c | 2 +-
- drivers/nvme/host/pci.c    | 2 +-
- 3 files changed, 4 insertions(+), 4 deletions(-)
-
-diff --git a/block/blk-mq.c b/block/blk-mq.c
-index c7fb3722d620..f26bee562693 100644
---- a/block/blk-mq.c
-+++ b/block/blk-mq.c
-@@ -1386,7 +1386,7 @@ static void blk_add_rq_to_plug(struct blk_plug *plug, struct request *rq)
- 	 */
- 	if (!plug->has_elevator && (rq->rq_flags & RQF_SCHED_TAGS))
- 		plug->has_elevator = true;
--	rq_list_add_head(&plug->mq_list, rq);
-+	rq_list_add_tail(&plug->mq_list, rq);
- 	plug->rq_count++;
- }
- 
-@@ -2840,7 +2840,7 @@ static void blk_mq_dispatch_plug_list(struct blk_plug *plug, bool from_sched)
- 			rq_list_add_tail(&requeue_list, rq);
- 			continue;
- 		}
--		list_add(&rq->queuelist, &list);
-+		list_add_tail(&rq->queuelist, &list);
- 		depth++;
- 	} while (!rq_list_empty(&plug->mq_list));
- 
-diff --git a/drivers/block/virtio_blk.c b/drivers/block/virtio_blk.c
-index 2069bf9701f5..fd6c565f8a50 100644
---- a/drivers/block/virtio_blk.c
-+++ b/drivers/block/virtio_blk.c
-@@ -514,7 +514,7 @@ static void virtio_queue_rqs(struct rq_list *rqlist)
- 		vq = this_vq;
- 
- 		if (virtblk_prep_rq_batch(req))
--			rq_list_add_head(&submit_list, req); /* reverse order */
-+			rq_list_add_tail(&submit_list, req);
- 		else
- 			rq_list_add_tail(&requeue_list, req);
- 	}
-diff --git a/drivers/nvme/host/pci.c b/drivers/nvme/host/pci.c
-index e943c1be0fca..e70618e8d35e 100644
---- a/drivers/nvme/host/pci.c
-+++ b/drivers/nvme/host/pci.c
-@@ -1026,7 +1026,7 @@ static void nvme_queue_rqs(struct rq_list *rqlist)
- 		nvmeq = req->mq_hctx->driver_data;
- 
- 		if (nvme_prep_rq_batch(nvmeq, req))
--			rq_list_add_head(&submit_list, req); /* reverse order */
-+			rq_list_add_tail(&submit_list, req);
- 		else
- 			rq_list_add_tail(&requeue_list, req);
- 	}
--- 
-2.42.0
 

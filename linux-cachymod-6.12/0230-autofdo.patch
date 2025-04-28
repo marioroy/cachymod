@@ -417,7 +417,7 @@ diff --git a/Makefile b/Makefile
 index 233e9e88e402..bfe878ac442d 100644
 --- a/Makefile
 +++ b/Makefile
-@@ -1030,6 +1030,8 @@ include-$(CONFIG_KMSAN)		+= scripts/Makefile.kmsan
+@@ -1032,6 +1032,8 @@ include-$(CONFIG_KMSAN)		+= scripts/Makefile.kmsan
  include-$(CONFIG_UBSAN)		+= scripts/Makefile.ubsan
  include-$(CONFIG_KCOV)		+= scripts/Makefile.kcov
  include-$(CONFIG_RANDSTRUCT)	+= scripts/Makefile.randstruct
@@ -705,7 +705,7 @@ diff --git a/tools/objtool/check.c b/tools/objtool/check.c
 index f0d8796b984a..634a67dba86c 100644
 --- a/tools/objtool/check.c
 +++ b/tools/objtool/check.c
-@@ -4540,6 +4540,8 @@ static int validate_ibt(struct objtool_file *file)
+@@ -4541,6 +4541,8 @@ static int validate_ibt(struct objtool_file *file)
  		    !strcmp(sec->name, "__jump_table")			||
  		    !strcmp(sec->name, "__mcount_loc")			||
  		    !strcmp(sec->name, ".kcfi_traps")			||

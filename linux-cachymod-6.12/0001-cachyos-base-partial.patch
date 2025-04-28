@@ -409,7 +409,7 @@ diff --git a/Makefile b/Makefile
 index 26a471dbed62..4af318d2263d 100644
 --- a/Makefile
 +++ b/Makefile
-@@ -809,11 +809,19 @@ KBUILD_CFLAGS	+= -fno-delete-null-pointer-checks
+@@ -808,11 +808,19 @@ KBUILD_CFLAGS	+= -fno-delete-null-pointer-checks
  ifdef CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE
  KBUILD_CFLAGS += -O2
  KBUILD_RUSTFLAGS += -Copt-level=2
@@ -1298,7 +1298,7 @@ diff --git a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c b/drivers/gpu/drm
 index 85e58e0f6059..dd5f300cc186 100644
 --- a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c
 +++ b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c
-@@ -4565,7 +4565,7 @@ static int amdgpu_dm_mode_config_init(struct amdgpu_device *adev)
+@@ -4586,7 +4586,7 @@ static int amdgpu_dm_mode_config_init(struct amdgpu_device *adev)
  		return r;
  	}
  
@@ -1324,7 +1324,7 @@ diff --git a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm_crtc.c b/drivers/gp
 index 70fcfae8e4c5..9adf9f78a626 100644
 --- a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm_crtc.c
 +++ b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm_crtc.c
-@@ -473,7 +473,7 @@ static int amdgpu_dm_crtc_late_register(struct drm_crtc *crtc)
+@@ -475,7 +475,7 @@ static int amdgpu_dm_crtc_late_register(struct drm_crtc *crtc)
  }
  #endif
  
@@ -1333,7 +1333,7 @@ index 70fcfae8e4c5..9adf9f78a626 100644
  /**
   * dm_crtc_additional_color_mgmt - enable additional color properties
   * @crtc: DRM CRTC
-@@ -555,7 +555,7 @@ static const struct drm_crtc_funcs amdgpu_dm_crtc_funcs = {
+@@ -557,7 +557,7 @@ static const struct drm_crtc_funcs amdgpu_dm_crtc_funcs = {
  #if defined(CONFIG_DEBUG_FS)
  	.late_register = amdgpu_dm_crtc_late_register,
  #endif
@@ -1342,7 +1342,7 @@ index 70fcfae8e4c5..9adf9f78a626 100644
  	.atomic_set_property = amdgpu_dm_atomic_crtc_set_property,
  	.atomic_get_property = amdgpu_dm_atomic_crtc_get_property,
  #endif
-@@ -734,7 +734,7 @@ int amdgpu_dm_crtc_init(struct amdgpu_display_manager *dm,
+@@ -736,7 +736,7 @@ int amdgpu_dm_crtc_init(struct amdgpu_display_manager *dm,
  
  	drm_mode_crtc_set_gamma_size(&acrtc->base, MAX_COLOR_LEGACY_LUT_ENTRIES);
  
@@ -5817,7 +5817,7 @@ diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu_drv.c b/drivers/gpu/drm/amd/amdgp
 index 8983cbe6b056..16a6ac7620a3 100644
 --- a/drivers/gpu/drm/amd/amdgpu/amdgpu_drv.c
 +++ b/drivers/gpu/drm/amd/amdgpu/amdgpu_drv.c
-@@ -3087,6 +3087,11 @@ static int __init amdgpu_init(void)
+@@ -3091,6 +3091,11 @@ static int __init amdgpu_init(void)
  	/* Ignore KFD init failures. Normal when CONFIG_HSA_AMD is not set. */
  	amdgpu_amdkfd_init();
  
