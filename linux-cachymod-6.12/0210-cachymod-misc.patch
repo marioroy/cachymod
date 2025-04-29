@@ -1,3 +1,23 @@
+Revert Bluetooth: l2cap: Check encryption key size on incoming connection
+https://lore.kernel.org/linux-bluetooth/bug-220061-62941@https.bugzilla.kernel.org%2F/
+
+diff --git a/net/bluetooth/l2cap_core.c b/net/bluetooth/l2cap_core.c
+index 499e38ed639e60..c27ea70f71e1e1 100644
+--- a/net/bluetooth/l2cap_core.c
++++ b/net/bluetooth/l2cap_core.c
+@@ -3956,8 +3956,7 @@ static void l2cap_connect(struct l2cap_conn *conn, struct l2cap_cmd_hdr *cmd,
+ 
+ 	/* Check if the ACL is secure enough (if not SDP) */
+ 	if (psm != cpu_to_le16(L2CAP_PSM_SDP) &&
+-	    (!hci_conn_check_link_mode(conn->hcon) ||
+-	    !l2cap_check_enc_key_size(conn->hcon))) {
++	    !hci_conn_check_link_mode(conn->hcon)) {
+ 		conn->disc_reason = HCI_ERROR_AUTH_FAILURE;
+ 		result = L2CAP_CR_SEC_BLOCK;
+ 		goto response;
+-- 
+2.32.1
+
 Change to RCU, matching patch-6.13-rt5
 
 diff -uarp a/kernel/kprobes.c b/kernel/kprobes.c
@@ -233,6 +253,39 @@ diff -uar a/kernel/Kconfig.preempt b/kernel/Kconfig.preempt
  	  This option turns the kernel into a real-time kernel by replacing
 -- 
 2.30.1
+
+KVM: SVM: Disable AVIC on SNP-enabled system without HvInUseWrAllowed feature
+https://lore.kernel.org/all/2025042856-slug-neurosis-8bfa@gregkh/
+
+diff -uarp a/arch/x86/include/asm/cpufeatures.h b/arch/x86/include/asm/cpufeatures.h
+--- a/arch/x86/include/asm/cpufeatures.h
++++ b/arch/x86/include/asm/cpufeatures.h
+@@ -450,6 +450,7 @@
+ #define X86_FEATURE_SME_COHERENT	(19*32+10) /* AMD hardware-enforced cache coherency */
+ #define X86_FEATURE_DEBUG_SWAP		(19*32+14) /* "debug_swap" AMD SEV-ES full debug state swap support */
+ #define X86_FEATURE_SVSM		(19*32+28) /* "svsm" SVSM present */
++#define X86_FEATURE_HV_INUSE_WR_ALLOWED	(19*32+30) /* Allow Write to in-use hypervisor-owned pages */
+ 
+ /* AMD-defined Extended Feature 2 EAX, CPUID level 0x80000021 (EAX), word 20 */
+ #define X86_FEATURE_NO_NESTED_DATA_BP	(20*32+ 0) /* No Nested Data Breakpoints */
+diff -uarp a/arch/x86/kvm/svm/avic.c b/arch/x86/kvm/svm/avic.c
+--- a/arch/x86/kvm/svm/avic.c
++++ b/arch/x86/kvm/svm/avic.c
+@@ -1199,6 +1199,12 @@ bool avic_hardware_setup(void)
+ 		return false;
+ 	}
+ 
++	if (cc_platform_has(CC_ATTR_HOST_SEV_SNP) &&
++	    !boot_cpu_has(X86_FEATURE_HV_INUSE_WR_ALLOWED)) {
++		pr_warn("AVIC disabled: missing HvInUseWrAllowed on SNP-enabled system\n");
++		return false;
++	}
++
+ 	if (boot_cpu_has(X86_FEATURE_AVIC)) {
+ 		pr_info("AVIC enabled\n");
+ 	} else if (force_avic) {
+-- 
+2.40.2
 
 Switch to gnu17, a GCC bug-fix version of the C11 standard.
 
