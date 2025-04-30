@@ -18,6 +18,62 @@ index 499e38ed639e60..c27ea70f71e1e1 100644
 -- 
 2.32.1
 
+Bluetooth: MGMT: Fix MGMT_OP_ADD_DEVICE invalid device flags
+https://lore.kernel.org/all/20250429191319.2234877-1-luiz.dentz@gmail.com/
+
+diff --git a/net/bluetooth/mgmt.c b/net/bluetooth/mgmt.c
+index c1e1e529e26c..46b22708dfbd 100644
+--- a/net/bluetooth/mgmt.c
++++ b/net/bluetooth/mgmt.c
+@@ -7612,11 +7612,16 @@ static void add_device_complete(struct hci_dev *hdev, void *data, int err)
+ 	struct mgmt_cp_add_device *cp = cmd->param;
+ 
+ 	if (!err) {
++		struct hci_conn_params *params;
++
++		params = hci_conn_params_lookup(hdev, &cp->addr.bdaddr,
++						le_addr_type(cp->addr.type));
++
+ 		device_added(cmd->sk, hdev, &cp->addr.bdaddr, cp->addr.type,
+ 			     cp->action);
+ 		device_flags_changed(NULL, hdev, &cp->addr.bdaddr,
+ 				     cp->addr.type, hdev->conn_flags,
+-				     PTR_UINT(cmd->user_data));
++				     params ? params->flags : 0);
+ 	}
+ 
+ 	mgmt_cmd_complete(cmd->sk, hdev->id, MGMT_OP_ADD_DEVICE,
+@@ -7719,8 +7724,6 @@ static int add_device(struct sock *sk, struct hci_dev *hdev,
+ 		goto unlock;
+ 	}
+ 
+-	cmd->user_data = UINT_PTR(current_flags);
+-
+ 	err = hci_cmd_sync_queue(hdev, add_device_sync, cmd,
+ 				 add_device_complete);
+ 	if (err < 0) {
+-- 
+2.49.0
+
+binder: fix offset calculation in debug log
+https://lore.kernel.org/all/20250429225158.3920681-1-cmllamas@google.com/
+
+diff --git a/drivers/android/binder.c b/drivers/android/binder.c
+index ef353ca13c35..bdf09e8b898d 100644
+--- a/drivers/android/binder.c
++++ b/drivers/android/binder.c
+@@ -6374,7 +6374,7 @@ static void print_binder_transaction_ilocked(struct seq_file *m,
+ 		seq_printf(m, " node %d", buffer->target_node->debug_id);
+ 	seq_printf(m, " size %zd:%zd offset %lx\n",
+ 		   buffer->data_size, buffer->offsets_size,
+-		   proc->alloc.buffer - buffer->user_data);
++		   buffer->user_data - proc->alloc.buffer);
+ }
+ 
+ static void print_binder_work_ilocked(struct seq_file *m,
+-- 
+2.49.0.901.g37484f566f-goog
+
 Change to RCU, matching patch-6.13-rt5
 
 diff -uarp a/kernel/kprobes.c b/kernel/kprobes.c
