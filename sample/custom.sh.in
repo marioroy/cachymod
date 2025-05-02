@@ -55,6 +55,9 @@ set -e
 #scripts/config -d BTRFS_FS
 #scripts/config -d XFS_FS
 
+# Disable FPGA Configuration Framework
+#scripts/config -d FPGA
+
 # Disable laptop support
 #scripts/config -d ASUS_LAPTOP
 #scripts/config -d CHROMEOS_LAPTOP
@@ -144,6 +147,10 @@ set -e
 #scripts/config -d VIDEO_SAA7134
 #scripts/config -d VIDEO_STK1160
 
+# Disable GSPCA based webcams
+# https://github.com/torvalds/linux/blob/master/drivers/media/usb/gspca/Kconfig
+#scripts/config -d USB_GSPCA
+
 # Disable network drivers
 # https://github.com/torvalds/linux/blob/master/drivers/net/ethernet/
 #scripts/config -d NET_VENDOR_ADI
@@ -184,6 +191,21 @@ set -e
 #scripts/config -d NET_VENDOR_VERTEXCOM
 #scripts/config -d NET_VENDOR_WANGXUN
 
+# Disable Distributed Switch Architecture
+#scripts/config -d NET_DSA
+
+# Disable PPP (point-to-point protocol) support
+#scripts/config -d PPP
+
+# Disable SLIP (serial line) support
+#scripts/config -d SLIP
+
+# Disable USB network adapters
+#scripts/config -d USB_NET_DRIVERS
+
+# Disable Wan interfaces support
+#scripts/config -d WAN
+
 # Disable IPv6 over Low power Wireless Personal Area Network
 #scripts/config -d 6LOWPAN -d IEEE802154
 
@@ -218,10 +240,12 @@ set -e
 # Disable misc sound devices
 # https://github.com/torvalds/linux/blob/master/sound/pci/hda/Kconfig
 # https://github.com/torvalds/linux/blob/master/sound/soc/intel/Kconfig
+# https://github.com/torvalds/linux/blob/master/sound/soc/Kconfig
 #scripts/config -d SND_HDA_SCODEC_TAS2781_SPI
 #scripts/config -d SND_I2S_HI6210_I2S
 #scripts/config -d SND_SOC_CHV3_I2S
 #scripts/config -d SND_SOC_INTEL_CATPT
+#scripts/config -d SND_SOC
 
 # Disable PCI sound devices
 # https://github.com/torvalds/linux/blob/master/sound/pci/Kconfig
