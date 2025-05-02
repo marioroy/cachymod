@@ -2,23 +2,11 @@
 drm/amd/display: Default IPS to RCG_IN_ACTIVE_IPS2_IN_OFF
 https://lore.kernel.org/all/20250415145908.3790253-19-zaeem.mohamed@amd.com/
 
-drm/amd/display: Fix gpu reset in multidisplay config
-https://lore.kernel.org/all/20250415145908.3790253-7-zaeem.mohamed@amd.com/
-
 drm/amd/display: do not copy invalid CRTC timing info
 https://lore.kernel.org/all/20250415145908.3790253-23-zaeem.mohamed@amd.com/
 
-drm/amd/display: Force full update in gpu reset
-https://lore.kernel.org/all/20250415145908.3790253-8-zaeem.mohamed@amd.com/
-
-drm/amd/display: Enable urgent latency adjustment on DCN35
-https://lore.kernel.org/all/20250415145908.3790253-11-zaeem.mohamed@amd.com/
-
 iommu/amd: WARN if KVM attempts to set vCPU affinity without posted interrupts
 https://lore.kernel.org/all/20250404193923.1413163-7-seanjc@google.com/
-
-iommu/amd: Return an error if vCPU affinity is set for non-vCPU IRTE
-https://lore.kernel.org/all/20250404193923.1413163-6-seanjc@google.com/
 
 
 diff -uarp a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c
@@ -51,26 +39,6 @@ diff -uarp a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c b/drivers/gpu/drm
  	case IP_VERSION(3, 5, 1):
  		ret =  DMUB_IPS_RCG_IN_ACTIVE_IPS2_IN_OFF;
  		break;
-@@ -3216,16 +3196,16 @@ static void dm_gpureset_commit_state(str
- 	for (k = 0; k < dc_state->stream_count; k++) {
- 		bundle->stream_update.stream = dc_state->streams[k];
- 
--		for (m = 0; m < dc_state->stream_status->plane_count; m++) {
-+		for (m = 0; m < dc_state->stream_status[k].plane_count; m++) {
- 			bundle->surface_updates[m].surface =
--				dc_state->stream_status->plane_states[m];
-+				dc_state->stream_status[k].plane_states[m];
- 			bundle->surface_updates[m].surface->force_full_update =
- 				true;
- 		}
- 
- 		update_planes_and_stream_adapter(dm->dc,
- 					 UPDATE_TYPE_FULL,
--					 dc_state->stream_status->plane_count,
-+					 dc_state->stream_status[k].plane_count,
- 					 dc_state->streams[k],
- 					 &bundle->stream_update,
- 					 bundle->surface_updates);
 @@ -6321,12 +6301,12 @@ decide_crtc_timing_for_drm_display_mode(
  					const struct drm_display_mode *native_mode,
  					bool scale_enabled)
@@ -90,31 +58,6 @@ diff -uarp a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c b/drivers/gpu/drm
  	} else {
  		/* no scaling nor amdgpu inserted, no need to patch */
  	}
-@@ -10775,6 +10755,9 @@ static bool should_reset_plane(struct dr
- 	    state->allow_modeset)
- 		return true;
- 
-+	if (amdgpu_in_reset(adev) && state->allow_modeset)
-+		return true;
-+
- 	/* Exit early if we know that we're adding or removing the plane. */
- 	if (old_plane_state->crtc != new_plane_state->crtc)
- 		return true;
-diff -uarp a/drivers/gpu/drm/amd/display/dc/dml/dcn35/dcn35_fpu.c b/drivers/gpu/drm/amd/display/dc/dml/dcn35/dcn35_fpu.c
---- a/drivers/gpu/drm/amd/display/dc/dml/dcn35/dcn35_fpu.c
-+++ b/drivers/gpu/drm/amd/display/dc/dml/dcn35/dcn35_fpu.c
-@@ -195,9 +195,9 @@ struct _vcs_dpi_soc_bounding_box_st dcn3
- 	.dcn_downspread_percent = 0.5,
- 	.gpuvm_min_page_size_bytes = 4096,
- 	.hostvm_min_page_size_bytes = 4096,
--	.do_urgent_latency_adjustment = 0,
-+	.do_urgent_latency_adjustment = 1,
- 	.urgent_latency_adjustment_fabric_clock_component_us = 0,
--	.urgent_latency_adjustment_fabric_clock_reference_mhz = 0,
-+	.urgent_latency_adjustment_fabric_clock_reference_mhz = 3000,
- };
- 
- void dcn35_build_wm_range_table_fpu(struct clk_mgr *clk_mgr)
 diff -uarp a/drivers/iommu/amd/iommu.c b/drivers/iommu/amd/iommu.c
 --- a/drivers/iommu/amd/iommu.c
 +++ b/drivers/iommu/amd/iommu.c
@@ -128,13 +71,7 @@ diff -uarp a/drivers/iommu/amd/iommu.c b/drivers/iommu/amd/iommu.c
  	if (ir_data->iommu == NULL)
  		return -EINVAL;
  
-@@ -3660,21 +3663,11 @@ static int amd_ir_set_vcpu_affinity(stru
- 	 * we should not modify the IRTE
- 	 */
- 	if (!dev_data || !dev_data->use_vapic)
--		return 0;
-+		return -EINVAL;
- 
+@@ -3665,16 +3668,6 @@ static int amd_ir_set_vcpu_affinity(stru
  	ir_data->cfg = irqd_cfg(data);
  	pi_data->ir_data = ir_data;
  

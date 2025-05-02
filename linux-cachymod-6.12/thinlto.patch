@@ -92,7 +92,7 @@ index 907a4565f06a..d836b3eff742 100644
  endif
  
  ifdef CONFIG_LTO
-@@ -1191,8 +1193,34 @@ vmlinux.a: $(KBUILD_VMLINUX_OBJS) scripts/head-object-list.txt FORCE
+@@ -1187,8 +1189,34 @@ vmlinux.a: $(KBUILD_VMLINUX_OBJS) scripts/head-object-list.txt FORCE
  	$(call if_changed,ar_vmlinux.a)
  
  PHONY += vmlinux_o
@@ -127,7 +127,7 @@ index 907a4565f06a..d836b3eff742 100644
  
  vmlinux.o modules.builtin.modinfo modules.builtin: vmlinux_o
  	@:
-@@ -1537,7 +1565,8 @@ CLEAN_FILES += vmlinux.symvers modules-only.symvers \
+@@ -1533,7 +1561,8 @@ CLEAN_FILES += vmlinux.symvers modules-only.symvers \
  	       modules.builtin modules.builtin.modinfo modules.nsdeps \
  	       modules.builtin.ranges vmlinux.o.map \
  	       compile_commands.json rust/test \
@@ -137,7 +137,7 @@ index 907a4565f06a..d836b3eff742 100644
  
  # Directories & files removed with 'make mrproper'
  MRPROPER_FILES += include/config include/generated          \
-@@ -1999,6 +2028,8 @@ clean: $(clean-dirs)
+@@ -1995,6 +2024,8 @@ clean: $(clean-dirs)
  		-o -name '*.symtypes' -o -name 'modules.order' \
  		-o -name '*.c.[012]*.*' \
  		-o -name '*.ll' \

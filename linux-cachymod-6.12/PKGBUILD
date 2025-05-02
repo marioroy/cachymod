@@ -140,13 +140,13 @@ fi
 
 _pkgsuffix=cachymod-612
 _major=6.12
-_minor=25
+_minor=26
 pkgver=${_major}.${_minor}
 _stable=${_major}.${_minor}
 
 _srcname=linux-${_stable}
 pkgdesc='CachyMod Linux Kernel with other patches and improvements'
-pkgrel=3
+pkgrel=1
 _kernver="$pkgver-$pkgrel"
 _kernuname="${pkgver}-${_pkgsuffix}"
 arch=('x86_64')
@@ -163,7 +163,7 @@ source=(
     "trim.sh"
     "auto-cpu-optimization.sh"
     "mkinitcpio.template"
-    "0001-linux6.12.24-update.patch"
+    "0001-linux6.12.26-update.patch"
     "0001-rt.patch"
     "0001-rt-update.patch"
     "0001-cachyos-base-partial.patch"
@@ -183,7 +183,6 @@ else
 fi
 
 source+=(
-    "0002-drm-amdgpu-crash-fixes.patch"
     "0002-kconfig-add-800Hz.patch"
     "0100-mm-kconfig-enable-rt-thp.patch"
     "0200-clearlinux-extras.patch"
@@ -192,7 +191,6 @@ source+=(
     "0230-autofdo.patch"
     "0240-pipe-update.patch"
     "0250-amdgpu-update.patch"
-    "0260-xfs-backported-fixes.patch"
 )
 
 if [[ "$_prevent_avx2" =~ ^(yes|y|1)$ ]]; then
