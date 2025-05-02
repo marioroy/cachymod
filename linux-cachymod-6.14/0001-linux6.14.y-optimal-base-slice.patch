@@ -244,7 +244,7 @@ diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
  		vslice /= 2;
  
  	/*
-@@ -9009,16 +9043,24 @@ static void yield_task_fair(struct rq *r
+@@ -9007,16 +9041,24 @@ static void yield_task_fair(struct rq *r
  	/*
  	 * Are we the only task in the tree?
  	 */
