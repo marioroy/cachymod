@@ -1536,3 +1536,112 @@ index c4d4be4f6fbd..40f971a66d3e 100644
 -- 
 2.47.0
 
+MT7925: mDNS and IPv6 broken in kernel 6.14.3 and above
+https://lore.kernel.org/all/EmWnO5b-acRH1TXbGnkx41eJw654vmCR-8_xMBaPMwexCnfkvKCdlU5u19CGbaapJ3KRu-l3B-tSUhf8CCQwL0odjo6Cd5YG5lvNeB-vfdg=@pm.me/#t
+
+Revert [PATCH 6.14 286/449] wifi: mt76: mt7925: integrate *mlo_sta_cmd and *sta_cmd
+https://lore.kernel.org/all/20250417175129.591008584@linuxfoundation.org/
+
+diff -uarp a/drivers/net/wireless/mediatek/mt76/mt7925/mcu.c b/drivers/net/wireless/mediatek/mt76/mt7925/mcu.c
+--- a/drivers/net/wireless/mediatek/mt76/mt7925/mcu.c
++++ b/drivers/net/wireless/mediatek/mt76/mt7925/mcu.c
+@@ -1818,6 +1818,49 @@ mt7925_mcu_sta_mld_tlv(struct sk_buff *s
+ 	}
+ }
+ 
++static int
++mt7925_mcu_sta_cmd(struct mt76_phy *phy,
++		   struct mt76_sta_cmd_info *info)
++{
++	struct mt76_vif_link *mvif = (struct mt76_vif_link *)info->vif->drv_priv;
++	struct mt76_dev *dev = phy->dev;
++	struct sk_buff *skb;
++	int conn_state;
++
++	skb = __mt76_connac_mcu_alloc_sta_req(dev, mvif, info->wcid,
++					      MT7925_STA_UPDATE_MAX_SIZE);
++	if (IS_ERR(skb))
++		return PTR_ERR(skb);
++
++	conn_state = info->enable ? CONN_STATE_PORT_SECURE :
++				    CONN_STATE_DISCONNECT;
++	if (info->link_sta)
++		mt76_connac_mcu_sta_basic_tlv(dev, skb, info->link_conf,
++					      info->link_sta,
++					      conn_state, info->newly);
++	if (info->link_sta && info->enable) {
++		mt7925_mcu_sta_phy_tlv(skb, info->vif, info->link_sta);
++		mt7925_mcu_sta_ht_tlv(skb, info->link_sta);
++		mt7925_mcu_sta_vht_tlv(skb, info->link_sta);
++		mt76_connac_mcu_sta_uapsd(skb, info->vif, info->link_sta->sta);
++		mt7925_mcu_sta_amsdu_tlv(skb, info->vif, info->link_sta);
++		mt7925_mcu_sta_he_tlv(skb, info->link_sta);
++		mt7925_mcu_sta_he_6g_tlv(skb, info->link_sta);
++		mt7925_mcu_sta_eht_tlv(skb, info->link_sta);
++		mt7925_mcu_sta_rate_ctrl_tlv(skb, info->vif,
++					     info->link_sta);
++		mt7925_mcu_sta_state_v2_tlv(phy, skb, info->link_sta,
++					    info->vif, info->rcpi,
++					    info->state);
++		mt7925_mcu_sta_mld_tlv(skb, info->vif, info->link_sta->sta);
++	}
++
++	if (info->enable)
++		mt7925_mcu_sta_hdr_trans_tlv(skb, info->vif, info->link_sta);
++
++	return mt76_mcu_skb_send_msg(dev, skb, info->cmd, true);
++}
++
+ static void
+ mt7925_mcu_sta_remove_tlv(struct sk_buff *skb)
+ {
+@@ -1830,8 +1873,8 @@ mt7925_mcu_sta_remove_tlv(struct sk_buff
+ }
+ 
+ static int
+-mt7925_mcu_sta_cmd(struct mt76_phy *phy,
+-		   struct mt76_sta_cmd_info *info)
++mt7925_mcu_mlo_sta_cmd(struct mt76_phy *phy,
++		       struct mt76_sta_cmd_info *info)
+ {
+ 	struct mt792x_vif *mvif = (struct mt792x_vif *)info->vif->drv_priv;
+ 	struct mt76_dev *dev = phy->dev;
+@@ -1845,10 +1888,12 @@ mt7925_mcu_sta_cmd(struct mt76_phy *phy,
+ 	if (IS_ERR(skb))
+ 		return PTR_ERR(skb);
+ 
+-	if (info->enable && info->link_sta) {
++	if (info->enable)
+ 		mt76_connac_mcu_sta_basic_tlv(dev, skb, info->link_conf,
+ 					      info->link_sta,
+ 					      info->enable, info->newly);
++
++	if (info->enable && info->link_sta) {
+ 		mt7925_mcu_sta_phy_tlv(skb, info->vif, info->link_sta);
+ 		mt7925_mcu_sta_ht_tlv(skb, info->link_sta);
+ 		mt7925_mcu_sta_vht_tlv(skb, info->link_sta);
+@@ -1899,6 +1944,7 @@ int mt7925_mcu_sta_update(struct mt792x_
+ 	};
+ 	struct mt792x_sta *msta;
+ 	struct mt792x_link_sta *mlink;
++	int err;
+ 
+ 	if (link_sta) {
+ 		msta = (struct mt792x_sta *)link_sta->sta->drv_priv;
+@@ -1911,7 +1957,12 @@ int mt7925_mcu_sta_update(struct mt792x_
+ 	else
+ 		info.newly = state == MT76_STA_INFO_STATE_ASSOC ? false : true;
+ 
+-	return mt7925_mcu_sta_cmd(&dev->mphy, &info);
++	if (ieee80211_vif_is_mld(vif))
++		err = mt7925_mcu_mlo_sta_cmd(&dev->mphy, &info);
++	else
++		err = mt7925_mcu_sta_cmd(&dev->mphy, &info);
++
++	return err;
+ }
+ 
+ int mt7925_mcu_set_beacon_filter(struct mt792x_dev *dev,
+-- 
+2.40.2
+
