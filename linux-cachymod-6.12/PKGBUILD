@@ -140,13 +140,13 @@ fi
 
 _pkgsuffix=cachymod-612
 _major=6.12
-_minor=26
+_minor=27
 pkgver=${_major}.${_minor}
 _stable=${_major}.${_minor}
 
 _srcname=linux-${_stable}
 pkgdesc='CachyMod Linux Kernel with other patches and improvements'
-pkgrel=3
+pkgrel=1
 _kernver="$pkgver-$pkgrel"
 _kernuname="${pkgver}-${_pkgsuffix}"
 arch=('x86_64')
@@ -163,7 +163,7 @@ source=(
     "trim.sh"
     "auto-cpu-optimization.sh"
     "mkinitcpio.template"
-    "0001-linux6.12.26-update.patch"
+    "0001-linux6.12.27-update.patch"
     "0001-rt.patch"
     "0001-rt-update.patch"
     "0001-cachyos-base-partial.patch"
