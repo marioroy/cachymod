@@ -1,63 +1,8 @@
 
-drm/amd/display: Default IPS to RCG_IN_ACTIVE_IPS2_IN_OFF
-https://lore.kernel.org/all/20250415145908.3790253-19-zaeem.mohamed@amd.com/
-
-drm/amd/display: do not copy invalid CRTC timing info
-https://lore.kernel.org/all/20250415145908.3790253-23-zaeem.mohamed@amd.com/
-
 iommu/amd: WARN if KVM attempts to set vCPU affinity without posted interrupts
 https://lore.kernel.org/all/20250404193923.1413163-7-seanjc@google.com/
 
 
-diff -uarp a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c
---- a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c
-+++ b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c
-@@ -1914,26 +1914,6 @@ static enum dmub_ips_disable_type dm_get
- 
- 	switch (amdgpu_ip_version(adev, DCE_HWIP, 0)) {
- 	case IP_VERSION(3, 5, 0):
--		/*
--		 * On DCN35 systems with Z8 enabled, it's possible for IPS2 + Z8 to
--		 * cause a hard hang. A fix exists for newer PMFW.
--		 *
--		 * As a workaround, for non-fixed PMFW, force IPS1+RCG as the deepest
--		 * IPS state in all cases, except for s0ix and all displays off (DPMS),
--		 * where IPS2 is allowed.
--		 *
--		 * When checking pmfw version, use the major and minor only.
--		 */
--		if ((adev->pm.fw_version & 0x00FFFF00) < 0x005D6300)
--			ret = DMUB_IPS_RCG_IN_ACTIVE_IPS2_IN_OFF;
--		else if (amdgpu_ip_version(adev, GC_HWIP, 0) > IP_VERSION(11, 5, 0))
--			/*
--			 * Other ASICs with DCN35 that have residency issues with
--			 * IPS2 in idle.
--			 * We want them to use IPS2 only in display off cases.
--			 */
--			ret =  DMUB_IPS_RCG_IN_ACTIVE_IPS2_IN_OFF;
--		break;
- 	case IP_VERSION(3, 5, 1):
- 		ret =  DMUB_IPS_RCG_IN_ACTIVE_IPS2_IN_OFF;
- 		break;
-@@ -6454,12 +6434,12 @@ decide_crtc_timing_for_drm_display_mode(
- 					const struct drm_display_mode *native_mode,
- 					bool scale_enabled)
- {
--	if (scale_enabled) {
--		copy_crtc_timing_for_drm_display_mode(native_mode, drm_mode);
--	} else if (native_mode->clock == drm_mode->clock &&
--			native_mode->htotal == drm_mode->htotal &&
--			native_mode->vtotal == drm_mode->vtotal) {
--		copy_crtc_timing_for_drm_display_mode(native_mode, drm_mode);
-+	if (scale_enabled || (
-+	    native_mode->clock == drm_mode->clock &&
-+	    native_mode->htotal == drm_mode->htotal &&
-+	    native_mode->vtotal == drm_mode->vtotal)) {
-+		if (native_mode->crtc_clock)
-+			copy_crtc_timing_for_drm_display_mode(native_mode, drm_mode);
- 	} else {
- 		/* no scaling nor amdgpu inserted, no need to patch */
- 	}
 diff -uarp a/drivers/iommu/amd/iommu.c b/drivers/iommu/amd/iommu.c
 --- a/drivers/iommu/amd/iommu.c
 +++ b/drivers/iommu/amd/iommu.c

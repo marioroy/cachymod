@@ -1,0 +1,1032 @@
+
+Subject: sched/fair: Prefer full-idle SMT cores
+https://web.git.kernel.org/pub/scm/linux/kernel/git/arighi/linux.git/commit/?h=sched-smt-idle
+
+When selecting an idle CPU for a task, always try to prioritize
+full-idle SMT cores (CPUs belonging to an SMT core where all its sibling
+are idle) over partially-idle cores.
+
+Signed-off-by: Andrea Righi <arighi@xxxxxxxxxx>
+
+diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
+index 0fb9bf995a4795..e266862d85c6fc 100644
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -7596,9 +7596,14 @@ static inline int sched_balance_find_dst_cpu(struct sched_domain *sd, struct tas
+ 	return new_cpu;
+ }
+ 
++static inline bool is_idle_cpu(int cpu)
++{
++	return available_idle_cpu(cpu) || sched_idle_cpu(cpu);
++}
++
+ static inline int __select_idle_cpu(int cpu, struct task_struct *p)
+ {
+-	if ((available_idle_cpu(cpu) || sched_idle_cpu(cpu)) &&
++	if (is_idle_cpu(cpu) &&
+ 	    sched_cpu_cookie_match(cpu_rq(cpu), p))
+ 		return cpu;
+ 
+@@ -7609,6 +7614,24 @@ static inline int __select_idle_cpu(int cpu, struct task_struct *p)
+ DEFINE_STATIC_KEY_FALSE(sched_smt_present);
+ EXPORT_SYMBOL_GPL(sched_smt_present);
+ 
++/*
++ * Return true if all the CPUs in the SMT core where @cpu belongs are idle,
++ * false otherwise.
++ */
++static bool is_idle_core(int cpu)
++{
++	int sibling;
++
++	if (!sched_smt_active())
++		return is_idle_cpu(cpu);
++
++	for_each_cpu(sibling, cpu_smt_mask(cpu))
++		if (!is_idle_cpu(sibling))
++			return false;
++
++	return true;
++}
++
+ static inline void set_idle_cores(int cpu, int val)
+ {
+ 	struct sched_domain_shared *sds;
+@@ -7691,29 +7714,6 @@ static int select_idle_core(struct task_struct *p, int core, struct cpumask *cpu
+ 	return -1;
+ }
+ 
+-/*
+- * Scan the local SMT mask for idle CPUs.
+- */
+-static int select_idle_smt(struct task_struct *p, struct sched_domain *sd, int target)
+-{
+-	int cpu;
+-
+-	for_each_cpu_and(cpu, cpu_smt_mask(target), p->cpus_ptr) {
+-		if (cpu == target)
+-			continue;
+-		/*
+-		 * Check if the CPU is in the LLC scheduling domain of @target.
+-		 * Due to isolcpus, there is no guarantee that all the siblings are in the domain.
+-		 */
+-		if (!cpumask_test_cpu(cpu, sched_domain_span(sd)))
+-			continue;
+-		if (available_idle_cpu(cpu) || sched_idle_cpu(cpu))
+-			return cpu;
+-	}
+-
+-	return -1;
+-}
+-
+ #else /* CONFIG_SCHED_SMT */
+ 
+ static inline void set_idle_cores(int cpu, int val)
+@@ -7730,9 +7730,9 @@ static inline int select_idle_core(struct task_struct *p, int core, struct cpuma
+ 	return __select_idle_cpu(core, p);
+ }
+ 
+-static inline int select_idle_smt(struct task_struct *p, struct sched_domain *sd, int target)
++static inline bool is_idle_core(int cpu)
+ {
+-	return -1;
++	return is_idle_cpu(cpu);
+ }
+ 
+ #endif /* CONFIG_SCHED_SMT */
+@@ -7829,7 +7829,7 @@ select_idle_capacity(struct task_struct *p, struct sched_domain *sd, int target)
+ 	for_each_cpu_wrap(cpu, cpus, target) {
+ 		unsigned long cpu_cap = capacity_of(cpu);
+ 
+-		if (!available_idle_cpu(cpu) && !sched_idle_cpu(cpu))
++		if (!is_idle_cpu(cpu))
+ 			continue;
+ 
+ 		fits = util_fits_cpu(task_util, util_min, util_max, cpu);
+@@ -7900,7 +7900,7 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target)
+ 	 */
+ 	lockdep_assert_irqs_disabled();
+ 
+-	if ((available_idle_cpu(target) || sched_idle_cpu(target)) &&
++	if (is_idle_core(target) &&
+ 	    asym_fits_cpu(task_util, util_min, util_max, target))
+ 		return target;
+ 
+@@ -7908,7 +7908,7 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target)
+ 	 * If the previous CPU is cache affine and idle, don't be stupid:
+ 	 */
+ 	if (prev != target && cpus_share_cache(prev, target) &&
+-	    (available_idle_cpu(prev) || sched_idle_cpu(prev)) &&
++	    is_idle_core(prev) &&
+ 	    asym_fits_cpu(task_util, util_min, util_max, prev)) {
+ 
+ 		if (!static_branch_unlikely(&sched_cluster_active) ||
+@@ -7940,7 +7940,7 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target)
+ 	if (recent_used_cpu != prev &&
+ 	    recent_used_cpu != target &&
+ 	    cpus_share_cache(recent_used_cpu, target) &&
+-	    (available_idle_cpu(recent_used_cpu) || sched_idle_cpu(recent_used_cpu)) &&
++	    is_idle_core(recent_used_cpu) &&
+ 	    cpumask_test_cpu(recent_used_cpu, p->cpus_ptr) &&
+ 	    asym_fits_cpu(task_util, util_min, util_max, recent_used_cpu)) {
+ 
+@@ -7976,16 +7976,9 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target)
+ 	if (!sd)
+ 		return target;
+ 
+-	if (sched_smt_active()) {
++	if (sched_smt_active())
+ 		has_idle_core = test_idle_cores(target);
+ 
+-		if (!has_idle_core && cpus_share_cache(prev, target)) {
+-			i = select_idle_smt(p, sd, prev);
+-			if ((unsigned int)i < nr_cpumask_bits)
+-				return i;
+-		}
+-	}
+-
+ 	i = select_idle_cpu(p, sd, has_idle_core, target);
+ 	if ((unsigned)i < nr_cpumask_bits)
+ 		return i;
+-- 
+cgit 1.2.3-korg
+
+
+Subject: sched/uclamp: Use the uclamp_is_used() helper instead of open-coding it
+https://lore.kernel.org/all/174203142782.14745.3072195890652957741.tip-bot2@tip-bot2/
+
+Don't open-code static_branch_unlikely(&sched_uclamp_used), we have
+the uclamp_is_used() wrapper around it.
+
+Signed-off-by: Xuewen Yan <xuewen.yan@xxxxxxxxxx>
+Signed-off-by: Peter Zijlstra (Intel) <peterz@xxxxxxxxxx>
+Signed-off-by: Ingo Molnar <mingo@xxxxxxxxxx>
+Reviewed-by: Hongyan Xia <hongyan.xia2@xxxxxxxxxx>
+Reviewed-by: Christian Loehle <christian.loehle@xxxxxxxxxx>
+Reviewed-by: Vincent Guittot <vincent.guittot@xxxxxxxxxx>
+Link: https://lore.kernel.org/r/20250219093747.2612-1-xuewen.yan@unisoc.com
+---
+ kernel/sched/core.c  |  4 ++--
+ kernel/sched/sched.h | 28 ++++++++++++++--------------
+ 2 files changed, 16 insertions(+), 16 deletions(-)
+
+diff --git a/kernel/sched/core.c b/kernel/sched/core.c
+index 621cfc7..45daa41 100644
+--- a/kernel/sched/core.c
++++ b/kernel/sched/core.c
+@@ -1759,7 +1759,7 @@ static inline void uclamp_rq_inc(struct rq *rq, struct task_struct *p)
+ 	 * The condition is constructed such that a NOP is generated when
+ 	 * sched_uclamp_used is disabled.
+ 	 */
+-	if (!static_branch_unlikely(&sched_uclamp_used))
++	if (!uclamp_is_used())
+ 		return;
+ 
+ 	if (unlikely(!p->sched_class->uclamp_enabled))
+@@ -1786,7 +1786,7 @@ static inline void uclamp_rq_dec(struct rq *rq, struct task_struct *p)
+ 	 * The condition is constructed such that a NOP is generated when
+ 	 * sched_uclamp_used is disabled.
+ 	 */
+-	if (!static_branch_unlikely(&sched_uclamp_used))
++	if (!uclamp_is_used())
+ 		return;
+ 
+ 	if (unlikely(!p->sched_class->uclamp_enabled))
+@@ -1944,12 +1944,12 @@ static int sysctl_sched_uclamp_handler(const struct ctl_table *table, int write,
+ 	}
+ 
+ 	if (update_root_tg) {
+-		static_branch_enable(&sched_uclamp_used);
++		sched_uclamp_enable();
+ 		uclamp_update_root_tg();
+ 	}
+ 
+ 	if (old_min_rt != sysctl_sched_uclamp_util_min_rt_default) {
+-		static_branch_enable(&sched_uclamp_used);
++		sched_uclamp_enable();
+ 		uclamp_sync_util_min_rt_default();
+ 	}
+ 
+@@ -9339,7 +9339,7 @@ static ssize_t cpu_uclamp_write(struct kernfs_open_file *of, char *buf,
+ 	if (req.ret)
+ 		return req.ret;
+ 
+-	static_branch_enable(&sched_uclamp_used);
++	sched_uclamp_enable();
+ 
+ 	guard(mutex)(&uclamp_mutex);
+ 	guard(rcu)();
+diff --git a/kernel/sched/sched.h b/kernel/sched/sched.h
+index 023b844..8d42d3c 100644
+--- a/kernel/sched/sched.h
++++ b/kernel/sched/sched.h
+@@ -3403,6 +3403,31 @@ static inline bool update_other_load_avgs(struct rq *rq) { return false; }
+ 
+ unsigned long uclamp_eff_value(struct task_struct *p, enum uclamp_id clamp_id);
+ 
++/*
++ * When uclamp is compiled in, the aggregation at rq level is 'turned off'
++ * by default in the fast path and only gets turned on once userspace performs
++ * an operation that requires it.
++ *
++ * Returns true if userspace opted-in to use uclamp and aggregation at rq level
++ * hence is active.
++ */
++static inline bool uclamp_is_used(void)
++{
++	return static_branch_likely(&sched_uclamp_used);
++}
++
++/*
++ * Enabling static branches would get the cpus_read_lock(),
++ * check whether uclamp_is_used before enable it to avoid always
++ * calling cpus_read_lock(). Because we never disable this
++ * static key once enable it.
++ */
++static inline void sched_uclamp_enable(void)
++{
++	if (!uclamp_is_used())
++		static_branch_enable(&sched_uclamp_used);
++}
++
+ static inline unsigned long uclamp_rq_get(struct rq *rq,
+ 					  enum uclamp_id clamp_id)
+ {
+@@ -3426,7 +3439,7 @@ static inline bool uclamp_rq_is_capped(struct rq *rq)
+ 	unsigned long rq_util;
+ 	unsigned long max_util;
+ 
+-	if (!static_branch_likely(&sched_uclamp_used))
++	if (!uclamp_is_used())
+ 		return false;
+ 
+ 	rq_util = cpu_util_cfs(cpu_of(rq)) + cpu_util_rt(rq);
+@@ -3435,19 +3448,6 @@ static inline bool uclamp_rq_is_capped(struct rq *rq)
+ 	return max_util != SCHED_CAPACITY_SCALE && rq_util >= max_util;
+ }
+ 
+-/*
+- * When uclamp is compiled in, the aggregation at rq level is 'turned off'
+- * by default in the fast path and only gets turned on once userspace performs
+- * an operation that requires it.
+- *
+- * Returns true if userspace opted-in to use uclamp and aggregation at rq level
+- * hence is active.
+- */
+-static inline bool uclamp_is_used(void)
+-{
+-	return static_branch_likely(&sched_uclamp_used);
+-}
+-
+ #define for_each_clamp_id(clamp_id) \
+ 	for ((clamp_id) = 0; (clamp_id) < UCLAMP_CNT; (clamp_id)++)
+ 
+@@ -3495,6 +3507,8 @@ static inline bool uclamp_is_used(void)
+ 	return false;
+ }
+ 
++static inline void sched_uclamp_enable(void) {}
++
+ static inline unsigned long
+ uclamp_rq_get(struct rq *rq, enum uclamp_id clamp_id)
+ {
+diff -uarp a/kernel/sched/syscalls.c b/kernel/sched/syscalls.c
+--- a/kernel/sched/syscalls.c
++++ b/kernel/sched/syscalls.c
+@@ -368,7 +368,7 @@ static int uclamp_validate(struct task_struct *p,
+ 	 * blocking operation which obviously cannot be done while holding
+ 	 * scheduler locks.
+ 	 */
+-	static_branch_enable(&sched_uclamp_used);
++	sched_uclamp_enable();
+ 
+ 	return 0;
+ }
+-- 
+2.40.2
+
+
+Subject: rseq: Eliminate useless task_work on execve
+https://lore.kernel.org/all/174367959256.14745.905696151357329121.tip-bot2@tip-bot2/
+
+Eliminate a useless task_work on execve by moving the call to
+rseq_set_notify_resume() from sched_mm_cid_after_execve() to the error
+path of bprm_execve().
+
+The call to rseq_set_notify_resume() from sched_mm_cid_after_execve() is
+pointless in the success case, because rseq_execve() will clear the rseq
+pointer before returning to userspace.
+
+sched_mm_cid_after_execve() is called from both the success and error
+paths of bprm_execve(). The call to rseq_set_notify_resume() is needed
+on error because the mm_cid may have changed.
+
+Also move the rseq_execve() to right after sched_mm_cid_after_execve()
+in bprm_execve().
+
+Signed-off-by: Mathieu Desnoyers <mathieu.desnoyers@xxxxxxxxxx>
+Signed-off-by: Ingo Molnar <mingo@xxxxxxxxxx>
+Cc: Oleg Nesterov <oleg@xxxxxxxxxx>
+Cc: Linus Torvalds <torvalds@xxxxxxxxxx>
+---
+ fs/exec.c           | 3 ++-
+ kernel/sched/core.c | 1 -
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/fs/exec.c b/fs/exec.c
+index 5d1c0d2..8e4ea5f 100644
+--- a/fs/exec.c
++++ b/fs/exec.c
+@@ -1866,9 +1866,9 @@ static int bprm_execve(struct linux_binprm *bprm)
+ 		goto out;
+ 
+ 	sched_mm_cid_after_execve(current);
++	rseq_execve(current);
+ 	/* execve succeeded */
+ 	current->in_execve = 0;
+-	rseq_execve(current);
+ 	user_events_execve(current);
+ 	acct_update_integrals(current);
+ 	task_numa_free(current, false);
+@@ -1885,6 +1885,7 @@ out:
+ 		force_fatal_sig(SIGSEGV);
+ 
+ 	sched_mm_cid_after_execve(current);
++	rseq_set_notify_resume(current);
+ 	current->in_execve = 0;
+ 
+ 	return retval;
+diff --git a/kernel/sched/core.c b/kernel/sched/core.c
+index cfaca30..c81cf64 100644
+--- a/kernel/sched/core.c
++++ b/kernel/sched/core.c
+@@ -10711,7 +10711,6 @@ void sched_mm_cid_after_execve(struct task_struct *t)
+ 		smp_mb();
+ 		t->last_mm_cid = t->mm_cid = mm_cid_get(rq, t, mm);
+ 	}
+-	rseq_set_notify_resume(t);
+ }
+ 
+ void sched_mm_cid_fork(struct task_struct *t)
+-- 
+2.40.2
+
+
+reduce tasklist_lock hold time on exit and do some pid cleanup
+https://lore.kernel.org/all/20250206164415.450051-1-mjguzik@gmail.com/
+
+Subject: [PATCH v6 1/5] exit: perform add_device_randomness() without
+ tasklist_lock
+
+Parallel calls to add_device_randomness() contend on their own.
+
+The clone side aleady runs outside of tasklist_lock, which in turn means
+any caller on the exit side extends the tasklist_lock hold time while
+contending on the random-private lock.
+
+Reviewed-by: Oleg Nesterov <oleg@xxxxxxxxxx>
+Signed-off-by: Mateusz Guzik <mjguzik@xxxxxxxxxx>
+Acked-by: Liam R. Howlett <Liam.Howlett@xxxxxxxxxx>
+---
+ kernel/exit.c | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/kernel/exit.c b/kernel/exit.c
+index 3485e5fc499e..9d7acd7b0040 100644
+--- a/kernel/exit.c
++++ b/kernel/exit.c
+@@ -174,9 +174,6 @@ static void __exit_signal(struct task_struct *tsk)
+ 			sig->curr_target = next_thread(tsk);
+ 	}
+ 
+-	add_device_randomness((const void*) &tsk->se.sum_exec_runtime,
+-			      sizeof(unsigned long long));
+-
+ 	/*
+ 	 * Accumulate here the counters for all threads as they die. We could
+ 	 * skip the group leader because it is the last user of signal_struct,
+@@ -278,6 +275,8 @@ void release_task(struct task_struct *p)
+ 	write_unlock_irq(&tasklist_lock);
+ 	proc_flush_pid(thread_pid);
+ 	put_pid(thread_pid);
++	add_device_randomness(&p->se.sum_exec_runtime,
++			      sizeof(p->se.sum_exec_runtime));
+ 	release_thread(p);
+ 	put_task_struct_rcu_user(p);
+ 
+-- 
+2.43.0
+
+Subject: [PATCH v6 2/5] exit: hoist get_pid() in release_task() outside of
+ tasklist_lock
+
+Reduces hold time as get_pid() contains an atomic.
+
+Reviewed-by: Oleg Nesterov <oleg@xxxxxxxxxx>
+Signed-off-by: Mateusz Guzik <mjguzik@xxxxxxxxxx>
+Acked-by: Liam R. Howlett <Liam.Howlett@xxxxxxxxxx>
+---
+ kernel/exit.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/kernel/exit.c b/kernel/exit.c
+index 9d7acd7b0040..8c39c84582b7 100644
+--- a/kernel/exit.c
++++ b/kernel/exit.c
+@@ -248,9 +248,10 @@ void release_task(struct task_struct *p)
+ 
+ 	cgroup_release(p);
+ 
++	thread_pid = get_pid(p->thread_pid);
++
+ 	write_lock_irq(&tasklist_lock);
+ 	ptrace_release_task(p);
+-	thread_pid = get_pid(p->thread_pid);
+ 	__exit_signal(p);
+ 
+ 	/*
+-- 
+2.43.0
+
+Subject: [PATCH v6 3/5] pid: sprinkle tasklist_lock asserts
+
+They cost nothing on production kernels and document the requirement of
+holding the tasklist_lock lock in respective routines.
+
+Reviewed-by: Oleg Nesterov <oleg@xxxxxxxxxx>
+Signed-off-by: Mateusz Guzik <mjguzik@xxxxxxxxxx>
+Acked-by: Liam R. Howlett <Liam.Howlett@xxxxxxxxxx>
+---
+ kernel/pid.c | 15 ++++++++++++---
+ 1 file changed, 12 insertions(+), 3 deletions(-)
+
+diff --git a/kernel/pid.c b/kernel/pid.c
+index 924084713be8..2ae872f689a7 100644
+--- a/kernel/pid.c
++++ b/kernel/pid.c
+@@ -339,17 +339,23 @@ static struct pid **task_pid_ptr(struct task_struct *task, enum pid_type type)
+  */
+ void attach_pid(struct task_struct *task, enum pid_type type)
+ {
+-	struct pid *pid = *task_pid_ptr(task, type);
++	struct pid *pid;
++
++	lockdep_assert_held_write(&tasklist_lock);
++
++	pid = *task_pid_ptr(task, type);
+ 	hlist_add_head_rcu(&task->pid_links[type], &pid->tasks[type]);
+ }
+ 
+ static void __change_pid(struct task_struct *task, enum pid_type type,
+ 			struct pid *new)
+ {
+-	struct pid **pid_ptr = task_pid_ptr(task, type);
+-	struct pid *pid;
++	struct pid **pid_ptr, *pid;
+ 	int tmp;
+ 
++	lockdep_assert_held_write(&tasklist_lock);
++
++	pid_ptr = task_pid_ptr(task, type);
+ 	pid = *pid_ptr;
+ 
+ 	hlist_del_rcu(&task->pid_links[type]);
+@@ -386,6 +392,8 @@ void exchange_tids(struct task_struct *left, struct task_struct *right)
+ 	struct hlist_head *head1 = &pid1->tasks[PIDTYPE_PID];
+ 	struct hlist_head *head2 = &pid2->tasks[PIDTYPE_PID];
+ 
++	lockdep_assert_held_write(&tasklist_lock);
++
+ 	/* Swap the single entry tid lists */
+ 	hlists_swap_heads_rcu(head1, head2);
+ 
+@@ -403,6 +411,7 @@ void transfer_pid(struct task_struct *old, struct task_struct *new,
+ 			   enum pid_type type)
+ {
+ 	WARN_ON_ONCE(type == PIDTYPE_PID);
++	lockdep_assert_held_write(&tasklist_lock);
+ 	hlist_replace_rcu(&old->pid_links[type], &new->pid_links[type]);
+ }
+ 
+-- 
+2.43.0
+
+Subject: [PATCH v6 4/5] pid: perform free_pid() calls outside of
+ tasklist_lock
+
+As the clone side already executes pid allocation with only pidmap_lock
+held, issuing free_pid() while still holding tasklist_lock exacerbates
+total hold time of the latter.
+
+More things may show up later which require initial clean up with the
+lock held and allow finishing without it. For that reason a struct to
+collect such work is added instead of merely passing the pid array.
+
+Reviewed-by: Oleg Nesterov <oleg@xxxxxxxxxx>
+Signed-off-by: Mateusz Guzik <mjguzik@xxxxxxxxxx>
+Acked-by: Liam R. Howlett <Liam.Howlett@xxxxxxxxxx>
+---
+ include/linux/pid.h |  7 ++++---
+ kernel/exit.c       | 28 ++++++++++++++++++++--------
+ kernel/pid.c        | 44 ++++++++++++++++++++++----------------------
+ kernel/sys.c        | 14 +++++++++-----
+ 4 files changed, 55 insertions(+), 38 deletions(-)
+
+diff --git a/include/linux/pid.h b/include/linux/pid.h
+index 98837a1ff0f3..311ecebd7d56 100644
+--- a/include/linux/pid.h
++++ b/include/linux/pid.h
+@@ -101,9 +101,9 @@ extern struct pid *get_task_pid(struct task_struct *task, enum pid_type type);
+  * these helpers must be called with the tasklist_lock write-held.
+  */
+ extern void attach_pid(struct task_struct *task, enum pid_type);
+-extern void detach_pid(struct task_struct *task, enum pid_type);
+-extern void change_pid(struct task_struct *task, enum pid_type,
+-			struct pid *pid);
++void detach_pid(struct pid **pids, struct task_struct *task, enum pid_type);
++void change_pid(struct pid **pids, struct task_struct *task, enum pid_type,
++		struct pid *pid);
+ extern void exchange_tids(struct task_struct *task, struct task_struct *old);
+ extern void transfer_pid(struct task_struct *old, struct task_struct *new,
+ 			 enum pid_type);
+@@ -129,6 +129,7 @@ extern struct pid *find_ge_pid(int nr, struct pid_namespace *);
+ extern struct pid *alloc_pid(struct pid_namespace *ns, pid_t *set_tid,
+ 			     size_t set_tid_size);
+ extern void free_pid(struct pid *pid);
++void free_pids(struct pid **pids);
+ extern void disable_pid_allocation(struct pid_namespace *ns);
+ 
+ /*
+diff --git a/kernel/exit.c b/kernel/exit.c
+index 8c39c84582b7..0d6df671c8a8 100644
+--- a/kernel/exit.c
++++ b/kernel/exit.c
+@@ -122,14 +122,22 @@ static __init int kernel_exit_sysfs_init(void)
+ late_initcall(kernel_exit_sysfs_init);
+ #endif
+ 
+-static void __unhash_process(struct task_struct *p, bool group_dead)
++/*
++ * For things release_task() would like to do *after* tasklist_lock is released.
++ */
++struct release_task_post {
++	struct pid *pids[PIDTYPE_MAX];
++};
++
++static void __unhash_process(struct release_task_post *post, struct task_struct *p,
++			     bool group_dead)
+ {
+ 	nr_threads--;
+-	detach_pid(p, PIDTYPE_PID);
++	detach_pid(post->pids, p, PIDTYPE_PID);
+ 	if (group_dead) {
+-		detach_pid(p, PIDTYPE_TGID);
+-		detach_pid(p, PIDTYPE_PGID);
+-		detach_pid(p, PIDTYPE_SID);
++		detach_pid(post->pids, p, PIDTYPE_TGID);
++		detach_pid(post->pids, p, PIDTYPE_PGID);
++		detach_pid(post->pids, p, PIDTYPE_SID);
+ 
+ 		list_del_rcu(&p->tasks);
+ 		list_del_init(&p->sibling);
+@@ -141,7 +149,7 @@ static void __unhash_process(struct task_struct *p, bool group_dead)
+ /*
+  * This function expects the tasklist_lock write-locked.
+  */
+-static void __exit_signal(struct task_struct *tsk)
++static void __exit_signal(struct release_task_post *post, struct task_struct *tsk)
+ {
+ 	struct signal_struct *sig = tsk->signal;
+ 	bool group_dead = thread_group_leader(tsk);
+@@ -194,7 +202,7 @@ static void __exit_signal(struct task_struct *tsk)
+ 	task_io_accounting_add(&sig->ioac, &tsk->ioac);
+ 	sig->sum_sched_runtime += tsk->se.sum_exec_runtime;
+ 	sig->nr_threads--;
+-	__unhash_process(tsk, group_dead);
++	__unhash_process(post, tsk, group_dead);
+ 	write_sequnlock(&sig->stats_lock);
+ 
+ 	/*
+@@ -236,10 +244,13 @@ void __weak release_thread(struct task_struct *dead_task)
+ 
+ void release_task(struct task_struct *p)
+ {
++	struct release_task_post post;
+ 	struct task_struct *leader;
+ 	struct pid *thread_pid;
+ 	int zap_leader;
+ repeat:
++	memset(&post, 0, sizeof(post));
++
+ 	/* don't need to get the RCU readlock here - the process is dead and
+ 	 * can't be modifying its own credentials. But shut RCU-lockdep up */
+ 	rcu_read_lock();
+@@ -252,7 +263,7 @@ void release_task(struct task_struct *p)
+ 
+ 	write_lock_irq(&tasklist_lock);
+ 	ptrace_release_task(p);
+-	__exit_signal(p);
++	__exit_signal(&post, p);
+ 
+ 	/*
+ 	 * If we are the last non-leader member of the thread
+@@ -278,6 +289,7 @@ void release_task(struct task_struct *p)
+ 	put_pid(thread_pid);
+ 	add_device_randomness(&p->se.sum_exec_runtime,
+ 			      sizeof(p->se.sum_exec_runtime));
++	free_pids(post.pids);
+ 	release_thread(p);
+ 	put_task_struct_rcu_user(p);
+ 
+diff --git a/kernel/pid.c b/kernel/pid.c
+index 2ae872f689a7..73625f28c166 100644
+--- a/kernel/pid.c
++++ b/kernel/pid.c
+@@ -88,20 +88,6 @@ struct pid_namespace init_pid_ns = {
+ };
+ EXPORT_SYMBOL_GPL(init_pid_ns);
+ 
+-/*
+- * Note: disable interrupts while the pidmap_lock is held as an
+- * interrupt might come in and do read_lock(&tasklist_lock).
+- *
+- * If we don't disable interrupts there is a nasty deadlock between
+- * detach_pid()->free_pid() and another cpu that does
+- * spin_lock(&pidmap_lock) followed by an interrupt routine that does
+- * read_lock(&tasklist_lock);
+- *
+- * After we clean up the tasklist_lock and know there are no
+- * irq handlers that take it we can leave the interrupts enabled.
+- * For now it is easier to be safe than to prove it can't happen.
+- */
+-
+ static  __cacheline_aligned_in_smp DEFINE_SPINLOCK(pidmap_lock);
+ seqcount_spinlock_t pidmap_lock_seq = SEQCNT_SPINLOCK_ZERO(pidmap_lock_seq, &pidmap_lock);
+ 
+@@ -128,10 +114,11 @@ static void delayed_put_pid(struct rcu_head *rhp)
+ 
+ void free_pid(struct pid *pid)
+ {
+-	/* We can be called with write_lock_irq(&tasklist_lock) held */
+ 	int i;
+ 	unsigned long flags;
+ 
++	lockdep_assert_not_held(&tasklist_lock);
++
+ 	spin_lock_irqsave(&pidmap_lock, flags);
+ 	for (i = 0; i <= pid->level; i++) {
+ 		struct upid *upid = pid->numbers + i;
+@@ -160,6 +147,18 @@ void free_pid(struct pid *pid)
+ 	call_rcu(&pid->rcu, delayed_put_pid);
+ }
+ 
++void free_pids(struct pid **pids)
++{
++	int tmp;
++
++	/*
++	 * This can batch pidmap_lock.
++	 */
++	for (tmp = PIDTYPE_MAX; --tmp >= 0; )
++		if (pids[tmp])
++			free_pid(pids[tmp]);
++}
++
+ struct pid *alloc_pid(struct pid_namespace *ns, pid_t *set_tid,
+ 		      size_t set_tid_size)
+ {
+@@ -347,8 +346,8 @@ void attach_pid(struct task_struct *task, enum pid_type type)
+ 	hlist_add_head_rcu(&task->pid_links[type], &pid->tasks[type]);
+ }
+ 
+-static void __change_pid(struct task_struct *task, enum pid_type type,
+-			struct pid *new)
++static void __change_pid(struct pid **pids, struct task_struct *task,
++			 enum pid_type type, struct pid *new)
+ {
+ 	struct pid **pid_ptr, *pid;
+ 	int tmp;
+@@ -370,18 +369,19 @@ static void __change_pid(struct task_struct *task, enum pid_type type,
+ 		if (pid_has_task(pid, tmp))
+ 			return;
+ 
+-	free_pid(pid);
++	WARN_ON(pids[type]);
++	pids[type] = pid;
+ }
+ 
+-void detach_pid(struct task_struct *task, enum pid_type type)
++void detach_pid(struct pid **pids, struct task_struct *task, enum pid_type type)
+ {
+-	__change_pid(task, type, NULL);
++	__change_pid(pids, task, type, NULL);
+ }
+ 
+-void change_pid(struct task_struct *task, enum pid_type type,
++void change_pid(struct pid **pids, struct task_struct *task, enum pid_type type,
+ 		struct pid *pid)
+ {
+-	__change_pid(task, type, pid);
++	__change_pid(pids, task, type, pid);
+ 	attach_pid(task, type);
+ }
+ 
+diff --git a/kernel/sys.c b/kernel/sys.c
+index cb366ff8703a..4efca8a97d62 100644
+--- a/kernel/sys.c
++++ b/kernel/sys.c
+@@ -1085,6 +1085,7 @@ SYSCALL_DEFINE2(setpgid, pid_t, pid, pid_t, pgid)
+ {
+ 	struct task_struct *p;
+ 	struct task_struct *group_leader = current->group_leader;
++	struct pid *pids[PIDTYPE_MAX] = { 0 };
+ 	struct pid *pgrp;
+ 	int err;
+ 
+@@ -1142,13 +1143,14 @@ SYSCALL_DEFINE2(setpgid, pid_t, pid, pid_t, pgid)
+ 		goto out;
+ 
+ 	if (task_pgrp(p) != pgrp)
+-		change_pid(p, PIDTYPE_PGID, pgrp);
++		change_pid(pids, p, PIDTYPE_PGID, pgrp);
+ 
+ 	err = 0;
+ out:
+ 	/* All paths lead to here, thus we are safe. -DaveM */
+ 	write_unlock_irq(&tasklist_lock);
+ 	rcu_read_unlock();
++	free_pids(pids);
+ 	return err;
+ }
+ 
+@@ -1222,21 +1224,22 @@ SYSCALL_DEFINE1(getsid, pid_t, pid)
+ 	return retval;
+ }
+ 
+-static void set_special_pids(struct pid *pid)
++static void set_special_pids(struct pid **pids, struct pid *pid)
+ {
+ 	struct task_struct *curr = current->group_leader;
+ 
+ 	if (task_session(curr) != pid)
+-		change_pid(curr, PIDTYPE_SID, pid);
++		change_pid(pids, curr, PIDTYPE_SID, pid);
+ 
+ 	if (task_pgrp(curr) != pid)
+-		change_pid(curr, PIDTYPE_PGID, pid);
++		change_pid(pids, curr, PIDTYPE_PGID, pid);
+ }
+ 
+ int ksys_setsid(void)
+ {
+ 	struct task_struct *group_leader = current->group_leader;
+ 	struct pid *sid = task_pid(group_leader);
++	struct pid *pids[PIDTYPE_MAX] = { 0 };
+ 	pid_t session = pid_vnr(sid);
+ 	int err = -EPERM;
+ 
+@@ -1252,13 +1255,14 @@ int ksys_setsid(void)
+ 		goto out;
+ 
+ 	group_leader->signal->leader = 1;
+-	set_special_pids(sid);
++	set_special_pids(pids, sid);
+ 
+ 	proc_clear_tty(group_leader);
+ 
+ 	err = session;
+ out:
+ 	write_unlock_irq(&tasklist_lock);
++	free_pids(pids);
+ 	if (err > 0) {
+ 		proc_sid_connector(group_leader);
+ 		sched_autogroup_create_attach(group_leader);
+-- 
+2.43.0
+
+Subject: [PATCH v6 5/5] pid: drop irq disablement around pidmap_lock
+
+It no longer serves any purpose now that the tasklist_lock ->
+pidmap_lock ordering got eliminated.
+
+Reviewed-by: Oleg Nesterov <oleg@xxxxxxxxxx>
+Signed-off-by: Mateusz Guzik <mjguzik@xxxxxxxxxx>
+Acked-by: Liam R. Howlett <Liam.Howlett@xxxxxxxxxx>
+---
+ kernel/pid.c | 23 +++++++++++------------
+ 1 file changed, 11 insertions(+), 12 deletions(-)
+
+diff --git a/kernel/pid.c b/kernel/pid.c
+index 73625f28c166..900193de4232 100644
+--- a/kernel/pid.c
++++ b/kernel/pid.c
+@@ -115,11 +115,10 @@ static void delayed_put_pid(struct rcu_head *rhp)
+ void free_pid(struct pid *pid)
+ {
+ 	int i;
+-	unsigned long flags;
+ 
+ 	lockdep_assert_not_held(&tasklist_lock);
+ 
+-	spin_lock_irqsave(&pidmap_lock, flags);
++	spin_lock(&pidmap_lock);
+ 	for (i = 0; i <= pid->level; i++) {
+ 		struct upid *upid = pid->numbers + i;
+ 		struct pid_namespace *ns = upid->ns;
+@@ -142,7 +141,7 @@ void free_pid(struct pid *pid)
+ 		idr_remove(&ns->idr, upid->nr);
+ 	}
+ 	pidfs_remove_pid(pid);
+-	spin_unlock_irqrestore(&pidmap_lock, flags);
++	spin_unlock(&pidmap_lock);
+ 
+ 	call_rcu(&pid->rcu, delayed_put_pid);
+ }
+@@ -210,7 +209,7 @@ struct pid *alloc_pid(struct pid_namespace *ns, pid_t *set_tid,
+ 		}
+ 
+ 		idr_preload(GFP_KERNEL);
+-		spin_lock_irq(&pidmap_lock);
++		spin_lock(&pidmap_lock);
+ 
+ 		if (tid) {
+ 			nr = idr_alloc(&tmp->idr, NULL, tid,
+@@ -237,7 +236,7 @@ struct pid *alloc_pid(struct pid_namespace *ns, pid_t *set_tid,
+ 			nr = idr_alloc_cyclic(&tmp->idr, NULL, pid_min,
+ 					      pid_max, GFP_ATOMIC);
+ 		}
+-		spin_unlock_irq(&pidmap_lock);
++		spin_unlock(&pidmap_lock);
+ 		idr_preload_end();
+ 
+ 		if (nr < 0) {
+@@ -271,7 +270,7 @@ struct pid *alloc_pid(struct pid_namespace *ns, pid_t *set_tid,
+ 
+ 	upid = pid->numbers + ns->level;
+ 	idr_preload(GFP_KERNEL);
+-	spin_lock_irq(&pidmap_lock);
++	spin_lock(&pidmap_lock);
+ 	if (!(ns->pid_allocated & PIDNS_ADDING))
+ 		goto out_unlock;
+ 	pidfs_add_pid(pid);
+@@ -280,18 +279,18 @@ struct pid *alloc_pid(struct pid_namespace *ns, pid_t *set_tid,
+ 		idr_replace(&upid->ns->idr, pid, upid->nr);
+ 		upid->ns->pid_allocated++;
+ 	}
+-	spin_unlock_irq(&pidmap_lock);
++	spin_unlock(&pidmap_lock);
+ 	idr_preload_end();
+ 
+ 	return pid;
+ 
+ out_unlock:
+-	spin_unlock_irq(&pidmap_lock);
++	spin_unlock(&pidmap_lock);
+ 	idr_preload_end();
+ 	put_pid_ns(ns);
+ 
+ out_free:
+-	spin_lock_irq(&pidmap_lock);
++	spin_lock(&pidmap_lock);
+ 	while (++i <= ns->level) {
+ 		upid = pid->numbers + i;
+ 		idr_remove(&upid->ns->idr, upid->nr);
+@@ -301,7 +300,7 @@ struct pid *alloc_pid(struct pid_namespace *ns, pid_t *set_tid,
+ 	if (ns->pid_allocated == PIDNS_ADDING)
+ 		idr_set_cursor(&ns->idr, 0);
+ 
+-	spin_unlock_irq(&pidmap_lock);
++	spin_unlock(&pidmap_lock);
+ 
+ 	kmem_cache_free(ns->pid_cachep, pid);
+ 	return ERR_PTR(retval);
+@@ -309,9 +308,9 @@ struct pid *alloc_pid(struct pid_namespace *ns, pid_t *set_tid,
+ 
+ void disable_pid_allocation(struct pid_namespace *ns)
+ {
+-	spin_lock_irq(&pidmap_lock);
++	spin_lock(&pidmap_lock);
+ 	ns->pid_allocated &= ~PIDNS_ADDING;
+-	spin_unlock_irq(&pidmap_lock);
++	spin_unlock(&pidmap_lock);
+ }
+ 
+ struct pid *find_pid_ns(int nr, struct pid_namespace *ns)
+-- 
+2.43.0
+
+
+exit: change the release_task() paths to call flush_sigqueue() lockless
+https://lore.kernel.org/all/20250206152244.GA14609@redhat.com/
+
+Subject: [PATCH v2 1/2] exit: change the release_task() paths to call
+ flush_sigqueue() lockless
+
+A task can block a signal, accumulate up to RLIMIT_SIGPENDING sigqueues,
+and exit. In this case __exit_signal()->flush_sigqueue() called with irqs
+disabled can trigger a hard lockup, see
+https://lore.kernel.org/all/20190322114917.GC28876@redhat.com/
+
+Fortunately, after the recent posixtimer changes sys_timer_delete() paths
+no longer try to clear SIGQUEUE_PREALLOC and/or free tmr->sigq, and after
+the exiting task passes __exit_signal() lock_task_sighand() can't succeed
+and pid_task(tmr->it_pid) will return NULL.
+
+This means that after __exit_signal(tsk) nobody can play with tsk->pending
+or (if group_dead) with tsk->signal->shared_pending, so release_task() can
+safely call flush_sigqueue() after write_unlock_irq(&tasklist_lock).
+
+TODO:
+	- we can probably shift posix_cpu_timers_exit() as well
+	- do_sigaction() can hit the similar problem
+
+Signed-off-by: Oleg Nesterov <oleg@xxxxxxxxxx>
+Reviewed-by: Frederic Weisbecker <frederic@xxxxxxxxxx>
+---
+ kernel/exit.c | 19 +++++++++++--------
+ 1 file changed, 11 insertions(+), 8 deletions(-)
+
+diff --git a/kernel/exit.c b/kernel/exit.c
+index 3485e5fc499e..2d7444da743d 100644
+--- a/kernel/exit.c
++++ b/kernel/exit.c
+@@ -205,20 +205,13 @@ static void __exit_signal(struct task_struct *tsk)
+ 	__unhash_process(post, tsk, group_dead);
+ 	write_sequnlock(&sig->stats_lock);
+ 
+-	/*
+-	 * Do this under ->siglock, we can race with another thread
+-	 * doing sigqueue_free() if we have SIGQUEUE_PREALLOC signals.
+-	 */
+-	flush_sigqueue(&tsk->pending);
+ 	tsk->sighand = NULL;
+ 	spin_unlock(&sighand->siglock);
+ 
+ 	__cleanup_sighand(sighand);
+ 	clear_tsk_thread_flag(tsk, TIF_SIGPENDING);
+-	if (group_dead) {
+-		flush_sigqueue(&sig->shared_pending);
++	if (group_dead)
+ 		tty_kref_put(tty);
+-	}
+ }
+ 
+ static void delayed_put_task_struct(struct rcu_head *rhp)
+@@ -291,6 +284,16 @@ void release_task(struct task_struct *p)
+ 			      sizeof(p->se.sum_exec_runtime));
+ 	free_pids(post.pids);
+ 	release_thread(p);
++	/*
++	 * This task was already removed from the process/thread/pid lists
++	 * and lock_task_sighand(p) can't succeed. Nobody else can touch
++	 * ->pending or, if group dead, signal->shared_pending. We can call
++	 * flush_sigqueue() lockless.
++	 */
++	flush_sigqueue(&p->pending);
++	if (thread_group_leader(p))
++		flush_sigqueue(&p->signal->shared_pending);
++
+ 	put_task_struct_rcu_user(p);
+ 
+ 	p = leader;
+-- 
+2.25.1.362.g51ebf55
+
+Subject: [PATCH v2 2/2] exit: kill the pointless
+ __exit_signal()->clear_tsk_thread_flag(TIF_SIGPENDING)
+
+It predates the git history and most probably it was never needed. It
+doesn't really hurt, but it looks confusing because its purpose is not
+clear at all.
+
+release_task(p) is called when this task has already passed exit_notify()
+so signal_pending(p) == T shouldn't make any difference.
+
+And even _if_ there were a subtle reason to clear TIF_SIGPENDING after
+exit_notify(), this clear_tsk_thread_flag() can't help anyway.  If the
+exiting task is a group leader or if it is ptraced, release_task() will
+be likely called when this task has already done its last schedule() from
+do_task_dead().
+
+Signed-off-by: Oleg Nesterov <oleg@xxxxxxxxxx>
+Acked-by: Frederic Weisbecker <frederic@xxxxxxxxxx>
+---
+ kernel/exit.c | 1 -
+ 1 file changed, 1 deletion(-)
+
+diff --git a/kernel/exit.c b/kernel/exit.c
+index 2d7444da743d..0acb94b17caa 100644
+--- a/kernel/exit.c
++++ b/kernel/exit.c
+@@ -209,7 +209,6 @@ static void __exit_signal(struct task_struct *tsk)
+ 	spin_unlock(&sighand->siglock);
+ 
+ 	__cleanup_sighand(sighand);
+-	clear_tsk_thread_flag(tsk, TIF_SIGPENDING);
+ 	if (group_dead)
+ 		tty_kref_put(tty);
+ }
+-- 
+2.25.1.362.g51ebf55
+

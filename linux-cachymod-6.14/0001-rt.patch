@@ -1339,7 +1339,7 @@ diff --git a/include/linux/module.h b/include/linux/module.h
 index 30e5b19bafa98..0516f5ea9153b 100644
 --- a/include/linux/module.h
 +++ b/include/linux/module.h
-@@ -666,7 +666,7 @@ static inline bool within_module(unsigned long addr, const struct module *mod)
+@@ -668,7 +668,7 @@ static inline bool within_module(unsigned long addr, const struct module *mod)
  	return within_module_init(addr, mod) || within_module_core(addr, mod);
  }
  

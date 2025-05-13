@@ -467,7 +467,7 @@ index 464f13da259aa..cdd4fd9bb2d15 100644
  		   UFS_DEVICE_QUIRK_RECOVERY_FROM_DL_NAC_ERRORS },
  	{ .wmanufacturerid = UFS_VENDOR_SKHYNIX,
  	  .model = UFS_ANY_MODEL,
-@@ -8386,6 +8387,31 @@ static int ufshcd_quirk_tune_host_pa_tactivate(struct ufs_hba *hba)
+@@ -8384,6 +8385,31 @@ static int ufshcd_quirk_tune_host_pa_tactivate(struct ufs_hba *hba)
  	return ret;
  }
  
@@ -499,7 +499,7 @@ index 464f13da259aa..cdd4fd9bb2d15 100644
  static void ufshcd_tune_unipro_params(struct ufs_hba *hba)
  {
  	ufshcd_vops_apply_dev_quirks(hba);
-@@ -8396,6 +8422,9 @@ static void ufshcd_tune_unipro_params(struct ufs_hba *hba)
+@@ -8394,6 +8420,9 @@ static void ufshcd_tune_unipro_params(struct ufs_hba *hba)
  
  	if (hba->dev_quirks & UFS_DEVICE_QUIRK_HOST_PA_TACTIVATE)
  		ufshcd_quirk_tune_host_pa_tactivate(hba);
@@ -2126,7 +2126,7 @@ diff --git a/include/linux/blkdev.h b/include/linux/blkdev.h
 index d37751789bf58..ef98bcca7f5f7 100644
 --- a/include/linux/blkdev.h
 +++ b/include/linux/blkdev.h
-@@ -1593,6 +1593,7 @@ static inline void bio_end_io_acct(struct bio *bio, unsigned long start_time)
+@@ -1616,6 +1616,7 @@ static inline void bio_end_io_acct(struct bio *bio, unsigned long start_time)
  	return bio_end_io_acct_remapped(bio, start_time, bio->bi_bdev);
  }
  

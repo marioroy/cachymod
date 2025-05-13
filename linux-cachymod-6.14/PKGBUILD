@@ -140,7 +140,7 @@ fi
 
 _pkgsuffix=cachymod-614
 _major=6.14
-_minor=5
+_minor=6
 pkgver=${_major}.${_minor}
 _stable=${_major}.${_minor}
 #_stable=${_major}
@@ -152,7 +152,7 @@ _stable=${_major}.${_minor}
 
 _srcname=linux-${_stable}
 pkgdesc='CachyMod Linux Kernel with other patches and improvements'
-pkgrel=4
+pkgrel=1
 _kernver="$pkgver-$pkgrel"
 _kernuname="${pkgver}-${_pkgsuffix}"
 arch=('x86_64')
@@ -171,6 +171,7 @@ source=(
     "auto-cpu-optimization.sh"
     "mkinitcpio.template"
     "0001-linux6.14.5-update.patch"
+    "0001-linux6.14.6-update.patch"
     "0001-rt.patch"
     "0001-cachyos-base-all.patch"
     "0001-sched-fair-remove-cachy-mods.patch"
@@ -188,9 +189,10 @@ source+=(
     "0100-mm-kconfig-enable-rt-thp.patch"
     "0200-clearlinux-extras.patch"
     "0210-cachymod-misc.patch"
-    "0230-downgrade-wifi-rtw89.patch"
     "0240-pipe-update.patch"
     "0250-amdgpu-update.patch"
+    "0260-mm-page_alloc-update.patch"
+    "0270-sched-fair-update.patch"
 )
 
 if [[ "$_prevent_avx2" =~ ^(yes|y|1)$ ]]; then
@@ -645,6 +647,10 @@ _package-headers() {
 
     echo "Installing KConfig files..."
     find . -name 'Kconfig*' -exec install -Dm644 {} "$builddir/{}" \;
+
+    echo "Installing unstripped VDSO..."
+    make INSTALL_MOD_PATH="$pkgdir/usr" vdso_install \
+        link=  # Suppress build-id symlinks
 
     echo "Removing unneeded architectures..."
     local arch
