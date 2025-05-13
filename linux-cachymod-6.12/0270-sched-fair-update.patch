@@ -1,0 +1,374 @@
+
+Subject: sched/fair: Prefer full-idle SMT cores
+https://web.git.kernel.org/pub/scm/linux/kernel/git/arighi/linux.git/commit/?h=sched-smt-idle
+
+When selecting an idle CPU for a task, always try to prioritize
+full-idle SMT cores (CPUs belonging to an SMT core where all its sibling
+are idle) over partially-idle cores.
+
+Signed-off-by: Andrea Righi <arighi@xxxxxxxxxx>
+
+diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
+index 0fb9bf995a4795..e266862d85c6fc 100644
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -7698,9 +7698,14 @@ static inline int sched_balance_find_dst_cpu(struct sched_domain *sd, struct tas
+ 	return new_cpu;
+ }
+ 
++static inline bool is_idle_cpu(int cpu)
++{
++	return available_idle_cpu(cpu) || sched_idle_cpu(cpu);
++}
++
+ static inline int __select_idle_cpu(int cpu, struct task_struct *p)
+ {
+-	if ((available_idle_cpu(cpu) || sched_idle_cpu(cpu)) &&
++	if (is_idle_cpu(cpu) &&
+ 	    sched_cpu_cookie_match(cpu_rq(cpu), p))
+ 		return cpu;
+ 
+@@ -7711,6 +7716,24 @@ static inline int __select_idle_cpu(int cpu, struct task_struct *p)
+ DEFINE_STATIC_KEY_FALSE(sched_smt_present);
+ EXPORT_SYMBOL_GPL(sched_smt_present);
+ 
++/*
++ * Return true if all the CPUs in the SMT core where @cpu belongs are idle,
++ * false otherwise.
++ */
++static bool is_idle_core(int cpu)
++{
++	int sibling;
++
++	if (!sched_smt_active())
++		return is_idle_cpu(cpu);
++
++	for_each_cpu(sibling, cpu_smt_mask(cpu))
++		if (!is_idle_cpu(sibling))
++			return false;
++
++	return true;
++}
++
+ static inline void set_idle_cores(int cpu, int val)
+ {
+ 	struct sched_domain_shared *sds;
+@@ -7793,29 +7816,6 @@ static int select_idle_core(struct task_struct *p, int core, struct cpumask *cpu
+ 	return -1;
+ }
+ 
+-/*
+- * Scan the local SMT mask for idle CPUs.
+- */
+-static int select_idle_smt(struct task_struct *p, struct sched_domain *sd, int target)
+-{
+-	int cpu;
+-
+-	for_each_cpu_and(cpu, cpu_smt_mask(target), p->cpus_ptr) {
+-		if (cpu == target)
+-			continue;
+-		/*
+-		 * Check if the CPU is in the LLC scheduling domain of @target.
+-		 * Due to isolcpus, there is no guarantee that all the siblings are in the domain.
+-		 */
+-		if (!cpumask_test_cpu(cpu, sched_domain_span(sd)))
+-			continue;
+-		if (available_idle_cpu(cpu) || sched_idle_cpu(cpu))
+-			return cpu;
+-	}
+-
+-	return -1;
+-}
+-
+ #else /* CONFIG_SCHED_SMT */
+ 
+ static inline void set_idle_cores(int cpu, int val)
+@@ -7832,9 +7832,9 @@ static inline int select_idle_core(struct task_struct *p, int core, struct cpuma
+ 	return __select_idle_cpu(core, p);
+ }
+ 
+-static inline int select_idle_smt(struct task_struct *p, struct sched_domain *sd, int target)
++static inline bool is_idle_core(int cpu)
+ {
+-	return -1;
++	return is_idle_cpu(cpu);
+ }
+ 
+ #endif /* CONFIG_SCHED_SMT */
+@@ -7931,7 +7931,7 @@ select_idle_capacity(struct task_struct *p, struct sched_domain *sd, int target)
+ 	for_each_cpu_wrap(cpu, cpus, target) {
+ 		unsigned long cpu_cap = capacity_of(cpu);
+ 
+-		if (!available_idle_cpu(cpu) && !sched_idle_cpu(cpu))
++		if (!is_idle_cpu(cpu))
+ 			continue;
+ 
+ 		fits = util_fits_cpu(task_util, util_min, util_max, cpu);
+@@ -8002,7 +8002,7 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target)
+ 	 */
+ 	lockdep_assert_irqs_disabled();
+ 
+-	if ((available_idle_cpu(target) || sched_idle_cpu(target)) &&
++	if (is_idle_core(target) &&
+ 	    asym_fits_cpu(task_util, util_min, util_max, target))
+ 		return target;
+ 
+@@ -8010,7 +8010,7 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target)
+ 	 * If the previous CPU is cache affine and idle, don't be stupid:
+ 	 */
+ 	if (prev != target && cpus_share_cache(prev, target) &&
+-	    (available_idle_cpu(prev) || sched_idle_cpu(prev)) &&
++	    is_idle_core(prev) &&
+ 	    asym_fits_cpu(task_util, util_min, util_max, prev)) {
+ 
+ 		if (!static_branch_unlikely(&sched_cluster_active) ||
+@@ -8042,7 +8042,7 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target)
+ 	if (recent_used_cpu != prev &&
+ 	    recent_used_cpu != target &&
+ 	    cpus_share_cache(recent_used_cpu, target) &&
+-	    (available_idle_cpu(recent_used_cpu) || sched_idle_cpu(recent_used_cpu)) &&
++	    is_idle_core(recent_used_cpu) &&
+ 	    cpumask_test_cpu(recent_used_cpu, p->cpus_ptr) &&
+ 	    asym_fits_cpu(task_util, util_min, util_max, recent_used_cpu)) {
+ 
+@@ -8078,16 +8078,9 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target)
+ 	if (!sd)
+ 		return target;
+ 
+-	if (sched_smt_active()) {
++	if (sched_smt_active())
+ 		has_idle_core = test_idle_cores(target);
+ 
+-		if (!has_idle_core && cpus_share_cache(prev, target)) {
+-			i = select_idle_smt(p, sd, prev);
+-			if ((unsigned int)i < nr_cpumask_bits)
+-				return i;
+-		}
+-	}
+-
+ 	i = select_idle_cpu(p, sd, has_idle_core, target);
+ 	if ((unsigned)i < nr_cpumask_bits)
+ 		return i;
+-- 
+cgit 1.2.3-korg
+
+
+Subject: sched/uclamp: Use the uclamp_is_used() helper instead of open-coding it
+https://lore.kernel.org/all/174203142782.14745.3072195890652957741.tip-bot2@tip-bot2/
+
+Don't open-code static_branch_unlikely(&sched_uclamp_used), we have
+the uclamp_is_used() wrapper around it.
+
+Signed-off-by: Xuewen Yan <xuewen.yan@xxxxxxxxxx>
+Signed-off-by: Peter Zijlstra (Intel) <peterz@xxxxxxxxxx>
+Signed-off-by: Ingo Molnar <mingo@xxxxxxxxxx>
+Reviewed-by: Hongyan Xia <hongyan.xia2@xxxxxxxxxx>
+Reviewed-by: Christian Loehle <christian.loehle@xxxxxxxxxx>
+Reviewed-by: Vincent Guittot <vincent.guittot@xxxxxxxxxx>
+Link: https://lore.kernel.org/r/20250219093747.2612-1-xuewen.yan@unisoc.com
+---
+ kernel/sched/core.c  |  4 ++--
+ kernel/sched/sched.h | 28 ++++++++++++++--------------
+ 2 files changed, 16 insertions(+), 16 deletions(-)
+
+diff --git a/kernel/sched/core.c b/kernel/sched/core.c
+index 621cfc7..45daa41 100644
+--- a/kernel/sched/core.c
++++ b/kernel/sched/core.c
+@@ -1762,7 +1762,7 @@ static inline void uclamp_rq_inc(struct rq *rq, struct task_struct *p)
+ 	 * The condition is constructed such that a NOP is generated when
+ 	 * sched_uclamp_used is disabled.
+ 	 */
+-	if (!static_branch_unlikely(&sched_uclamp_used))
++	if (!uclamp_is_used())
+ 		return;
+ 
+ 	if (unlikely(!p->sched_class->uclamp_enabled))
+@@ -1789,7 +1789,7 @@ static inline void uclamp_rq_dec(struct rq *rq, struct task_struct *p)
+ 	 * The condition is constructed such that a NOP is generated when
+ 	 * sched_uclamp_used is disabled.
+ 	 */
+-	if (!static_branch_unlikely(&sched_uclamp_used))
++	if (!uclamp_is_used())
+ 		return;
+ 
+ 	if (unlikely(!p->sched_class->uclamp_enabled))
+@@ -1947,12 +1947,12 @@ static int sysctl_sched_uclamp_handler(const struct ctl_table *table, int write,
+ 	}
+ 
+ 	if (update_root_tg) {
+-		static_branch_enable(&sched_uclamp_used);
++		sched_uclamp_enable();
+ 		uclamp_update_root_tg();
+ 	}
+ 
+ 	if (old_min_rt != sysctl_sched_uclamp_util_min_rt_default) {
+-		static_branch_enable(&sched_uclamp_used);
++		sched_uclamp_enable();
+ 		uclamp_sync_util_min_rt_default();
+ 	}
+ 
+@@ -9344,7 +9344,7 @@ static ssize_t cpu_uclamp_write(struct kernfs_open_file *of, char *buf,
+ 	if (req.ret)
+ 		return req.ret;
+ 
+-	static_branch_enable(&sched_uclamp_used);
++	sched_uclamp_enable();
+ 
+ 	guard(mutex)(&uclamp_mutex);
+ 	guard(rcu)();
+diff --git a/kernel/sched/sched.h b/kernel/sched/sched.h
+index 023b844..8d42d3c 100644
+--- a/kernel/sched/sched.h
++++ b/kernel/sched/sched.h
+@@ -3371,6 +3371,31 @@ static inline bool update_other_load_avgs(struct rq *rq) { return false; }
+ 
+ unsigned long uclamp_eff_value(struct task_struct *p, enum uclamp_id clamp_id);
+ 
++/*
++ * When uclamp is compiled in, the aggregation at rq level is 'turned off'
++ * by default in the fast path and only gets turned on once userspace performs
++ * an operation that requires it.
++ *
++ * Returns true if userspace opted-in to use uclamp and aggregation at rq level
++ * hence is active.
++ */
++static inline bool uclamp_is_used(void)
++{
++	return static_branch_likely(&sched_uclamp_used);
++}
++
++/*
++ * Enabling static branches would get the cpus_read_lock(),
++ * check whether uclamp_is_used before enable it to avoid always
++ * calling cpus_read_lock(). Because we never disable this
++ * static key once enable it.
++ */
++static inline void sched_uclamp_enable(void)
++{
++	if (!uclamp_is_used())
++		static_branch_enable(&sched_uclamp_used);
++}
++
+ static inline unsigned long uclamp_rq_get(struct rq *rq,
+ 					  enum uclamp_id clamp_id)
+ {
+@@ -3394,7 +3407,7 @@ static inline bool uclamp_rq_is_capped(struct rq *rq)
+ 	unsigned long rq_util;
+ 	unsigned long max_util;
+ 
+-	if (!static_branch_likely(&sched_uclamp_used))
++	if (!uclamp_is_used())
+ 		return false;
+ 
+ 	rq_util = cpu_util_cfs(cpu_of(rq)) + cpu_util_rt(rq);
+@@ -3403,19 +3416,6 @@ static inline bool uclamp_rq_is_capped(struct rq *rq)
+ 	return max_util != SCHED_CAPACITY_SCALE && rq_util >= max_util;
+ }
+ 
+-/*
+- * When uclamp is compiled in, the aggregation at rq level is 'turned off'
+- * by default in the fast path and only gets turned on once userspace performs
+- * an operation that requires it.
+- *
+- * Returns true if userspace opted-in to use uclamp and aggregation at rq level
+- * hence is active.
+- */
+-static inline bool uclamp_is_used(void)
+-{
+-	return static_branch_likely(&sched_uclamp_used);
+-}
+-
+ #define for_each_clamp_id(clamp_id) \
+ 	for ((clamp_id) = 0; (clamp_id) < UCLAMP_CNT; (clamp_id)++)
+ 
+@@ -3463,6 +3475,8 @@ static inline bool uclamp_is_used(void)
+ 	return false;
+ }
+ 
++static inline void sched_uclamp_enable(void) {}
++
+ static inline unsigned long
+ uclamp_rq_get(struct rq *rq, enum uclamp_id clamp_id)
+ {
+diff -uarp a/kernel/sched/syscalls.c b/kernel/sched/syscalls.c
+--- a/kernel/sched/syscalls.c
++++ b/kernel/sched/syscalls.c
+@@ -378,7 +378,7 @@ static int uclamp_validate(struct task_struct *p,
+ 	 * blocking operation which obviously cannot be done while holding
+ 	 * scheduler locks.
+ 	 */
+-	static_branch_enable(&sched_uclamp_used);
++	sched_uclamp_enable();
+ 
+ 	return 0;
+ }
+-- 
+2.40.2
+
+
+Subject: rseq: Eliminate useless task_work on execve
+https://lore.kernel.org/all/174367959256.14745.905696151357329121.tip-bot2@tip-bot2/
+
+Eliminate a useless task_work on execve by moving the call to
+rseq_set_notify_resume() from sched_mm_cid_after_execve() to the error
+path of bprm_execve().
+
+The call to rseq_set_notify_resume() from sched_mm_cid_after_execve() is
+pointless in the success case, because rseq_execve() will clear the rseq
+pointer before returning to userspace.
+
+sched_mm_cid_after_execve() is called from both the success and error
+paths of bprm_execve(). The call to rseq_set_notify_resume() is needed
+on error because the mm_cid may have changed.
+
+Also move the rseq_execve() to right after sched_mm_cid_after_execve()
+in bprm_execve().
+
+Signed-off-by: Mathieu Desnoyers <mathieu.desnoyers@xxxxxxxxxx>
+Signed-off-by: Ingo Molnar <mingo@xxxxxxxxxx>
+Cc: Oleg Nesterov <oleg@xxxxxxxxxx>
+Cc: Linus Torvalds <torvalds@xxxxxxxxxx>
+---
+ fs/exec.c           | 3 ++-
+ kernel/sched/core.c | 1 -
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/fs/exec.c b/fs/exec.c
+index 5d1c0d2..8e4ea5f 100644
+--- a/fs/exec.c
++++ b/fs/exec.c
+@@ -1882,9 +1882,9 @@ static int bprm_execve(struct linux_binprm *bprm)
+ 		goto out;
+ 
+ 	sched_mm_cid_after_execve(current);
++	rseq_execve(current);
+ 	/* execve succeeded */
+ 	current->in_execve = 0;
+-	rseq_execve(current);
+ 	user_events_execve(current);
+ 	acct_update_integrals(current);
+ 	task_numa_free(current, false);
+@@ -1901,6 +1901,7 @@ out:
+ 		force_fatal_sig(SIGSEGV);
+ 
+ 	sched_mm_cid_after_execve(current);
++	rseq_set_notify_resume(current);
+ 	current->in_execve = 0;
+ 
+ 	return retval;
+diff --git a/kernel/sched/core.c b/kernel/sched/core.c
+index cfaca30..c81cf64 100644
+--- a/kernel/sched/core.c
++++ b/kernel/sched/core.c
+@@ -10713,7 +10713,6 @@ void sched_mm_cid_after_execve(struct task_struct *t)
+ 		smp_mb();
+ 		t->last_mm_cid = t->mm_cid = mm_cid_get(rq, mm);
+ 	}
+-	rseq_set_notify_resume(t);
+ }
+ 
+ void sched_mm_cid_fork(struct task_struct *t)
+-- 
+2.40.2
+

@@ -55,24 +55,72 @@ index c1e1e529e26c..46b22708dfbd 100644
 -- 
 2.49.0
 
-binder: fix offset calculation in debug log
-https://lore.kernel.org/all/20250429225158.3920681-1-cmllamas@google.com/
+Bluetooth: btmtk: Remove resetting mt7921 before downloading the fw
+https://lore.kernel.org/all/20250110095548.12761-1-hao.qin@mediatek.com/
+https://lore.kernel.org/all/aBxdpIabalg073AU@m.b4.vu/
 
-diff --git a/drivers/android/binder.c b/drivers/android/binder.c
-index ef353ca13c35..bdf09e8b898d 100644
---- a/drivers/android/binder.c
-+++ b/drivers/android/binder.c
-@@ -6374,7 +6374,7 @@ static void print_binder_transaction_ilocked(struct seq_file *m,
- 		seq_printf(m, " node %d", buffer->target_node->debug_id);
- 	seq_printf(m, " size %zd:%zd offset %lx\n",
- 		   buffer->data_size, buffer->offsets_size,
--		   proc->alloc.buffer - buffer->user_data);
-+		   buffer->user_data - proc->alloc.buffer);
- }
+diff --git a/drivers/bluetooth/btmtk.c b/drivers/bluetooth/btmtk.c
+index 224eafc27dbea9..68846c5bd4f794 100644
+--- a/drivers/bluetooth/btmtk.c
++++ b/drivers/bluetooth/btmtk.c
+@@ -1329,7 +1329,6 @@ int btmtk_usb_setup(struct hci_dev *hdev)
+ 		fwname = FIRMWARE_MT7668;
+ 		break;
+ 	case 0x7922:
+-	case 0x7961:
+ 	case 0x7925:
+ 		/* Reset the device to ensure it's in the initial state before
+ 		 * downloading the firmware to ensure.
+@@ -1337,7 +1336,8 @@ int btmtk_usb_setup(struct hci_dev *hdev)
  
- static void print_binder_work_ilocked(struct seq_file *m,
+ 		if (!test_bit(BTMTK_FIRMWARE_LOADED, &btmtk_data->flags))
+ 			btmtk_usb_subsys_reset(hdev, dev_id);
+-
++		fallthrough;
++	case 0x7961:
+ 		btmtk_fw_get_filename(fw_bin_name, sizeof(fw_bin_name), dev_id,
+ 				      fw_version, fw_flavor);
+ 
 -- 
-2.49.0.901.g37484f566f-goog
+2.18.0
+
+Bluetooth: btmtk: Remove the resetting step before downloading the fw
+https://lore.kernel.org/all/20250315022730.11071-1-hao.qin@mediatek.com/
+https://lore.kernel.org/all/aBxdpIabalg073AU@m.b4.vu/
+
+diff --git a/drivers/bluetooth/btmtk.c b/drivers/bluetooth/btmtk.c
+index 68846c5bd4f7..4390fd571dbd 100644
+--- a/drivers/bluetooth/btmtk.c
++++ b/drivers/bluetooth/btmtk.c
+@@ -1330,13 +1330,6 @@ int btmtk_usb_setup(struct hci_dev *hdev)
+ 		break;
+ 	case 0x7922:
+ 	case 0x7925:
+-		/* Reset the device to ensure it's in the initial state before
+-		 * downloading the firmware to ensure.
+-		 */
+-
+-		if (!test_bit(BTMTK_FIRMWARE_LOADED, &btmtk_data->flags))
+-			btmtk_usb_subsys_reset(hdev, dev_id);
+-		fallthrough;
+ 	case 0x7961:
+ 		btmtk_fw_get_filename(fw_bin_name, sizeof(fw_bin_name), dev_id,
+ 				      fw_version, fw_flavor);
+@@ -1345,12 +1338,9 @@ int btmtk_usb_setup(struct hci_dev *hdev)
+ 						btmtk_usb_hci_wmt_sync);
+ 		if (err < 0) {
+ 			bt_dev_err(hdev, "Failed to set up firmware (%d)", err);
+-			clear_bit(BTMTK_FIRMWARE_LOADED, &btmtk_data->flags);
+ 			return err;
+ 		}
+ 
+-		set_bit(BTMTK_FIRMWARE_LOADED, &btmtk_data->flags);
+-
+ 		/* It's Device EndPoint Reset Option Register */
+ 		err = btmtk_usb_uhw_reg_write(hdev, MTK_EP_RST_OPT,
+ 					      MTK_EP_RST_IN_OUT_OPT);
+-- 
+2.18.0
 
 Change to RCU, matching patch-6.13-rt5
 
@@ -907,7 +955,7 @@ Signed-off-by: Mario Roy <...>
 diff -uarp a/drivers/bluetooth/btusb.c b/drivers/bluetooth/btusb.c
 --- a/drivers/bluetooth/btusb.c
 +++ b/drivers/bluetooth/btusb.c
-@@ -524,6 +524,8 @@ static const struct usb_device_id quirks
+@@ -560,6 +560,8 @@ static const struct usb_device_id quirks
  						     BTUSB_WIDEBAND_SPEECH },
  	{ USB_DEVICE(0x13d3, 0x3591), .driver_info = BTUSB_REALTEK |
  						     BTUSB_WIDEBAND_SPEECH },
@@ -2241,4 +2289,33 @@ index 4e37b40ce280..f5133249fd4d 100644
  
 -- 
 2.49.0
+
+dm: fix reading past the end of allocated memory (included in 6.12.28)
+dm: fix missing dm_put_live_table() in dm_keyslot_evict()
+
+https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/commit/?id=cccd03371475e4c25ddad7f5b2467d9b4d3f5a09
+
+diff --git a/drivers/md/dm-table.c b/drivers/md/dm-table.c
+index 9e175c5e0634b4..6b23e777e10e7f 100644
+--- a/drivers/md/dm-table.c
++++ b/drivers/md/dm-table.c
+@@ -1183,7 +1183,7 @@ static int dm_keyslot_evict(struct blk_crypto_profile *profile,
+ 
+ 	t = dm_get_live_table(md, &srcu_idx);
+ 	if (!t)
+-		return 0;
++		goto put_live_table;
+ 
+ 	for (unsigned int i = 0; i < t->num_targets; i++) {
+ 		struct dm_target *ti = dm_table_get_target(t, i);
+@@ -1194,6 +1194,7 @@ static int dm_keyslot_evict(struct blk_crypto_profile *profile,
+ 					  (void *)key);
+ 	}
+ 
++put_live_table:
+ 	dm_put_live_table(md, srcu_idx);
+ 	return 0;
+ }
+-- 
+2.40.2
 

@@ -1231,7 +1231,7 @@ diff --git a/drivers/cpufreq/intel_pstate.c b/drivers/cpufreq/intel_pstate.c
 index 400337f3b572..d413b60c6001 100644
 --- a/drivers/cpufreq/intel_pstate.c
 +++ b/drivers/cpufreq/intel_pstate.c
-@@ -3817,6 +3817,8 @@ static int __init intel_pstate_setup(char *str)
+@@ -3820,6 +3820,8 @@ static int __init intel_pstate_setup(char *str)
  
  	if (!strcmp(str, "disable"))
  		no_load = 1;
@@ -1299,7 +1299,7 @@ diff --git a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c b/drivers/gpu/drm
 index 85e58e0f6059..dd5f300cc186 100644
 --- a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c
 +++ b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c
-@@ -4586,7 +4586,7 @@ static int amdgpu_dm_mode_config_init(struct amdgpu_device *adev)
+@@ -4566,7 +4566,7 @@ static int amdgpu_dm_mode_config_init(struct amdgpu_device *adev)
  		return r;
  	}
  
@@ -10881,7 +10881,7 @@ diff --git a/drivers/bluetooth/btusb.c b/drivers/bluetooth/btusb.c
 index bfd769f2026b30..d2694c6813dc6e 100644
 --- a/drivers/bluetooth/btusb.c
 +++ b/drivers/bluetooth/btusb.c
-@@ -660,6 +660,8 @@ static const struct usb_device_id quirks_table[] = {
+@@ -696,6 +696,8 @@ static const struct usb_device_id quirks_table[] = {
  						     BTUSB_WIDEBAND_SPEECH },
  	{ USB_DEVICE(0x0489, 0xe139), .driver_info = BTUSB_MEDIATEK |
  						     BTUSB_WIDEBAND_SPEECH },
