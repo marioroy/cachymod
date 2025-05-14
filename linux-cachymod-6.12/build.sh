@@ -24,8 +24,8 @@ set -e
 : "${_runtrim_script:=no}"
 
 # Enable sched_ext (SCX) scheduler
-# This option is ignored for real-time preemption.
-: "${_enable_sched_ext:=no}"
+# This option is ignored for real-time preemption
+: "${_enable_sched_ext:=yes}"
 
 # Compile ONLY used modules to VASTLY reduce the number of modules built
 # and the build time. Refer to the wiki page for more information.
