@@ -19,9 +19,6 @@ set -e
 # The default is no, matching CachyOS preference.
 : "${_prevent_avx2:=no}"
 
-# Disable mitigations for CPU vulnerabilities.
-: "${_disable_cpu_mitigations:=no}"
-
 # Run the "trim.sh" script to trim the kernel
 # To deselect ~ 1,500 kernel options
 : "${_runtrim_script:=no}"
@@ -135,7 +132,7 @@ export _localmodcfg _localmodcfg_path _makenconfig _makegconfig _makexconfig
 export _hugepage _HZ_ticks _ticktype _preempt _processor_opt
 export _use_auto_optimization _buildtype _build_debug _prevent_avx2
 
-export _kernel_suffix _disable_cpu_mitigations
+export _kernel_suffix
 
 # Build kernel lazy and lazy-headers packages
 time nice -n 15 makepkg -scf --cleanbuild --skipinteg || exit 1

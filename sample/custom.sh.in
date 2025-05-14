@@ -15,10 +15,6 @@ set -e
 #     --set-str option string  Set option to "string"
 #     --set-val option value   Set option to value
 #     --undefine | -u option   Undefine option
-#
-# Do not disable CPU_MITIGATIONS here.
-# Use the build-time option _disable_cpu_mitigations to disable.
-# It involves patching "arch/x86/Makefile".
 ##
 
 # Disable security support
