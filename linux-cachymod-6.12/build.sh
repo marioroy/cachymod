@@ -23,17 +23,7 @@ set -e
 # To deselect ~ 1,500 kernel options
 : "${_runtrim_script:=no}"
 
-# Disable DEBUG_INFO related knobs for more kernel trimming.
-# BPF and SCX will not work, used by all sorts of stuff including firewall.
-# This requires disabling the ananicy-cpp service or will segfault.
-# i.e sudo systemctl disable --now ananicy-cpp.service
-# Hence, if you do not use these things, want to save time building,
-# and unlikely to decode a stack trace later.
-# This option is ignored if selecting _build_debug package below.
-: "${_disable_debug_info:=no}"
-
-# Enable sched_ext (SCX) scheduler (overrides _disable_debug_info).
-# The _disable_debug_info build option is ignored.
+# Enable sched_ext (SCX) scheduler
 # This option is ignored for real-time preemption.
 : "${_enable_sched_ext:=no}"
 
@@ -127,12 +117,10 @@ export _extra_patch_or_url1 _extra_patch_or_url2 _extra_patch_or_url3
 export _extra_patch_or_url4 _extra_patch_or_url5 _extra_patch_or_url6
 export _extra_patch_or_url7 _extra_patch_or_url8 _extra_patch_or_url9
 
-export _prefer_eevdf _runtrim_script _disable_debug_info _enable_sched_ext
+export _kernel_suffix _prefer_eevdf _runtrim_script _enable_sched_ext
 export _localmodcfg _localmodcfg_path _makenconfig _makegconfig _makexconfig
 export _hugepage _HZ_ticks _ticktype _preempt _processor_opt
 export _use_auto_optimization _buildtype _build_debug _prevent_avx2
-
-export _kernel_suffix
 
 # Build kernel lazy and lazy-headers packages
 time nice -n 15 makepkg -scf --cleanbuild --skipinteg || exit 1
