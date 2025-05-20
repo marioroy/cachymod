@@ -8,7 +8,7 @@ Signed-off-by: Mario Roy <...>
 diff -uarp a/init/Kconfig b/init/Kconfig
 --- a/init/Kconfig
 +++ b/init/Kconfig
-@@ -1366,6 +1366,14 @@ config CHECKPOINT_RESTORE
+@@ -1369,6 +1369,14 @@ config CHECKPOINT_RESTORE
  
  	  If unsure, say N here.
  
@@ -254,7 +254,7 @@ diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
  		vslice /= 2;
  
  	/*
-@@ -9108,16 +9145,24 @@ static void yield_task_fair(struct rq *r
+@@ -9106,16 +9143,24 @@ static void yield_task_fair(struct rq *r
  	/*
  	 * Are we the only task in the tree?
  	 */

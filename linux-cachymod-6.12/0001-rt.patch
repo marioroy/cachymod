@@ -2131,7 +2131,7 @@ index ddc096d6b0c20..6f1d3426691db 100644
  		return;
  	}
  	/*
-@@ -8938,7 +8938,7 @@ static void check_preempt_wakeup_fair(struct rq *rq, struct task_struct *p, int
+@@ -8936,7 +8936,7 @@ static void check_preempt_wakeup_fair(struct rq *rq, struct task_struct *p, int
  	return;
  
  preempt:

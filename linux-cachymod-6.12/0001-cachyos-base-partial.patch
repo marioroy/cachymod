@@ -2,7 +2,7 @@ CachyOS 6.12 partial base-all patch
 
   Subject: [PATCH 1/8] amd-cache-optimizer
   Subject: [PATCH 3/8] cachy (w/o v4l2loopback)
-  Subject: [PATCH] ADIOS v1.5.5
+  Subject: [PATCH] ADIOS v1.5.8
   Subject: [PATCH 4/8] fixes
   Subject: [PATCH 5/8] ntsync
   Subject: [PATCH 6/8] perf-per-core
@@ -357,7 +357,7 @@ diff --git a/Documentation/admin-guide/kernel-parameters.txt b/Documentation/adm
 index d401577b5a6a..e6ec15a89924 100644
 --- a/Documentation/admin-guide/kernel-parameters.txt
 +++ b/Documentation/admin-guide/kernel-parameters.txt
-@@ -2248,6 +2248,9 @@
+@@ -2265,6 +2265,9 @@
  			disable
  			  Do not enable intel_pstate as the default
  			  scaling driver for the supported processors
@@ -367,7 +367,7 @@ index d401577b5a6a..e6ec15a89924 100644
                          active
                            Use intel_pstate driver to bypass the scaling
                            governors layer of cpufreq and provides it own
-@@ -4475,6 +4478,15 @@
+@@ -4493,6 +4496,15 @@
  		nomsi		[MSI] If the PCI_MSI kernel config parameter is
  				enabled, this kernel boot option can be used to
  				disable the use of MSI interrupts system-wide.
@@ -1299,7 +1299,7 @@ diff --git a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c b/drivers/gpu/drm
 index 85e58e0f6059..dd5f300cc186 100644
 --- a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c
 +++ b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c
-@@ -4566,7 +4566,7 @@ static int amdgpu_dm_mode_config_init(struct amdgpu_device *adev)
+@@ -4572,7 +4572,7 @@ static int amdgpu_dm_mode_config_init(struct amdgpu_device *adev)
  		return r;
  	}
  
@@ -3878,7 +3878,7 @@ diff --git a/init/Kconfig b/init/Kconfig
 index 7256fa127530..857869dbc22c 100644
 --- a/init/Kconfig
 +++ b/init/Kconfig
-@@ -159,6 +159,10 @@ config THREAD_INFO_IN_TASK
+@@ -162,6 +162,10 @@ config THREAD_INFO_IN_TASK
  
  menu "General setup"
  
@@ -3889,7 +3889,7 @@ index 7256fa127530..857869dbc22c 100644
  config BROKEN
  	bool
  
-@@ -1314,6 +1318,22 @@ config USER_NS
+@@ -1317,6 +1321,22 @@ config USER_NS
  
  	  If unsure, say N.
  
@@ -3912,7 +3912,7 @@ index 7256fa127530..857869dbc22c 100644
  config PID_NS
  	bool "PID Namespaces"
  	default y
-@@ -1456,6 +1476,12 @@ config CC_OPTIMIZE_FOR_PERFORMANCE
+@@ -1459,6 +1479,12 @@ config CC_OPTIMIZE_FOR_PERFORMANCE
  	  with the "-O2" compiler flag for best performance and most
  	  helpful compile-time warnings.
  
@@ -4326,40 +4326,46 @@ index fe7947f77406..99e138cfdd95 100644
 -- 
 2.48.1
 
-From 7f9ff589274eebab4304a8b5e88a2a3d6440e106 Mon Sep 17 00:00:00 2001
+From d2e1765fd0cc6019d99f5943a6abc31f584679e6 Mon Sep 17 00:00:00 2001
 From: Masahito S <firelzrd@gmail.com>
-Date: Tue, 29 Apr 2025 22:27:43 +0900
-Subject: [PATCH] ADIOS v1.5.5
+Date: Tue, 13 May 2025 03:05:07 +0900
+Subject: [PATCH] ADIOS v1.5.8
 
 ---
- block/Kconfig.iosched |    9 +
+ block/Kconfig.iosched |   14 +
  block/Makefile        |    8 +
- block/adios.c         | 1342 +++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 1359 insertions(+)
+ block/adios.c         | 1344 +++++++++++++++++++++++++++++++++++++++++
+ block/elevator.c      |    5 +
+ 4 files changed, 1371 insertions(+)
  create mode 100644 block/adios.c
 
 diff --git a/block/Kconfig.iosched b/block/Kconfig.iosched
-index 27f11320b8..dd9af8cd7b 100644
+index 27f11320b8..e98585dd83 100644
 --- a/block/Kconfig.iosched
 +++ b/block/Kconfig.iosched
-@@ -16,6 +16,15 @@ config MQ_IOSCHED_KYBER
+@@ -16,6 +16,20 @@ config MQ_IOSCHED_KYBER
  	  synchronous writes, it will self-tune queue depths to achieve that
  	  goal.
  
 +config MQ_IOSCHED_ADIOS
 +	tristate "Adaptive Deadline I/O scheduler"
-+	default y
++	default m
 +	help
-+	  ADIOS is a multi-queue I/O scheduler for the Linux kernel, based on
-+	  mq-deadline and Kyber, with learning-based adaptive latency control.
-+	  It aims to provide low latency for synchronous requests while
-+	  maintaining high throughput for asynchronous requests and bulk I/O.
++	  The Adaptive Deadline I/O Scheduler (ADIOS) is a multi-queue I/O
++	  scheduler with learning-based adaptive latency control.
++
++config MQ_IOSCHED_DEFAULT_ADIOS
++	bool "Enable ADIOS I/O scheduler as default MQ I/O scheduler"
++	depends on MQ_IOSCHED_ADIOS=y
++	default n
++	help
++	  Enable the ADIOS I/O scheduler as the default scheduler for MQ I/O.
 +
  config IOSCHED_BFQ
  	tristate "BFQ I/O scheduler"
  	select BLK_ICQ
 diff --git a/block/Makefile b/block/Makefile
-index ddfd21c1a9..ebe14e94d1 100644
+index 3374812371..a67f651a78 100644
 --- a/block/Makefile
 +++ b/block/Makefile
 @@ -23,6 +23,7 @@ obj-$(CONFIG_BLK_CGROUP_IOLATENCY)	+= blk-iolatency.o
@@ -4383,16 +4389,13 @@ index ddfd21c1a9..ebe14e94d1 100644
 +
 diff --git a/block/adios.c b/block/adios.c
 new file mode 100644
-index 0000000000..301beb812e
+index 0000000000..9393ebfe6c
 --- /dev/null
 +++ b/block/adios.c
-@@ -0,0 +1,1342 @@
+@@ -0,0 +1,1344 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
-+ * The Adaptive Deadline I/O Scheduler (ADIOS)
-+ * Based on mq-deadline and Kyber,
-+ * with learning-based adaptive latency control
-+ *
++ * Adaptive Deadline I/O Scheduler (ADIOS)
 + * Copyright (C) 2025 Masahito Suzuki
 + */
 +#include <linux/bio.h>
@@ -4413,7 +4416,7 @@ index 0000000000..301beb812e
 +#include "blk-mq.h"
 +#include "blk-mq-sched.h"
 +
-+#define ADIOS_VERSION "1.5.5"
++#define ADIOS_VERSION "1.5.8"
 +
 +// Define operation types supported by ADIOS
 +enum adios_op_type {
@@ -4526,6 +4529,8 @@ index 0000000000..301beb812e
 +
 +	struct kmem_cache *rq_data_pool;
 +	struct kmem_cache *dl_group_pool;
++
++	struct request_queue *queue;
 +};
 +
 +// List of requests with the same deadline in the deadline-sorted tree
@@ -5385,6 +5390,9 @@ index 0000000000..301beb812e
 +	/* We dispatch from request queue wide instead of hw queue */
 +	blk_queue_flag_set(QUEUE_FLAG_SQ_SCHED, q);
 +
++	ad->queue = q;
++	blk_stat_enable_accounting(q);
++
 +	q->elevator = eq;
 +	return 0;
 +
@@ -5410,6 +5418,8 @@ index 0000000000..301beb812e
 +
 +	if (ad->dl_group_pool)
 +		kmem_cache_destroy(ad->dl_group_pool);
++
++	blk_stat_disable_accounting(ad->queue);
 +
 +	kfree(ad);
 +}
@@ -5700,8 +5710,6 @@ index 0000000000..301beb812e
 +		.init_sched			= adios_init_sched,
 +		.exit_sched			= adios_exit_sched,
 +	},
-+#ifdef CONFIG_BLK_DEBUG_FS
-+#endif
 +	.elevator_attrs = adios_sched_attrs,
 +	.elevator_name = "adios",
 +	.elevator_owner = THIS_MODULE,
@@ -5729,7 +5737,27 @@ index 0000000000..301beb812e
 +MODULE_AUTHOR(ADIOS_AUTHOR);
 +MODULE_LICENSE("GPL");
 +MODULE_DESCRIPTION(ADIOS_PROGNAME);
-\ No newline at end of file
+diff --git a/block/elevator.c b/block/elevator.c
+index cd2ce49216..7c6ff2c47c 100644
+--- a/block/elevator.c
++++ b/block/elevator.c
+@@ -564,11 +564,16 @@ static struct elevator_type *elevator_get_default(struct request_queue *q)
+ 	if (q->tag_set->flags & BLK_MQ_F_NO_SCHED_BY_DEFAULT)
+ 		return NULL;
+ 
++#ifdef CONFIG_MQ_IOSCHED_DEFAULT_ADIOS
++	return elevator_find_get("adios");
++#else // !CONFIG_MQ_IOSCHED_DEFAULT_ADIOS
++
+ 	if (q->nr_hw_queues != 1 &&
+ 	    !blk_mq_is_shared_tags(q->tag_set->flags))
+ 		return NULL;
+ 
+ 	return elevator_find_get("mq-deadline");
++#endif // CONFIG_MQ_IOSCHED_DEFAULT_ADIOS
+ }
+ 
+ /*
 -- 
 2.34.1
 
@@ -10437,30 +10465,6 @@ index 8982b909c821e6..30b4b0c1768269 100644
 2.48.0
 
 Subject: Upstream CachyOS 6.14 fixes
-
-From d7cc76e45341e8cb580d22b5f46755490ecc76b7 Mon Sep 17 00:00:00 2001
-From: Lode Willems <me@xxxxxxxxxx>
-Date: Tue, 22 Apr 2025 13:24:27 +0200
-Subject: [PATCH 08/17] Input: xpad: Add support for 8BitDo Ultimate 2 Wireless
- Controller
-
-Signed-off-by: Lode Willems <me@xxxxxxxxxx>
----
- drivers/input/joystick/xpad.c | 1 +
- 1 file changed, 1 insertion(+)
-
-diff --git a/drivers/input/joystick/xpad.c b/drivers/input/joystick/xpad.c
-index c33e6f33265ba0..c933e47173bd1e 100644
---- a/drivers/input/joystick/xpad.c
-+++ b/drivers/input/joystick/xpad.c
-@@ -387,6 +387,7 @@ static const struct xpad_device {
- 	{ 0x2dc8, 0x3106, "8BitDo Ultimate Wireless / Pro 2 Wired Controller", 0, XTYPE_XBOX360 },
- 	{ 0x2dc8, 0x3109, "8BitDo Ultimate Wireless Bluetooth", 0, XTYPE_XBOX360 },
- 	{ 0x2dc8, 0x310a, "8BitDo Ultimate 2C Wireless Controller", 0, XTYPE_XBOX360 },
-+	{ 0x2dc8, 0x310b, "8BitDo Ultimate 2 Wireless Controller", 0, XTYPE_XBOX360 },
- 	{ 0x2dc8, 0x6001, "8BitDo SN30 Pro", 0, XTYPE_XBOX360 },
- 	{ 0x2e24, 0x0652, "Hyperkin Duke X-Box One pad", 0, XTYPE_XBOXONE },
- 	{ 0x2e24, 0x1688, "Hyperkin X91 X-Box One pad", 0, XTYPE_XBOXONE },
 
 From 0de0de4eefc50668651b5bfffc80e617a5d9c4b6 Mon Sep 17 00:00:00 2001
 From: Linus Torvalds <torvalds@xxxxxxxxxx>

@@ -293,7 +293,7 @@ diff -uarp a/include/linux/kallsyms.h b/include/linux/kallsyms.h
 diff -uarp a/include/linux/module.h b/include/linux/module.h
 --- a/include/linux/module.h
 +++ b/include/linux/module.h
-@@ -663,7 +663,7 @@ static inline bool within_module(unsigne
+@@ -668,7 +668,7 @@ static inline bool within_module(unsigne
  	return within_module_init(addr, mod) || within_module_core(addr, mod);
  }
  

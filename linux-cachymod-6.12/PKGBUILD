@@ -135,7 +135,7 @@ fi
 
 _pkgsuffix=cachymod-612
 _major=6.12
-_minor=28
+_minor=29
 pkgver=${_major}.${_minor}
 _stable=${_major}.${_minor}
 
@@ -160,6 +160,7 @@ source=(
     "mkinitcpio.template"
     "0001-linux6.12.27-update.patch"
     "0001-linux6.12.28-update.patch"
+    "0001-linux6.12.29-update.patch"
     "0001-rt.patch"
     "0001-rt-update.patch"
     "0001-cachyos-base-partial.patch"
@@ -187,7 +188,6 @@ source+=(
     "0230-autofdo.patch"
     "0240-pipe-update.patch"
     "0250-amdgpu-update.patch"
-    "0260-mm-page_alloc-update.patch"
     "0270-sched-fair-update.patch"
 )
 

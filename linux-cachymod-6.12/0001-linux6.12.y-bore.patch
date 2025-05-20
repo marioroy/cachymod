@@ -105,7 +105,7 @@ diff --git a/init/Kconfig b/init/Kconfig
 index 243d0087f9..759f9fbd0e 100644
 --- a/init/Kconfig
 +++ b/init/Kconfig
-@@ -1366,6 +1366,23 @@ config CHECKPOINT_RESTORE
+@@ -1369,6 +1369,23 @@ config CHECKPOINT_RESTORE
  
  	  If unsure, say N here.
  
@@ -918,7 +918,7 @@ index ceb023629d..d38b5f7858 100644
  	/*
  	 * When joining the competition; the existing tasks will be,
  	 * on average, halfway through their slice, as such start tasks
-@@ -7288,6 +7331,15 @@ static bool dequeue_task_fair(struct rq *rq, struct task_struct *p, int flags)
+@@ -7286,6 +7329,15 @@ static bool dequeue_task_fair(struct rq *rq, struct task_struct *p, int flags)
  		util_est_dequeue(&rq->cfs, p);
  
  	util_est_update(&rq->cfs, p, flags & DEQUEUE_SLEEP);
@@ -934,7 +934,7 @@ index ceb023629d..d38b5f7858 100644
  	if (dequeue_entities(rq, &p->se, flags) < 0)
  		return false;
  
-@@ -9108,16 +9160,25 @@ static void yield_task_fair(struct rq *rq)
+@@ -9106,16 +9158,25 @@ static void yield_task_fair(struct rq *rq)
  	/*
  	 * Are we the only task in the tree?
  	 */
@@ -960,7 +960,7 @@ index ceb023629d..d38b5f7858 100644
  	/*
  	 * Tell update_rq_clock() that we've just updated,
  	 * so we don't do microscopic update in schedule()
-@@ -13200,6 +13261,9 @@ static void task_tick_fair(struct rq *rq, struct task_struct *curr, int queued)
+@@ -13198,6 +13259,9 @@ static void task_tick_fair(struct rq *rq, struct task_struct *curr, int queued)
  static void task_fork_fair(struct task_struct *p)
  {
  	set_task_max_allowed_capacity(p);
@@ -970,7 +970,7 @@ index ceb023629d..d38b5f7858 100644
  }
  
  /*
-@@ -13310,6 +13374,10 @@ static void attach_task_cfs_rq(struct task_struct *p)
+@@ -13308,6 +13372,10 @@ static void attach_task_cfs_rq(struct task_struct *p)
  
  static void switched_from_fair(struct rq *rq, struct task_struct *p)
  {

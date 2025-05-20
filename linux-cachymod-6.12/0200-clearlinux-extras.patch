@@ -61,7 +61,7 @@ diff -uar a/arch/x86/Kconfig b/arch/x86/Kconfig
 diff -uar a/init/Kconfig b/init/Kconfig
 --- a/init/Kconfig
 +++ b/init/Kconfig
-@@ -1587,7 +1587,7 @@
+@@ -1590,7 +1590,7 @@
  	  Only use this if you really know what you are doing.
  
  config UID16
@@ -70,7 +70,7 @@ diff -uar a/init/Kconfig b/init/Kconfig
  	depends on HAVE_UID16 && MULTIUSER
  	default y
  	help
-@@ -1618,7 +1618,7 @@
+@@ -1621,7 +1621,7 @@
  	  If unsure, leave the default option here.
  
  config SYSFS_SYSCALL
@@ -85,15 +85,6 @@ diff -uar a/init/Kconfig b/init/Kconfig
 diff -uar a/lib/Kconfig.debug b/lib/Kconfig.debug
 --- a/lib/Kconfig.debug
 +++ b/lib/Kconfig.debug
-@@ -198,7 +198,7 @@
- 	  (about 3KB), but can make the kernel logs easier to read.
- 
- config DEBUG_BUGVERBOSE
--	bool "Verbose BUG() reporting (adds 70K)" if DEBUG_KERNEL && EXPERT
-+	bool "Verbose BUG() reporting (adds 70K)" if DEBUG_KERNEL
- 	depends on BUG && (GENERIC_BUG || HAVE_DEBUG_BUGVERBOSE)
- 	default y
- 	help
 @@ -891,7 +891,7 @@
  	  regions to be regularly checked for invalid topology.
  
@@ -443,7 +434,7 @@ diff --git a/mm/page_alloc.c b/mm/page_alloc.c
 index e6f211dcf82e..0ea48434ac7d 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -5534,11 +5534,11 @@ static int zone_batchsize(struct zone *zone)
+@@ -5569,11 +5569,11 @@ static int zone_batchsize(struct zone *zone)
  
  	/*
  	 * The number of pages to batch allocate is either ~0.1%
@@ -519,7 +510,7 @@ Place libraries right below the binary for PIE binaries, this helps code localit
 
 --- linux-6.1/arch/x86/include/asm/msr-index.h~	2022-12-11 22:15:18.000000000 +0000
 +++ linux-6.1/arch/x86/include/asm/msr-index.h	2022-12-16 01:31:32.266119875 +0000
-@@ -546,7 +546,7 @@
+@@ -554,7 +554,7 @@
  #define HWP_MAX_PERF(x) 		((x & 0xff) << 8)
  #define HWP_DESIRED_PERF(x)		((x & 0xff) << 16)
  #define HWP_ENERGY_PERF_PREFERENCE(x)	(((unsigned long long) x & 0xff) << 24)

@@ -1,22 +1,210 @@
-Revert Bluetooth: l2cap: Check encryption key size on incoming connection
-https://lore.kernel.org/linux-bluetooth/bug-220061-62941@https.bugzilla.kernel.org%2F/
+mm: vmalloc: Actually use the in-place vrealloc region
+https://lore.kernel.org/all/20250515214020.work.519-kees@kernel.org/
 
-diff --git a/net/bluetooth/l2cap_core.c b/net/bluetooth/l2cap_core.c
-index 499e38ed639e60..c27ea70f71e1e1 100644
---- a/net/bluetooth/l2cap_core.c
-+++ b/net/bluetooth/l2cap_core.c
-@@ -3956,8 +3956,7 @@ static void l2cap_connect(struct l2cap_conn *conn, struct l2cap_cmd_hdr *cmd,
+diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+index 74bd00fd734d..00cf1b575c89 100644
+--- a/mm/vmalloc.c
++++ b/mm/vmalloc.c
+@@ -4097,8 +4097,8 @@ void *vrealloc_noprof(const void *p, size_t size, gfp_t flags)
+ 	 * would be a good heuristic for when to shrink the vm_area?
+ 	 */
+ 	if (size <= old_size) {
+-		/* Zero out "freed" memory. */
+-		if (want_init_on_free())
++		/* Zero out "freed" memory, potentially for future realloc. */
++		if (want_init_on_free() || want_init_on_alloc(flags))
+ 			memset((void *)p + size, 0, old_size - size);
+ 		vm->requested_size = size;
+ 		kasan_poison_vmalloc(p + size, old_size - size);
+@@ -4111,10 +4111,13 @@ void *vrealloc_noprof(const void *p, size_t size, gfp_t flags)
+ 	if (size <= alloced_size) {
+ 		kasan_unpoison_vmalloc(p + old_size, size - old_size,
+ 				       KASAN_VMALLOC_PROT_NORMAL);
+-		/* Zero out "alloced" memory. */
+-		if (want_init_on_alloc(flags))
+-			memset((void *)p + old_size, 0, size - old_size);
++		/*
++		 * No need to zero memory here, as unused memory will have
++		 * already been zeroed at initial allocation time or during
++		 * realloc shrink time.
++		 */
+ 		vm->requested_size = size;
++		return (void *)p;
+ 	}
  
- 	/* Check if the ACL is secure enough (if not SDP) */
- 	if (psm != cpu_to_le16(L2CAP_PSM_SDP) &&
--	    (!hci_conn_check_link_mode(conn->hcon) ||
--	    !l2cap_check_enc_key_size(conn->hcon))) {
-+	    !hci_conn_check_link_mode(conn->hcon)) {
- 		conn->disc_reason = HCI_ERROR_AUTH_FAILURE;
- 		result = L2CAP_CR_SEC_BLOCK;
- 		goto response;
+ 	/* TODO: Grow the vm_area, i.e. allocate and map additional pages. */
 -- 
-2.32.1
+2.34.1
+
+Bluetooth: hci_event: Fix not using key encryption size when its known
+https://github.com/CachyOS/linux/commit/e4354e5e3597057db7f5eacd831152fc64086684
+
+diff --git a/include/net/bluetooth/hci_core.h b/include/net/bluetooth/hci_core.h
+index f0b49aad519eb2..bde158fc9eebdf 100644
+--- a/include/net/bluetooth/hci_core.h
++++ b/include/net/bluetooth/hci_core.h
+@@ -1770,6 +1770,7 @@ struct hci_conn_params *hci_pend_le_action_lookup(struct list_head *list,
+ void hci_uuids_clear(struct hci_dev *hdev);
+ 
+ void hci_link_keys_clear(struct hci_dev *hdev);
++u8 *hci_conn_key_enc_size(struct hci_conn *conn);
+ struct link_key *hci_find_link_key(struct hci_dev *hdev, bdaddr_t *bdaddr);
+ struct link_key *hci_add_link_key(struct hci_dev *hdev, struct hci_conn *conn,
+ 				  bdaddr_t *bdaddr, u8 *val, u8 type,
+diff --git a/net/bluetooth/hci_conn.c b/net/bluetooth/hci_conn.c
+index d097e308a7554f..79bcc5e7309d87 100644
+--- a/net/bluetooth/hci_conn.c
++++ b/net/bluetooth/hci_conn.c
+@@ -2897,3 +2897,27 @@ int hci_abort_conn(struct hci_conn *conn, u8 reason)
+ 	 */
+ 	return hci_cmd_sync_run_once(hdev, abort_conn_sync, conn, NULL);
+ }
++
++u8 *hci_conn_key_enc_size(struct hci_conn *conn)
++{
++	if (conn->type == ACL_LINK) {
++		struct link_key *key;
++
++		key = hci_find_link_key(conn->hdev, &conn->dst);
++		if (!key)
++			return NULL;
++
++		return &key->pin_len;
++	} else if (conn->type == LE_LINK) {
++		struct smp_ltk *ltk;
++
++		ltk = hci_find_ltk(conn->hdev, &conn->dst, conn->dst_type,
++				   conn->role);
++		if (!ltk)
++			return NULL;
++
++		return &ltk->enc_size;
++	}
++
++	return NULL;
++}
+diff --git a/net/bluetooth/hci_event.c b/net/bluetooth/hci_event.c
+index 20d3cdcb14f6cd..372c63fdf90a32 100644
+--- a/net/bluetooth/hci_event.c
++++ b/net/bluetooth/hci_event.c
+@@ -741,10 +741,17 @@ static u8 hci_cc_read_enc_key_size(struct hci_dev *hdev, void *data,
+ 			   handle);
+ 		conn->enc_key_size = 0;
+ 	} else {
++		u8 *key_enc_size = hci_conn_key_enc_size(conn);
++
+ 		conn->enc_key_size = rp->key_size;
+ 		status = 0;
+ 
+-		if (conn->enc_key_size < hdev->min_enc_key_size) {
++		/* Attempt to check if the key size is too small or if it has
++		 * been downgraded from the last time it was stored as part of
++		 * the link_key.
++		 */
++		if (conn->enc_key_size < hdev->min_enc_key_size ||
++		    (key_enc_size && conn->enc_key_size < *key_enc_size)) {
+ 			/* As slave role, the conn->state has been set to
+ 			 * BT_CONNECTED and l2cap conn req might not be received
+ 			 * yet, at this moment the l2cap layer almost does
+@@ -757,6 +764,10 @@ static u8 hci_cc_read_enc_key_size(struct hci_dev *hdev, void *data,
+ 			clear_bit(HCI_CONN_ENCRYPT, &conn->flags);
+ 			clear_bit(HCI_CONN_AES_CCM, &conn->flags);
+ 		}
++
++		/* Update the key encryption size with the connection one */
++		if (key_enc_size && *key_enc_size != conn->enc_key_size)
++			*key_enc_size = conn->enc_key_size;
+ 	}
+ 
+ 	hci_encrypt_cfm(conn, status);
+@@ -3064,6 +3075,34 @@ static void hci_inquiry_result_evt(struct hci_dev *hdev, void *edata,
+ 	hci_dev_unlock(hdev);
+ }
+ 
++static int hci_read_enc_key_size(struct hci_dev *hdev, struct hci_conn *conn)
++{
++	struct hci_cp_read_enc_key_size cp;
++	u8 *key_enc_size = hci_conn_key_enc_size(conn);
++
++	if (!read_key_size_capable(hdev)) {
++		conn->enc_key_size = HCI_LINK_KEY_SIZE;
++		return -EOPNOTSUPP;
++	}
++
++	bt_dev_dbg(hdev, "hcon %p", conn);
++
++	memset(&cp, 0, sizeof(cp));
++	cp.handle = cpu_to_le16(conn->handle);
++
++	/* If the key enc_size is already known, use it as conn->enc_key_size,
++	 * otherwise use hdev->min_enc_key_size so the likes of
++	 * l2cap_check_enc_key_size don't fail while waiting for
++	 * HCI_OP_READ_ENC_KEY_SIZE response.
++	 */
++	if (key_enc_size && *key_enc_size)
++		conn->enc_key_size = *key_enc_size;
++	else
++		conn->enc_key_size = hdev->min_enc_key_size;
++
++	return hci_send_cmd(hdev, HCI_OP_READ_ENC_KEY_SIZE, sizeof(cp), &cp);
++}
++
+ static void hci_conn_complete_evt(struct hci_dev *hdev, void *data,
+ 				  struct sk_buff *skb)
+ {
+@@ -3156,23 +3195,11 @@ static void hci_conn_complete_evt(struct hci_dev *hdev, void *data,
+ 		if (ev->encr_mode == 1 && !test_bit(HCI_CONN_ENCRYPT, &conn->flags) &&
+ 		    ev->link_type == ACL_LINK) {
+ 			struct link_key *key;
+-			struct hci_cp_read_enc_key_size cp;
+ 
+ 			key = hci_find_link_key(hdev, &ev->bdaddr);
+ 			if (key) {
+ 				set_bit(HCI_CONN_ENCRYPT, &conn->flags);
+-
+-				if (!read_key_size_capable(hdev)) {
+-					conn->enc_key_size = HCI_LINK_KEY_SIZE;
+-				} else {
+-					cp.handle = cpu_to_le16(conn->handle);
+-					if (hci_send_cmd(hdev, HCI_OP_READ_ENC_KEY_SIZE,
+-							 sizeof(cp), &cp)) {
+-						bt_dev_err(hdev, "sending read key size failed");
+-						conn->enc_key_size = HCI_LINK_KEY_SIZE;
+-					}
+-				}
+-
++				hci_read_enc_key_size(hdev, conn);
+ 				hci_encrypt_cfm(conn, ev->status);
+ 			}
+ 		}
+@@ -3611,24 +3638,8 @@ static void hci_encrypt_change_evt(struct hci_dev *hdev, void *data,
+ 
+ 	/* Try reading the encryption key size for encrypted ACL links */
+ 	if (!ev->status && ev->encrypt && conn->type == ACL_LINK) {
+-		struct hci_cp_read_enc_key_size cp;
+-
+-		/* Only send HCI_Read_Encryption_Key_Size if the
+-		 * controller really supports it. If it doesn't, assume
+-		 * the default size (16).
+-		 */
+-		if (!read_key_size_capable(hdev)) {
+-			conn->enc_key_size = HCI_LINK_KEY_SIZE;
+-			goto notify;
+-		}
+-
+-		cp.handle = cpu_to_le16(conn->handle);
+-		if (hci_send_cmd(hdev, HCI_OP_READ_ENC_KEY_SIZE,
+-				 sizeof(cp), &cp)) {
+-			bt_dev_err(hdev, "sending read key size failed");
+-			conn->enc_key_size = HCI_LINK_KEY_SIZE;
++		if (hci_read_enc_key_size(hdev, conn))
+ 			goto notify;
+-		}
+ 
+ 		goto unlock;
+ 	}
+-- 
+2.40.2
 
 Bluetooth: MGMT: Fix MGMT_OP_ADD_DEVICE invalid device flags
 https://lore.kernel.org/all/20250429191319.2234877-1-luiz.dentz@gmail.com/
@@ -54,73 +242,6 @@ index c1e1e529e26c..46b22708dfbd 100644
  	if (err < 0) {
 -- 
 2.49.0
-
-Bluetooth: btmtk: Remove resetting mt7921 before downloading the fw
-https://lore.kernel.org/all/20250110095548.12761-1-hao.qin@mediatek.com/
-https://lore.kernel.org/all/aBxdpIabalg073AU@m.b4.vu/
-
-diff --git a/drivers/bluetooth/btmtk.c b/drivers/bluetooth/btmtk.c
-index 224eafc27dbea9..68846c5bd4f794 100644
---- a/drivers/bluetooth/btmtk.c
-+++ b/drivers/bluetooth/btmtk.c
-@@ -1329,7 +1329,6 @@ int btmtk_usb_setup(struct hci_dev *hdev)
- 		fwname = FIRMWARE_MT7668;
- 		break;
- 	case 0x7922:
--	case 0x7961:
- 	case 0x7925:
- 		/* Reset the device to ensure it's in the initial state before
- 		 * downloading the firmware to ensure.
-@@ -1337,7 +1336,8 @@ int btmtk_usb_setup(struct hci_dev *hdev)
- 
- 		if (!test_bit(BTMTK_FIRMWARE_LOADED, &btmtk_data->flags))
- 			btmtk_usb_subsys_reset(hdev, dev_id);
--
-+		fallthrough;
-+	case 0x7961:
- 		btmtk_fw_get_filename(fw_bin_name, sizeof(fw_bin_name), dev_id,
- 				      fw_version, fw_flavor);
- 
--- 
-2.18.0
-
-Bluetooth: btmtk: Remove the resetting step before downloading the fw
-https://lore.kernel.org/all/20250315022730.11071-1-hao.qin@mediatek.com/
-https://lore.kernel.org/all/aBxdpIabalg073AU@m.b4.vu/
-
-diff --git a/drivers/bluetooth/btmtk.c b/drivers/bluetooth/btmtk.c
-index 68846c5bd4f7..4390fd571dbd 100644
---- a/drivers/bluetooth/btmtk.c
-+++ b/drivers/bluetooth/btmtk.c
-@@ -1330,13 +1330,6 @@ int btmtk_usb_setup(struct hci_dev *hdev)
- 		break;
- 	case 0x7922:
- 	case 0x7925:
--		/* Reset the device to ensure it's in the initial state before
--		 * downloading the firmware to ensure.
--		 */
--
--		if (!test_bit(BTMTK_FIRMWARE_LOADED, &btmtk_data->flags))
--			btmtk_usb_subsys_reset(hdev, dev_id);
--		fallthrough;
- 	case 0x7961:
- 		btmtk_fw_get_filename(fw_bin_name, sizeof(fw_bin_name), dev_id,
- 				      fw_version, fw_flavor);
-@@ -1345,12 +1338,9 @@ int btmtk_usb_setup(struct hci_dev *hdev)
- 						btmtk_usb_hci_wmt_sync);
- 		if (err < 0) {
- 			bt_dev_err(hdev, "Failed to set up firmware (%d)", err);
--			clear_bit(BTMTK_FIRMWARE_LOADED, &btmtk_data->flags);
- 			return err;
- 		}
- 
--		set_bit(BTMTK_FIRMWARE_LOADED, &btmtk_data->flags);
--
- 		/* It's Device EndPoint Reset Option Register */
- 		err = btmtk_usb_uhw_reg_write(hdev, MTK_EP_RST_OPT,
- 					      MTK_EP_RST_IN_OUT_OPT);
--- 
-2.18.0
 
 Change to RCU, matching patch-6.13-rt5
 
@@ -175,7 +296,7 @@ diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
 index 9279bfb..857808d 100644
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -9563,12 +9563,11 @@ int can_migrate_task(struct task_struct *p, struct lb_env *env)
+@@ -9561,12 +9561,11 @@ int can_migrate_task(struct task_struct *p, struct lb_env *env)
  			return 0;
  
  		/* Prevent to re-select dst_cpu via env's CPUs: */
@@ -695,54 +816,6 @@ index 0f6b16ba30d0..ad80bfd6244f 100644
 -- 
 2.45.2
 
-# 0016-XANMOD-lib-kconfig.debug-disable-default-SYMBOLIC_ER.patch
-
-Subject: [PATCH 16/18] XANMOD: lib/kconfig.debug: disable default
- SYMBOLIC_ERRNAME and DEBUG_BUGVERBOSE
-
-Signed-off-by: Alexandre Frade <kernel@xxxxxxxxxx>
----
- fs/bcachefs/Kconfig | 1 -
- lib/Kconfig.debug   | 4 ++--
- 2 files changed, 2 insertions(+), 3 deletions(-)
-
-diff --git a/fs/bcachefs/Kconfig b/fs/bcachefs/Kconfig
-index 5bac803ea367..773befb92af1 100644
---- a/fs/bcachefs/Kconfig
-+++ b/fs/bcachefs/Kconfig
-@@ -23,7 +23,6 @@ config BCACHEFS_FS
- 	select XOR_BLOCKS
- 	select XXHASH
- 	select SRCU
--	select SYMBOLIC_ERRNAME
- 	help
- 	The bcachefs filesystem - a modern, copy on write filesystem, with
- 	support for multiple devices, compression, checksumming, etc.
-diff --git a/lib/Kconfig.debug b/lib/Kconfig.debug
-index 7312ae7c3cc5..78f629791bdf 100644
---- a/lib/Kconfig.debug
-+++ b/lib/Kconfig.debug
-@@ -190,7 +190,7 @@ config DYNAMIC_DEBUG_CORE
- 
- config SYMBOLIC_ERRNAME
- 	bool "Support symbolic error names in printf"
--	default y if PRINTK
-+	default n
- 	help
- 	  If you say Y here, the kernel's printf implementation will
- 	  be able to print symbolic error names such as ENOSPC instead
-@@ -200,7 +200,7 @@ config SYMBOLIC_ERRNAME
- config DEBUG_BUGVERBOSE
- 	bool "Verbose BUG() reporting (adds 70K)" if DEBUG_KERNEL
- 	depends on BUG && (GENERIC_BUG || HAVE_DEBUG_BUGVERBOSE)
--	default y
-+	default n
- 	help
- 	  Say Y here to make BUG() panics output the file name and line number
- 	  of the BUG call as well as the EIP and oops trace.  This aids
--- 
-2.45.2
-
 Curated patches from SUNLIGHT Linux
 https://github.com/sunlightlinux/linux-sunlight
 
@@ -764,122 +837,6 @@ diff --git a/arch/x86/include/asm/tsc.h b/arch/x86/include/asm/tsc.h
  	return rdtsc();
  }
  #define get_cycles get_cycles
--- 
-2.43.0
-
-rcu: Change sched_setscheduler_nocheck() calls to SCHED_RR policy
-
-Signed-off-by: Alexandre Frade <kernel@xxxxxxxxxx>
-Signed-off-by: Ionut Nechita <ionut_n2001@xxxxxxxxxx>
-
-diff --git a/Documentation/admin-guide/kernel-parameters.txt b/Documentation/admin-guide/kernel-parameters.txt
---- a/Documentation/admin-guide/kernel-parameters.txt
-+++ b/Documentation/admin-guide/kernel-parameters.txt
-@@ -5076,7 +5076,7 @@
- 			overwritten.
- 
- 	rcutree.kthread_prio= 	 [KNL,BOOT]
--			Set the SCHED_FIFO priority of the RCU per-CPU
-+			Set the SCHED_RR priority of the RCU per-CPU
- 			kthreads (rcuc/N). This value is also used for
- 			the priority of the RCU boost threads (rcub/N)
- 			and for the RCU grace-period kthreads (rcu_bh,
-diff --git a/kernel/rcu/Kconfig b/kernel/rcu/Kconfig
---- a/kernel/rcu/Kconfig
-+++ b/kernel/rcu/Kconfig
-@@ -281,9 +281,9 @@ config RCU_NOCB_CPU_CB_BOOST
- 	depends on RCU_NOCB_CPU && RCU_BOOST
- 	default y if PREEMPT_RT
- 	help
--	  Use this option to invoke offloaded callbacks as SCHED_FIFO
-+	  Use this option to invoke offloaded callbacks as SCHED_RR
- 	  to avoid starvation by heavy SCHED_OTHER background load.
--	  Of course, running as SCHED_FIFO during callback floods will
-+	  Of course, running as SCHED_RR during callback floods will
- 	  cause the rcuo[ps] kthreads to monopolize the CPU for hundreds
- 	  of milliseconds or more.  Therefore, when enabling this option,
- 	  it is your responsibility to ensure that latency-sensitive
-diff --git a/kernel/rcu/rcutorture.c b/kernel/rcu/rcutorture.c
---- a/kernel/rcu/rcutorture.c
-+++ b/kernel/rcu/rcutorture.c
-@@ -2439,12 +2439,12 @@ static int rcutorture_booster_init(unsigned int cpu)
- 		t = per_cpu(ksoftirqd, cpu);
- 		WARN_ON_ONCE(!t);
- 		sp.sched_priority = 2;
--		sched_setscheduler_nocheck(t, SCHED_FIFO, &sp);
-+		sched_setscheduler_nocheck(t, SCHED_RR, &sp);
- #ifdef CONFIG_PREEMPT_RT
- 		t = per_cpu(timersd, cpu);
- 		WARN_ON_ONCE(!t);
- 		sp.sched_priority = 2;
--		sched_setscheduler_nocheck(t, SCHED_FIFO, &sp);
-+		sched_setscheduler_nocheck(t, SCHED_RR, &sp);
- #endif
- 	}
- 
-diff --git a/kernel/rcu/tree.c b/kernel/rcu/tree.c
---- a/kernel/rcu/tree.c
---- b/kernel/rcu/tree.c
-@@ -4951,7 +4951,7 @@ static void __init rcu_start_exp_gp_kworker(void)
- 	}
- 
- 	if (IS_ENABLED(CONFIG_RCU_EXP_KTHREAD))
--		sched_setscheduler_nocheck(rcu_exp_gp_kworker->task, SCHED_FIFO, &param);
-+		sched_setscheduler_nocheck(rcu_exp_gp_kworker->task, SCHED_RR, &param);
- }
- 
- static void rcu_spawn_rnp_kthreads(struct rcu_node *rnp)
-@@ -5375,7 +5375,7 @@ static int __init rcu_spawn_gp_kthread(void)
- 		return 0;
- 	if (kthread_prio) {
- 		sp.sched_priority = kthread_prio;
--		sched_setscheduler_nocheck(t, SCHED_FIFO, &sp);
-+		sched_setscheduler_nocheck(t, SCHED_RR, &sp);
- 	}
- 	rnp = rcu_get_root();
- 	raw_spin_lock_irqsave_rcu_node(rnp, flags);
-diff --git a/kernel/rcu/tree_nocb.h b/kernel/rcu/tree_nocb.h
---- a/kernel/rcu/tree_nocb.h
-+++ b/kernel/rcu/tree_nocb.h
-@@ -1404,7 +1404,7 @@ static void rcu_spawn_cpu_nocb_kthread(int cpu)
- 		}
- 		WRITE_ONCE(rdp_gp->nocb_gp_kthread, t);
- 		if (kthread_prio)
--			sched_setscheduler_nocheck(t, SCHED_FIFO, &sp);
-+			sched_setscheduler_nocheck(t, SCHED_RR, &sp);
- 	}
- 	mutex_unlock(&rdp_gp->nocb_gp_kthread_mutex);
- 
-@@ -1420,7 +1420,7 @@ static void rcu_spawn_cpu_nocb_kthread(int cpu)
- 		kthread_park(t);
- 
- 	if (IS_ENABLED(CONFIG_RCU_NOCB_CPU_CB_BOOST) && kthread_prio)
--		sched_setscheduler_nocheck(t, SCHED_FIFO, &sp);
-+		sched_setscheduler_nocheck(t, SCHED_RR, &sp);
- 
- 	WRITE_ONCE(rdp->nocb_cb_kthread, t);
- 	WRITE_ONCE(rdp->nocb_gp_kthread, rdp_gp->nocb_gp_kthread);
-diff --git a/kernel/rcu/tree_plugin.h b/kernel/rcu/tree_plugin.h
---- a/kernel/rcu/tree_plugin.h
-+++ b/kernel/rcu/tree_plugin.h
-@@ -1020,7 +1020,7 @@ static void rcu_cpu_kthread_setup(unsigned int cpu)
- 	struct sched_param sp;
- 
- 	sp.sched_priority = kthread_prio;
--	sched_setscheduler_nocheck(current, SCHED_FIFO, &sp);
-+	sched_setscheduler_nocheck(current, SCHED_RR, &sp);
- #endif /* #ifdef CONFIG_RCU_BOOST */
- 
- 	WRITE_ONCE(rdp->rcuc_activity, jiffies);
-@@ -1218,7 +1218,7 @@ static void rcu_spawn_one_boost_kthread(struct rcu_node *rnp)
- 	rnp->boost_kthread_task = t;
- 	raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
- 	sp.sched_priority = kthread_prio;
--	sched_setscheduler_nocheck(t, SCHED_FIFO, &sp);
-+	sched_setscheduler_nocheck(t, SCHED_RR, &sp);
- 	wake_up_process(t); /* get to TASK_INTERRUPTIBLE quickly. */
- }
- 
 -- 
 2.43.0
 
@@ -945,25 +902,6 @@ diff --git a/drivers/block/Kconfig b/drivers/block/Kconfig
  	help
  	  This is the Rust implementation of the null block driver. For now it
  	  is only a minimal stub.
--- 
-2.43.0
-
-Add bluetooth device ID
-
-Signed-off-by: Mario Roy <...>
-
-diff -uarp a/drivers/bluetooth/btusb.c b/drivers/bluetooth/btusb.c
---- a/drivers/bluetooth/btusb.c
-+++ b/drivers/bluetooth/btusb.c
-@@ -560,6 +560,8 @@ static const struct usb_device_id quirks
- 						     BTUSB_WIDEBAND_SPEECH },
- 	{ USB_DEVICE(0x13d3, 0x3591), .driver_info = BTUSB_REALTEK |
- 						     BTUSB_WIDEBAND_SPEECH },
-+	{ USB_DEVICE(0x13d3, 0x3601), .driver_info = BTUSB_REALTEK |
-+						     BTUSB_WIDEBAND_SPEECH },
- 	{ USB_DEVICE(0x0489, 0xe123), .driver_info = BTUSB_REALTEK |
- 						     BTUSB_WIDEBAND_SPEECH },
- 	{ USB_DEVICE(0x0489, 0xe125), .driver_info = BTUSB_REALTEK |
 -- 
 2.43.0
 
@@ -1654,52 +1592,6 @@ index 2d6d5582c3e9..040674734128 100644
 -- 
 2.25.1
 
-sched/eevdf: Fix se->slice being set to U64_MAX and resulting crash
-https://lore.kernel.org/all/174565777736.31282.9126332941284995798.tip-bot2@tip-bot2/
-
-diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
---- a/kernel/sched/fair.c
-+++ b/kernel/sched/fair.c
-@@ -7225,9 +7225,6 @@ static int dequeue_entities(struct rq *rq, struct sched_entity *se, int flags)
- 		idle_h_nr_running = task_has_idle_policy(p);
- 		if (!task_sleep && !task_delayed)
- 			h_nr_delayed = !!se->sched_delayed;
--	} else {
--		cfs_rq = group_cfs_rq(se);
--		slice = cfs_rq_min_slice(cfs_rq);
- 	}
- 
- 	for_each_sched_entity(se) {
-@@ -7237,6 +7234,7 @@ static int dequeue_entities(struct rq *rq, struct sched_entity *se, int flags)
- 			if (p && &p->se == se)
- 				return -1;
- 
-+			slice = cfs_rq_min_slice(cfs_rq);
- 			break;
- 		}
- 
--- 
-2.42.0
- 
-staging: bcm2835-camera: Initialise dev in v4l2_dev
-https://lore.kernel.org/all/20250414-staging-bcm2835-v4l2-fix-v1-1-2b2db9a8f293@raspberrypi.com/
-
-diff --git a/drivers/staging/vc04_services/bcm2835-camera/bcm2835-camera.c b/drivers/staging/vc04_services/bcm2835-camera/bcm2835-camera.c
-index b839b50ac26a..fa7ea4ca4c36 100644
---- a/drivers/staging/vc04_services/bcm2835-camera/bcm2835-camera.c
-+++ b/drivers/staging/vc04_services/bcm2835-camera/bcm2835-camera.c
-@@ -1902,6 +1902,7 @@ static int bcm2835_mmal_probe(struct vchiq_device *device)
- 				__func__, ret);
- 			goto free_dev;
- 		}
-+		dev->v4l2_dev.dev = &device->dev;
- 
- 		/* setup v4l controls */
- 		ret = bcm2835_mmal_init_controls(dev, &dev->ctrl_handler);
-
--- 
-2.43.0
-
 sched/rt: Fix race in push_rt_task
 https://lore.kernel.org/lkml/174413913083.31282.6439737092347995378.tip-bot2@tip-bot2/
 
@@ -1787,6 +1679,101 @@ index 778911b..e40422c 100644
   * running task can migrate over to a CPU that is running a task
 -- 
 2.22.3
+
+xhci: dbc: Avoid event polling busyloop if pending rx transfers are inactive
+https://lore.kernel.org/all/20250514124748.168922-1-mathias.nyman@linux.intel.com/
+
+diff --git a/drivers/usb/host/xhci-dbgcap.c b/drivers/usb/host/xhci-dbgcap.c
+index 241d7aa1fbc2..b12273f72c93 100644
+--- a/drivers/usb/host/xhci-dbgcap.c
++++ b/drivers/usb/host/xhci-dbgcap.c
+@@ -822,6 +822,7 @@ static enum evtreturn xhci_dbc_do_handle_events(struct xhci_dbc *dbc)
+ {
+ 	dma_addr_t		deq;
+ 	union xhci_trb		*evt;
++	enum evtreturn		ret = EVT_DONE;
+ 	u32			ctrl, portsc;
+ 	bool			update_erdp = false;
+ 
+@@ -906,6 +907,7 @@ static enum evtreturn xhci_dbc_do_handle_events(struct xhci_dbc *dbc)
+ 			break;
+ 		case TRB_TYPE(TRB_TRANSFER):
+ 			dbc_handle_xfer_event(dbc, evt);
++			ret = EVT_XFER_DONE;
+ 			break;
+ 		default:
+ 			break;
+@@ -924,7 +926,7 @@ static enum evtreturn xhci_dbc_do_handle_events(struct xhci_dbc *dbc)
+ 		lo_hi_writeq(deq, &dbc->regs->erdp);
+ 	}
+ 
+-	return EVT_DONE;
++	return ret;
+ }
+ 
+ static void xhci_dbc_handle_events(struct work_struct *work)
+@@ -933,6 +935,7 @@ static void xhci_dbc_handle_events(struct work_struct *work)
+ 	struct xhci_dbc		*dbc;
+ 	unsigned long		flags;
+ 	unsigned int		poll_interval;
++	unsigned long		busypoll_timelimit;
+ 
+ 	dbc = container_of(to_delayed_work(work), struct xhci_dbc, event_work);
+ 	poll_interval = dbc->poll_interval;
+@@ -951,11 +954,21 @@ static void xhci_dbc_handle_events(struct work_struct *work)
+ 			dbc->driver->disconnect(dbc);
+ 		break;
+ 	case EVT_DONE:
+-		/* set fast poll rate if there are pending data transfers */
++		/*
++		 * Set fast poll rate if there are pending out transfers, or
++		 * a transfer was recently processed
++		 */
++		busypoll_timelimit = dbc->xfer_timestamp +
++			msecs_to_jiffies(DBC_XFER_INACTIVITY_TIMEOUT);
++
+ 		if (!list_empty(&dbc->eps[BULK_OUT].list_pending) ||
+-		    !list_empty(&dbc->eps[BULK_IN].list_pending))
++		    time_is_after_jiffies(busypoll_timelimit))
+ 			poll_interval = 1;
+ 		break;
++	case EVT_XFER_DONE:
++		dbc->xfer_timestamp = jiffies;
++		poll_interval = 1;
++		break;
+ 	default:
+ 		dev_info(dbc->dev, "stop handling dbc events\n");
+ 		return;
+diff --git a/drivers/usb/host/xhci-dbgcap.h b/drivers/usb/host/xhci-dbgcap.h
+index 9dc8f4d8077c..47ac72c2286d 100644
+--- a/drivers/usb/host/xhci-dbgcap.h
++++ b/drivers/usb/host/xhci-dbgcap.h
+@@ -96,6 +96,7 @@ struct dbc_ep {
+ #define DBC_WRITE_BUF_SIZE		8192
+ #define DBC_POLL_INTERVAL_DEFAULT	64	/* milliseconds */
+ #define DBC_POLL_INTERVAL_MAX		5000	/* milliseconds */
++#define DBC_XFER_INACTIVITY_TIMEOUT	10	/* milliseconds */
+ /*
+  * Private structure for DbC hardware state:
+  */
+@@ -142,6 +143,7 @@ struct xhci_dbc {
+ 	enum dbc_state			state;
+ 	struct delayed_work		event_work;
+ 	unsigned int			poll_interval;	/* ms */
++	unsigned long			xfer_timestamp;
+ 	unsigned			resume_required:1;
+ 	struct dbc_ep			eps[2];
+ 
+@@ -187,6 +189,7 @@ struct dbc_request {
+ enum evtreturn {
+ 	EVT_ERR	= -1,
+ 	EVT_DONE,
++	EVT_XFER_DONE,
+ 	EVT_GSER,
+ 	EVT_DISC,
+ };
+-- 
+2.43.0
 
 x86/locking/atomic updates from 6.15:
 Improve performance by using asm_inline() for atomic locking instructions
@@ -2290,32 +2277,227 @@ index 4e37b40ce280..f5133249fd4d 100644
 -- 
 2.49.0
 
-dm: fix reading past the end of allocated memory (included in 6.12.28)
-dm: fix missing dm_put_live_table() in dm_keyslot_evict()
+mm/page_alloc: fix race condition in unaccepted memory handling
+https://lore.kernel.org/all/20250520125815.169021780@linuxfoundation.org/
 
-https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/commit/?id=cccd03371475e4c25ddad7f5b2467d9b4d3f5a09
-
-diff --git a/drivers/md/dm-table.c b/drivers/md/dm-table.c
-index 9e175c5e0634b4..6b23e777e10e7f 100644
---- a/drivers/md/dm-table.c
-+++ b/drivers/md/dm-table.c
-@@ -1183,7 +1183,7 @@ static int dm_keyslot_evict(struct blk_crypto_profile *profile,
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -7045,9 +7045,6 @@ bool has_managed_dma(void)
  
- 	t = dm_get_live_table(md, &srcu_idx);
- 	if (!t)
--		return 0;
-+		goto put_live_table;
+ #ifdef CONFIG_UNACCEPTED_MEMORY
  
- 	for (unsigned int i = 0; i < t->num_targets; i++) {
- 		struct dm_target *ti = dm_table_get_target(t, i);
-@@ -1194,6 +1194,7 @@ static int dm_keyslot_evict(struct blk_crypto_profile *profile,
- 					  (void *)key);
- 	}
+-/* Counts number of zones with unaccepted pages. */
+-static DEFINE_STATIC_KEY_FALSE(zones_with_unaccepted_pages);
+-
+ static bool lazy_accept = true;
  
-+put_live_table:
- 	dm_put_live_table(md, srcu_idx);
- 	return 0;
+ static int __init accept_memory_parse(char *p)
+@@ -7074,11 +7071,7 @@ static bool page_contains_unaccepted(str
+ static void __accept_page(struct zone *zone, unsigned long *flags,
+ 			  struct page *page)
+ {
+-	bool last;
+-
+ 	list_del(&page->lru);
+-	last = list_empty(&zone->unaccepted_pages);
+-
+ 	account_freepages(zone, -MAX_ORDER_NR_PAGES, MIGRATE_MOVABLE);
+ 	__mod_zone_page_state(zone, NR_UNACCEPTED, -MAX_ORDER_NR_PAGES);
+ 	__ClearPageUnaccepted(page);
+@@ -7087,9 +7080,6 @@ static void __accept_page(struct zone *z
+ 	accept_memory(page_to_phys(page), PAGE_SIZE << MAX_PAGE_ORDER);
+ 
+ 	__free_pages_ok(page, MAX_PAGE_ORDER, FPI_TO_TAIL);
+-
+-	if (last)
+-		static_branch_dec(&zones_with_unaccepted_pages);
  }
+ 
+ void accept_page(struct page *page)
+@@ -7126,19 +7116,11 @@ static bool try_to_accept_memory_one(str
+ 	return true;
+ }
+ 
+-static inline bool has_unaccepted_memory(void)
+-{
+-	return static_branch_unlikely(&zones_with_unaccepted_pages);
+-}
+-
+ static bool cond_accept_memory(struct zone *zone, unsigned int order)
+ {
+ 	long to_accept, wmark;
+ 	bool ret = false;
+ 
+-	if (!has_unaccepted_memory())
+-		return false;
+-
+ 	if (list_empty(&zone->unaccepted_pages))
+ 		return false;
+ 
+@@ -7172,22 +7154,17 @@ static bool __free_unaccepted(struct pag
+ {
+ 	struct zone *zone = page_zone(page);
+ 	unsigned long flags;
+-	bool first = false;
+ 
+ 	if (!lazy_accept)
+ 		return false;
+ 
+ 	spin_lock_irqsave(&zone->lock, flags);
+-	first = list_empty(&zone->unaccepted_pages);
+ 	list_add_tail(&page->lru, &zone->unaccepted_pages);
+ 	account_freepages(zone, MAX_ORDER_NR_PAGES, MIGRATE_MOVABLE);
+ 	__mod_zone_page_state(zone, NR_UNACCEPTED, MAX_ORDER_NR_PAGES);
+ 	__SetPageUnaccepted(page);
+ 	spin_unlock_irqrestore(&zone->lock, flags);
+ 
+-	if (first)
+-		static_branch_inc(&zones_with_unaccepted_pages);
+-
+ 	return true;
+ }
+ 
 -- 
 2.40.2
+
+usb: typec: ucsi: displayport: Fix deadlock
+https://lore.kernel.org/all/20250424084429.3220757-2-akuchynski@chromium.org/
+
+diff --git a/drivers/usb/typec/ucsi/displayport.c b/drivers/usb/typec/ucsi/displayport.c
+index 420af5139c70..acd053d4e38c 100644
+--- a/drivers/usb/typec/ucsi/displayport.c
++++ b/drivers/usb/typec/ucsi/displayport.c
+@@ -54,7 +54,8 @@ static int ucsi_displayport_enter(struct typec_altmode *alt, u32 *vdo)
+ 	u8 cur = 0;
+ 	int ret;
+ 
+-	mutex_lock(&dp->con->lock);
++	if (!ucsi_con_mutex_lock(dp->con))
++		return -ENOTCONN;
+ 
+ 	if (!dp->override && dp->initialized) {
+ 		const struct typec_altmode *p = typec_altmode_get_partner(alt);
+@@ -100,7 +101,7 @@ static int ucsi_displayport_enter(struct typec_altmode *alt, u32 *vdo)
+ 	schedule_work(&dp->work);
+ 	ret = 0;
+ err_unlock:
+-	mutex_unlock(&dp->con->lock);
++	ucsi_con_mutex_unlock(dp->con);
+ 
+ 	return ret;
+ }
+@@ -112,7 +113,8 @@ static int ucsi_displayport_exit(struct typec_altmode *alt)
+ 	u64 command;
+ 	int ret = 0;
+ 
+-	mutex_lock(&dp->con->lock);
++	if (!ucsi_con_mutex_lock(dp->con))
++		return -ENOTCONN;
+ 
+ 	if (!dp->override) {
+ 		const struct typec_altmode *p = typec_altmode_get_partner(alt);
+@@ -144,7 +146,7 @@ static int ucsi_displayport_exit(struct typec_altmode *alt)
+ 	schedule_work(&dp->work);
+ 
+ out_unlock:
+-	mutex_unlock(&dp->con->lock);
++	ucsi_con_mutex_unlock(dp->con);
+ 
+ 	return ret;
+ }
+@@ -202,20 +204,21 @@ static int ucsi_displayport_vdm(struct typec_altmode *alt,
+ 	int cmd = PD_VDO_CMD(header);
+ 	int svdm_version;
+ 
+-	mutex_lock(&dp->con->lock);
++	if (!ucsi_con_mutex_lock(dp->con))
++		return -ENOTCONN;
+ 
+ 	if (!dp->override && dp->initialized) {
+ 		const struct typec_altmode *p = typec_altmode_get_partner(alt);
+ 
+ 		dev_warn(&p->dev,
+ 			 "firmware doesn't support alternate mode overriding\n");
+-		mutex_unlock(&dp->con->lock);
++		ucsi_con_mutex_unlock(dp->con);
+ 		return -EOPNOTSUPP;
+ 	}
+ 
+ 	svdm_version = typec_altmode_get_svdm_version(alt);
+ 	if (svdm_version < 0) {
+-		mutex_unlock(&dp->con->lock);
++		ucsi_con_mutex_unlock(dp->con);
+ 		return svdm_version;
+ 	}
+ 
+@@ -259,7 +262,7 @@ static int ucsi_displayport_vdm(struct typec_altmode *alt,
+ 		break;
+ 	}
+ 
+-	mutex_unlock(&dp->con->lock);
++	ucsi_con_mutex_unlock(dp->con);
+ 
+ 	return 0;
+ }
+diff --git a/drivers/usb/typec/ucsi/ucsi.c b/drivers/usb/typec/ucsi/ucsi.c
+index 3f2bc13efa48..8eee3d8e588a 100644
+--- a/drivers/usb/typec/ucsi/ucsi.c
++++ b/drivers/usb/typec/ucsi/ucsi.c
+@@ -1903,6 +1903,40 @@ void ucsi_set_drvdata(struct ucsi *ucsi, void *data)
+ }
+ EXPORT_SYMBOL_GPL(ucsi_set_drvdata);
+ 
++/**
++ * ucsi_con_mutex_lock - Acquire the connector mutex
++ * @con: The connector interface to lock
++ *
++ * Returns true on success, false if the connector is disconnected
++ */
++bool ucsi_con_mutex_lock(struct ucsi_connector *con)
++{
++	bool mutex_locked = false;
++	bool connected = true;
++
++	while (connected && !mutex_locked) {
++		mutex_locked = mutex_trylock(&con->lock) != 0;
++		connected = con->status.flags & UCSI_CONSTAT_CONNECTED;
++		if (connected && !mutex_locked)
++			msleep(20);
++	}
++
++	connected = connected && con->partner;
++	if (!connected && mutex_locked)
++		mutex_unlock(&con->lock);
++
++	return connected;
++}
++
++/**
++ * ucsi_con_mutex_unlock - Release the connector mutex
++ * @con: The connector interface to unlock
++ */
++void ucsi_con_mutex_unlock(struct ucsi_connector *con)
++{
++	mutex_unlock(&con->lock);
++}
++
+ /**
+  * ucsi_create - Allocate UCSI instance
+  * @dev: Device interface to the PPM (Platform Policy Manager)
+diff --git a/drivers/usb/typec/ucsi/ucsi.h b/drivers/usb/typec/ucsi/ucsi.h
+index a333006d3496..5863a20b6c5d 100644
+--- a/drivers/usb/typec/ucsi/ucsi.h
++++ b/drivers/usb/typec/ucsi/ucsi.h
+@@ -91,6 +91,8 @@ int ucsi_register(struct ucsi *ucsi);
+ void ucsi_unregister(struct ucsi *ucsi);
+ void *ucsi_get_drvdata(struct ucsi *ucsi);
+ void ucsi_set_drvdata(struct ucsi *ucsi, void *data);
++bool ucsi_con_mutex_lock(struct ucsi_connector *con);
++void ucsi_con_mutex_unlock(struct ucsi_connector *con);
+ 
+ void ucsi_connector_change(struct ucsi *ucsi, u8 num);
+ 
+-- 
+2.49.0.1045.g170613ef41-goog
 
