@@ -8,7 +8,7 @@ Signed-off-by: Mario Roy <...>
 diff -uarp a/init/Kconfig b/init/Kconfig
 --- a/init/Kconfig
 +++ b/init/Kconfig
-@@ -1380,6 +1380,14 @@ config CHECKPOINT_RESTORE
+@@ -1383,6 +1383,14 @@ config CHECKPOINT_RESTORE
  
  	  If unsure, say N here.
  

@@ -135,7 +135,7 @@ fi
 
 _pkgsuffix=cachymod-614
 _major=6.14
-_minor=6
+_minor=7
 pkgver=${_major}.${_minor}
 _stable=${_major}.${_minor}
 #_stable=${_major}
@@ -167,6 +167,7 @@ source=(
     "mkinitcpio.template"
     "0001-linux6.14.5-update.patch"
     "0001-linux6.14.6-update.patch"
+    "0001-linux6.14.7-update.patch"
     "0001-rt.patch"
     "0001-cachyos-base-all.patch"
     "0001-sched-fair-remove-cachy-mods.patch"
@@ -186,7 +187,6 @@ source+=(
     "0210-cachymod-misc.patch"
     "0240-pipe-update.patch"
     "0250-amdgpu-update.patch"
-    "0260-mm-page_alloc-update.patch"
     "0270-sched-fair-update.patch"
 )
 

@@ -35,44 +35,6 @@ index c1e1e529e26c..46b22708dfbd 100644
 -- 
 2.18.0
 
-Bluetooth: btmtk: Remove the resetting step before downloading the fw
-https://lore.kernel.org/all/20250315022730.11071-1-hao.qin@mediatek.com/
-https://lore.kernel.org/all/aBxdpIabalg073AU@m.b4.vu/
-
-diff --git a/drivers/bluetooth/btmtk.c b/drivers/bluetooth/btmtk.c
-index 68846c5bd4f7..4390fd571dbd 100644
---- a/drivers/bluetooth/btmtk.c
-+++ b/drivers/bluetooth/btmtk.c
-@@ -1330,13 +1330,6 @@ int btmtk_usb_setup(struct hci_dev *hdev)
- 		break;
- 	case 0x7922:
- 	case 0x7925:
--		/* Reset the device to ensure it's in the initial state before
--		 * downloading the firmware to ensure.
--		 */
--
--		if (!test_bit(BTMTK_FIRMWARE_LOADED, &btmtk_data->flags))
--			btmtk_usb_subsys_reset(hdev, dev_id);
--		fallthrough;
- 	case 0x7961:
- 		btmtk_fw_get_filename(fw_bin_name, sizeof(fw_bin_name), dev_id,
- 				      fw_version, fw_flavor);
-@@ -1345,12 +1338,9 @@ int btmtk_usb_setup(struct hci_dev *hdev)
- 						btmtk_usb_hci_wmt_sync);
- 		if (err < 0) {
- 			bt_dev_err(hdev, "Failed to set up firmware (%d)", err);
--			clear_bit(BTMTK_FIRMWARE_LOADED, &btmtk_data->flags);
- 			return err;
- 		}
- 
--		set_bit(BTMTK_FIRMWARE_LOADED, &btmtk_data->flags);
--
- 		/* It's Device EndPoint Reset Option Register */
- 		err = btmtk_usb_uhw_reg_write(hdev, MTK_EP_RST_OPT,
- 					      MTK_EP_RST_IN_OUT_OPT);
--- 
-2.18.0
-
 Switch to gnu17, a GCC bug-fix version of the C11 standard.
 
 What is C17 and what changes have been made to the language?
@@ -410,54 +372,6 @@ index e3634916ffb9..95ebc9a430c4 100644
 -- 
 2.45.2
 
-# 0017-XANMOD-lib-kconfig.debug-disable-default-SYMBOLIC_ER.patch
-
-Subject: [PATCH 17/19] XANMOD: lib/kconfig.debug: disable default
- SYMBOLIC_ERRNAME and DEBUG_BUGVERBOSE
-
-Signed-off-by: Alexandre Frade <kernel@xxxxxxxxxx>
----
- fs/bcachefs/Kconfig | 1 -
- lib/Kconfig.debug   | 4 ++--
- 2 files changed, 2 insertions(+), 3 deletions(-)
-
-diff --git a/fs/bcachefs/Kconfig b/fs/bcachefs/Kconfig
-index fc7efd0a7525..0c195a1d00ac 100644
---- a/fs/bcachefs/Kconfig
-+++ b/fs/bcachefs/Kconfig
-@@ -24,7 +24,6 @@ config BCACHEFS_FS
- 	select XOR_BLOCKS
- 	select XXHASH
- 	select SRCU
--	select SYMBOLIC_ERRNAME
- 	select MIN_HEAP
- 	help
- 	The bcachefs filesystem - a modern, copy on write filesystem, with
-diff --git a/lib/Kconfig.debug b/lib/Kconfig.debug
-index 35796c290ca3..969f39d2024d 100644
---- a/lib/Kconfig.debug
-+++ b/lib/Kconfig.debug
-@@ -190,7 +190,7 @@ config DYNAMIC_DEBUG_CORE
- 
- config SYMBOLIC_ERRNAME
- 	bool "Support symbolic error names in printf"
--	default y if PRINTK
-+	default n
- 	help
- 	  If you say Y here, the kernel's printf implementation will
- 	  be able to print symbolic error names such as ENOSPC instead
-@@ -200,7 +200,7 @@ config SYMBOLIC_ERRNAME
- config DEBUG_BUGVERBOSE
- 	bool "Verbose BUG() reporting (adds 70K)" if DEBUG_KERNEL
- 	depends on BUG && (GENERIC_BUG || HAVE_DEBUG_BUGVERBOSE)
--	default y
-+	default n
- 	help
- 	  Say Y here to make BUG() panics output the file name and line number
- 	  of the BUG call as well as the EIP and oops trace.  This aids
--- 
-2.45.2
-
 Curated patches from SUNLIGHT Linux
 https://github.com/sunlightlinux/linux-sunlight
 
@@ -479,123 +393,6 @@ diff --git a/arch/x86/include/asm/tsc.h b/arch/x86/include/asm/tsc.h
  	return rdtsc();
  }
  #define get_cycles get_cycles
--- 
-2.43.0
-
-rcu: Change sched_setscheduler_nocheck() calls to SCHED_RR policy
-
-Signed-off-by: Alexandre Frade <kernel@xxxxxxxxxx>
-Signed-off-by: Ionut Nechita <ionut_n2001@xxxxxxxxxx>
-
-diff --git a/Documentation/admin-guide/kernel-parameters.txt b/Documentation/admin-guide/kernel-parameters.txt
---- a/Documentation/admin-guide/kernel-parameters.txt
-+++ b/Documentation/admin-guide/kernel-parameters.txt
-@@ -5254,7 +5254,7 @@
- 			overwritten.
- 
- 	rcutree.kthread_prio= 	 [KNL,BOOT]
--			Set the SCHED_FIFO priority of the RCU per-CPU
-+			Set the SCHED_RR priority of the RCU per-CPU
- 			kthreads (rcuc/N). This value is also used for
- 			the priority of the RCU boost threads (rcub/N)
- 			and for the RCU grace-period kthreads (rcu_bh,
-diff --git a/kernel/rcu/Kconfig b/kernel/rcu/Kconfig
---- a/kernel/rcu/Kconfig
-+++ b/kernel/rcu/Kconfig
-@@ -289,9 +289,9 @@ config RCU_NOCB_CPU_CB_BOOST
- 	depends on RCU_NOCB_CPU && RCU_BOOST
- 	default y if PREEMPT_RT
- 	help
--	  Use this option to invoke offloaded callbacks as SCHED_FIFO
-+	  Use this option to invoke offloaded callbacks as SCHED_RR
- 	  to avoid starvation by heavy SCHED_OTHER background load.
--	  Of course, running as SCHED_FIFO during callback floods will
-+	  Of course, running as SCHED_RR during callback floods will
- 	  cause the rcuo[ps] kthreads to monopolize the CPU for hundreds
- 	  of milliseconds or more.  Therefore, when enabling this option,
- 	  it is your responsibility to ensure that latency-sensitive
-diff --git a/kernel/rcu/rcutorture.c b/kernel/rcu/rcutorture.c
---- a/kernel/rcu/rcutorture.c
-+++ b/kernel/rcu/rcutorture.c
-@@ -2572,13 +2572,13 @@ static int rcutorture_booster_init(unsigned int cpu)
- 		t = per_cpu(ksoftirqd, cpu);
- 		WARN_ON_ONCE(!t);
- 		sp.sched_priority = 2;
--		sched_setscheduler_nocheck(t, SCHED_FIFO, &sp);
-+		sched_setscheduler_nocheck(t, SCHED_RR, &sp);
- #ifdef CONFIG_IRQ_FORCED_THREADING
- 		if (force_irqthreads()) {
- 			t = per_cpu(ktimerd, cpu);
- 			WARN_ON_ONCE(!t);
- 			sp.sched_priority = 2;
--			sched_setscheduler_nocheck(t, SCHED_FIFO, &sp);
-+			sched_setscheduler_nocheck(t, SCHED_RR, &sp);
- 		}
- #endif
- 	}
-diff --git a/kernel/rcu/tree.c b/kernel/rcu/tree.c
---- a/kernel/rcu/tree.c
---- b/kernel/rcu/tree.c
-@@ -4127,7 +4127,7 @@ static void __init rcu_start_exp_gp_kworker(void)
- 	}
- 
- 	if (IS_ENABLED(CONFIG_RCU_EXP_KTHREAD))
--		sched_setscheduler_nocheck(rcu_exp_gp_kworker->task, SCHED_FIFO, &param);
-+		sched_setscheduler_nocheck(rcu_exp_gp_kworker->task, SCHED_RR, &param);
- }
- 
- static void rcu_spawn_rnp_kthreads(struct rcu_node *rnp)
-@@ -4487,7 +4487,7 @@ static int __init rcu_spawn_gp_kthread(void)
- 		return 0;
- 	if (kthread_prio) {
- 		sp.sched_priority = kthread_prio;
--		sched_setscheduler_nocheck(t, SCHED_FIFO, &sp);
-+		sched_setscheduler_nocheck(t, SCHED_RR, &sp);
- 	}
- 	rnp = rcu_get_root();
- 	raw_spin_lock_irqsave_rcu_node(rnp, flags);
-diff --git a/kernel/rcu/tree_nocb.h b/kernel/rcu/tree_nocb.h
---- a/kernel/rcu/tree_nocb.h
-+++ b/kernel/rcu/tree_nocb.h
-@@ -1404,7 +1404,7 @@ static void rcu_spawn_cpu_nocb_kthread(int cpu)
- 		}
- 		WRITE_ONCE(rdp_gp->nocb_gp_kthread, t);
- 		if (kthread_prio)
--			sched_setscheduler_nocheck(t, SCHED_FIFO, &sp);
-+			sched_setscheduler_nocheck(t, SCHED_RR, &sp);
- 	}
- 	mutex_unlock(&rdp_gp->nocb_gp_kthread_mutex);
- 
-@@ -1420,7 +1420,7 @@ static void rcu_spawn_cpu_nocb_kthread(int cpu)
- 		kthread_park(t);
- 
- 	if (IS_ENABLED(CONFIG_RCU_NOCB_CPU_CB_BOOST) && kthread_prio)
--		sched_setscheduler_nocheck(t, SCHED_FIFO, &sp);
-+		sched_setscheduler_nocheck(t, SCHED_RR, &sp);
- 
- 	WRITE_ONCE(rdp->nocb_cb_kthread, t);
- 	WRITE_ONCE(rdp->nocb_gp_kthread, rdp_gp->nocb_gp_kthread);
-diff --git a/kernel/rcu/tree_plugin.h b/kernel/rcu/tree_plugin.h
---- a/kernel/rcu/tree_plugin.h
-+++ b/kernel/rcu/tree_plugin.h
-@@ -1021,7 +1021,7 @@ static void rcu_cpu_kthread_setup(unsigned int cpu)
- 	struct sched_param sp;
- 
- 	sp.sched_priority = kthread_prio;
--	sched_setscheduler_nocheck(current, SCHED_FIFO, &sp);
-+	sched_setscheduler_nocheck(current, SCHED_RR, &sp);
- #endif /* #ifdef CONFIG_RCU_BOOST */
- 
- 	WRITE_ONCE(rdp->rcuc_activity, jiffies);
-@@ -1220,7 +1220,7 @@ static void rcu_spawn_one_boost_kthread(struct rcu_node *rnp)
- 	raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
- 
- 	sp.sched_priority = kthread_prio;
--	sched_setscheduler_nocheck(t, SCHED_FIFO, &sp);
-+	sched_setscheduler_nocheck(t, SCHED_RR, &sp);
- 	rcu_thread_affine_rnp(t, rnp);
- 	wake_up_process(t); /* get to TASK_INTERRUPTIBLE quickly. */
- }
 -- 
 2.43.0
 
@@ -661,25 +458,6 @@ diff --git a/drivers/block/Kconfig b/drivers/block/Kconfig
  	help
  	  This is the Rust implementation of the null block driver. For now it
  	  is only a minimal stub.
--- 
-2.43.0
-
-Add bluetooth device ID
-
-Signed-off-by: Mario Roy <...>
-
-diff -uarp a/drivers/bluetooth/btusb.c b/drivers/bluetooth/btusb.c
---- a/drivers/bluetooth/btusb.c
-+++ b/drivers/bluetooth/btusb.c
-@@ -564,6 +564,8 @@ static const struct usb_device_id quirks
- 						     BTUSB_WIDEBAND_SPEECH },
- 	{ USB_DEVICE(0x13d3, 0x3591), .driver_info = BTUSB_REALTEK |
- 						     BTUSB_WIDEBAND_SPEECH },
-+	{ USB_DEVICE(0x13d3, 0x3601), .driver_info = BTUSB_REALTEK |
-+						     BTUSB_WIDEBAND_SPEECH },
- 	{ USB_DEVICE(0x0489, 0xe123), .driver_info = BTUSB_REALTEK |
- 						     BTUSB_WIDEBAND_SPEECH },
- 	{ USB_DEVICE(0x0489, 0xe125), .driver_info = BTUSB_REALTEK |
 -- 
 2.43.0
 
@@ -1034,25 +812,6 @@ index 2d6d5582c3e9..040674734128 100644
  
 -- 
 2.25.1
-
-staging: bcm2835-camera: Initialise dev in v4l2_dev
-https://lore.kernel.org/all/20250414-staging-bcm2835-v4l2-fix-v1-1-2b2db9a8f293@raspberrypi.com/
-
-diff --git a/drivers/staging/vc04_services/bcm2835-camera/bcm2835-camera.c b/drivers/staging/vc04_services/bcm2835-camera/bcm2835-camera.c
-index b839b50ac26a..fa7ea4ca4c36 100644
---- a/drivers/staging/vc04_services/bcm2835-camera/bcm2835-camera.c
-+++ b/drivers/staging/vc04_services/bcm2835-camera/bcm2835-camera.c
-@@ -1902,6 +1902,7 @@ static int bcm2835_mmal_probe(struct vchiq_device *device)
- 				__func__, ret);
- 			goto free_dev;
- 		}
-+		dev->v4l2_dev.dev = &device->dev;
- 
- 		/* setup v4l controls */
- 		ret = bcm2835_mmal_init_controls(dev, &dev->ctrl_handler);
-
--- 
-2.43.0
 
 Increased memory usage on NUMA nodes with ICE driver after upgrade to 6.13.y
 (regression in commit 492a044508ad)
@@ -1708,6 +1467,90 @@ index 4e37b40ce280..f5133249fd4d 100644
 -- 
 2.49.0
 
+mm/page_alloc: fix race condition in unaccepted memory handling
+https://lore.kernel.org/all/20250520125816.144960734@linuxfoundation.org/
+
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -6955,9 +6955,6 @@ bool has_managed_dma(void)
+ 
+ #ifdef CONFIG_UNACCEPTED_MEMORY
+ 
+-/* Counts number of zones with unaccepted pages. */
+-static DEFINE_STATIC_KEY_FALSE(zones_with_unaccepted_pages);
+-
+ static bool lazy_accept = true;
+ 
+ static int __init accept_memory_parse(char *p)
+@@ -6984,11 +6981,7 @@ static bool page_contains_unaccepted(str
+ static void __accept_page(struct zone *zone, unsigned long *flags,
+ 			  struct page *page)
+ {
+-	bool last;
+-
+ 	list_del(&page->lru);
+-	last = list_empty(&zone->unaccepted_pages);
+-
+ 	account_freepages(zone, -MAX_ORDER_NR_PAGES, MIGRATE_MOVABLE);
+ 	__mod_zone_page_state(zone, NR_UNACCEPTED, -MAX_ORDER_NR_PAGES);
+ 	__ClearPageUnaccepted(page);
+@@ -6997,9 +6990,6 @@ static void __accept_page(struct zone *z
+ 	accept_memory(page_to_phys(page), PAGE_SIZE << MAX_PAGE_ORDER);
+ 
+ 	__free_pages_ok(page, MAX_PAGE_ORDER, FPI_TO_TAIL);
+-
+-	if (last)
+-		static_branch_dec(&zones_with_unaccepted_pages);
+ }
+ 
+ void accept_page(struct page *page)
+@@ -7036,19 +7026,11 @@ static bool try_to_accept_memory_one(str
+ 	return true;
+ }
+ 
+-static inline bool has_unaccepted_memory(void)
+-{
+-	return static_branch_unlikely(&zones_with_unaccepted_pages);
+-}
+-
+ static bool cond_accept_memory(struct zone *zone, unsigned int order)
+ {
+ 	long to_accept, wmark;
+ 	bool ret = false;
+ 
+-	if (!has_unaccepted_memory())
+-		return false;
+-
+ 	if (list_empty(&zone->unaccepted_pages))
+ 		return false;
+ 
+@@ -7082,22 +7064,17 @@ static bool __free_unaccepted(struct pag
+ {
+ 	struct zone *zone = page_zone(page);
+ 	unsigned long flags;
+-	bool first = false;
+ 
+ 	if (!lazy_accept)
+ 		return false;
+ 
+ 	spin_lock_irqsave(&zone->lock, flags);
+-	first = list_empty(&zone->unaccepted_pages);
+ 	list_add_tail(&page->lru, &zone->unaccepted_pages);
+ 	account_freepages(zone, MAX_ORDER_NR_PAGES, MIGRATE_MOVABLE);
+ 	__mod_zone_page_state(zone, NR_UNACCEPTED, MAX_ORDER_NR_PAGES);
+ 	__SetPageUnaccepted(page);
+ 	spin_unlock_irqrestore(&zone->lock, flags);
+ 
+-	if (first)
+-		static_branch_inc(&zones_with_unaccepted_pages);
+-
+ 	return true;
+ }
+ 
+-- 
+2.40.2
+
 fs/eventpoll: fix endless busy loop after timeout has expired
 https://lore.kernel.org/all/20250429185827.3564438-1-max.kellermann@ionos.com/
 
@@ -1731,33 +1574,4 @@ index 4bc264b854c4..d4dbffdedd08 100644
  		/*
 -- 
 2.47.2
-
-dm: fix reading past the end of allocated memory (included in 6.14.6)
-dm: fix missing dm_put_live_table() in dm_keyslot_evict()
-
-https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/commit/?id=cccd03371475e4c25ddad7f5b2467d9b4d3f5a09
-
-diff --git a/drivers/md/dm-table.c b/drivers/md/dm-table.c
-index 9e175c5e0634b4..6b23e777e10e7f 100644
---- a/drivers/md/dm-table.c
-+++ b/drivers/md/dm-table.c
-@@ -1178,7 +1178,7 @@ static int dm_keyslot_evict(struct blk_crypto_profile *profile,
- 
- 	t = dm_get_live_table(md, &srcu_idx);
- 	if (!t)
--		return 0;
-+		goto put_live_table;
- 
- 	for (unsigned int i = 0; i < t->num_targets; i++) {
- 		struct dm_target *ti = dm_table_get_target(t, i);
-@@ -1189,6 +1189,7 @@ static int dm_keyslot_evict(struct blk_crypto_profile *profile,
- 					  (void *)key);
- 	}
- 
-+put_live_table:
- 	dm_put_live_table(md, srcu_idx);
- 	return 0;
- }
--- 
-2.40.2
 

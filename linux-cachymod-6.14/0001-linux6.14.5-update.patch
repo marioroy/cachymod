@@ -1533,7 +1533,7 @@ diff --git a/fs/ocfs2/journal.c b/fs/ocfs2/journal.c
 index f1b4b3e611cb9..c7a9729dc9d08 100644
 --- a/fs/ocfs2/journal.c
 +++ b/fs/ocfs2/journal.c
-@@ -1249,7 +1249,7 @@ static int ocfs2_force_read_journal(struct inode *inode)
+@@ -1271,7 +1271,7 @@ static int ocfs2_force_read_journal(struct inode *inode)
  		}
  
  		for (i = 0; i < p_blocks; i++, p_blkno++) {
@@ -2158,7 +2158,7 @@ diff --git a/io_uring/io_uring.c b/io_uring/io_uring.c
 index 7370f763346f4..1421ada5b0330 100644
 --- a/io_uring/io_uring.c
 +++ b/io_uring/io_uring.c
-@@ -877,10 +877,15 @@ bool io_req_post_cqe(struct io_kiocb *req, s32 res, u32 cflags)
+@@ -864,10 +864,15 @@ bool io_req_post_cqe(struct io_kiocb *req, s32 res, u32 cflags)
  	lockdep_assert(!io_wq_current_is_worker());
  	lockdep_assert_held(&ctx->uring_lock);
  

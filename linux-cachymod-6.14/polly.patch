@@ -45,7 +45,7 @@ Signed-off-by: Peter Jung <admin@xxxxxxxxxx>
 diff -uarp a/init/Kconfig b/init/Kconfig
 --- a/init/Kconfig
 +++ b/init/Kconfig
-@@ -263,6 +263,19 @@ config BUILD_SALT
+@@ -266,6 +266,19 @@ config BUILD_SALT
  	  This is mostly useful for distributions which want to ensure the
  	  build is unique between builds. It's safe to leave the default.
  
