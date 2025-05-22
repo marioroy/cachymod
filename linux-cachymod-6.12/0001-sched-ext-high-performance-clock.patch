@@ -190,7 +190,7 @@ index ec91a4d95722..9a568ee8e1f5 100644
  	/* no task is on scx, turn off all the switches and flush in-progress calls */
  	static_branch_disable(&__scx_ops_enabled);
  	for (i = SCX_OPI_BEGIN; i < SCX_OPI_END; i++)
-@@ -7276,6 +7285,68 @@ __bpf_kfunc struct cgroup *scx_bpf_task_cgroup(struct task_struct *p)
+@@ -7282,6 +7291,68 @@ __bpf_kfunc struct cgroup *scx_bpf_task_cgroup(struct task_struct *p)
  }
  #endif
  
@@ -259,7 +259,7 @@ index ec91a4d95722..9a568ee8e1f5 100644
  __bpf_kfunc_end_defs();
  
  BTF_KFUNCS_START(scx_kfunc_ids_any)
-@@ -7307,6 +7378,7 @@ BTF_ID_FLAGS(func, scx_bpf_cpu_rq)
+@@ -7313,6 +7384,7 @@ BTF_ID_FLAGS(func, scx_bpf_cpu_rq)
  #ifdef CONFIG_CGROUP_SCHED
  BTF_ID_FLAGS(func, scx_bpf_task_cgroup, KF_RCU | KF_ACQUIRE)
  #endif

@@ -5846,7 +5846,7 @@ diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu_drv.c b/drivers/gpu/drm/amd/amdgp
 index 8983cbe6b056..16a6ac7620a3 100644
 --- a/drivers/gpu/drm/amd/amdgpu/amdgpu_drv.c
 +++ b/drivers/gpu/drm/amd/amdgpu/amdgpu_drv.c
-@@ -3091,6 +3091,11 @@ static int __init amdgpu_init(void)
+@@ -3082,6 +3082,11 @@ static int __init amdgpu_init(void)
  	/* Ignore KFD init failures. Normal when CONFIG_HSA_AMD is not set. */
  	amdgpu_amdkfd_init();
  
@@ -10848,7 +10848,7 @@ index c38067c1d655e9..0cbde64592ee4c 100644
  KBUILD_CFLAGS += -Wundef
  KBUILD_CFLAGS += -Werror=implicit-function-declaration
  KBUILD_CFLAGS += -Werror=implicit-int
-@@ -56,6 +57,13 @@ KBUILD_CFLAGS += -Wno-pointer-sign
+@@ -68,6 +69,13 @@ KBUILD_CFLAGS += -Wno-pointer-sign
  # globally built with -Wcast-function-type.
  KBUILD_CFLAGS += $(call cc-option, -Wcast-function-type)
  
@@ -10862,7 +10862,7 @@ index c38067c1d655e9..0cbde64592ee4c 100644
  # The allocators already balk at large sizes, so silence the compiler
  # warnings for bounds checks involving those possible values. While
  # -Wno-alloc-size-larger-than would normally be used here, earlier versions
-@@ -85,7 +93,6 @@ KBUILD_CFLAGS += $(call cc-option,-Wenum-conversion)
+@@ -97,7 +105,6 @@ KBUILD_CFLAGS += $(call cc-option,-Wenum-conversion)
  # Explicitly clear padding bits during variable initialization
  KBUILD_CFLAGS += $(call cc-option,-fzero-init-padding-bits=all)
  

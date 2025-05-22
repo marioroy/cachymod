@@ -495,7 +495,7 @@ Place libraries right below the binary for PIE binaries, this helps code localit
 
 --- linux-5.18.2/fs/binfmt_elf.c~	2022-06-06 06:49:00.000000000 +0000
 +++ linux-5.18.2/fs/binfmt_elf.c	2022-08-10 13:53:04.878633166 +0000
-@@ -1282,6 +1282,8 @@
+@@ -1288,6 +1288,8 @@
  	mm = current->mm;
  	mm->end_code = end_code;
  	mm->start_code = start_code;
