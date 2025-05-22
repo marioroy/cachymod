@@ -21,7 +21,6 @@
 # Patch0148: 0002-sched-core-add-some-branch-hints-based-on-gcov-analy.patch
 # Patch0149: 0149-select-do_pollfd-add-unlikely-branch-hint-return-pat.patch
 # Patch0150: 0150-select-core_sys_select-add-unlikely-branch-hint-on-r.patch
-# Patch0156: ratelimit-sched-yield.patch
 # Patch0157: scale-net-alloc.patch
 # Patch0158: 0158-clocksource-only-perform-extended-clocksource-checks.patch
 # Patch0164: 0164-KVM-VMX-make-vmx-init-a-late-init-call-to-get-to-ini.patch
@@ -652,50 +651,6 @@ index 0eaf3522abe9..9fb650d03d52 100644
  	/* max_fds can increase, so grab it once to avoid race */
 -- 
 2.49.0
-
-# Patch0156: ratelimit-sched-yield.patch
-
-Subject: [PATCH] handle sched_yield gracefully when being hammered
-
-Some misguided apps hammer sched_yield() in a tight loop (they should be using futexes instead)
-which causes massive lock contention even if there is little work to do or to yield to.
-rare limit yielding since the base scheduler does a pretty good job already about just
-running the right things
-
-Signed-off-by: Colin Ian King <colin.i.king@xxxxxxxxxx>
----
- kernel/sched/syscalls.c | 12 ++++++++++++
- 1 file changed, 12 insertions(+)
-
-diff --git a/kernel/sched/syscalls.c b/kernel/sched/syscalls.c
-index ae1b42775ef9..441ac65f4f15 100644
---- a/kernel/sched/syscalls.c
-+++ b/kernel/sched/syscalls.c
-@@ -1349,10 +1349,22 @@ SYSCALL_DEFINE3(sched_getaffinity, pid_t, pid, unsigned int, len,
- 	return ret;
- }
- 
-+static DEFINE_PER_CPU(unsigned long, last_yield);
-+
- static void do_sched_yield(void)
- {
- 	struct rq_flags rf;
- 	struct rq *rq;
-+	int cpu = raw_smp_processor_id();
-+
-+	cond_resched();
-+
-+	/* rate limit yielding to something sensible */
-+
-+	if (!time_after(jiffies, per_cpu(last_yield, cpu)))
-+		return;
-+
-+	per_cpu(last_yield, cpu) = jiffies + msecs_to_jiffies(2);
- 
- 	rq = this_rq_lock_irq(&rf);
- 
--- 
-2.46.2
 
 # Patch0157: scale-net-alloc.patch
 
