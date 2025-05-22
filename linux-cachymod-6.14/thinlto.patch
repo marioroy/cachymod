@@ -152,7 +152,7 @@ index a9edd03036537..8fbff2ab87ebd 100644
  endif
  CC_FLAGS_LTO	+= -fvisibility=hidden
  
-@@ -1235,8 +1236,34 @@ vmlinux.a: $(KBUILD_VMLINUX_OBJS) scripts/head-object-list.txt FORCE
+@@ -1234,8 +1235,34 @@ vmlinux.a: $(KBUILD_VMLINUX_OBJS) scripts/head-object-list.txt FORCE
  	$(call if_changed,ar_vmlinux.a)
  
  PHONY += vmlinux_o
@@ -187,7 +187,7 @@ index a9edd03036537..8fbff2ab87ebd 100644
  
  vmlinux.o modules.builtin.modinfo modules.builtin: vmlinux_o
  	@:
-@@ -1591,7 +1618,8 @@ CLEAN_FILES += vmlinux.symvers modules-only.symvers \
+@@ -1590,7 +1617,8 @@ CLEAN_FILES += vmlinux.symvers modules-only.symvers \
  	       modules.builtin.ranges vmlinux.o.map \
  	       compile_commands.json rust/test \
  	       rust-project.json .vmlinux.objs .vmlinux.export.c \
@@ -197,7 +197,7 @@ index a9edd03036537..8fbff2ab87ebd 100644
  
  # Directories & files removed with 'make mrproper'
  MRPROPER_FILES += include/config include/generated          \
-@@ -2041,6 +2069,8 @@ clean: $(clean-dirs)
+@@ -2040,6 +2068,8 @@ clean: $(clean-dirs)
  		-o -name '*.symtypes' -o -name 'modules.order' \
  		-o -name '*.c.[012]*.*' \
  		-o -name '*.ll' \

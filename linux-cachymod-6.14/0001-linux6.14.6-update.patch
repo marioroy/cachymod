@@ -542,7 +542,7 @@ diff --git a/drivers/nvme/host/pci.c b/drivers/nvme/host/pci.c
 index 1dc12784efafc..d4d109df3c84d 100644
 --- a/drivers/nvme/host/pci.c
 +++ b/drivers/nvme/host/pci.c
-@@ -3626,6 +3626,9 @@ static const struct pci_device_id nvme_id_table[] = {
+@@ -3628,6 +3628,9 @@ static const struct pci_device_id nvme_id_table[] = {
  		.driver_data = NVME_QUIRK_BOGUS_NID, },
  	{ PCI_DEVICE(0x1217, 0x8760), /* O2 Micro 64GB Steam Deck */
  		.driver_data = NVME_QUIRK_DMAPOOL_ALIGN_512, },
@@ -624,7 +624,7 @@ diff --git a/drivers/nvme/host/pci.c b/drivers/nvme/host/pci.c
 index d4d109df3c84d..5b0ad7787be6f 100644
 --- a/drivers/nvme/host/pci.c
 +++ b/drivers/nvme/host/pci.c
-@@ -3652,6 +3652,9 @@ static const struct pci_device_id nvme_id_table[] = {
+@@ -3654,6 +3654,9 @@ static const struct pci_device_id nvme_id_table[] = {
  				NVME_QUIRK_IGNORE_DEV_SUBNQN, },
  	{ PCI_DEVICE(0x15b7, 0x5008),   /* Sandisk SN530 */
  		.driver_data = NVME_QUIRK_BROKEN_MSI },
@@ -958,7 +958,7 @@ diff --git a/io_uring/fdinfo.c b/io_uring/fdinfo.c
 index f60d0a9d505e2..9414ca6d101c0 100644
 --- a/io_uring/fdinfo.c
 +++ b/io_uring/fdinfo.c
-@@ -123,11 +123,11 @@ __cold void io_uring_show_fdinfo(struct seq_file *m, struct file *file)
+@@ -117,11 +117,11 @@ __cold void io_uring_show_fdinfo(struct seq_file *m, struct file *file)
  	seq_printf(m, "SqMask:\t0x%x\n", sq_mask);
  	seq_printf(m, "SqHead:\t%u\n", sq_head);
  	seq_printf(m, "SqTail:\t%u\n", sq_tail);
