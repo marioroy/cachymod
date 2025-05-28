@@ -26,17 +26,6 @@ scripts/config --set-val KVM_MAX_NR_VCPUS 128
 ### Decrease the maximum number of GPUs.
 scripts/config --set-val VGA_ARB_MAX_GPUS 4
 
-### Cluster scheduler support improves the CPU scheduler's decision
-### making when dealing with machines that have clusters of CPUs.
-### Cluster usually means a couple of CPUs which are placed closely
-### by sharing mid-level caches, last-level cache tags or internal
-### busses.
-
-if [[ $(uname -m) = *"x86"* ]]; then
-    # Disable on X86 platform; prefer scheduling to idled CPUs.
-    scripts/config -d SCHED_CLUSTER
-fi
-
 ### Enable ACPI options. (default -m)
 scripts/config -e ACPI_TAD -e ACPI_VIDEO -e ACPI_WMI -e INPUT_SPARSEKMAP
 
