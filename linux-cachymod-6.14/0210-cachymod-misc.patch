@@ -709,6 +709,26 @@ index e9b448d1b1b70..fdc00516c0b54 100644
 --
 2.34.1
 
+Revert "bpf: remove unnecessary rcu_read_{lock,unlock}() in multi-uprobe attach logic"
+https://lore.kernel.org/all/20250520054943.5002-1-xuewen.yan@unisoc.com/
+
+diff --git a/kernel/trace/bpf_trace.c b/kernel/trace/bpf_trace.c
+index 187dc37d61d4..0c4b6af10601 100644
+--- a/kernel/trace/bpf_trace.c
++++ b/kernel/trace/bpf_trace.c
+@@ -3425,7 +3425,9 @@ int bpf_uprobe_multi_link_attach(const union bpf_attr *attr, struct bpf_prog *pr
+ 	}
+ 
+ 	if (pid) {
++		rcu_read_lock();
+ 		task = get_pid_task(find_vpid(pid), PIDTYPE_TGID);
++		rcu_read_unlock();
+ 		if (!task) {
+ 			err = -ESRCH;
+ 			goto error_path_put;
+-- 
+2.25.1
+
 sched/core: Tweak wait_task_inactive() to force dequeue sched_delayed tasks
 https://lore.kernel.org/all/20250425195757.2139558-1-jstultz@google.com/
 
@@ -772,6 +792,111 @@ index 2d6d5582c3e9..040674734128 100644
 +
  	if (task_new && se->sched_delayed)
  		h_nr_runnable = 0;
+ 
+-- 
+2.25.1
+
+sched/numa: fix task swap by skipping kernel threads
+https://lore.kernel.org/all/20250523220437.3CC71C4CEE9@smtp.kernel.org/
+
+diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
+index 0fb9bf995a47..03d9a49a68b9 100644
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -2311,7 +2311,8 @@ static bool task_numa_compare(struct task_numa_env *env,
+ 
+ 	rcu_read_lock();
+ 	cur = rcu_dereference(dst_rq->curr);
+-	if (cur && ((cur->flags & PF_EXITING) || is_idle_task(cur)))
++	if (cur && ((cur->flags & (PF_EXITING | PF_KTHREAD)) ||
++		    !cur->mm))
+ 		cur = NULL;
+ 
+ 	/*
+-- 
+2.25.1
+
+sched/util_est: Simply the condition for util_est_dequeue/enqueue
+https://lore.kernel.org/all/20250417043457.10632-2-xuewen.yan@unisoc.com/
+
+diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
+index e43993a4e580..18c85857bff0 100644
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -6984,7 +6984,7 @@ enqueue_task_fair(struct rq *rq, struct task_struct *p, int flags)
+ 	 * Let's add the task's estimated utilization to the cfs_rq's
+ 	 * estimated utilization, before we update schedutil.
+ 	 */
+-	if (!(p->se.sched_delayed && (task_on_rq_migrating(p) || (flags & ENQUEUE_RESTORE))))
++	if (!p->se.sched_delayed || (flags & ENQUEUE_DELAYED))
+ 		util_est_enqueue(&rq->cfs, p);
+ 
+ 	/*
+@@ -7224,7 +7224,7 @@ static int dequeue_entities(struct rq *rq, struct sched_entity *se, int flags)
+  */
+ static bool dequeue_task_fair(struct rq *rq, struct task_struct *p, int flags)
+ {
+-	if (!(p->se.sched_delayed && (task_on_rq_migrating(p) || (flags & DEQUEUE_SAVE))))
++	if (!p->se.sched_delayed)
+ 		util_est_dequeue(&rq->cfs, p);
+ 
+ 	util_est_update(&rq->cfs, p, flags & DEQUEUE_SLEEP);
+-- 
+2.25.1
+
+sched/uclamp: Align uclamp and util_est and call before freq update
+https://lore.kernel.org/all/20250417043457.10632-3-xuewen.yan@unisoc.com/
+
+diff --git a/kernel/sched/core.c b/kernel/sched/core.c
+index c81cf642dba0..0f4ab0c17c58 100644
+--- a/kernel/sched/core.c
++++ b/kernel/sched/core.c
+@@ -1749,7 +1749,7 @@ static inline void uclamp_rq_dec_id(struct rq *rq, struct task_struct *p,
+ 	}
+ }
+ 
+-static inline void uclamp_rq_inc(struct rq *rq, struct task_struct *p)
++static inline void uclamp_rq_inc(struct rq *rq, struct task_struct *p, int flags)
+ {
+ 	enum uclamp_id clamp_id;
+ 
+@@ -1765,7 +1765,8 @@ static inline void uclamp_rq_inc(struct rq *rq, struct task_struct *p)
+ 	if (unlikely(!p->sched_class->uclamp_enabled))
+ 		return;
+ 
+-	if (p->se.sched_delayed)
++	/* Only inc the delayed task which being woken up. */
++	if (p->se.sched_delayed && !(flags & ENQUEUE_DELAYED))
+ 		return;
+ 
+ 	for_each_clamp_id(clamp_id)
+@@ -2033,7 +2034,7 @@ static void __init init_uclamp(void)
+ }
+ 
+ #else /* !CONFIG_UCLAMP_TASK */
+-static inline void uclamp_rq_inc(struct rq *rq, struct task_struct *p) { }
++static inline void uclamp_rq_inc(struct rq *rq, struct task_struct *p, int flags) { }
+ static inline void uclamp_rq_dec(struct rq *rq, struct task_struct *p) { }
+ static inline void uclamp_fork(struct task_struct *p) { }
+ static inline void uclamp_post_fork(struct task_struct *p) { }
+@@ -2069,12 +2070,14 @@ void enqueue_task(struct rq *rq, struct task_struct *p, int flags)
+ 	if (!(flags & ENQUEUE_NOCLOCK))
+ 		update_rq_clock(rq);
+ 
+-	p->sched_class->enqueue_task(rq, p, flags);
+ 	/*
+-	 * Must be after ->enqueue_task() because ENQUEUE_DELAYED can clear
+-	 * ->sched_delayed.
++	 * Can be before ->enqueue_task() because uclamp considers the
++	 * ENQUEUE_DELAYED task before its ->sched_delayed gets cleared
++	 * in ->enqueue_task().
+ 	 */
+-	uclamp_rq_inc(rq, p);
++	uclamp_rq_inc(rq, p, flags);
++
++	p->sched_class->enqueue_task(rq, p, flags);
+ 
+ 	psi_enqueue(p, flags);
  
 -- 
 2.25.1

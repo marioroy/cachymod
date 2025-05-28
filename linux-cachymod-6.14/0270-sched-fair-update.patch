@@ -30,7 +30,7 @@ index 621cfc7..45daa41 100644
  		return;
  
  	if (unlikely(!p->sched_class->uclamp_enabled))
-@@ -1786,7 +1786,7 @@ static inline void uclamp_rq_dec(struct rq *rq, struct task_struct *p)
+@@ -1787,7 +1787,7 @@ static inline void uclamp_rq_dec(struct rq *rq, struct task_struct *p)
  	 * The condition is constructed such that a NOP is generated when
  	 * sched_uclamp_used is disabled.
  	 */
@@ -39,7 +39,7 @@ index 621cfc7..45daa41 100644
  		return;
  
  	if (unlikely(!p->sched_class->uclamp_enabled))
-@@ -1944,12 +1944,12 @@ static int sysctl_sched_uclamp_handler(const struct ctl_table *table, int write,
+@@ -1945,12 +1945,12 @@ static int sysctl_sched_uclamp_handler(const struct ctl_table *table, int write,
  	}
  
  	if (update_root_tg) {
@@ -54,7 +54,7 @@ index 621cfc7..45daa41 100644
  		uclamp_sync_util_min_rt_default();
  	}
  
-@@ -9339,7 +9339,7 @@ static ssize_t cpu_uclamp_write(struct kernfs_open_file *of, char *buf,
+@@ -9342,7 +9342,7 @@ static ssize_t cpu_uclamp_write(struct kernfs_open_file *of, char *buf,
  	if (req.ret)
  		return req.ret;
  
@@ -207,7 +207,7 @@ diff --git a/kernel/sched/core.c b/kernel/sched/core.c
 index cfaca30..c81cf64 100644
 --- a/kernel/sched/core.c
 +++ b/kernel/sched/core.c
-@@ -10711,7 +10711,6 @@ void sched_mm_cid_after_execve(struct task_struct *t)
+@@ -10714,7 +10714,6 @@ void sched_mm_cid_after_execve(struct task_struct *t)
  		smp_mb();
  		t->last_mm_cid = t->mm_cid = mm_cid_get(rq, t, mm);
  	}
