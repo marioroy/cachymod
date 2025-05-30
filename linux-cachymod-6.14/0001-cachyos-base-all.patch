@@ -9,14 +9,14 @@ Signed-off-by: Peter Jung <admin@ptr1337.dev>
  arch/x86/kernel/acpi/cppc.c        |   4 +-
  drivers/cpufreq/amd-pstate-trace.h |  13 +-
  drivers/cpufreq/amd-pstate-ut.c    | 211 ++++-----
- drivers/cpufreq/amd-pstate.c       | 674 ++++++++++++-----------------
+ drivers/cpufreq/amd-pstate.c       | 673 ++++++++++++-----------------
  drivers/cpufreq/amd-pstate.h       |  63 +--
  include/linux/cpufreq.h            |   3 +
  include/linux/sched/topology.h     |   6 +
  kernel/sched/debug.c               |   4 +
  kernel/sched/fair.c                |   5 +-
  kernel/sched/topology.c            |  58 +++
- 11 files changed, 507 insertions(+), 554 deletions(-)
+ 11 files changed, 507 insertions(+), 553 deletions(-)
 
 diff --git a/arch/x86/include/asm/msr-index.h b/arch/x86/include/asm/msr-index.h
 index d4308e78a009..904dd8c0408c 100644
@@ -1092,15 +1092,7 @@ index 1b26845703f6..f62dd09c1e4c 100644
  
  	if (on)
  		policy->cpuinfo.max_freq = max_freq;
-@@ -746,7 +750,6 @@ static int amd_pstate_set_boost(struct cpufreq_policy *policy, int state)
- 		pr_err("Boost mode is not supported by this processor or SBIOS\n");
- 		return -EOPNOTSUPP;
- 	}
--	guard(mutex)(&amd_pstate_driver_lock);
- 
- 	ret = amd_pstate_cpu_boost_update(policy, state);
- 	refresh_frequency_limits(policy);
-@@ -791,19 +794,9 @@ static void amd_perf_ctl_reset(unsigned int cpu)
+@@ -790,19 +794,9 @@ static void amd_perf_ctl_reset(unsigned int cpu)
  	wrmsrl_on_cpu(cpu, MSR_AMD_PERF_CTL, 0);
  }
  
@@ -1121,7 +1113,7 @@ index 1b26845703f6..f62dd09c1e4c 100644
  {
  	/* user disabled or not detected */
  	if (!amd_pstate_prefcore)
-@@ -811,54 +804,38 @@ static void amd_pstate_init_prefcore(struct amd_cpudata *cpudata)
+@@ -810,54 +804,38 @@ static void amd_pstate_init_prefcore(struct amd_cpudata *cpudata)
  
  	cpudata->hw_prefcore = true;
  
@@ -1184,7 +1176,7 @@ index 1b26845703f6..f62dd09c1e4c 100644
  }
  
  /*
-@@ -896,48 +873,45 @@ static u32 amd_pstate_get_transition_latency(unsigned int cpu)
+@@ -895,48 +873,45 @@ static u32 amd_pstate_get_transition_latency(unsigned int cpu)
  }
  
  /*
@@ -1256,7 +1248,7 @@ index 1b26845703f6..f62dd09c1e4c 100644
  
  	/**
  	 * Below values need to be initialized correctly, otherwise driver will fail to load
-@@ -962,9 +936,10 @@ static int amd_pstate_init_freq(struct amd_cpudata *cpudata)
+@@ -961,9 +936,10 @@ static int amd_pstate_init_freq(struct amd_cpudata *cpudata)
  
  static int amd_pstate_cpu_init(struct cpufreq_policy *policy)
  {
@@ -1269,7 +1261,7 @@ index 1b26845703f6..f62dd09c1e4c 100644
  
  	/*
  	 * Resetting PERF_CTL_MSR will put the CPU in P0 frequency,
-@@ -985,7 +960,7 @@ static int amd_pstate_cpu_init(struct cpufreq_policy *policy)
+@@ -984,7 +960,7 @@ static int amd_pstate_cpu_init(struct cpufreq_policy *policy)
  	if (ret)
  		goto free_cpudata1;
  
@@ -1278,7 +1270,7 @@ index 1b26845703f6..f62dd09c1e4c 100644
  
  	ret = amd_pstate_init_freq(cpudata);
  	if (ret)
-@@ -995,17 +970,21 @@ static int amd_pstate_cpu_init(struct cpufreq_policy *policy)
+@@ -994,17 +970,21 @@ static int amd_pstate_cpu_init(struct cpufreq_policy *policy)
  	if (ret)
  		goto free_cpudata1;
  
@@ -1307,7 +1299,7 @@ index 1b26845703f6..f62dd09c1e4c 100644
  
  	policy->boost_enabled = READ_ONCE(cpudata->boost_supported);
  
-@@ -1029,9 +1008,6 @@ static int amd_pstate_cpu_init(struct cpufreq_policy *policy)
+@@ -1028,9 +1008,6 @@ static int amd_pstate_cpu_init(struct cpufreq_policy *policy)
  		goto free_cpudata2;
  	}
  
@@ -1317,7 +1309,7 @@ index 1b26845703f6..f62dd09c1e4c 100644
  	policy->driver_data = cpudata;
  
  	if (!current_pstate_driver->adjust_perf)
-@@ -1042,6 +1018,7 @@ static int amd_pstate_cpu_init(struct cpufreq_policy *policy)
+@@ -1041,6 +1018,7 @@ static int amd_pstate_cpu_init(struct cpufreq_policy *policy)
  free_cpudata2:
  	freq_qos_remove_request(&cpudata->req[0]);
  free_cpudata1:
@@ -1325,7 +1317,7 @@ index 1b26845703f6..f62dd09c1e4c 100644
  	kfree(cpudata);
  	return ret;
  }
-@@ -1056,28 +1033,6 @@ static void amd_pstate_cpu_exit(struct cpufreq_policy *policy)
+@@ -1055,28 +1033,6 @@ static void amd_pstate_cpu_exit(struct cpufreq_policy *policy)
  	kfree(cpudata);
  }
  
@@ -1354,7 +1346,7 @@ index 1b26845703f6..f62dd09c1e4c 100644
  /* Sysfs attributes */
  
  /*
-@@ -1088,27 +1043,27 @@ static int amd_pstate_cpu_suspend(struct cpufreq_policy *policy)
+@@ -1087,27 +1043,27 @@ static int amd_pstate_cpu_suspend(struct cpufreq_policy *policy)
  static ssize_t show_amd_pstate_max_freq(struct cpufreq_policy *policy,
  					char *buf)
  {
@@ -1394,7 +1386,7 @@ index 1b26845703f6..f62dd09c1e4c 100644
  }
  
  /*
-@@ -1118,12 +1073,11 @@ static ssize_t show_amd_pstate_lowest_nonlinear_freq(struct cpufreq_policy *poli
+@@ -1117,12 +1073,11 @@ static ssize_t show_amd_pstate_lowest_nonlinear_freq(struct cpufreq_policy *poli
  static ssize_t show_amd_pstate_highest_perf(struct cpufreq_policy *policy,
  					    char *buf)
  {
@@ -1410,7 +1402,7 @@ index 1b26845703f6..f62dd09c1e4c 100644
  }
  
  static ssize_t show_amd_pstate_prefcore_ranking(struct cpufreq_policy *policy,
-@@ -1170,8 +1124,10 @@ static ssize_t show_energy_performance_available_preferences(
+@@ -1169,8 +1124,10 @@ static ssize_t show_energy_performance_available_preferences(
  static ssize_t store_energy_performance_preference(
  		struct cpufreq_policy *policy, const char *buf, size_t count)
  {
@@ -1421,7 +1413,7 @@ index 1b26845703f6..f62dd09c1e4c 100644
  
  	ret = sscanf(buf, "%20s", str_preference);
  	if (ret != 1)
-@@ -1181,9 +1137,17 @@ static ssize_t store_energy_performance_preference(
+@@ -1180,9 +1137,17 @@ static ssize_t store_energy_performance_preference(
  	if (ret < 0)
  		return -EINVAL;
  
@@ -1441,7 +1433,7 @@ index 1b26845703f6..f62dd09c1e4c 100644
  
  	return ret ? ret : count;
  }
-@@ -1192,9 +1156,11 @@ static ssize_t show_energy_performance_preference(
+@@ -1191,9 +1156,11 @@ static ssize_t show_energy_performance_preference(
  				struct cpufreq_policy *policy, char *buf)
  {
  	struct amd_cpudata *cpudata = policy->driver_data;
@@ -1455,7 +1447,7 @@ index 1b26845703f6..f62dd09c1e4c 100644
  	case AMD_CPPC_EPP_PERFORMANCE:
  		preference = EPP_INDEX_PERFORMANCE;
  		break;
-@@ -1216,7 +1182,6 @@ static ssize_t show_energy_performance_preference(
+@@ -1215,7 +1182,6 @@ static ssize_t show_energy_performance_preference(
  
  static void amd_pstate_driver_cleanup(void)
  {
@@ -1463,7 +1455,7 @@ index 1b26845703f6..f62dd09c1e4c 100644
  	cppc_state = AMD_PSTATE_DISABLE;
  	current_pstate_driver = NULL;
  }
-@@ -1250,14 +1215,6 @@ static int amd_pstate_register_driver(int mode)
+@@ -1249,14 +1215,6 @@ static int amd_pstate_register_driver(int mode)
  
  	cppc_state = mode;
  
@@ -1478,7 +1470,7 @@ index 1b26845703f6..f62dd09c1e4c 100644
  	/* at least one CPU supports CPB */
  	current_pstate_driver->boost_enabled = cpu_feature_enabled(X86_FEATURE_CPB);
  
-@@ -1355,8 +1312,10 @@ int amd_pstate_update_status(const char *buf, size_t size)
+@@ -1354,8 +1312,10 @@ int amd_pstate_update_status(const char *buf, size_t size)
  	if (mode_idx < 0 || mode_idx >= AMD_PSTATE_MAX)
  		return -EINVAL;
  
@@ -1490,7 +1482,7 @@ index 1b26845703f6..f62dd09c1e4c 100644
  
  	return 0;
  }
-@@ -1377,7 +1336,6 @@ static ssize_t status_store(struct device *a, struct device_attribute *b,
+@@ -1376,7 +1336,6 @@ static ssize_t status_store(struct device *a, struct device_attribute *b,
  	char *p = memchr(buf, '\n', count);
  	int ret;
  
@@ -1498,7 +1490,7 @@ index 1b26845703f6..f62dd09c1e4c 100644
  	ret = amd_pstate_update_status(buf, p ? p - buf : count);
  
  	return ret < 0 ? ret : count;
-@@ -1453,10 +1411,11 @@ static bool amd_pstate_acpi_pm_profile_undefined(void)
+@@ -1452,10 +1411,11 @@ static bool amd_pstate_acpi_pm_profile_undefined(void)
  
  static int amd_pstate_epp_cpu_init(struct cpufreq_policy *policy)
  {
@@ -1511,7 +1503,7 @@ index 1b26845703f6..f62dd09c1e4c 100644
  
  	/*
  	 * Resetting PERF_CTL_MSR will put the CPU in P0 frequency,
-@@ -1477,7 +1436,7 @@ static int amd_pstate_epp_cpu_init(struct cpufreq_policy *policy)
+@@ -1476,7 +1436,7 @@ static int amd_pstate_epp_cpu_init(struct cpufreq_policy *policy)
  	if (ret)
  		goto free_cpudata1;
  
@@ -1520,7 +1512,7 @@ index 1b26845703f6..f62dd09c1e4c 100644
  
  	ret = amd_pstate_init_freq(cpudata);
  	if (ret)
-@@ -1487,18 +1446,23 @@ static int amd_pstate_epp_cpu_init(struct cpufreq_policy *policy)
+@@ -1486,18 +1446,23 @@ static int amd_pstate_epp_cpu_init(struct cpufreq_policy *policy)
  	if (ret)
  		goto free_cpudata1;
  
@@ -1552,7 +1544,7 @@ index 1b26845703f6..f62dd09c1e4c 100644
  
  	policy->boost_enabled = READ_ONCE(cpudata->boost_supported);
  
-@@ -1520,13 +1484,8 @@ static int amd_pstate_epp_cpu_init(struct cpufreq_policy *policy)
+@@ -1519,13 +1484,8 @@ static int amd_pstate_epp_cpu_init(struct cpufreq_policy *policy)
  		if (ret)
  			return ret;
  		WRITE_ONCE(cpudata->cppc_req_cached, value);
@@ -1567,7 +1559,7 @@ index 1b26845703f6..f62dd09c1e4c 100644
  	if (ret)
  		return ret;
  
-@@ -1535,6 +1494,7 @@ static int amd_pstate_epp_cpu_init(struct cpufreq_policy *policy)
+@@ -1534,6 +1494,7 @@ static int amd_pstate_epp_cpu_init(struct cpufreq_policy *policy)
  	return 0;
  
  free_cpudata1:
@@ -1575,7 +1567,7 @@ index 1b26845703f6..f62dd09c1e4c 100644
  	kfree(cpudata);
  	return ret;
  }
-@@ -1554,24 +1514,21 @@ static void amd_pstate_epp_cpu_exit(struct cpufreq_policy *policy)
+@@ -1553,24 +1514,21 @@ static void amd_pstate_epp_cpu_exit(struct cpufreq_policy *policy)
  static int amd_pstate_epp_update_limit(struct cpufreq_policy *policy)
  {
  	struct amd_cpudata *cpudata = policy->driver_data;
@@ -1607,7 +1599,7 @@ index 1b26845703f6..f62dd09c1e4c 100644
  }
  
  static int amd_pstate_epp_set_policy(struct cpufreq_policy *policy)
-@@ -1582,9 +1539,6 @@ static int amd_pstate_epp_set_policy(struct cpufreq_policy *policy)
+@@ -1581,9 +1539,6 @@ static int amd_pstate_epp_set_policy(struct cpufreq_policy *policy)
  	if (!policy->cpuinfo.max_freq)
  		return -ENODEV;
  
@@ -1617,7 +1609,7 @@ index 1b26845703f6..f62dd09c1e4c 100644
  	cpudata->policy = policy->policy;
  
  	ret = amd_pstate_epp_update_limit(policy);
-@@ -1600,73 +1554,21 @@ static int amd_pstate_epp_set_policy(struct cpufreq_policy *policy)
+@@ -1599,73 +1554,21 @@ static int amd_pstate_epp_set_policy(struct cpufreq_policy *policy)
  	return 0;
  }
  
@@ -1694,7 +1686,7 @@ index 1b26845703f6..f62dd09c1e4c 100644
  
  	/* invalidate to ensure it's rewritten during resume */
  	cpudata->cppc_req_cached = 0;
-@@ -1674,11 +1576,6 @@ static int amd_pstate_epp_suspend(struct cpufreq_policy *policy)
+@@ -1673,11 +1576,6 @@ static int amd_pstate_epp_suspend(struct cpufreq_policy *policy)
  	/* set this flag to avoid setting core offline*/
  	cpudata->suspended = true;
  
@@ -1706,7 +1698,7 @@ index 1b26845703f6..f62dd09c1e4c 100644
  	return 0;
  }
  
-@@ -1687,10 +1584,12 @@ static int amd_pstate_epp_resume(struct cpufreq_policy *policy)
+@@ -1686,10 +1584,12 @@ static int amd_pstate_epp_resume(struct cpufreq_policy *policy)
  	struct amd_cpudata *cpudata = policy->driver_data;
  
  	if (cpudata->suspended) {
@@ -1721,7 +1713,7 @@ index 1b26845703f6..f62dd09c1e4c 100644
  
  		cpudata->suspended = false;
  	}
-@@ -1705,8 +1604,6 @@ static struct cpufreq_driver amd_pstate_driver = {
+@@ -1704,8 +1604,6 @@ static struct cpufreq_driver amd_pstate_driver = {
  	.fast_switch    = amd_pstate_fast_switch,
  	.init		= amd_pstate_cpu_init,
  	.exit		= amd_pstate_cpu_exit,
@@ -1730,7 +1722,7 @@ index 1b26845703f6..f62dd09c1e4c 100644
  	.set_boost	= amd_pstate_set_boost,
  	.update_limits	= amd_pstate_update_limits,
  	.name		= "amd-pstate",
-@@ -1869,11 +1766,14 @@ static int __init amd_pstate_init(void)
+@@ -1868,11 +1766,14 @@ static int __init amd_pstate_init(void)
  		}
  	}
  
@@ -2009,7 +2001,6 @@ Subject: [PATCH 2/9] amd-tlb-broadcast
 
 Signed-off-by: Peter Jung <admin@ptr1337.dev>
 ---
- arch/x86/Kconfig                         |   2 +-
  arch/x86/Kconfig.cpu                     |   4 +
  arch/x86/hyperv/mmu.c                    |   1 -
  arch/x86/include/asm/cpufeatures.h       |   1 +
@@ -2024,26 +2015,12 @@ Signed-off-by: Peter Jung <admin@ptr1337.dev>
  arch/x86/include/asm/tlbflush.h          |  70 ++++
  arch/x86/kernel/cpu/amd.c                |  10 +
  arch/x86/kernel/kvm.c                    |   1 -
- arch/x86/kernel/paravirt.c               |  16 -
- arch/x86/mm/pgtable.c                    |  27 +-
+ arch/x86/kernel/paravirt.c               |   1 -
  arch/x86/mm/tlb.c                        | 448 ++++++++++++++++++++---
  arch/x86/xen/mmu_pv.c                    |   1 -
  tools/arch/x86/include/asm/msr-index.h   |   2 +
- 20 files changed, 656 insertions(+), 109 deletions(-)
+ 18 files changed, 651 insertions(+), 70 deletions(-)
 
-diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
-index f86e7072a5ba..473364353bd9 100644
---- a/arch/x86/Kconfig
-+++ b/arch/x86/Kconfig
-@@ -277,7 +277,7 @@ config X86
- 	select HAVE_PCI
- 	select HAVE_PERF_REGS
- 	select HAVE_PERF_USER_STACK_DUMP
--	select MMU_GATHER_RCU_TABLE_FREE	if PARAVIRT
-+	select MMU_GATHER_RCU_TABLE_FREE
- 	select MMU_GATHER_MERGE_VMAS
- 	select HAVE_POSIX_CPU_TIMERS_TASK_WORK
- 	select HAVE_REGS_AND_STACK_ACCESS_API
 diff --git a/arch/x86/Kconfig.cpu b/arch/x86/Kconfig.cpu
 index 42e6a40876ea..9bade26f6c67 100644
 --- a/arch/x86/Kconfig.cpu
@@ -2551,100 +2528,14 @@ diff --git a/arch/x86/kernel/paravirt.c b/arch/x86/kernel/paravirt.c
 index c5bb980b8a67..3f4864501d9e 100644
 --- a/arch/x86/kernel/paravirt.c
 +++ b/arch/x86/kernel/paravirt.c
-@@ -59,21 +59,6 @@ void __init native_pv_lock_init(void)
- 		static_branch_enable(&virt_spin_lock_key);
- }
- 
--#ifndef CONFIG_PT_RECLAIM
--static void native_tlb_remove_table(struct mmu_gather *tlb, void *table)
--{
--	struct ptdesc *ptdesc = (struct ptdesc *)table;
--
--	pagetable_dtor(ptdesc);
--	tlb_remove_page(tlb, ptdesc_page(ptdesc));
--}
--#else
--static void native_tlb_remove_table(struct mmu_gather *tlb, void *table)
--{
--	tlb_remove_table(tlb, table);
--}
--#endif
--
- struct static_key paravirt_steal_enabled;
- struct static_key paravirt_steal_rq_enabled;
- 
-@@ -197,7 +182,6 @@ struct paravirt_patch_template pv_ops = {
+@@ -182,7 +182,6 @@ struct paravirt_patch_template pv_ops = {
  	.mmu.flush_tlb_kernel	= native_flush_tlb_global,
  	.mmu.flush_tlb_one_user	= native_flush_tlb_one_user,
  	.mmu.flush_tlb_multi	= native_flush_tlb_multi,
--	.mmu.tlb_remove_table	= native_tlb_remove_table,
+-	.mmu.tlb_remove_table	= tlb_remove_table,
  
  	.mmu.exit_mmap		= paravirt_nop,
  	.mmu.notify_page_enc_status_changed	= paravirt_nop,
-diff --git a/arch/x86/mm/pgtable.c b/arch/x86/mm/pgtable.c
-index 9b0ee41b545c..1ddbd799acdf 100644
---- a/arch/x86/mm/pgtable.c
-+++ b/arch/x86/mm/pgtable.c
-@@ -18,25 +18,6 @@ EXPORT_SYMBOL(physical_mask);
- #define PGTABLE_HIGHMEM 0
- #endif
- 
--#ifndef CONFIG_PARAVIRT
--#ifndef CONFIG_PT_RECLAIM
--static inline
--void paravirt_tlb_remove_table(struct mmu_gather *tlb, void *table)
--{
--	struct ptdesc *ptdesc = (struct ptdesc *)table;
--
--	pagetable_dtor(ptdesc);
--	tlb_remove_page(tlb, ptdesc_page(ptdesc));
--}
--#else
--static inline
--void paravirt_tlb_remove_table(struct mmu_gather *tlb, void *table)
--{
--	tlb_remove_table(tlb, table);
--}
--#endif /* !CONFIG_PT_RECLAIM */
--#endif /* !CONFIG_PARAVIRT */
--
- gfp_t __userpte_alloc_gfp = GFP_PGTABLE_USER | PGTABLE_HIGHMEM;
- 
- pgtable_t pte_alloc_one(struct mm_struct *mm)
-@@ -64,7 +45,7 @@ early_param("userpte", setup_userpte);
- void ___pte_free_tlb(struct mmu_gather *tlb, struct page *pte)
- {
- 	paravirt_release_pte(page_to_pfn(pte));
--	paravirt_tlb_remove_table(tlb, page_ptdesc(pte));
-+	tlb_remove_table(tlb, page_ptdesc(pte));
- }
- 
- #if CONFIG_PGTABLE_LEVELS > 2
-@@ -78,21 +59,21 @@ void ___pmd_free_tlb(struct mmu_gather *tlb, pmd_t *pmd)
- #ifdef CONFIG_X86_PAE
- 	tlb->need_flush_all = 1;
- #endif
--	paravirt_tlb_remove_table(tlb, virt_to_ptdesc(pmd));
-+	tlb_remove_table(tlb, virt_to_ptdesc(pmd));
- }
- 
- #if CONFIG_PGTABLE_LEVELS > 3
- void ___pud_free_tlb(struct mmu_gather *tlb, pud_t *pud)
- {
- 	paravirt_release_pud(__pa(pud) >> PAGE_SHIFT);
--	paravirt_tlb_remove_table(tlb, virt_to_ptdesc(pud));
-+	tlb_remove_table(tlb, virt_to_ptdesc(pud));
- }
- 
- #if CONFIG_PGTABLE_LEVELS > 4
- void ___p4d_free_tlb(struct mmu_gather *tlb, p4d_t *p4d)
- {
- 	paravirt_release_p4d(__pa(p4d) >> PAGE_SHIFT);
--	paravirt_tlb_remove_table(tlb, virt_to_ptdesc(p4d));
-+	tlb_remove_table(tlb, virt_to_ptdesc(p4d));
- }
- #endif	/* CONFIG_PGTABLE_LEVELS > 4 */
- #endif	/* CONFIG_PGTABLE_LEVELS > 3 */
 diff --git a/arch/x86/mm/tlb.c b/arch/x86/mm/tlb.c
 index 3c81edd54c5c..d4ea9d4f7879 100644
 --- a/arch/x86/mm/tlb.c
@@ -3485,7 +3376,7 @@ diff --git a/drivers/hid/Kconfig b/drivers/hid/Kconfig
 index 4cfea399ebab..673e57fab594 100644
 --- a/drivers/hid/Kconfig
 +++ b/drivers/hid/Kconfig
-@@ -1397,6 +1397,8 @@ source "drivers/hid/intel-ish-hid/Kconfig"
+@@ -1398,6 +1398,8 @@ source "drivers/hid/intel-ish-hid/Kconfig"
  
  source "drivers/hid/amd-sfh-hid/Kconfig"
  
@@ -10314,7 +10205,7 @@ index f66d152e265d..cec509171971 100644
  	enum fan_type fan_type;
  	enum fan_type gpu_fan_type;
  	enum fan_type mid_fan_type;
-@@ -335,6 +331,16 @@ struct asus_wmi {
+@@ -336,6 +332,16 @@ struct asus_wmi {
  	struct asus_wmi_driver *driver;
  };
  
@@ -10331,7 +10222,7 @@ index f66d152e265d..cec509171971 100644
  /* WMI ************************************************************************/
  
  static int asus_wmi_evaluate_method3(u32 method_id,
-@@ -385,7 +391,7 @@ int asus_wmi_evaluate_method(u32 method_id, u32 arg0, u32 arg1, u32 *retval)
+@@ -386,7 +392,7 @@ int asus_wmi_evaluate_method(u32 method_id, u32 arg0, u32 arg1, u32 *retval)
  {
  	return asus_wmi_evaluate_method3(method_id, arg0, arg1, 0, retval);
  }
@@ -10340,7 +10231,7 @@ index f66d152e265d..cec509171971 100644
  
  static int asus_wmi_evaluate_method5(u32 method_id,
  		u32 arg0, u32 arg1, u32 arg2, u32 arg3, u32 arg4, u32 *retval)
-@@ -549,12 +555,51 @@ static int asus_wmi_get_devstate(struct asus_wmi *asus, u32 dev_id, u32 *retval)
+@@ -550,12 +556,51 @@ static int asus_wmi_get_devstate(struct asus_wmi *asus, u32 dev_id, u32 *retval)
  	return 0;
  }
  
@@ -10394,7 +10285,7 @@ index f66d152e265d..cec509171971 100644
  
  /* Helper for special devices with magic return codes */
  static int asus_wmi_get_devstate_bits(struct asus_wmi *asus,
-@@ -687,6 +732,7 @@ static void asus_wmi_tablet_mode_get_state(struct asus_wmi *asus)
+@@ -688,6 +733,7 @@ static void asus_wmi_tablet_mode_get_state(struct asus_wmi *asus)
  }
  
  /* Charging mode, 1=Barrel, 2=USB ******************************************/
@@ -10402,7 +10293,7 @@ index f66d152e265d..cec509171971 100644
  static ssize_t charge_mode_show(struct device *dev,
  				   struct device_attribute *attr, char *buf)
  {
-@@ -697,12 +743,16 @@ static ssize_t charge_mode_show(struct device *dev,
+@@ -698,12 +744,16 @@ static ssize_t charge_mode_show(struct device *dev,
  	if (result < 0)
  		return result;
  
@@ -10419,7 +10310,7 @@ index f66d152e265d..cec509171971 100644
  static ssize_t dgpu_disable_show(struct device *dev,
  				   struct device_attribute *attr, char *buf)
  {
-@@ -713,6 +763,8 @@ static ssize_t dgpu_disable_show(struct device *dev,
+@@ -714,6 +764,8 @@ static ssize_t dgpu_disable_show(struct device *dev,
  	if (result < 0)
  		return result;
  
@@ -10428,7 +10319,7 @@ index f66d152e265d..cec509171971 100644
  	return sysfs_emit(buf, "%d\n", result);
  }
  
-@@ -766,8 +818,10 @@ static ssize_t dgpu_disable_store(struct device *dev,
+@@ -767,8 +819,10 @@ static ssize_t dgpu_disable_store(struct device *dev,
  	return count;
  }
  static DEVICE_ATTR_RW(dgpu_disable);
@@ -10439,7 +10330,7 @@ index f66d152e265d..cec509171971 100644
  static ssize_t egpu_enable_show(struct device *dev,
  				   struct device_attribute *attr, char *buf)
  {
-@@ -778,6 +832,8 @@ static ssize_t egpu_enable_show(struct device *dev,
+@@ -779,6 +833,8 @@ static ssize_t egpu_enable_show(struct device *dev,
  	if (result < 0)
  		return result;
  
@@ -10448,7 +10339,7 @@ index f66d152e265d..cec509171971 100644
  	return sysfs_emit(buf, "%d\n", result);
  }
  
-@@ -834,8 +890,10 @@ static ssize_t egpu_enable_store(struct device *dev,
+@@ -835,8 +891,10 @@ static ssize_t egpu_enable_store(struct device *dev,
  	return count;
  }
  static DEVICE_ATTR_RW(egpu_enable);
@@ -10459,7 +10350,7 @@ index f66d152e265d..cec509171971 100644
  static ssize_t egpu_connected_show(struct device *dev,
  				   struct device_attribute *attr, char *buf)
  {
-@@ -846,12 +904,16 @@ static ssize_t egpu_connected_show(struct device *dev,
+@@ -847,12 +905,16 @@ static ssize_t egpu_connected_show(struct device *dev,
  	if (result < 0)
  		return result;
  
@@ -10476,7 +10367,7 @@ index f66d152e265d..cec509171971 100644
  static ssize_t gpu_mux_mode_show(struct device *dev,
  				 struct device_attribute *attr, char *buf)
  {
-@@ -862,6 +924,8 @@ static ssize_t gpu_mux_mode_show(struct device *dev,
+@@ -863,6 +925,8 @@ static ssize_t gpu_mux_mode_show(struct device *dev,
  	if (result < 0)
  		return result;
  
@@ -10485,7 +10376,7 @@ index f66d152e265d..cec509171971 100644
  	return sysfs_emit(buf, "%d\n", result);
  }
  
-@@ -920,6 +984,7 @@ static ssize_t gpu_mux_mode_store(struct device *dev,
+@@ -921,6 +985,7 @@ static ssize_t gpu_mux_mode_store(struct device *dev,
  	return count;
  }
  static DEVICE_ATTR_RW(gpu_mux_mode);
@@ -10493,7 +10384,7 @@ index f66d152e265d..cec509171971 100644
  
  /* TUF Laptop Keyboard RGB Modes **********************************************/
  static ssize_t kbd_rgb_mode_store(struct device *dev,
-@@ -1043,6 +1108,7 @@ static const struct attribute_group *kbd_rgb_mode_groups[] = {
+@@ -1044,6 +1109,7 @@ static const struct attribute_group *kbd_rgb_mode_groups[] = {
  };
  
  /* Tunable: PPT: Intel=PL1, AMD=SPPT *****************************************/
@@ -10501,7 +10392,7 @@ index f66d152e265d..cec509171971 100644
  static ssize_t ppt_pl2_sppt_store(struct device *dev,
  				    struct device_attribute *attr,
  				    const char *buf, size_t count)
-@@ -1081,6 +1147,8 @@ static ssize_t ppt_pl2_sppt_show(struct device *dev,
+@@ -1082,6 +1148,8 @@ static ssize_t ppt_pl2_sppt_show(struct device *dev,
  {
  	struct asus_wmi *asus = dev_get_drvdata(dev);
  
@@ -10510,7 +10401,7 @@ index f66d152e265d..cec509171971 100644
  	return sysfs_emit(buf, "%u\n", asus->ppt_pl2_sppt);
  }
  static DEVICE_ATTR_RW(ppt_pl2_sppt);
-@@ -1123,6 +1191,8 @@ static ssize_t ppt_pl1_spl_show(struct device *dev,
+@@ -1124,6 +1192,8 @@ static ssize_t ppt_pl1_spl_show(struct device *dev,
  {
  	struct asus_wmi *asus = dev_get_drvdata(dev);
  
@@ -10519,7 +10410,7 @@ index f66d152e265d..cec509171971 100644
  	return sysfs_emit(buf, "%u\n", asus->ppt_pl1_spl);
  }
  static DEVICE_ATTR_RW(ppt_pl1_spl);
-@@ -1166,6 +1236,8 @@ static ssize_t ppt_fppt_show(struct device *dev,
+@@ -1167,6 +1237,8 @@ static ssize_t ppt_fppt_show(struct device *dev,
  {
  	struct asus_wmi *asus = dev_get_drvdata(dev);
  
@@ -10528,7 +10419,7 @@ index f66d152e265d..cec509171971 100644
  	return sysfs_emit(buf, "%u\n", asus->ppt_fppt);
  }
  static DEVICE_ATTR_RW(ppt_fppt);
-@@ -1209,6 +1281,8 @@ static ssize_t ppt_apu_sppt_show(struct device *dev,
+@@ -1210,6 +1282,8 @@ static ssize_t ppt_apu_sppt_show(struct device *dev,
  {
  	struct asus_wmi *asus = dev_get_drvdata(dev);
  
@@ -10537,7 +10428,7 @@ index f66d152e265d..cec509171971 100644
  	return sysfs_emit(buf, "%u\n", asus->ppt_apu_sppt);
  }
  static DEVICE_ATTR_RW(ppt_apu_sppt);
-@@ -1252,6 +1326,8 @@ static ssize_t ppt_platform_sppt_show(struct device *dev,
+@@ -1253,6 +1327,8 @@ static ssize_t ppt_platform_sppt_show(struct device *dev,
  {
  	struct asus_wmi *asus = dev_get_drvdata(dev);
  
@@ -10546,7 +10437,7 @@ index f66d152e265d..cec509171971 100644
  	return sysfs_emit(buf, "%u\n", asus->ppt_platform_sppt);
  }
  static DEVICE_ATTR_RW(ppt_platform_sppt);
-@@ -1295,6 +1371,8 @@ static ssize_t nv_dynamic_boost_show(struct device *dev,
+@@ -1296,6 +1372,8 @@ static ssize_t nv_dynamic_boost_show(struct device *dev,
  {
  	struct asus_wmi *asus = dev_get_drvdata(dev);
  
@@ -10555,7 +10446,7 @@ index f66d152e265d..cec509171971 100644
  	return sysfs_emit(buf, "%u\n", asus->nv_dynamic_boost);
  }
  static DEVICE_ATTR_RW(nv_dynamic_boost);
-@@ -1338,11 +1416,53 @@ static ssize_t nv_temp_target_show(struct device *dev,
+@@ -1339,11 +1417,53 @@ static ssize_t nv_temp_target_show(struct device *dev,
  {
  	struct asus_wmi *asus = dev_get_drvdata(dev);
  
@@ -10609,7 +10500,7 @@ index f66d152e265d..cec509171971 100644
  static ssize_t mcu_powersave_show(struct device *dev,
  				   struct device_attribute *attr, char *buf)
  {
-@@ -1353,6 +1473,8 @@ static ssize_t mcu_powersave_show(struct device *dev,
+@@ -1354,6 +1474,8 @@ static ssize_t mcu_powersave_show(struct device *dev,
  	if (result < 0)
  		return result;
  
@@ -10618,7 +10509,7 @@ index f66d152e265d..cec509171971 100644
  	return sysfs_emit(buf, "%d\n", result);
  }
  
-@@ -1388,6 +1510,7 @@ static ssize_t mcu_powersave_store(struct device *dev,
+@@ -1389,6 +1511,7 @@ static ssize_t mcu_powersave_store(struct device *dev,
  	return count;
  }
  static DEVICE_ATTR_RW(mcu_powersave);
@@ -10626,7 +10517,7 @@ index f66d152e265d..cec509171971 100644
  
  /* Battery ********************************************************************/
  
-@@ -2261,6 +2384,7 @@ static int asus_wmi_rfkill_init(struct asus_wmi *asus)
+@@ -2262,6 +2385,7 @@ static int asus_wmi_rfkill_init(struct asus_wmi *asus)
  }
  
  /* Panel Overdrive ************************************************************/
@@ -10634,7 +10525,7 @@ index f66d152e265d..cec509171971 100644
  static ssize_t panel_od_show(struct device *dev,
  				   struct device_attribute *attr, char *buf)
  {
-@@ -2271,6 +2395,8 @@ static ssize_t panel_od_show(struct device *dev,
+@@ -2272,6 +2396,8 @@ static ssize_t panel_od_show(struct device *dev,
  	if (result < 0)
  		return result;
  
@@ -10643,7 +10534,7 @@ index f66d152e265d..cec509171971 100644
  	return sysfs_emit(buf, "%d\n", result);
  }
  
-@@ -2307,9 +2433,10 @@ static ssize_t panel_od_store(struct device *dev,
+@@ -2308,9 +2434,10 @@ static ssize_t panel_od_store(struct device *dev,
  	return count;
  }
  static DEVICE_ATTR_RW(panel_od);
@@ -10655,7 +10546,7 @@ index f66d152e265d..cec509171971 100644
  static ssize_t boot_sound_show(struct device *dev,
  			     struct device_attribute *attr, char *buf)
  {
-@@ -2320,6 +2447,8 @@ static ssize_t boot_sound_show(struct device *dev,
+@@ -2321,6 +2448,8 @@ static ssize_t boot_sound_show(struct device *dev,
  	if (result < 0)
  		return result;
  
@@ -10664,7 +10555,7 @@ index f66d152e265d..cec509171971 100644
  	return sysfs_emit(buf, "%d\n", result);
  }
  
-@@ -2355,8 +2484,10 @@ static ssize_t boot_sound_store(struct device *dev,
+@@ -2356,8 +2485,10 @@ static ssize_t boot_sound_store(struct device *dev,
  	return count;
  }
  static DEVICE_ATTR_RW(boot_sound);
@@ -10675,7 +10566,7 @@ index f66d152e265d..cec509171971 100644
  static ssize_t mini_led_mode_show(struct device *dev,
  				   struct device_attribute *attr, char *buf)
  {
-@@ -2387,6 +2518,8 @@ static ssize_t mini_led_mode_show(struct device *dev,
+@@ -2388,6 +2519,8 @@ static ssize_t mini_led_mode_show(struct device *dev,
  		}
  	}
  
@@ -10684,7 +10575,7 @@ index f66d152e265d..cec509171971 100644
  	return sysfs_emit(buf, "%d\n", value);
  }
  
-@@ -2457,10 +2590,13 @@ static ssize_t available_mini_led_mode_show(struct device *dev,
+@@ -2458,10 +2591,13 @@ static ssize_t available_mini_led_mode_show(struct device *dev,
  		return sysfs_emit(buf, "0 1 2\n");
  	}
  
@@ -10698,7 +10589,7 @@ index f66d152e265d..cec509171971 100644
  
  /* Quirks *********************************************************************/
  
-@@ -3748,6 +3884,7 @@ static int throttle_thermal_policy_set_default(struct asus_wmi *asus)
+@@ -3749,6 +3885,7 @@ static int throttle_thermal_policy_set_default(struct asus_wmi *asus)
  	return throttle_thermal_policy_write(asus);
  }
  
@@ -10706,7 +10597,7 @@ index f66d152e265d..cec509171971 100644
  static ssize_t throttle_thermal_policy_show(struct device *dev,
  				   struct device_attribute *attr, char *buf)
  {
-@@ -3791,6 +3928,7 @@ static ssize_t throttle_thermal_policy_store(struct device *dev,
+@@ -3792,6 +3929,7 @@ static ssize_t throttle_thermal_policy_store(struct device *dev,
   * Throttle thermal policy: 0 - default, 1 - overboost, 2 - silent
   */
  static DEVICE_ATTR_RW(throttle_thermal_policy);
@@ -10714,7 +10605,7 @@ index f66d152e265d..cec509171971 100644
  
  /* Platform profile ***********************************************************/
  static int asus_wmi_platform_profile_get(struct device *dev,
-@@ -3810,7 +3948,7 @@ static int asus_wmi_platform_profile_get(struct device *dev,
+@@ -3811,7 +3949,7 @@ static int asus_wmi_platform_profile_get(struct device *dev,
  		*profile = PLATFORM_PROFILE_PERFORMANCE;
  		break;
  	case ASUS_THROTTLE_THERMAL_POLICY_SILENT:
@@ -10723,7 +10614,7 @@ index f66d152e265d..cec509171971 100644
  		break;
  	default:
  		return -EINVAL;
-@@ -3834,7 +3972,7 @@ static int asus_wmi_platform_profile_set(struct device *dev,
+@@ -3835,7 +3973,7 @@ static int asus_wmi_platform_profile_set(struct device *dev,
  	case PLATFORM_PROFILE_BALANCED:
  		tp = ASUS_THROTTLE_THERMAL_POLICY_DEFAULT;
  		break;
@@ -10732,7 +10623,7 @@ index f66d152e265d..cec509171971 100644
  		tp = ASUS_THROTTLE_THERMAL_POLICY_SILENT;
  		break;
  	default:
-@@ -3847,7 +3985,7 @@ static int asus_wmi_platform_profile_set(struct device *dev,
+@@ -3848,7 +3986,7 @@ static int asus_wmi_platform_profile_set(struct device *dev,
  
  static int asus_wmi_platform_profile_probe(void *drvdata, unsigned long *choices)
  {
@@ -10741,7 +10632,7 @@ index f66d152e265d..cec509171971 100644
  	set_bit(PLATFORM_PROFILE_BALANCED, choices);
  	set_bit(PLATFORM_PROFILE_PERFORMANCE, choices);
  
-@@ -4100,43 +4238,37 @@ static int read_screenpad_brightness(struct backlight_device *bd)
+@@ -4101,43 +4239,37 @@ static int read_screenpad_brightness(struct backlight_device *bd)
  		return err;
  	/* The device brightness can only be read if powered, so return stored */
  	if (err == BACKLIGHT_POWER_OFF)
@@ -10802,7 +10693,7 @@ index f66d152e265d..cec509171971 100644
  
  	return err;
  }
-@@ -4154,22 +4286,19 @@ static int asus_screenpad_init(struct asus_wmi *asus)
+@@ -4155,22 +4287,19 @@ static int asus_screenpad_init(struct asus_wmi *asus)
  	int err, power;
  	int brightness = 0;
  
@@ -10828,7 +10719,7 @@ index f66d152e265d..cec509171971 100644
  	bd = backlight_device_register("asus_screenpad",
  				       &asus->platform_device->dev, asus,
  				       &asus_screenpad_bl_ops, &props);
-@@ -4180,7 +4309,7 @@ static int asus_screenpad_init(struct asus_wmi *asus)
+@@ -4181,7 +4310,7 @@ static int asus_screenpad_init(struct asus_wmi *asus)
  
  	asus->screenpad_backlight_device = bd;
  	asus->driver->screenpad_brightness = brightness;
@@ -10837,7 +10728,7 @@ index f66d152e265d..cec509171971 100644
  	bd->props.power = power;
  	backlight_update_status(bd);
  
-@@ -4392,27 +4521,29 @@ static struct attribute *platform_attributes[] = {
+@@ -4393,27 +4522,29 @@ static struct attribute *platform_attributes[] = {
  	&dev_attr_camera.attr,
  	&dev_attr_cardr.attr,
  	&dev_attr_touchpad.attr,
@@ -10885,7 +10776,7 @@ index f66d152e265d..cec509171971 100644
  	NULL
  };
  
-@@ -4434,7 +4565,11 @@ static umode_t asus_sysfs_is_visible(struct kobject *kobj,
+@@ -4435,7 +4566,11 @@ static umode_t asus_sysfs_is_visible(struct kobject *kobj,
  		devid = ASUS_WMI_DEVID_LID_RESUME;
  	else if (attr == &dev_attr_als_enable.attr)
  		devid = ASUS_WMI_DEVID_ALS_ENABLE;
@@ -10898,7 +10789,7 @@ index f66d152e265d..cec509171971 100644
  		devid = ASUS_WMI_DEVID_CHARGE_MODE;
  	else if (attr == &dev_attr_egpu_enable.attr)
  		ok = asus->egpu_enable_available;
-@@ -4472,6 +4607,7 @@ static umode_t asus_sysfs_is_visible(struct kobject *kobj,
+@@ -4473,6 +4608,7 @@ static umode_t asus_sysfs_is_visible(struct kobject *kobj,
  		ok = asus->mini_led_dev_id != 0;
  	else if (attr == &dev_attr_available_mini_led_mode.attr)
  		ok = asus->mini_led_dev_id != 0;
@@ -10906,7 +10797,7 @@ index f66d152e265d..cec509171971 100644
  
  	if (devid != -1) {
  		ok = !(asus_wmi_get_devstate_simple(asus, devid) < 0);
-@@ -4711,7 +4847,23 @@ static int asus_wmi_add(struct platform_device *pdev)
+@@ -4712,7 +4848,23 @@ static int asus_wmi_add(struct platform_device *pdev)
  	if (err)
  		goto fail_platform;
  
@@ -10930,16 +10821,16 @@ index f66d152e265d..cec509171971 100644
  	asus->ppt_pl2_sppt = 5;
  	asus->ppt_pl1_spl = 5;
  	asus->ppt_apu_sppt = 5;
-@@ -4723,8 +4875,6 @@ static int asus_wmi_add(struct platform_device *pdev)
- 	asus->egpu_enable_available = asus_wmi_dev_is_present(asus, ASUS_WMI_DEVID_EGPU);
+@@ -4725,8 +4877,6 @@ static int asus_wmi_add(struct platform_device *pdev)
  	asus->dgpu_disable_available = asus_wmi_dev_is_present(asus, ASUS_WMI_DEVID_DGPU);
  	asus->kbd_rgb_state_available = asus_wmi_dev_is_present(asus, ASUS_WMI_DEVID_TUF_RGB_STATE);
+ 	asus->oobe_state_available = asus_wmi_dev_is_present(asus, ASUS_WMI_DEVID_OOBE);
 -	asus->ally_mcu_usb_switch = acpi_has_method(NULL, ASUS_USB0_PWR_EC0_CSEE)
 -						&& dmi_check_system(asus_ally_mcu_quirk);
  
  	if (asus_wmi_dev_is_present(asus, ASUS_WMI_DEVID_MINI_LED_MODE))
  		asus->mini_led_dev_id = ASUS_WMI_DEVID_MINI_LED_MODE;
-@@ -4735,17 +4885,18 @@ static int asus_wmi_add(struct platform_device *pdev)
+@@ -4737,17 +4887,18 @@ static int asus_wmi_add(struct platform_device *pdev)
  		asus->gpu_mux_dev = ASUS_WMI_DEVID_GPU_MUX;
  	else if (asus_wmi_dev_is_present(asus, ASUS_WMI_DEVID_GPU_MUX_VIVO))
  		asus->gpu_mux_dev = ASUS_WMI_DEVID_GPU_MUX_VIVO;
@@ -10963,7 +10854,7 @@ index f66d152e265d..cec509171971 100644
  	err = fan_boost_mode_check_present(asus);
  	if (err)
  		goto fail_fan_boost_mode;
-@@ -4911,34 +5062,6 @@ static int asus_hotk_resume(struct device *device)
+@@ -4913,34 +5064,6 @@ static int asus_hotk_resume(struct device *device)
  	return 0;
  }
  
@@ -10998,7 +10889,7 @@ index f66d152e265d..cec509171971 100644
  static int asus_hotk_restore(struct device *device)
  {
  	struct asus_wmi *asus = dev_get_drvdata(device);
-@@ -4979,11 +5102,34 @@ static int asus_hotk_restore(struct device *device)
+@@ -4988,11 +5111,34 @@ static int asus_hotk_restore(struct device *device)
  	return 0;
  }
  
@@ -11034,7 +10925,7 @@ index f66d152e265d..cec509171971 100644
  	.prepare = asus_hotk_prepare,
  };
  
-@@ -5011,6 +5157,10 @@ static int asus_wmi_probe(struct platform_device *pdev)
+@@ -5020,6 +5166,10 @@ static int asus_wmi_probe(struct platform_device *pdev)
  			return ret;
  	}
  
@@ -11045,7 +10936,7 @@ index f66d152e265d..cec509171971 100644
  	return asus_wmi_add(pdev);
  }
  
-@@ -5043,6 +5193,7 @@ EXPORT_SYMBOL_GPL(asus_wmi_register_driver);
+@@ -5052,6 +5202,7 @@ EXPORT_SYMBOL_GPL(asus_wmi_register_driver);
  
  void asus_wmi_unregister_driver(struct asus_wmi_driver *driver)
  {
@@ -11169,7 +11060,7 @@ diff --git a/include/linux/tcp.h b/include/linux/tcp.h
 index f88daaa76d83..e569fd1ed7e8 100644
 --- a/include/linux/tcp.h
 +++ b/include/linux/tcp.h
-@@ -243,7 +243,8 @@ struct tcp_sock {
+@@ -245,7 +245,8 @@ struct tcp_sock {
  	/* OOO segments go in this rbtree. Socket lock must be held. */
  	struct rb_root	out_of_order_queue;
  	u32	snd_ssthresh;	/* Slow start size threshold		*/
@@ -11179,7 +11070,7 @@ index f88daaa76d83..e569fd1ed7e8 100644
  	__cacheline_group_end(tcp_sock_read_rx);
  
  	/* TX read-write hotpath cache lines */
-@@ -300,7 +301,8 @@ struct tcp_sock {
+@@ -302,7 +303,8 @@ struct tcp_sock {
   */
  	struct tcp_options_received rx_opt;
  	u8	nonagle     : 4,/* Disable Nagle algorithm?             */
@@ -14196,7 +14087,7 @@ index 0cbf81bf3d45..7e8324f54563 100644
  			tcp_ca_event(sk, CA_EVENT_ECN_NO_CE);
  		tp->ecn_flags |= TCP_ECN_SEEN;
  		break;
-@@ -1126,7 +1126,12 @@ static void tcp_verify_retransmit_hint(struct tcp_sock *tp, struct sk_buff *skb)
+@@ -1140,7 +1140,12 @@ static void tcp_verify_retransmit_hint(struct tcp_sock *tp, struct sk_buff *skb)
   */
  static void tcp_notify_skb_loss_event(struct tcp_sock *tp, const struct sk_buff *skb)
  {
@@ -14209,7 +14100,7 @@ index 0cbf81bf3d45..7e8324f54563 100644
  }
  
  void tcp_mark_skb_lost(struct sock *sk, struct sk_buff *skb)
-@@ -1507,6 +1512,17 @@ static bool tcp_shifted_skb(struct sock *sk, struct sk_buff *prev,
+@@ -1512,6 +1517,17 @@ static bool tcp_shifted_skb(struct sock *sk, struct sk_buff *prev,
  	WARN_ON_ONCE(tcp_skb_pcount(skb) < pcount);
  	tcp_skb_pcount_add(skb, -pcount);
  
@@ -14227,7 +14118,7 @@ index 0cbf81bf3d45..7e8324f54563 100644
  	/* When we're adding to gso_segs == 1, gso_size will be zero,
  	 * in theory this shouldn't be necessary but as long as DSACK
  	 * code can come after this skb later on it's better to keep
-@@ -3832,7 +3848,8 @@ static void tcp_replace_ts_recent(struct tcp_sock *tp, u32 seq)
+@@ -3837,7 +3853,8 @@ static void tcp_replace_ts_recent(struct tcp_sock *tp, u32 seq)
  /* This routine deals with acks during a TLP episode and ends an episode by
   * resetting tlp_high_seq. Ref: TLP algorithm in draft-ietf-tcpm-rack
   */
@@ -14237,7 +14128,7 @@ index 0cbf81bf3d45..7e8324f54563 100644
  {
  	struct tcp_sock *tp = tcp_sk(sk);
  
-@@ -3849,6 +3866,7 @@ static void tcp_process_tlp_ack(struct sock *sk, u32 ack, int flag)
+@@ -3854,6 +3871,7 @@ static void tcp_process_tlp_ack(struct sock *sk, u32 ack, int flag)
  		/* ACK advances: there was a loss, so reduce cwnd. Reset
  		 * tlp_high_seq in tcp_init_cwnd_reduction()
  		 */
@@ -14245,7 +14136,7 @@ index 0cbf81bf3d45..7e8324f54563 100644
  		tcp_init_cwnd_reduction(sk);
  		tcp_set_ca_state(sk, TCP_CA_CWR);
  		tcp_end_cwnd_reduction(sk);
-@@ -3859,6 +3877,11 @@ static void tcp_process_tlp_ack(struct sock *sk, u32 ack, int flag)
+@@ -3864,6 +3882,11 @@ static void tcp_process_tlp_ack(struct sock *sk, u32 ack, int flag)
  			     FLAG_NOT_DUP | FLAG_DATA_SACKED))) {
  		/* Pure dupack: original and TLP probe arrived; no loss */
  		tp->tlp_high_seq = 0;
@@ -14257,7 +14148,7 @@ index 0cbf81bf3d45..7e8324f54563 100644
  	}
  }
  
-@@ -3967,6 +3990,7 @@ static int tcp_ack(struct sock *sk, const struct sk_buff *skb, int flag)
+@@ -3983,6 +4006,7 @@ static int tcp_ack(struct sock *sk, const struct sk_buff *skb, int flag)
  
  	prior_fack = tcp_is_sack(tp) ? tcp_highest_sack_seq(tp) : tp->snd_una;
  	rs.prior_in_flight = tcp_packets_in_flight(tp);
@@ -14265,8 +14156,8 @@ index 0cbf81bf3d45..7e8324f54563 100644
  
  	/* ts_recent update must be made after we are sure that the packet
  	 * is in window.
-@@ -4041,7 +4065,7 @@ static int tcp_ack(struct sock *sk, const struct sk_buff *skb, int flag)
- 	tcp_rack_update_reo_wnd(sk, &rs);
+@@ -4048,7 +4072,7 @@ static int tcp_ack(struct sock *sk, const struct sk_buff *skb, int flag)
+ 	tcp_in_ack_event(sk, flag);
  
  	if (tp->tlp_high_seq)
 -		tcp_process_tlp_ack(sk, ack, flag);
@@ -14274,7 +14165,7 @@ index 0cbf81bf3d45..7e8324f54563 100644
  
  	if (tcp_ack_is_dubious(sk, flag)) {
  		if (!(flag & (FLAG_SND_UNA_ADVANCED |
-@@ -4065,6 +4089,7 @@ static int tcp_ack(struct sock *sk, const struct sk_buff *skb, int flag)
+@@ -4072,6 +4096,7 @@ static int tcp_ack(struct sock *sk, const struct sk_buff *skb, int flag)
  	delivered = tcp_newly_delivered(sk, delivered, flag);
  	lost = tp->lost - lost;			/* freshly marked lost */
  	rs.is_ack_delayed = !!(flag & FLAG_ACK_MAYBE_DELAYED);
@@ -14282,7 +14173,7 @@ index 0cbf81bf3d45..7e8324f54563 100644
  	tcp_rate_gen(sk, delivered, lost, is_sack_reneg, sack_state.rate);
  	tcp_cong_control(sk, ack, delivered, flag, sack_state.rate);
  	tcp_xmit_recovery(sk, rexmit);
-@@ -4084,7 +4109,7 @@ static int tcp_ack(struct sock *sk, const struct sk_buff *skb, int flag)
+@@ -4092,7 +4117,7 @@ static int tcp_ack(struct sock *sk, const struct sk_buff *skb, int flag)
  	tcp_ack_probe(sk);
  
  	if (tp->tlp_high_seq)
@@ -14291,7 +14182,7 @@ index 0cbf81bf3d45..7e8324f54563 100644
  	return 1;
  
  old_ack:
-@@ -5764,13 +5789,14 @@ static void __tcp_ack_snd_check(struct sock *sk, int ofo_possible)
+@@ -5772,13 +5797,14 @@ static void __tcp_ack_snd_check(struct sock *sk, int ofo_possible)
  
  	    /* More than one full frame received... */
  	if (((tp->rcv_nxt - tp->rcv_wup) > inet_csk(sk)->icsk_ack.rcv_mss &&
@@ -14357,7 +14248,7 @@ index bc95d2a5924f..d4c45ca6fe06 100644
  			/* ACK or retransmitted segment: clear ECT|CE */
  			INET_ECN_dontxmit(sk);
  		}
-@@ -1606,7 +1609,7 @@ int tcp_fragment(struct sock *sk, enum tcp_queue tcp_queue,
+@@ -1612,7 +1615,7 @@ int tcp_fragment(struct sock *sk, enum tcp_queue tcp_queue,
  {
  	struct tcp_sock *tp = tcp_sk(sk);
  	struct sk_buff *buff;
@@ -14366,7 +14257,7 @@ index bc95d2a5924f..d4c45ca6fe06 100644
  	long limit;
  	int nlen;
  	u8 flags;
-@@ -1681,6 +1684,30 @@ int tcp_fragment(struct sock *sk, enum tcp_queue tcp_queue,
+@@ -1687,6 +1690,30 @@ int tcp_fragment(struct sock *sk, enum tcp_queue tcp_queue,
  
  		if (diff)
  			tcp_adjust_pcount(sk, skb, diff);
@@ -14397,7 +14288,7 @@ index bc95d2a5924f..d4c45ca6fe06 100644
  	}
  
  	/* Link BUFF into the send queue. */
-@@ -2038,13 +2065,12 @@ static u32 tcp_tso_autosize(const struct sock *sk, unsigned int mss_now,
+@@ -2044,13 +2071,12 @@ static u32 tcp_tso_autosize(const struct sock *sk, unsigned int mss_now,
  static u32 tcp_tso_segs(struct sock *sk, unsigned int mss_now)
  {
  	const struct tcp_congestion_ops *ca_ops = inet_csk(sk)->icsk_ca_ops;
@@ -14416,7 +14307,7 @@ index bc95d2a5924f..d4c45ca6fe06 100644
  	return min_t(u32, tso_segs, sk->sk_gso_max_segs);
  }
  
-@@ -2770,6 +2796,7 @@ static bool tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle,
+@@ -2776,6 +2802,7 @@ static bool tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle,
  			skb_set_delivery_time(skb, tp->tcp_wstamp_ns, SKB_CLOCK_MONOTONIC);
  			list_move_tail(&skb->tcp_tsorted_anchor, &tp->tsorted_sent_queue);
  			tcp_init_tso_segs(skb, mss_now);
@@ -14424,7 +14315,7 @@ index bc95d2a5924f..d4c45ca6fe06 100644
  			goto repair; /* Skip network transmission */
  		}
  
-@@ -2982,6 +3009,7 @@ void tcp_send_loss_probe(struct sock *sk)
+@@ -2988,6 +3015,7 @@ void tcp_send_loss_probe(struct sock *sk)
  	if (WARN_ON(!skb || !tcp_skb_pcount(skb)))
  		goto rearm_timer;
  
@@ -14558,7 +14449,7 @@ Signed-off-by: Peter Jung <admin@ptr1337.dev>
  drivers/gpu/drm/amd/amdgpu/amdgpu_i2c.h       |    1 +
  drivers/gpu/drm/amd/amdgpu/amdgpu_mode.h      |    1 +
  drivers/gpu/drm/amd/display/Kconfig           |    6 +
- .../gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c |   69 +-
+ .../gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c |   67 +-
  .../gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.h |    7 +
  .../amd/display/amdgpu_dm/amdgpu_dm_color.c   |    2 +-
  .../amd/display/amdgpu_dm/amdgpu_dm_crtc.c    |    6 +-
@@ -14606,7 +14497,7 @@ Signed-off-by: Peter Jung <admin@ptr1337.dev>
  mm/vmpressure.c                               |    4 +
  mm/vmscan.c                                   |    4 +
  net/ipv4/inet_connection_sock.c               |    2 +-
- 72 files changed, 7883 insertions(+), 99 deletions(-)
+ 72 files changed, 7882 insertions(+), 98 deletions(-)
  create mode 100644 block/adios.c
  create mode 100644 drivers/media/v4l2-core/v4l2loopback.c
  create mode 100644 drivers/media/v4l2-core/v4l2loopback.h
@@ -17011,7 +16902,7 @@ diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu_device.c b/drivers/gpu/drm/amd/am
 index 34f0451b274c..36b299d6ce06 100644
 --- a/drivers/gpu/drm/amd/amdgpu/amdgpu_device.c
 +++ b/drivers/gpu/drm/amd/amdgpu/amdgpu_device.c
-@@ -4473,8 +4473,7 @@ int amdgpu_device_init(struct amdgpu_device *adev,
+@@ -4498,8 +4498,7 @@ int amdgpu_device_init(struct amdgpu_device *adev,
  				goto failed;
  			}
  			/* init i2c buses */
@@ -17021,7 +16912,7 @@ index 34f0451b274c..36b299d6ce06 100644
  		}
  	}
  
-@@ -4743,8 +4742,7 @@ void amdgpu_device_fini_sw(struct amdgpu_device *adev)
+@@ -4773,8 +4772,7 @@ void amdgpu_device_fini_sw(struct amdgpu_device *adev)
  	amdgpu_reset_fini(adev);
  
  	/* free i2c buses */
@@ -17043,7 +16934,7 @@ index bb8ab25ea76a..713192aa8ce6 100644
  int amdgpu_vis_vram_limit;
  int amdgpu_gart_size = -1; /* auto */
  int amdgpu_gtt_size = -1; /* auto */
-@@ -257,6 +258,15 @@ struct amdgpu_watchdog_timer amdgpu_watchdog_timer = {
+@@ -258,6 +259,15 @@ struct amdgpu_watchdog_timer amdgpu_watchdog_timer = {
  	.period = 0x0, /* default to 0x0 (timeout disable) */
  };
  
@@ -17141,7 +17032,7 @@ index 4a8d76a4f3ce..2736d454121e 100644
  
  static enum drm_mode_subconnector get_subconnector_type(struct dc_link *link)
  {
-@@ -2959,6 +2961,33 @@ static int amdgpu_dm_smu_write_watermarks_table(struct amdgpu_device *adev)
+@@ -2961,6 +2963,33 @@ static int amdgpu_dm_smu_write_watermarks_table(struct amdgpu_device *adev)
  	return 0;
  }
  
@@ -17175,7 +17066,7 @@ index 4a8d76a4f3ce..2736d454121e 100644
  /**
   * dm_hw_init() - Initialize DC device
   * @ip_block: Pointer to the amdgpu_ip_block for this hw instance.
-@@ -2990,6 +3019,10 @@ static int dm_hw_init(struct amdgpu_ip_block *ip_block)
+@@ -2992,6 +3021,10 @@ static int dm_hw_init(struct amdgpu_ip_block *ip_block)
  		return r;
  	amdgpu_dm_hpd_init(adev);
  
@@ -17186,7 +17077,7 @@ index 4a8d76a4f3ce..2736d454121e 100644
  	return 0;
  }
  
-@@ -3005,6 +3038,8 @@ static int dm_hw_fini(struct amdgpu_ip_block *ip_block)
+@@ -3007,6 +3040,8 @@ static int dm_hw_fini(struct amdgpu_ip_block *ip_block)
  {
  	struct amdgpu_device *adev = ip_block->adev;
  
@@ -17195,7 +17086,7 @@ index 4a8d76a4f3ce..2736d454121e 100644
  	amdgpu_dm_hpd_fini(adev);
  
  	amdgpu_dm_irq_fini(adev);
-@@ -4659,7 +4694,7 @@ static int amdgpu_dm_mode_config_init(struct amdgpu_device *adev)
+@@ -4656,7 +4691,7 @@ static int amdgpu_dm_mode_config_init(struct amdgpu_device *adev)
  		return r;
  	}
  
@@ -17204,16 +17095,7 @@ index 4a8d76a4f3ce..2736d454121e 100644
  	if (amdgpu_dm_create_color_properties(adev)) {
  		dc_state_release(state->context);
  		kfree(state);
-@@ -8372,7 +8407,7 @@ static int amdgpu_dm_i2c_xfer(struct i2c_adapter *i2c_adap,
- 	int i;
- 	int result = -EIO;
- 
--	if (!ddc_service->ddc_pin || !ddc_service->ddc_pin->hw_info.hw_supported)
-+	if (!ddc_service->ddc_pin)
- 		return result;
- 
- 	cmd.payloads = kcalloc(num, sizeof(struct i2c_payload), GFP_KERNEL);
-@@ -8391,11 +8426,18 @@ static int amdgpu_dm_i2c_xfer(struct i2c_adapter *i2c_adap,
+@@ -8396,11 +8431,18 @@ static int amdgpu_dm_i2c_xfer(struct i2c_adapter *i2c_adap,
  		cmd.payloads[i].data = msgs[i].buf;
  	}
  
@@ -17237,7 +17119,7 @@ index 4a8d76a4f3ce..2736d454121e 100644
  
  	kfree(cmd.payloads);
  	return result;
-@@ -8412,9 +8454,7 @@ static const struct i2c_algorithm amdgpu_dm_i2c_algo = {
+@@ -8417,9 +8459,7 @@ static const struct i2c_algorithm amdgpu_dm_i2c_algo = {
  };
  
  static struct amdgpu_i2c_adapter *
@@ -17248,7 +17130,7 @@ index 4a8d76a4f3ce..2736d454121e 100644
  {
  	struct amdgpu_device *adev = ddc_service->ctx->driver_context;
  	struct amdgpu_i2c_adapter *i2c;
-@@ -8425,9 +8465,14 @@ create_i2c(struct ddc_service *ddc_service,
+@@ -8430,9 +8470,14 @@ create_i2c(struct ddc_service *ddc_service,
  	i2c->base.owner = THIS_MODULE;
  	i2c->base.dev.parent = &adev->pdev->dev;
  	i2c->base.algo = &amdgpu_dm_i2c_algo;
@@ -17264,7 +17146,7 @@ index 4a8d76a4f3ce..2736d454121e 100644
  
  	return i2c;
  }
-@@ -8473,7 +8518,7 @@ static int amdgpu_dm_connector_init(struct amdgpu_display_manager *dm,
+@@ -8478,7 +8523,7 @@ static int amdgpu_dm_connector_init(struct amdgpu_display_manager *dm,
  	link->priv = aconnector;
  
  
@@ -17502,7 +17384,7 @@ diff --git a/drivers/gpu/drm/amd/pm/swsmu/amdgpu_smu.c b/drivers/gpu/drm/amd/pm/
 index ed9dac00ebfb..b3fd5e9df44c 100644
 --- a/drivers/gpu/drm/amd/pm/swsmu/amdgpu_smu.c
 +++ b/drivers/gpu/drm/amd/pm/swsmu/amdgpu_smu.c
-@@ -2823,7 +2823,10 @@ int smu_get_power_limit(void *handle,
+@@ -2824,7 +2824,10 @@ int smu_get_power_limit(void *handle,
  			*limit = smu->max_power_limit;
  			break;
  		case SMU_PPT_LIMIT_MIN:
@@ -17514,7 +17396,7 @@ index ed9dac00ebfb..b3fd5e9df44c 100644
  			break;
  		default:
  			return -EINVAL;
-@@ -2847,7 +2850,14 @@ static int smu_set_power_limit(void *handle, uint32_t limit)
+@@ -2848,7 +2851,14 @@ static int smu_set_power_limit(void *handle, uint32_t limit)
  		if (smu->ppt_funcs->set_power_limit)
  			return smu->ppt_funcs->set_power_limit(smu, limit_type, limit);
  
@@ -23455,7 +23337,7 @@ index ca2ca3884f76..d47d85b68dab 100644
  #include <asm/pgalloc.h>
  #include <linux/uaccess.h>
  #include <asm/mmu_context.h>
-@@ -2171,6 +2175,10 @@ __latent_entropy struct task_struct *copy_process(
+@@ -2172,6 +2176,10 @@ __latent_entropy struct task_struct *copy_process(
  	if ((clone_flags & (CLONE_NEWUSER|CLONE_FS)) == (CLONE_NEWUSER|CLONE_FS))
  		return ERR_PTR(-EINVAL);
  
@@ -23466,7 +23348,7 @@ index ca2ca3884f76..d47d85b68dab 100644
  	/*
  	 * Thread groups must share signals as well, and detached threads
  	 * can only be started up within the thread group.
-@@ -3324,6 +3332,12 @@ int ksys_unshare(unsigned long unshare_flags)
+@@ -3325,6 +3333,12 @@ int ksys_unshare(unsigned long unshare_flags)
  	if (unshare_flags & CLONE_NEWNS)
  		unshare_flags |= CLONE_FS;
  
@@ -23507,14 +23389,14 @@ index f67b79c473dd..59e80ffc5ae2 100644
 +++ b/kernel/sched/fair.c
 @@ -76,10 +76,19 @@ unsigned int sysctl_sched_tunable_scaling = SCHED_TUNABLESCALING_LOG;
   *
-  * (default: 0.75 msec * (1 + ilog(ncpus)), units: nanoseconds)
+  * (default: 0.70 msec * (1 + ilog(ncpus)), units: nanoseconds)
   */
 +#ifdef CONFIG_CACHY
 +unsigned int sysctl_sched_base_slice			= 350000ULL;
 +static unsigned int normalized_sysctl_sched_base_slice	= 350000ULL;
 +#else
- unsigned int sysctl_sched_base_slice			= 750000ULL;
- static unsigned int normalized_sysctl_sched_base_slice	= 750000ULL;
+ unsigned int sysctl_sched_base_slice			= 700000ULL;
+ static unsigned int normalized_sysctl_sched_base_slice	= 700000ULL;
 +#endif
  
 +#ifdef CONFIG_CACHY
@@ -26319,11 +26201,7 @@ Subject: [PATCH 7/9] fixes
 
 Signed-off-by: Peter Jung <admin@ptr1337.dev>
 ---
- Makefile                                      |  4 -
  arch/Kconfig                                  |  4 +-
- arch/loongarch/kernel/Makefile                |  8 +-
- arch/loongarch/kvm/Makefile                   |  2 +-
- arch/riscv/kernel/Makefile                    |  4 +-
  arch/x86/tools/insn_decoder_test.c            |  3 +-
  crypto/crc32c_generic.c                       |  1 +
  drivers/acpi/acpica/aclocal.h                 |  4 +-
@@ -26342,29 +26220,12 @@ Signed-off-by: Peter Jung <admin@ptr1337.dev>
  lib/Kconfig.debug                             |  9 ++
  lib/Makefile                                  |  2 +
  lib/longest_symbol_kunit.c                    | 82 +++++++++++++++++++
- mm/vmalloc.c                                  | 13 +--
  net/bluetooth/hci_conn.c                      | 24 ++++++
  net/bluetooth/hci_event.c                     | 73 ++++++++++-------
- scripts/Makefile.extrawarn                    | 11 ++-
  scripts/package/PKGBUILD                      |  5 ++
- 28 files changed, 216 insertions(+), 74 deletions(-)
+ 22 files changed, 192 insertions(+), 56 deletions(-)
  create mode 100644 lib/longest_symbol_kunit.c
 
-diff --git a/Makefile b/Makefile
-index a05b012636c9..a6323aec75cc 100644
---- a/Makefile
-+++ b/Makefile
-@@ -1057,10 +1057,6 @@ NOSTDINC_FLAGS += -nostdinc
- # perform bounds checking.
- KBUILD_CFLAGS += $(call cc-option, -fstrict-flex-arrays=3)
- 
--#Currently, disable -Wstringop-overflow for GCC 11, globally.
--KBUILD_CFLAGS-$(CONFIG_CC_NO_STRINGOP_OVERFLOW) += $(call cc-option, -Wno-stringop-overflow)
--KBUILD_CFLAGS-$(CONFIG_CC_STRINGOP_OVERFLOW) += $(call cc-option, -Wstringop-overflow)
--
- # disable invalid "can't wrap" optimizations for signed / pointers
- KBUILD_CFLAGS	+= -fno-strict-overflow
- 
 diff --git a/arch/Kconfig b/arch/Kconfig
 index b8a4ff365582..9b087f9bb413 100644
 --- a/arch/Kconfig
@@ -26387,50 +26248,6 @@ index b8a4ff365582..9b087f9bb413 100644
  	depends on HAVE_ARCH_MMAP_RND_COMPAT_BITS
  	help
  	  This value can be used to select the number of bits to use to
-diff --git a/arch/loongarch/kernel/Makefile b/arch/loongarch/kernel/Makefile
-index 4853e8b04c6f..f9dcaa60033d 100644
---- a/arch/loongarch/kernel/Makefile
-+++ b/arch/loongarch/kernel/Makefile
-@@ -21,10 +21,10 @@ obj-$(CONFIG_CPU_HAS_LBT)	+= lbt.o
- 
- obj-$(CONFIG_ARCH_STRICT_ALIGN)	+= unaligned.o
- 
--CFLAGS_module.o		+= $(call cc-option,-Wno-override-init,)
--CFLAGS_syscall.o	+= $(call cc-option,-Wno-override-init,)
--CFLAGS_traps.o		+= $(call cc-option,-Wno-override-init,)
--CFLAGS_perf_event.o	+= $(call cc-option,-Wno-override-init,)
-+CFLAGS_module.o		+= $(call cc-disable-warning, override-init)
-+CFLAGS_syscall.o	+= $(call cc-disable-warning, override-init)
-+CFLAGS_traps.o		+= $(call cc-disable-warning, override-init)
-+CFLAGS_perf_event.o	+= $(call cc-disable-warning, override-init)
- 
- ifdef CONFIG_FUNCTION_TRACER
-   ifndef CONFIG_DYNAMIC_FTRACE
-diff --git a/arch/loongarch/kvm/Makefile b/arch/loongarch/kvm/Makefile
-index 3a01292f71cc..8e8f6bc87f89 100644
---- a/arch/loongarch/kvm/Makefile
-+++ b/arch/loongarch/kvm/Makefile
-@@ -23,4 +23,4 @@ kvm-y += intc/eiointc.o
- kvm-y += intc/pch_pic.o
- kvm-y += irqfd.o
- 
--CFLAGS_exit.o	+= $(call cc-option,-Wno-override-init,)
-+CFLAGS_exit.o	+= $(call cc-disable-warning, override-init)
-diff --git a/arch/riscv/kernel/Makefile b/arch/riscv/kernel/Makefile
-index 8d186bfced45..f7480c9c6f8d 100644
---- a/arch/riscv/kernel/Makefile
-+++ b/arch/riscv/kernel/Makefile
-@@ -9,8 +9,8 @@ CFLAGS_REMOVE_patch.o	= $(CC_FLAGS_FTRACE)
- CFLAGS_REMOVE_sbi.o	= $(CC_FLAGS_FTRACE)
- CFLAGS_REMOVE_return_address.o	= $(CC_FLAGS_FTRACE)
- endif
--CFLAGS_syscall_table.o	+= $(call cc-option,-Wno-override-init,)
--CFLAGS_compat_syscall_table.o += $(call cc-option,-Wno-override-init,)
-+CFLAGS_syscall_table.o	+= $(call cc-disable-warning, override-init)
-+CFLAGS_compat_syscall_table.o += $(call cc-disable-warning, override-init)
- 
- ifdef CONFIG_KEXEC_CORE
- AFLAGS_kexec_relocate.o := -mcmodel=medany $(call cc-option,-mno-relax)
 diff --git a/arch/x86/tools/insn_decoder_test.c b/arch/x86/tools/insn_decoder_test.c
 index 472540aeabc2..6c2986d2ad11 100644
 --- a/arch/x86/tools/insn_decoder_test.c
@@ -26513,7 +26330,7 @@ diff --git a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c b/drivers/gpu/drm
 index 2736d454121e..e01dc2b64c14 100644
 --- a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c
 +++ b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c
-@@ -670,21 +670,15 @@ static void dm_crtc_high_irq(void *interrupt_params)
+@@ -672,21 +672,15 @@ static void dm_crtc_high_irq(void *interrupt_params)
  	spin_lock_irqsave(&adev_to_drm(adev)->event_lock, flags);
  
  	if (acrtc->dm_irq_params.stream &&
@@ -26781,38 +26598,6 @@ index 000000000000..e3c28ff1807f
 +MODULE_LICENSE("GPL");
 +MODULE_DESCRIPTION("Test the longest symbol length");
 +MODULE_AUTHOR("Sergio González Collado");
-diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index 8aa7eea9b26f..ae7e419be29d 100644
---- a/mm/vmalloc.c
-+++ b/mm/vmalloc.c
-@@ -4097,8 +4097,8 @@ void *vrealloc_noprof(const void *p, size_t size, gfp_t flags)
- 	 * would be a good heuristic for when to shrink the vm_area?
- 	 */
- 	if (size <= old_size) {
--		/* Zero out "freed" memory. */
--		if (want_init_on_free())
-+		/* Zero out "freed" memory, potentially for future realloc. */
-+		if (want_init_on_free() || want_init_on_alloc(flags))
- 			memset((void *)p + size, 0, old_size - size);
- 		vm->requested_size = size;
- 		kasan_poison_vmalloc(p + size, old_size - size);
-@@ -4111,10 +4111,13 @@ void *vrealloc_noprof(const void *p, size_t size, gfp_t flags)
- 	if (size <= alloced_size) {
- 		kasan_unpoison_vmalloc(p + old_size, size - old_size,
- 				       KASAN_VMALLOC_PROT_NORMAL);
--		/* Zero out "alloced" memory. */
--		if (want_init_on_alloc(flags))
--			memset((void *)p + old_size, 0, size - old_size);
-+		/*
-+		 * No need to zero memory here, as unused memory will have
-+		 * already been zeroed at initial allocation time or during
-+		 * realloc shrink time.
-+		 */
- 		vm->requested_size = size;
-+		return (void *)p;
- 	}
- 
- 	/* TODO: Grow the vm_area, i.e. allocate and map additional pages. */
 diff --git a/net/bluetooth/hci_conn.c b/net/bluetooth/hci_conn.c
 index ae66fa0a5fb5..a5cf428822fc 100644
 --- a/net/bluetooth/hci_conn.c
@@ -26879,7 +26664,7 @@ index ab940ec698c0..a46929e33783 100644
  	}
  
  	hci_encrypt_cfm(conn, status);
-@@ -3062,6 +3073,34 @@ static void hci_inquiry_result_evt(struct hci_dev *hdev, void *edata,
+@@ -3065,6 +3076,34 @@ static void hci_inquiry_result_evt(struct hci_dev *hdev, void *edata,
  	hci_dev_unlock(hdev);
  }
  
@@ -26914,7 +26699,7 @@ index ab940ec698c0..a46929e33783 100644
  static void hci_conn_complete_evt(struct hci_dev *hdev, void *data,
  				  struct sk_buff *skb)
  {
-@@ -3154,23 +3193,11 @@ static void hci_conn_complete_evt(struct hci_dev *hdev, void *data,
+@@ -3157,23 +3196,11 @@ static void hci_conn_complete_evt(struct hci_dev *hdev, void *data,
  		if (ev->encr_mode == 1 && !test_bit(HCI_CONN_ENCRYPT, &conn->flags) &&
  		    ev->link_type == ACL_LINK) {
  			struct link_key *key;
@@ -26939,7 +26724,7 @@ index ab940ec698c0..a46929e33783 100644
  				hci_encrypt_cfm(conn, ev->status);
  			}
  		}
-@@ -3609,24 +3636,8 @@ static void hci_encrypt_change_evt(struct hci_dev *hdev, void *data,
+@@ -3612,24 +3639,8 @@ static void hci_encrypt_change_evt(struct hci_dev *hdev, void *data,
  
  	/* Try reading the encryption key size for encrypted ACL links */
  	if (!ev->status && ev->encrypt && conn->type == ACL_LINK) {
@@ -26965,49 +26750,6 @@ index ab940ec698c0..a46929e33783 100644
  
  		goto unlock;
  	}
-diff --git a/scripts/Makefile.extrawarn b/scripts/Makefile.extrawarn
-index 686197407c3c..5652d9035232 100644
---- a/scripts/Makefile.extrawarn
-+++ b/scripts/Makefile.extrawarn
-@@ -8,6 +8,7 @@
- 
- # Default set of warnings, always enabled
- KBUILD_CFLAGS += -Wall
-+KBUILD_CFLAGS += -Wextra
- KBUILD_CFLAGS += -Wundef
- KBUILD_CFLAGS += -Werror=implicit-function-declaration
- KBUILD_CFLAGS += -Werror=implicit-int
-@@ -15,7 +16,7 @@ KBUILD_CFLAGS += -Werror=return-type
- KBUILD_CFLAGS += -Werror=strict-prototypes
- KBUILD_CFLAGS += -Wno-format-security
- KBUILD_CFLAGS += -Wno-trigraphs
--KBUILD_CFLAGS += $(call cc-disable-warning,frame-address,)
-+KBUILD_CFLAGS += $(call cc-disable-warning, frame-address)
- KBUILD_CFLAGS += $(call cc-disable-warning, address-of-packed-member)
- KBUILD_CFLAGS += -Wmissing-declarations
- KBUILD_CFLAGS += -Wmissing-prototypes
-@@ -68,6 +69,13 @@ KBUILD_CFLAGS += -Wno-pointer-sign
- # globally built with -Wcast-function-type.
- KBUILD_CFLAGS += $(call cc-option, -Wcast-function-type)
- 
-+# Currently, disable -Wstringop-overflow for GCC 11, globally.
-+KBUILD_CFLAGS-$(CONFIG_CC_NO_STRINGOP_OVERFLOW) += $(call cc-disable-warning, stringop-overflow)
-+KBUILD_CFLAGS-$(CONFIG_CC_STRINGOP_OVERFLOW) += $(call cc-option, -Wstringop-overflow)
-+
-+# Currently, disable -Wunterminated-string-initialization as broken
-+KBUILD_CFLAGS += $(call cc-disable-warning, unterminated-string-initialization)
-+
- # The allocators already balk at large sizes, so silence the compiler
- # warnings for bounds checks involving those possible values. While
- # -Wno-alloc-size-larger-than would normally be used here, earlier versions
-@@ -97,7 +105,6 @@ KBUILD_CFLAGS += $(call cc-option,-Wenum-conversion)
- # Explicitly clear padding bits during variable initialization
- KBUILD_CFLAGS += $(call cc-option,-fzero-init-padding-bits=all)
- 
--KBUILD_CFLAGS += -Wextra
- KBUILD_CFLAGS += -Wunused
- 
- #
 diff --git a/scripts/package/PKGBUILD b/scripts/package/PKGBUILD
 index 0cf3a55b05e1..a27d4344a4e8 100644
 --- a/scripts/package/PKGBUILD
@@ -27191,16 +26933,16 @@ diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu_drv.c b/drivers/gpu/drm/amd/amdgp
 index 713192aa8ce6..8a6905318408 100644
 --- a/drivers/gpu/drm/amd/amdgpu/amdgpu_drv.c
 +++ b/drivers/gpu/drm/amd/amdgpu/amdgpu_drv.c
-@@ -2254,6 +2254,9 @@ static int amdgpu_pci_probe(struct pci_dev *pdev,
+@@ -2262,6 +2262,9 @@ static int amdgpu_pci_probe(struct pci_dev *pdev,
  	int ret, retry = 0, i;
  	bool supports_atomic = false;
  
 +	if (vga_switcheroo_client_probe_defer(pdev))
 +		return -EPROBE_DEFER;
 +
- 	/* skip devices which are owned by radeon */
- 	for (i = 0; i < ARRAY_SIZE(amdgpu_unsupported_pciidlist); i++) {
- 		if (amdgpu_unsupported_pciidlist[i] == pdev->device)
+ 	if ((pdev->class >> 8) == PCI_CLASS_DISPLAY_VGA ||
+ 	    (pdev->class >> 8) == PCI_CLASS_DISPLAY_OTHER) {
+ 		if (drm_firmware_drivers_only() && amdgpu_modeset == -1)
 diff --git a/drivers/gpu/drm/drm_format_helper.c b/drivers/gpu/drm/drm_format_helper.c
 index b1be458ed4dd..4f60c8d8f63e 100644
 --- a/drivers/gpu/drm/drm_format_helper.c
@@ -28441,7 +28183,7 @@ index 673e57fab594..7e2465d240a3 100644
  config HID_ASUS
  	tristate "Asus"
  	depends on USB_HID
-@@ -689,11 +714,13 @@ config LOGIWHEELS_FF
+@@ -690,11 +715,13 @@ config LOGIWHEELS_FF
  
  config HID_MAGICMOUSE
  	tristate "Apple Magic Mouse/Trackpad multi-touch support"
@@ -28456,7 +28198,7 @@ index 673e57fab594..7e2465d240a3 100644
  
  config HID_MALTRON
  	tristate "Maltron L90 keyboard"
-@@ -743,6 +770,7 @@ config HID_MULTITOUCH
+@@ -744,6 +771,7 @@ config HID_MULTITOUCH
  	  Say Y here if you have one of the following devices:
  	  - 3M PCT touch screens
  	  - ActionStar dual touch panels
@@ -28464,7 +28206,7 @@ index 673e57fab594..7e2465d240a3 100644
  	  - Atmel panels
  	  - Cando dual touch panels
  	  - Chunghwa panels
-@@ -1409,4 +1437,8 @@ endif # HID
+@@ -1410,4 +1438,8 @@ endif # HID
  
  source "drivers/hid/usbhid/Kconfig"
  
@@ -36123,7 +35865,7 @@ diff --git a/drivers/soc/apple/rtkit.c b/drivers/soc/apple/rtkit.c
 index e6d940292c9f..4b0783091a92 100644
 --- a/drivers/soc/apple/rtkit.c
 +++ b/drivers/soc/apple/rtkit.c
-@@ -368,7 +368,7 @@ static void apple_rtkit_crashlog_rx(struct apple_rtkit *rtk, u64 msg)
+@@ -385,7 +385,7 @@ static void apple_rtkit_crashlog_rx(struct apple_rtkit *rtk, u64 msg)
  
  	rtk->crashed = true;
  	if (rtk->ops->crashed)

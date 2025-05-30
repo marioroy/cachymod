@@ -135,7 +135,7 @@ fi
 
 _pkgsuffix=cachymod-614
 _major=6.14
-_minor=8
+_minor=9
 pkgver=${_major}.${_minor}
 _stable=${_major}.${_minor}
 #_stable=${_major}
@@ -147,7 +147,7 @@ _stable=${_major}.${_minor}
 
 _srcname=linux-${_stable}
 pkgdesc='CachyMod Linux Kernel with other patches and improvements'
-pkgrel=3
+pkgrel=1
 _kernver="$pkgver-$pkgrel"
 _kernuname="${pkgver}-${_pkgsuffix}"
 arch=('x86_64')
@@ -165,9 +165,6 @@ source=(
     "trim.sh"
     "auto-cpu-optimization.sh"
     "mkinitcpio.template"
-    "0001-linux6.14.5-update.patch"
-    "0001-linux6.14.6-update.patch"
-    "0001-linux6.14.7-update.patch"
     "0001-rt.patch"
     "0001-cachyos-base-all.patch"
     "0001-sched-fair-remove-cachy-mods.patch"
@@ -188,6 +185,7 @@ source+=(
     "0240-pipe-update.patch"
     "0250-amdgpu-update.patch"
     "0270-sched-fair-update.patch"
+    "0280-autosel-upstream.patch"
 )
 
 if [[ "$_prevent_avx2" =~ ^(yes|y|1)$ ]]; then

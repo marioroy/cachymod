@@ -403,7 +403,7 @@ index ae6f7a235d8b2..ae4d8d0194aac 100644
  #include <asm/io.h>
  #include <asm/prom.h>
  #include <asm/rtas.h>
-@@ -244,7 +245,13 @@ static int tce_build_pSeriesLP(unsigned long liobn, long tcenum, long tceshift,
+@@ -245,7 +246,13 @@ static int tce_build_pSeriesLP(unsigned long liobn, long tcenum, long tceshift,
  	return ret;
  }
  
@@ -418,7 +418,7 @@ index ae6f7a235d8b2..ae4d8d0194aac 100644
  
  static int tce_buildmulti_pSeriesLP(struct iommu_table *tbl, long tcenum,
  				     long npages, unsigned long uaddr,
-@@ -267,9 +274,10 @@ static int tce_buildmulti_pSeriesLP(struct iommu_table *tbl, long tcenum,
+@@ -268,9 +275,10 @@ static int tce_buildmulti_pSeriesLP(struct iommu_table *tbl, long tcenum,
  		                           direction, attrs);
  	}
  
@@ -431,7 +431,7 @@ index ae6f7a235d8b2..ae4d8d0194aac 100644
  
  	/* This is safe to do since interrupts are off when we're called
  	 * from iommu_alloc{,_sg}()
-@@ -278,12 +286,12 @@ static int tce_buildmulti_pSeriesLP(struct iommu_table *tbl, long tcenum,
+@@ -279,12 +287,12 @@ static int tce_buildmulti_pSeriesLP(struct iommu_table *tbl, long tcenum,
  		tcep = (__be64 *)__get_free_page(GFP_ATOMIC);
  		/* If allocation fails, fall back to the loop implementation */
  		if (!tcep) {
@@ -446,7 +446,7 @@ index ae6f7a235d8b2..ae4d8d0194aac 100644
  	}
  
  	rpn = __pa(uaddr) >> tceshift;
-@@ -313,7 +321,7 @@ static int tce_buildmulti_pSeriesLP(struct iommu_table *tbl, long tcenum,
+@@ -314,7 +322,7 @@ static int tce_buildmulti_pSeriesLP(struct iommu_table *tbl, long tcenum,
  		tcenum += limit;
  	} while (npages > 0 && !rc);
  
@@ -455,7 +455,7 @@ index ae6f7a235d8b2..ae4d8d0194aac 100644
  
  	if (unlikely(rc == H_NOT_ENOUGH_RESOURCES)) {
  		ret = (int)rc;
-@@ -497,16 +505,17 @@ static int tce_setrange_multi_pSeriesLP(unsigned long start_pfn,
+@@ -498,16 +506,17 @@ static int tce_setrange_multi_pSeriesLP(unsigned long start_pfn,
  				DMA_BIDIRECTIONAL, 0);
  	}
  
@@ -477,7 +477,7 @@ index ae6f7a235d8b2..ae4d8d0194aac 100644
  	}
  
  	proto_tce = TCE_PCI_READ | TCE_PCI_WRITE;
-@@ -549,7 +558,7 @@ static int tce_setrange_multi_pSeriesLP(unsigned long start_pfn,
+@@ -550,7 +559,7 @@ static int tce_setrange_multi_pSeriesLP(unsigned long start_pfn,
  
  	/* error cleanup: caller will clear whole range */
  
@@ -1905,7 +1905,7 @@ index 1fb9ad289a6f8..81ecb9d3a9353 100644
  }
  EXPORT_SYMBOL_GPL(__symbol_get);
  
-@@ -3049,7 +3036,7 @@ static noinline int do_init_module(struct module *mod)
+@@ -3050,7 +3037,7 @@ static noinline int do_init_module(struct module *mod)
  #endif
  	/*
  	 * We want to free module_init, but be aware that kallsyms may be
@@ -1914,7 +1914,7 @@ index 1fb9ad289a6f8..81ecb9d3a9353 100644
  	 * call synchronize_rcu(), but we don't want to slow down the success
  	 * path. execmem_free() cannot be called in an interrupt, so do the
  	 * work and call synchronize_rcu() in a work queue.
-@@ -3715,28 +3702,23 @@ char *module_flags(struct module *mod, char *buf, bool show_state)
+@@ -3716,28 +3703,23 @@ char *module_flags(struct module *mod, char *buf, bool show_state)
  /* Given an address, look for it in the module exception tables. */
  const struct exception_table_entry *search_module_extables(unsigned long addr)
  {
@@ -1952,7 +1952,7 @@ index 1fb9ad289a6f8..81ecb9d3a9353 100644
  }
  
  /**
-@@ -3748,20 +3730,15 @@ const struct exception_table_entry *search_module_extables(unsigned long addr)
+@@ -3749,20 +3731,15 @@ const struct exception_table_entry *search_module_extables(unsigned long addr)
   */
  bool is_module_address(unsigned long addr)
  {
@@ -1976,7 +1976,7 @@ index 1fb9ad289a6f8..81ecb9d3a9353 100644
   * module doesn't get freed during this.
   */
  struct module *__module_address(unsigned long addr)
-@@ -3779,8 +3756,6 @@ struct module *__module_address(unsigned long addr)
+@@ -3780,8 +3757,6 @@ struct module *__module_address(unsigned long addr)
  	return NULL;
  
  lookup:
@@ -1985,7 +1985,7 @@ index 1fb9ad289a6f8..81ecb9d3a9353 100644
  	mod = mod_find(addr, &mod_tree);
  	if (mod) {
  		BUG_ON(!within_module(addr, mod));
-@@ -3800,20 +3775,15 @@ struct module *__module_address(unsigned long addr)
+@@ -3801,20 +3776,15 @@ struct module *__module_address(unsigned long addr)
   */
  bool is_module_text_address(unsigned long addr)
  {
@@ -2009,7 +2009,7 @@ index 1fb9ad289a6f8..81ecb9d3a9353 100644
   * module doesn't get freed during this.
   */
  struct module *__module_text_address(unsigned long addr)
-@@ -3836,7 +3806,7 @@ void print_modules(void)
+@@ -3837,7 +3807,7 @@ void print_modules(void)
  
  	printk(KERN_DEFAULT "Modules linked in:");
  	/* Most callers should already have preempt disabled, but make sure */
@@ -2018,7 +2018,7 @@ index 1fb9ad289a6f8..81ecb9d3a9353 100644
  	list_for_each_entry_rcu(mod, &modules, list) {
  		if (mod->state == MODULE_STATE_UNFORMED)
  			continue;
-@@ -3844,7 +3814,6 @@ void print_modules(void)
+@@ -3845,7 +3815,6 @@ void print_modules(void)
  	}
  
  	print_unloaded_tainted_modules();
@@ -2259,7 +2259,7 @@ diff --git a/kernel/trace/trace.c b/kernel/trace/trace.c
 index 0e6d517e74e0f..fd3cb2b2ab829 100644
 --- a/kernel/trace/trace.c
 +++ b/kernel/trace/trace.c
-@@ -4100,12 +4100,7 @@ print_trace_header(struct seq_file *m, struct trace_iterator *iter)
+@@ -4095,12 +4095,7 @@ print_trace_header(struct seq_file *m, struct trace_iterator *iter)
  		   entries,
  		   total,
  		   buf->cpu,

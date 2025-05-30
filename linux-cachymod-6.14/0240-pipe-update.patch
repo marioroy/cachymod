@@ -82,7 +82,7 @@ index 94b59045ab44bc..2eacfde61e745f 100644
  /*
   * Currently we rely on the pipe array holding a power-of-2 number
   * of pages. Returns 0 on error.
-@@ -1389,7 +1402,9 @@ struct pipe_inode_info *get_pipe_info(struct file *file, bool for_splice)
+@@ -1393,7 +1406,9 @@ struct pipe_inode_info *get_pipe_info(struct file *file, bool for_splice)
  {
  	struct pipe_inode_info *pipe = file->private_data;
  
