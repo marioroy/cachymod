@@ -3,14 +3,14 @@ diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
 @@ -73,19 +73,10 @@ unsigned int sysctl_sched_tunable_scalin
   *
-  * (default: 0.75 msec * (1 + ilog(ncpus)), units: nanoseconds)
+  * (default: 0.70 msec * (1 + ilog(ncpus)), units: nanoseconds)
   */
 -#ifdef CONFIG_CACHY
 -unsigned int sysctl_sched_base_slice			= 350000ULL;
 -static unsigned int normalized_sysctl_sched_base_slice	= 350000ULL;
 -#else
- unsigned int sysctl_sched_base_slice			= 750000ULL;
- static unsigned int normalized_sysctl_sched_base_slice	= 750000ULL;
+ unsigned int sysctl_sched_base_slice			= 700000ULL;
+ static unsigned int normalized_sysctl_sched_base_slice	= 700000ULL;
 -#endif
  
 -#ifdef CONFIG_CACHY

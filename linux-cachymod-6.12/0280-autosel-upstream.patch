@@ -1,0 +1,455 @@
+AUTOSEL 6.12 upstream
+https://lore.kernel.org/all/20250528215622.1983622-1-sashal@kernel.org/
+
+Subject: [PATCH 1/7] btrfs: exit after state insertion failure at
+ btrfs_convert_extent_bit()
+
+[ Upstream commit 3bf179e36da917c5d9bec71c714573ed1649b7c1 ]
+
+If insert_state() state failed it returns an error pointer and we call
+extent_io_tree_panic() which will trigger a BUG() call. However if
+CONFIG_BUG is disabled, which is an uncommon and exotic scenario, then
+we fallthrough and call cache_state() which will dereference the error
+pointer, resulting in an invalid memory access.
+
+So jump to the 'out' label after calling extent_io_tree_panic(), it also
+makes the code more clear besides dealing with the exotic scenario where
+CONFIG_BUG is disabled.
+
+Signed-off-by: Filipe Manana <fdmanana@xxxxxxxxxx>
+Reviewed-by: David Sterba <dsterba@xxxxxxxxxx>
+Signed-off-by: David Sterba <dsterba@xxxxxxxxxx>
+Signed-off-by: Sasha Levin <sashal@xxxxxxxxxx>
+---
+ fs/btrfs/extent-io-tree.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/fs/btrfs/extent-io-tree.c b/fs/btrfs/extent-io-tree.c
+index 6d08c100b01de..bb3aaf610652a 100644
+--- a/fs/btrfs/extent-io-tree.c
++++ b/fs/btrfs/extent-io-tree.c
+@@ -1456,6 +1456,7 @@ int convert_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
+ 		if (IS_ERR(inserted_state)) {
+ 			ret = PTR_ERR(inserted_state);
+ 			extent_io_tree_panic(tree, prealloc, "insert", ret);
++			goto out;
+ 		}
+ 		cache_state(inserted_state, cached_state);
+ 		if (inserted_state == prealloc)
+-- 
+2.39.5
+
+Subject: [PATCH 2/7] fs/filesystems: Fix potential unsigned integer
+ underflow in fs_name()
+
+[ Upstream commit 1363c134ade81e425873b410566e957fecebb261 ]
+
+fs_name() has @index as unsigned int, so there is underflow risk for
+operation '@index--'.
+
+Fix by breaking the for loop when '@index == 0' which is also more proper
+than '@index <= 0' for unsigned integer comparison.
+
+Signed-off-by: Zijun Hu <quic_zijuhu@xxxxxxxxxx>
+Link: https://lore.kernel.org/20250410-fix_fs-v1-1-7c14ccc8ebaa@quicinc.com
+Signed-off-by: Christian Brauner <brauner@xxxxxxxxxx>
+Signed-off-by: Sasha Levin <sashal@xxxxxxxxxx>
+---
+ fs/filesystems.c | 14 +++++++++-----
+ 1 file changed, 9 insertions(+), 5 deletions(-)
+
+diff --git a/fs/filesystems.c b/fs/filesystems.c
+index 58b9067b2391c..95e5256821a53 100644
+--- a/fs/filesystems.c
++++ b/fs/filesystems.c
+@@ -156,15 +156,19 @@ static int fs_index(const char __user * __name)
+ static int fs_name(unsigned int index, char __user * buf)
+ {
+ 	struct file_system_type * tmp;
+-	int len, res;
++	int len, res = -EINVAL;
+ 
+ 	read_lock(&file_systems_lock);
+-	for (tmp = file_systems; tmp; tmp = tmp->next, index--)
+-		if (index <= 0 && try_module_get(tmp->owner))
++	for (tmp = file_systems; tmp; tmp = tmp->next, index--) {
++		if (index == 0) {
++			if (try_module_get(tmp->owner))
++				res = 0;
+ 			break;
++		}
++	}
+ 	read_unlock(&file_systems_lock);
+-	if (!tmp)
+-		return -EINVAL;
++	if (res)
++		return res;
+ 
+ 	/* OK, we got the reference, so we can safely block */
+ 	len = strlen(tmp->name) + 1;
+-- 
+2.39.5
+
+Subject: [PATCH 3/7] gfs2: pass through holder from the VFS for freeze/thaw
+
+[ Upstream commit 62a2175ddf7e72941868f164b7c1f92e00f213bd ]
+
+The filesystem's freeze/thaw functions can be called from contexts where
+the holder isn't userspace but the kernel, e.g., during systemd
+suspend/hibernate. So pass through the freeze/thaw flags from the VFS
+instead of hard-coding them.
+
+Signed-off-by: Christian Brauner <brauner@xxxxxxxxxx>
+Signed-off-by: Sasha Levin <sashal@xxxxxxxxxx>
+---
+ fs/gfs2/super.c | 14 ++++++++------
+ 1 file changed, 8 insertions(+), 6 deletions(-)
+
+diff --git a/fs/gfs2/super.c b/fs/gfs2/super.c
+index b9cef63c78717..4d5959cd8466e 100644
+--- a/fs/gfs2/super.c
++++ b/fs/gfs2/super.c
+@@ -674,7 +674,7 @@ static int gfs2_sync_fs(struct super_block *sb, int wait)
+ 	return sdp->sd_log_error;
+ }
+ 
+-static int gfs2_do_thaw(struct gfs2_sbd *sdp)
++static int gfs2_do_thaw(struct gfs2_sbd *sdp, enum freeze_holder who)
+ {
+ 	struct super_block *sb = sdp->sd_vfs;
+ 	int error;
+@@ -682,7 +682,7 @@ static int gfs2_do_thaw(struct gfs2_sbd *sdp)
+ 	error = gfs2_freeze_lock_shared(sdp);
+ 	if (error)
+ 		goto fail;
+-	error = thaw_super(sb, FREEZE_HOLDER_USERSPACE);
++	error = thaw_super(sb, who);
+ 	if (!error)
+ 		return 0;
+ 
+@@ -710,7 +710,7 @@ void gfs2_freeze_func(struct work_struct *work)
+ 	gfs2_freeze_unlock(sdp);
+ 	set_bit(SDF_FROZEN, &sdp->sd_flags);
+ 
+-	error = gfs2_do_thaw(sdp);
++	error = gfs2_do_thaw(sdp, FREEZE_HOLDER_USERSPACE);
+ 	if (error)
+ 		goto out;
+ 
+@@ -728,6 +728,7 @@ void gfs2_freeze_func(struct work_struct *work)
+ /**
+  * gfs2_freeze_super - prevent further writes to the filesystem
+  * @sb: the VFS structure for the filesystem
++ * @who: freeze flags
+  *
+  */
+ 
+@@ -744,7 +745,7 @@ static int gfs2_freeze_super(struct super_block *sb, enum freeze_holder who)
+ 	}
+ 
+ 	for (;;) {
+-		error = freeze_super(sb, FREEZE_HOLDER_USERSPACE);
++		error = freeze_super(sb, who);
+ 		if (error) {
+ 			fs_info(sdp, "GFS2: couldn't freeze filesystem: %d\n",
+ 				error);
+@@ -758,7 +759,7 @@ static int gfs2_freeze_super(struct super_block *sb, enum freeze_holder who)
+ 			break;
+ 		}
+ 
+-		error = gfs2_do_thaw(sdp);
++		error = gfs2_do_thaw(sdp, who);
+ 		if (error)
+ 			goto out;
+ 
+@@ -796,6 +797,7 @@ static int gfs2_freeze_fs(struct super_block *sb)
+ /**
+  * gfs2_thaw_super - reallow writes to the filesystem
+  * @sb: the VFS structure for the filesystem
++ * @who: freeze flags
+  *
+  */
+ 
+@@ -814,7 +816,7 @@ static int gfs2_thaw_super(struct super_block *sb, enum freeze_holder who)
+ 	atomic_inc(&sb->s_active);
+ 	gfs2_freeze_unlock(sdp);
+ 
+-	error = gfs2_do_thaw(sdp);
++	error = gfs2_do_thaw(sdp, who);
+ 
+ 	if (!error) {
+ 		clear_bit(SDF_FREEZE_INITIATOR, &sdp->sd_flags);
+-- 
+2.39.5
+
+Subject: [PATCH 4/7] btrfs: exit after state split error at
+ set_extent_bit()
+
+[ Upstream commit 41d69d4d78d8b179bf3bcdfc56d28a12b3a608d2 ]
+
+If split_state() returned an error we call extent_io_tree_panic() which
+will trigger a BUG() call. However if CONFIG_BUG is disabled, which is an
+uncommon and exotic scenario, then we fallthrough and hit a use after free
+when calling set_state_bits() since the extent state record which the
+local variable 'prealloc' points to was freed by split_state().
+
+So jump to the label 'out' after calling extent_io_tree_panic() and set
+the 'prealloc' pointer to NULL since split_state() has already freed it
+when it hit an error.
+
+Signed-off-by: Filipe Manana <fdmanana@xxxxxxxxxx>
+Reviewed-by: David Sterba <dsterba@xxxxxxxxxx>
+Signed-off-by: David Sterba <dsterba@xxxxxxxxxx>
+Signed-off-by: Sasha Levin <sashal@xxxxxxxxxx>
+---
+ fs/btrfs/extent-io-tree.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/fs/btrfs/extent-io-tree.c b/fs/btrfs/extent-io-tree.c
+index bb3aaf610652a..5f9a43734812e 100644
+--- a/fs/btrfs/extent-io-tree.c
++++ b/fs/btrfs/extent-io-tree.c
+@@ -1252,8 +1252,11 @@ static int __set_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
+ 		if (!prealloc)
+ 			goto search_again;
+ 		ret = split_state(tree, state, prealloc, end + 1);
+-		if (ret)
++		if (ret) {
+ 			extent_io_tree_panic(tree, state, "split", ret);
++			prealloc = NULL;
++			goto out;
++		}
+ 
+ 		set_state_bits(tree, prealloc, bits, changeset);
+ 		cache_state(prealloc, cached_state);
+-- 
+2.39.5
+
+Subject: [PATCH 5/7] nvmet-fcloop: access fcpreq only when holding reqlock
+
+[ Upstream commit 47a827cd7929d0550c3496d70b417fcb5649b27b ]
+
+The abort handling logic expects that the state and the fcpreq are only
+accessed when holding the reqlock lock.
+
+While at it, only handle the aborts in the abort handler.
+
+Signed-off-by: Daniel Wagner <wagi@xxxxxxxxxx>
+Signed-off-by: Christoph Hellwig <hch@xxxxxxxxxx>
+Signed-off-by: Sasha Levin <sashal@xxxxxxxxxx>
+Reviewed-by: Hannes Reinecke <hare@xxxxxxxxxx>
+---
+ drivers/nvme/target/fcloop.c | 31 ++++++++++++++++---------------
+ 1 file changed, 16 insertions(+), 15 deletions(-)
+
+diff --git a/drivers/nvme/target/fcloop.c b/drivers/nvme/target/fcloop.c
+index da195d61a9664..f1b5ffc00ce88 100644
+--- a/drivers/nvme/target/fcloop.c
++++ b/drivers/nvme/target/fcloop.c
+@@ -623,12 +623,13 @@ fcloop_fcp_recv_work(struct work_struct *work)
+ {
+ 	struct fcloop_fcpreq *tfcp_req =
+ 		container_of(work, struct fcloop_fcpreq, fcp_rcv_work);
+-	struct nvmefc_fcp_req *fcpreq = tfcp_req->fcpreq;
++	struct nvmefc_fcp_req *fcpreq;
+ 	unsigned long flags;
+ 	int ret = 0;
+ 	bool aborted = false;
+ 
+ 	spin_lock_irqsave(&tfcp_req->reqlock, flags);
++	fcpreq = tfcp_req->fcpreq;
+ 	switch (tfcp_req->inistate) {
+ 	case INI_IO_START:
+ 		tfcp_req->inistate = INI_IO_ACTIVE;
+@@ -643,16 +644,19 @@ fcloop_fcp_recv_work(struct work_struct *work)
+ 	}
+ 	spin_unlock_irqrestore(&tfcp_req->reqlock, flags);
+ 
+-	if (unlikely(aborted))
+-		ret = -ECANCELED;
+-	else {
+-		if (likely(!check_for_drop(tfcp_req)))
+-			ret = nvmet_fc_rcv_fcp_req(tfcp_req->tport->targetport,
+-				&tfcp_req->tgt_fcp_req,
+-				fcpreq->cmdaddr, fcpreq->cmdlen);
+-		else
+-			pr_info("%s: dropped command ********\n", __func__);
++	if (unlikely(aborted)) {
++		/* the abort handler will call fcloop_call_host_done */
++		return;
++	}
++
++	if (unlikely(check_for_drop(tfcp_req))) {
++		pr_info("%s: dropped command ********\n", __func__);
++		return;
+ 	}
++
++	ret = nvmet_fc_rcv_fcp_req(tfcp_req->tport->targetport,
++				   &tfcp_req->tgt_fcp_req,
++				   fcpreq->cmdaddr, fcpreq->cmdlen);
+ 	if (ret)
+ 		fcloop_call_host_done(fcpreq, tfcp_req, ret);
+ }
+@@ -667,9 +671,10 @@ fcloop_fcp_abort_recv_work(struct work_struct *work)
+ 	unsigned long flags;
+ 
+ 	spin_lock_irqsave(&tfcp_req->reqlock, flags);
+-	fcpreq = tfcp_req->fcpreq;
+ 	switch (tfcp_req->inistate) {
+ 	case INI_IO_ABORTED:
++		fcpreq = tfcp_req->fcpreq;
++		tfcp_req->fcpreq = NULL;
+ 		break;
+ 	case INI_IO_COMPLETED:
+ 		completed = true;
+@@ -691,10 +696,6 @@ fcloop_fcp_abort_recv_work(struct work_struct *work)
+ 		nvmet_fc_rcv_fcp_abort(tfcp_req->tport->targetport,
+ 					&tfcp_req->tgt_fcp_req);
+ 
+-	spin_lock_irqsave(&tfcp_req->reqlock, flags);
+-	tfcp_req->fcpreq = NULL;
+-	spin_unlock_irqrestore(&tfcp_req->reqlock, flags);
+-
+ 	fcloop_call_host_done(fcpreq, tfcp_req, -ECANCELED);
+ 	/* call_host_done releases reference for abort downcall */
+ }
+-- 
+2.39.5
+
+Subject: [PATCH 6/7] perf: Ensure bpf_perf_link path is properly serialized
+
+[ Upstream commit 7ed9138a72829d2035ecbd8dbd35b1bc3c137c40 ]
+
+Ravi reported that the bpf_perf_link_attach() usage of
+perf_event_set_bpf_prog() is not serialized by ctx->mutex, unlike the
+PERF_EVENT_IOC_SET_BPF case.
+
+Reported-by: Ravi Bangoria <ravi.bangoria@xxxxxxxxxx>
+Signed-off-by: Peter Zijlstra (Intel) <peterz@xxxxxxxxxx>
+Reviewed-by: Ravi Bangoria <ravi.bangoria@xxxxxxxxxx>
+Link: https://lkml.kernel.org/r/20250307193305.486326750@infradead.org
+Signed-off-by: Sasha Levin <sashal@xxxxxxxxxx>
+---
+ kernel/events/core.c | 34 ++++++++++++++++++++++++++++++----
+ 1 file changed, 30 insertions(+), 4 deletions(-)
+
+diff --git a/kernel/events/core.c b/kernel/events/core.c
+index edafe9fc4bdd0..cbf5303f52dab 100644
+--- a/kernel/events/core.c
++++ b/kernel/events/core.c
+@@ -6031,6 +6031,9 @@ static int perf_event_set_output(struct perf_event *event,
+ static int perf_event_set_filter(struct perf_event *event, void __user *arg);
+ static int perf_copy_attr(struct perf_event_attr __user *uattr,
+ 			  struct perf_event_attr *attr);
++static int __perf_event_set_bpf_prog(struct perf_event *event,
++				     struct bpf_prog *prog,
++				     u64 bpf_cookie);
+ 
+ static long _perf_ioctl(struct perf_event *event, unsigned int cmd, unsigned long arg)
+ {
+@@ -6099,7 +6102,7 @@ static long _perf_ioctl(struct perf_event *event, unsigned int cmd, unsigned lon
+ 		if (IS_ERR(prog))
+ 			return PTR_ERR(prog);
+ 
+-		err = perf_event_set_bpf_prog(event, prog, 0);
++		err = __perf_event_set_bpf_prog(event, prog, 0);
+ 		if (err) {
+ 			bpf_prog_put(prog);
+ 			return err;
+@@ -10756,8 +10759,9 @@ static inline bool perf_event_is_tracing(struct perf_event *event)
+ 	return false;
+ }
+ 
+-int perf_event_set_bpf_prog(struct perf_event *event, struct bpf_prog *prog,
+-			    u64 bpf_cookie)
++static int __perf_event_set_bpf_prog(struct perf_event *event,
++				     struct bpf_prog *prog,
++				     u64 bpf_cookie)
+ {
+ 	bool is_kprobe, is_uprobe, is_tracepoint, is_syscall_tp;
+ 
+@@ -10795,6 +10799,20 @@ int perf_event_set_bpf_prog(struct perf_event *event, struct bpf_prog *prog,
+ 	return perf_event_attach_bpf_prog(event, prog, bpf_cookie);
+ }
+ 
++int perf_event_set_bpf_prog(struct perf_event *event,
++			    struct bpf_prog *prog,
++			    u64 bpf_cookie)
++{
++	struct perf_event_context *ctx;
++	int ret;
++
++	ctx = perf_event_ctx_lock(event);
++	ret = __perf_event_set_bpf_prog(event, prog, bpf_cookie);
++	perf_event_ctx_unlock(event, ctx);
++
++	return ret;
++}
++
+ void perf_event_free_bpf_prog(struct perf_event *event)
+ {
+ 	if (!perf_event_is_tracing(event)) {
+@@ -10814,7 +10832,15 @@ static void perf_event_free_filter(struct perf_event *event)
+ {
+ }
+ 
+-int perf_event_set_bpf_prog(struct perf_event *event, struct bpf_prog *prog,
++static int __perf_event_set_bpf_prog(struct perf_event *event,
++				     struct bpf_prog *prog,
++				     u64 bpf_cookie)
++{
++	return -ENOENT;
++}
++
++int perf_event_set_bpf_prog(struct perf_event *event,
++			    struct bpf_prog *prog,
+ 			    u64 bpf_cookie)
+ {
+ 	return -ENOENT;
+-- 
+2.39.5
+
+Subject: [PATCH 7/7] block: use q->elevator with ->elevator_lock held in
+ elv_iosched_show()
+
+[ Upstream commit 94209d27d14104ed828ca88cd5403a99162fe51a ]
+
+Use q->elevator with ->elevator_lock held in elv_iosched_show(), since
+the local cached elevator reference may become stale after getting
+->elevator_lock.
+
+Reviewed-by: Hannes Reinecke <hare@xxxxxxxxxx>
+Reviewed-by: Nilay Shroff <nilay@xxxxxxxxxx>
+Reviewed-by: Christoph Hellwig <hch@xxxxxxxxxx>
+Signed-off-by: Ming Lei <ming.lei@xxxxxxxxxx>
+Link: https://lore.kernel.org/r/20250505141805.2751237-5-ming.lei@redhat.com
+Signed-off-by: Jens Axboe <axboe@xxxxxxxxxx>
+Signed-off-by: Sasha Levin <sashal@xxxxxxxxxx>
+---
+ block/elevator.c | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/block/elevator.c b/block/elevator.c
+index 43ba4ab1ada7f..1f76e9efd7717 100644
+--- a/block/elevator.c
++++ b/block/elevator.c
+@@ -757,7 +757,6 @@ ssize_t elv_iosched_store(struct gendisk *disk, const char *buf,
+ ssize_t elv_iosched_show(struct gendisk *disk, char *name)
+ {
+ 	struct request_queue *q = disk->queue;
+-	struct elevator_queue *eq = q->elevator;
+ 	struct elevator_type *cur = NULL, *e;
+ 	int len = 0;
+ 
+@@ -768,7 +767,7 @@ ssize_t elv_iosched_show(struct gendisk *disk, char *name)
+ 		len += sprintf(name+len, "[none] ");
+ 	} else {
+ 		len += sprintf(name+len, "none ");
+-		cur = eq->type;
++		cur = q->elevator->type;
+ 	}
+ 
+ 	spin_lock(&elv_list_lock);
+-- 
+2.39.5
+

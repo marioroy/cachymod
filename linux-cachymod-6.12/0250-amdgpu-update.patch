@@ -6,7 +6,7 @@ diff --git a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c b/drivers/gpu/drm
 index 6525a190bb0ca..f531bb3bf3d30 100644
 --- a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c
 +++ b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c
-@@ -666,21 +666,15 @@ static void dm_crtc_high_irq(void *interrupt_params)
+@@ -668,21 +668,15 @@ static void dm_crtc_high_irq(void *interrupt_params)
  	spin_lock_irqsave(&adev_to_drm(adev)->event_lock, flags);
  
  	if (acrtc->dm_irq_params.stream &&

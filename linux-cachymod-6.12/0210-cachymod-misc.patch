@@ -1,41 +1,3 @@
-mm: vmalloc: Actually use the in-place vrealloc region
-https://lore.kernel.org/all/20250515214020.work.519-kees@kernel.org/
-
-diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index 74bd00fd734d..00cf1b575c89 100644
---- a/mm/vmalloc.c
-+++ b/mm/vmalloc.c
-@@ -4097,8 +4097,8 @@ void *vrealloc_noprof(const void *p, size_t size, gfp_t flags)
- 	 * would be a good heuristic for when to shrink the vm_area?
- 	 */
- 	if (size <= old_size) {
--		/* Zero out "freed" memory. */
--		if (want_init_on_free())
-+		/* Zero out "freed" memory, potentially for future realloc. */
-+		if (want_init_on_free() || want_init_on_alloc(flags))
- 			memset((void *)p + size, 0, old_size - size);
- 		vm->requested_size = size;
- 		kasan_poison_vmalloc(p + size, old_size - size);
-@@ -4111,10 +4111,13 @@ void *vrealloc_noprof(const void *p, size_t size, gfp_t flags)
- 	if (size <= alloced_size) {
- 		kasan_unpoison_vmalloc(p + old_size, size - old_size,
- 				       KASAN_VMALLOC_PROT_NORMAL);
--		/* Zero out "alloced" memory. */
--		if (want_init_on_alloc(flags))
--			memset((void *)p + old_size, 0, size - old_size);
-+		/*
-+		 * No need to zero memory here, as unused memory will have
-+		 * already been zeroed at initial allocation time or during
-+		 * realloc shrink time.
-+		 */
- 		vm->requested_size = size;
-+		return (void *)p;
- 	}
- 
- 	/* TODO: Grow the vm_area, i.e. allocate and map additional pages. */
--- 
-2.34.1
-
 Bluetooth: hci_event: Fix not using key encryption size when its known
 https://github.com/CachyOS/linux/commit/e4354e5e3597057db7f5eacd831152fc64086684
 
@@ -117,7 +79,7 @@ index 20d3cdcb14f6cd..372c63fdf90a32 100644
  	}
  
  	hci_encrypt_cfm(conn, status);
-@@ -3064,6 +3075,34 @@ static void hci_inquiry_result_evt(struct hci_dev *hdev, void *edata,
+@@ -3067,6 +3078,34 @@ static void hci_inquiry_result_evt(struct hci_dev *hdev, void *edata,
  	hci_dev_unlock(hdev);
  }
  
@@ -152,7 +114,7 @@ index 20d3cdcb14f6cd..372c63fdf90a32 100644
  static void hci_conn_complete_evt(struct hci_dev *hdev, void *data,
  				  struct sk_buff *skb)
  {
-@@ -3156,23 +3195,11 @@ static void hci_conn_complete_evt(struct hci_dev *hdev, void *data,
+@@ -3159,23 +3198,11 @@ static void hci_conn_complete_evt(struct hci_dev *hdev, void *data,
  		if (ev->encr_mode == 1 && !test_bit(HCI_CONN_ENCRYPT, &conn->flags) &&
  		    ev->link_type == ACL_LINK) {
  			struct link_key *key;
@@ -177,7 +139,7 @@ index 20d3cdcb14f6cd..372c63fdf90a32 100644
  				hci_encrypt_cfm(conn, ev->status);
  			}
  		}
-@@ -3611,24 +3638,8 @@ static void hci_encrypt_change_evt(struct hci_dev *hdev, void *data,
+@@ -3614,24 +3641,8 @@ static void hci_encrypt_change_evt(struct hci_dev *hdev, void *data,
  
  	/* Try reading the encryption key size for encrypted ACL links */
  	if (!ev->status && ev->encrypt && conn->type == ACL_LINK) {
@@ -1487,6 +1449,24 @@ index e9b448d1b1b70..fdc00516c0b54 100644
  #ifdef CONFIG_PCI_BIOS
 --
 2.34.1
+
+fs/ceph: set superblock s_magic for IMA fsmagic matching: up to 60x speedup
+https://lore.kernel.org/all/20250529174453.293618-1-twelho@welho.tech/
+
+diff --git a/fs/ceph/super.c b/fs/ceph/super.c
+index 73f321b52895e..9549f97233a9e 100644
+--- a/fs/ceph/super.c
++++ b/fs/ceph/super.c
+@@ -1227,6 +1227,7 @@ static int ceph_set_super(struct super_block *s, struct fs_context *fc)
+ 	s->s_time_min = 0;
+ 	s->s_time_max = U32_MAX;
+ 	s->s_flags |= SB_NODIRATIME | SB_NOATIME;
++	s->s_magic = CEPH_SUPER_MAGIC;
+ 
+ 	ceph_fscrypt_set_ops(s);
+ 
+-- 
+2.49.0
 
 Revert "bpf: remove unnecessary rcu_read_{lock,unlock}() in multi-uprobe attach logic"
 https://lore.kernel.org/all/20250520054943.5002-1-xuewen.yan@unisoc.com/

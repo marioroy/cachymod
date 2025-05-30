@@ -1,4 +1,4 @@
-patch-6.12.16-rt9
+patch-6.12.28-rt10
 https://cdn.kernel.org/pub/linux/kernel/projects/rt/6.12/
 
 diff --git a/Documentation/trace/ftrace.rst b/Documentation/trace/ftrace.rst
@@ -460,7 +460,7 @@ index ae6f7a235d8b2..ae4d8d0194aac 100644
  #include <asm/io.h>
  #include <asm/prom.h>
  #include <asm/rtas.h>
-@@ -244,7 +245,13 @@ static int tce_build_pSeriesLP(unsigned long liobn, long tcenum, long tceshift,
+@@ -245,7 +246,13 @@ static int tce_build_pSeriesLP(unsigned long liobn, long tcenum, long tceshift,
  	return ret;
  }
  
@@ -475,7 +475,7 @@ index ae6f7a235d8b2..ae4d8d0194aac 100644
  
  static int tce_buildmulti_pSeriesLP(struct iommu_table *tbl, long tcenum,
  				     long npages, unsigned long uaddr,
-@@ -267,9 +274,10 @@ static int tce_buildmulti_pSeriesLP(struct iommu_table *tbl, long tcenum,
+@@ -268,9 +275,10 @@ static int tce_buildmulti_pSeriesLP(struct iommu_table *tbl, long tcenum,
  		                           direction, attrs);
  	}
  
@@ -488,7 +488,7 @@ index ae6f7a235d8b2..ae4d8d0194aac 100644
  
  	/* This is safe to do since interrupts are off when we're called
  	 * from iommu_alloc{,_sg}()
-@@ -278,12 +286,12 @@ static int tce_buildmulti_pSeriesLP(struct iommu_table *tbl, long tcenum,
+@@ -279,12 +287,12 @@ static int tce_buildmulti_pSeriesLP(struct iommu_table *tbl, long tcenum,
  		tcep = (__be64 *)__get_free_page(GFP_ATOMIC);
  		/* If allocation fails, fall back to the loop implementation */
  		if (!tcep) {
@@ -503,7 +503,7 @@ index ae6f7a235d8b2..ae4d8d0194aac 100644
  	}
  
  	rpn = __pa(uaddr) >> tceshift;
-@@ -313,7 +321,7 @@ static int tce_buildmulti_pSeriesLP(struct iommu_table *tbl, long tcenum,
+@@ -314,7 +322,7 @@ static int tce_buildmulti_pSeriesLP(struct iommu_table *tbl, long tcenum,
  		tcenum += limit;
  	} while (npages > 0 && !rc);
  
@@ -512,7 +512,7 @@ index ae6f7a235d8b2..ae4d8d0194aac 100644
  
  	if (unlikely(rc == H_NOT_ENOUGH_RESOURCES)) {
  		ret = (int)rc;
-@@ -497,16 +505,17 @@ static int tce_setrange_multi_pSeriesLP(unsigned long start_pfn,
+@@ -498,16 +506,17 @@ static int tce_setrange_multi_pSeriesLP(unsigned long start_pfn,
  				DMA_BIDIRECTIONAL, 0);
  	}
  
@@ -534,7 +534,7 @@ index ae6f7a235d8b2..ae4d8d0194aac 100644
  	}
  
  	proto_tce = TCE_PCI_READ | TCE_PCI_WRITE;
-@@ -549,7 +558,7 @@ static int tce_setrange_multi_pSeriesLP(unsigned long start_pfn,
+@@ -550,7 +559,7 @@ static int tce_setrange_multi_pSeriesLP(unsigned long start_pfn,
  
  	/* error cleanup: caller will clear whole range */
  
@@ -2156,7 +2156,7 @@ diff --git a/kernel/softirq.c b/kernel/softirq.c
 index 8c4524ce65faf..f0dd9b6078309 100644
 --- a/kernel/softirq.c
 +++ b/kernel/softirq.c
-@@ -631,6 +631,24 @@ static inline void tick_irq_exit(void)
+@@ -649,6 +649,24 @@ static inline void tick_irq_exit(void)
  #endif
  }
  
@@ -2181,7 +2181,7 @@ index 8c4524ce65faf..f0dd9b6078309 100644
  static inline void __irq_exit_rcu(void)
  {
  #ifndef __ARCH_IRQ_EXIT_IRQS_DISABLED
-@@ -643,6 +661,10 @@ static inline void __irq_exit_rcu(void)
+@@ -661,6 +679,10 @@ static inline void __irq_exit_rcu(void)
  	if (!in_interrupt() && local_softirq_pending())
  		invoke_softirq();
  
@@ -2192,7 +2192,7 @@ index 8c4524ce65faf..f0dd9b6078309 100644
  	tick_irq_exit();
  }
  
-@@ -978,12 +1000,57 @@ static struct smp_hotplug_thread softirq_threads = {
+@@ -996,12 +1018,57 @@ static struct smp_hotplug_thread softirq_threads = {
  	.thread_comm		= "ksoftirqd/%u",
  };
  
@@ -2255,7 +2255,7 @@ diff --git a/kernel/time/hrtimer.c b/kernel/time/hrtimer.c
 index d116c28564f26..15922c463e34b 100644
 --- a/kernel/time/hrtimer.c
 +++ b/kernel/time/hrtimer.c
-@@ -1874,7 +1874,7 @@ void hrtimer_interrupt(struct clock_event_device *dev)
+@@ -1869,7 +1869,7 @@ void hrtimer_interrupt(struct clock_event_device *dev)
  	if (!ktime_before(now, cpu_base->softirq_expires_next)) {
  		cpu_base->softirq_expires_next = KTIME_MAX;
  		cpu_base->softirq_activated = 1;
@@ -2264,7 +2264,7 @@ index d116c28564f26..15922c463e34b 100644
  	}
  
  	__hrtimer_run_queues(cpu_base, now, flags, HRTIMER_ACTIVE_HARD);
-@@ -1969,7 +1969,7 @@ void hrtimer_run_queues(void)
+@@ -1964,7 +1964,7 @@ void hrtimer_run_queues(void)
  	if (!ktime_before(now, cpu_base->softirq_expires_next)) {
  		cpu_base->softirq_expires_next = KTIME_MAX;
  		cpu_base->softirq_activated = 1;

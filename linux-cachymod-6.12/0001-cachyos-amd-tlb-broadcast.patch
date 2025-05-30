@@ -14,7 +14,7 @@ Signed-off-by: Mario Roy <...>
 diff --git a/arch/x86/kernel/alternative.c b/arch/x86/kernel/alternative.c
 --- a/arch/x86/kernel/alternative.c
 +++ b/arch/x86/kernel/alternative.c
-@@ -2023,11 +2023,18 @@ static inline temp_mm_state_t use_temporary_mm(struct mm_struct *mm)
+@@ -2053,11 +2053,18 @@ static inline temp_mm_state_t use_temporary_mm(struct mm_struct *mm)
  	return temp_state;
  }
  
@@ -33,7 +33,7 @@ diff --git a/arch/x86/kernel/alternative.c b/arch/x86/kernel/alternative.c
  	/*
  	 * Restore the breakpoints if they were disabled before the temporary mm
  	 * was loaded.
-@@ -2036,9 +2043,6 @@ static inline void unuse_temporary_mm(temp_mm_state_t prev_state)
+@@ -2066,9 +2073,6 @@ static inline void unuse_temporary_mm(temp_mm_state_t prev_state)
  		hw_breakpoint_restore();
  }
  
