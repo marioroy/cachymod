@@ -1,4 +1,39 @@
 
+drm/amd/display: disable CRTC degamma LUT for DCN401
+https://gitlab.freedesktop.org/drm/amd/-/issues/4176
+
+In DCN401 pre-blending degamma LUT isn't affecting cursor as in previous
+DCN version and this is not a behavior similar to what is expected for
+CRTC degamma LUT. Disable CRTC degamma LUT property since it's not
+working as expected.
+
+Signed-off-by: Melissa Wen <mwen@xxxxxxxxxx>
+---
+ drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm_crtc.c | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm_crtc.c b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm_crtc.c
+index e8bdd7f0c460..199b2d8a7099 100644
+--- a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm_crtc.c
++++ b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm_crtc.c
+@@ -728,7 +728,13 @@ int amdgpu_dm_crtc_init(struct amdgpu_display_manager *dm,
+ 	 * support programmable degamma anywhere.
+ 	 */
+ 	is_dcn = dm->adev->dm.dc->caps.color.dpp.dcn_arch;
+-	drm_crtc_enable_color_mgmt(&acrtc->base, is_dcn ? MAX_COLOR_LUT_ENTRIES : 0,
++	/* Dont't enable DRM CRTC degamma property for DCN401 since the
++	 * pre-blending degamma LUT doesn't apply to cursor, and therefore
++	 * can't work similar to a post-blending degamma LUT */
++	drm_crtc_enable_color_mgmt(&acrtc->base,
++				   (is_dcn &&
++				    dm->adev->dm.dc->ctx->dce_version != DCN_VERSION_4_01) ?
++				     MAX_COLOR_LUT_ENTRIES : 0,
+ 				   true, MAX_COLOR_LUT_ENTRIES);
+ 
+ 	drm_mode_crtc_set_gamma_size(&acrtc->base, MAX_COLOR_LEGACY_LUT_ENTRIES);
+-- 
+2.47.2
+
 iommu/amd: WARN if KVM attempts to set vCPU affinity without posted interrupts
 https://lore.kernel.org/all/20250404193923.1413163-7-seanjc@google.com/
 
