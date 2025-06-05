@@ -21,7 +21,7 @@ diff --git a/kernel/sched/core.c b/kernel/sched/core.c
 index 621cfc7..45daa41 100644
 --- a/kernel/sched/core.c
 +++ b/kernel/sched/core.c
-@@ -1759,7 +1759,7 @@ static inline void uclamp_rq_inc(struct rq *rq, struct task_struct *p)
+@@ -1757,7 +1757,7 @@ static inline void uclamp_rq_inc(struct rq *rq, struct task_struct *p)
  	 * The condition is constructed such that a NOP is generated when
  	 * sched_uclamp_used is disabled.
  	 */
@@ -30,7 +30,7 @@ index 621cfc7..45daa41 100644
  		return;
  
  	if (unlikely(!p->sched_class->uclamp_enabled))
-@@ -1787,7 +1787,7 @@ static inline void uclamp_rq_dec(struct rq *rq, struct task_struct *p)
+@@ -1785,7 +1785,7 @@ static inline void uclamp_rq_dec(struct rq *rq, struct task_struct *p)
  	 * The condition is constructed such that a NOP is generated when
  	 * sched_uclamp_used is disabled.
  	 */
@@ -39,7 +39,7 @@ index 621cfc7..45daa41 100644
  		return;
  
  	if (unlikely(!p->sched_class->uclamp_enabled))
-@@ -1945,12 +1945,12 @@ static int sysctl_sched_uclamp_handler(const struct ctl_table *table, int write,
+@@ -1943,12 +1943,12 @@ static int sysctl_sched_uclamp_handler(const struct ctl_table *table, int write,
  	}
  
  	if (update_root_tg) {
@@ -54,7 +54,7 @@ index 621cfc7..45daa41 100644
  		uclamp_sync_util_min_rt_default();
  	}
  
-@@ -9342,7 +9342,7 @@ static ssize_t cpu_uclamp_write(struct kernfs_open_file *of, char *buf,
+@@ -9336,7 +9336,7 @@ static ssize_t cpu_uclamp_write(struct kernfs_open_file *of, char *buf,
  	if (req.ret)
  		return req.ret;
  
@@ -67,7 +67,7 @@ diff --git a/kernel/sched/sched.h b/kernel/sched/sched.h
 index 023b844..8d42d3c 100644
 --- a/kernel/sched/sched.h
 +++ b/kernel/sched/sched.h
-@@ -3403,6 +3403,31 @@ static inline bool update_other_load_avgs(struct rq *rq) { return false; }
+@@ -3394,6 +3394,31 @@ static inline bool update_other_load_avgs(struct rq *rq) { return false; }
  
  unsigned long uclamp_eff_value(struct task_struct *p, enum uclamp_id clamp_id);
  
@@ -99,7 +99,7 @@ index 023b844..8d42d3c 100644
  static inline unsigned long uclamp_rq_get(struct rq *rq,
  					  enum uclamp_id clamp_id)
  {
-@@ -3426,7 +3439,7 @@ static inline bool uclamp_rq_is_capped(struct rq *rq)
+@@ -3417,7 +3442,7 @@ static inline bool uclamp_rq_is_capped(struct rq *rq)
  	unsigned long rq_util;
  	unsigned long max_util;
  
@@ -108,7 +108,7 @@ index 023b844..8d42d3c 100644
  		return false;
  
  	rq_util = cpu_util_cfs(cpu_of(rq)) + cpu_util_rt(rq);
-@@ -3435,19 +3448,6 @@ static inline bool uclamp_rq_is_capped(struct rq *rq)
+@@ -3426,19 +3451,6 @@ static inline bool uclamp_rq_is_capped(struct rq *rq)
  	return max_util != SCHED_CAPACITY_SCALE && rq_util >= max_util;
  }
  
@@ -128,7 +128,7 @@ index 023b844..8d42d3c 100644
  #define for_each_clamp_id(clamp_id) \
  	for ((clamp_id) = 0; (clamp_id) < UCLAMP_CNT; (clamp_id)++)
  
-@@ -3495,6 +3507,8 @@ static inline bool uclamp_is_used(void)
+@@ -3486,6 +3498,8 @@ static inline bool uclamp_is_used(void)
  	return false;
  }
  
@@ -207,7 +207,7 @@ diff --git a/kernel/sched/core.c b/kernel/sched/core.c
 index cfaca30..c81cf64 100644
 --- a/kernel/sched/core.c
 +++ b/kernel/sched/core.c
-@@ -10714,7 +10714,6 @@ void sched_mm_cid_after_execve(struct task_struct *t)
+@@ -10708,7 +10708,6 @@ void sched_mm_cid_after_execve(struct task_struct *t)
  		smp_mb();
  		t->last_mm_cid = t->mm_cid = mm_cid_get(rq, t, mm);
  	}

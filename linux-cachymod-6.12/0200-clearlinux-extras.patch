@@ -61,7 +61,7 @@ diff -uar a/arch/x86/Kconfig b/arch/x86/Kconfig
 diff -uar a/init/Kconfig b/init/Kconfig
 --- a/init/Kconfig
 +++ b/init/Kconfig
-@@ -1590,7 +1590,7 @@
+@@ -1573,7 +1573,7 @@
  	  Only use this if you really know what you are doing.
  
  config UID16
@@ -70,7 +70,7 @@ diff -uar a/init/Kconfig b/init/Kconfig
  	depends on HAVE_UID16 && MULTIUSER
  	default y
  	help
-@@ -1621,7 +1621,7 @@
+@@ -1604,7 +1604,7 @@
  	  If unsure, leave the default option here.
  
  config SYSFS_SYSCALL
@@ -533,7 +533,7 @@ diff --git a/kernel/sched/core.c b/kernel/sched/core.c
 index f730b6fe94a7..ee0ec4ab7d1c 100644
 --- a/kernel/sched/core.c
 +++ b/kernel/sched/core.c
-@@ -596,7 +596,7 @@ void raw_spin_rq_lock_nested(struct rq *rq, int subclass)
+@@ -594,7 +594,7 @@ void raw_spin_rq_lock_nested(struct rq *rq, int subclass)
  
  	/* Matches synchronize_rcu() in __sched_core_enable() */
  	preempt_disable();
@@ -542,7 +542,7 @@ index f730b6fe94a7..ee0ec4ab7d1c 100644
  		raw_spin_lock_nested(&rq->__lock, subclass);
  		/* preempt_count *MUST* be > 1 */
  		preempt_enable_no_resched();
-@@ -809,7 +809,7 @@ void update_rq_clock(struct rq *rq)
+@@ -807,7 +807,7 @@ void update_rq_clock(struct rq *rq)
  	scx_rq_clock_update(rq, clock);
  
  	delta = clock - rq->clock;
@@ -551,7 +551,7 @@ index f730b6fe94a7..ee0ec4ab7d1c 100644
  		return;
  	rq->clock += delta;
  
-@@ -6112,7 +6112,7 @@ pick_next_task(struct rq *rq, struct task_struct *prev, struct rq_flags *rf)
+@@ -6110,7 +6110,7 @@ pick_next_task(struct rq *rq, struct task_struct *prev, struct rq_flags *rf)
  	struct rq *rq_i;
  	bool need_sync;
  
@@ -560,7 +560,7 @@ index f730b6fe94a7..ee0ec4ab7d1c 100644
  		return __pick_next_task(rq, prev, rf);
  
  	cpu = cpu_of(rq);
-@@ -7286,7 +7286,7 @@ SYSCALL_DEFINE0(sched_yield)
+@@ -7284,7 +7284,7 @@ SYSCALL_DEFINE0(sched_yield)
  #if !defined(CONFIG_PREEMPTION) || defined(CONFIG_PREEMPT_DYNAMIC)
  int __sched __cond_resched(void)
  {

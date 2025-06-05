@@ -221,7 +221,7 @@ diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
 index 9279bfb..857808d 100644
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -9561,12 +9561,11 @@ int can_migrate_task(struct task_struct *p, struct lb_env *env)
+@@ -9513,12 +9513,11 @@ int can_migrate_task(struct task_struct *p, struct lb_env *env)
  			return 0;
  
  		/* Prevent to re-select dst_cpu via env's CPUs: */
@@ -1103,7 +1103,7 @@ diff --git a/kernel/sched/core.c b/kernel/sched/core.c
 index 9015c792830c2..7bac05aa3d6c5 100644
 --- a/kernel/sched/core.c
 +++ b/kernel/sched/core.c
-@@ -8254,7 +8254,7 @@ static void cpuset_cpu_active(void)
+@@ -8252,7 +8252,7 @@ static void cpuset_cpu_active(void)
  static int cpuset_cpu_inactive(unsigned int cpu)
  {
  	if (!cpuhp_tasks_frozen) {
@@ -1253,7 +1253,7 @@ diff --git a/kernel/sched/core.c b/kernel/sched/core.c
 index 7bac05aa3d6c5..01e06dd3184a7 100644
 --- a/kernel/sched/core.c
 +++ b/kernel/sched/core.c
-@@ -8251,19 +8251,14 @@ static void cpuset_cpu_active(void)
+@@ -8249,19 +8249,14 @@ static void cpuset_cpu_active(void)
  	cpuset_update_active_cpus();
  }
  
@@ -1274,7 +1274,7 @@ index 7bac05aa3d6c5..01e06dd3184a7 100644
  }
  
  static inline void sched_smt_present_inc(int cpu)
-@@ -8325,6 +8320,11 @@ int sched_cpu_deactivate(unsigned int cpu)
+@@ -8323,6 +8318,11 @@ int sched_cpu_deactivate(unsigned int cpu)
  	struct rq *rq = cpu_rq(cpu);
  	int ret;
  
@@ -1286,7 +1286,7 @@ index 7bac05aa3d6c5..01e06dd3184a7 100644
  	/*
  	 * Remove CPU from nohz.idle_cpus_mask to prevent participating in
  	 * load balancing when not active
-@@ -8370,15 +8370,7 @@ int sched_cpu_deactivate(unsigned int cpu)
+@@ -8368,15 +8368,7 @@ int sched_cpu_deactivate(unsigned int cpu)
  		return 0;
  
  	sched_update_numa(cpu, false);
@@ -1515,7 +1515,7 @@ diff --git a/kernel/sched/core.c b/kernel/sched/core.c
 index c81cf642dba05..b986cd2fb19b7 100644
 --- a/kernel/sched/core.c
 +++ b/kernel/sched/core.c
-@@ -2281,6 +2281,12 @@ unsigned long wait_task_inactive(struct task_struct *p, unsigned int match_state
+@@ -2279,6 +2279,12 @@ unsigned long wait_task_inactive(struct task_struct *p, unsigned int match_state
  		 * just go back and repeat.
  		 */
  		rq = task_rq_lock(p, &rf);
@@ -1548,7 +1548,7 @@ diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
 index 2d6d5582c3e9..040674734128 100644
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -7088,11 +7088,6 @@ enqueue_task_fair(struct rq *rq, struct task_struct *p, int flags)
+@@ -7058,11 +7058,6 @@ enqueue_task_fair(struct rq *rq, struct task_struct *p, int flags)
  	if (!(p->se.sched_delayed && (task_on_rq_migrating(p) || (flags & ENQUEUE_RESTORE))))
  		util_est_enqueue(&rq->cfs, p);
  
@@ -1560,7 +1560,7 @@ index 2d6d5582c3e9..040674734128 100644
  	/*
  	 * If in_iowait is set, the code below may not trigger any cpufreq
  	 * utilization updates, so do it here explicitly with the IOWAIT flag
-@@ -7101,6 +7096,11 @@ enqueue_task_fair(struct rq *rq, struct task_struct *p, int flags)
+@@ -7071,6 +7066,11 @@ enqueue_task_fair(struct rq *rq, struct task_struct *p, int flags)
  	if (p->in_iowait)
  		cpufreq_update_util(rq, SCHED_CPUFREQ_IOWAIT);
  
@@ -1582,7 +1582,7 @@ diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
 index 0fb9bf995a47..03d9a49a68b9 100644
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -2313,7 +2313,8 @@ static bool task_numa_compare(struct task_numa_env *env,
+@@ -2290,7 +2290,8 @@ static bool task_numa_compare(struct task_numa_env *env,
  
  	rcu_read_lock();
  	cur = rcu_dereference(dst_rq->curr);
@@ -1602,7 +1602,7 @@ diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
 index e43993a4e580..18c85857bff0 100644
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -7086,7 +7086,7 @@ enqueue_task_fair(struct rq *rq, struct task_struct *p, int flags)
+@@ -7056,7 +7056,7 @@ enqueue_task_fair(struct rq *rq, struct task_struct *p, int flags)
  	 * Let's add the task's estimated utilization to the cfs_rq's
  	 * estimated utilization, before we update schedutil.
  	 */
@@ -1611,7 +1611,7 @@ index e43993a4e580..18c85857bff0 100644
  		util_est_enqueue(&rq->cfs, p);
  
  	/*
-@@ -7326,7 +7326,7 @@ static int dequeue_entities(struct rq *rq, struct sched_entity *se, int flags)
+@@ -7296,7 +7296,7 @@ static int dequeue_entities(struct rq *rq, struct sched_entity *se, int flags)
   */
  static bool dequeue_task_fair(struct rq *rq, struct task_struct *p, int flags)
  {
@@ -1630,7 +1630,7 @@ diff --git a/kernel/sched/core.c b/kernel/sched/core.c
 index c81cf642dba0..0f4ab0c17c58 100644
 --- a/kernel/sched/core.c
 +++ b/kernel/sched/core.c
-@@ -1752,7 +1752,7 @@ static inline void uclamp_rq_dec_id(struct rq *rq, struct task_struct *p,
+@@ -1750,7 +1750,7 @@ static inline void uclamp_rq_dec_id(struct rq *rq, struct task_struct *p,
  	}
  }
  
@@ -1639,7 +1639,7 @@ index c81cf642dba0..0f4ab0c17c58 100644
  {
  	enum uclamp_id clamp_id;
  
-@@ -1768,7 +1768,8 @@ static inline void uclamp_rq_inc(struct rq *rq, struct task_struct *p)
+@@ -1766,7 +1766,8 @@ static inline void uclamp_rq_inc(struct rq *rq, struct task_struct *p)
  	if (unlikely(!p->sched_class->uclamp_enabled))
  		return;
  
@@ -1649,7 +1649,7 @@ index c81cf642dba0..0f4ab0c17c58 100644
  		return;
  
  	for_each_clamp_id(clamp_id)
-@@ -2036,7 +2037,7 @@ static void __init init_uclamp(void)
+@@ -2034,7 +2035,7 @@ static void __init init_uclamp(void)
  }
  
  #else /* !CONFIG_UCLAMP_TASK */
@@ -1658,7 +1658,7 @@ index c81cf642dba0..0f4ab0c17c58 100644
  static inline void uclamp_rq_dec(struct rq *rq, struct task_struct *p) { }
  static inline void uclamp_fork(struct task_struct *p) { }
  static inline void uclamp_post_fork(struct task_struct *p) { }
-@@ -2072,12 +2073,14 @@ void enqueue_task(struct rq *rq, struct task_struct *p, int flags)
+@@ -2070,12 +2071,14 @@ void enqueue_task(struct rq *rq, struct task_struct *p, int flags)
  	if (!(flags & ENQUEUE_NOCLOCK))
  		update_rq_clock(rq);
  

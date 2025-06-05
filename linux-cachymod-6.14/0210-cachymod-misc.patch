@@ -774,7 +774,7 @@ diff --git a/kernel/sched/core.c b/kernel/sched/core.c
 index c81cf642dba05..b986cd2fb19b7 100644
 --- a/kernel/sched/core.c
 +++ b/kernel/sched/core.c
-@@ -2280,6 +2280,12 @@ unsigned long wait_task_inactive(struct task_struct *p, unsigned int match_state
+@@ -2278,6 +2278,12 @@ unsigned long wait_task_inactive(struct task_struct *p, unsigned int match_state
  		 * just go back and repeat.
  		 */
  		rq = task_rq_lock(p, &rf);
@@ -807,7 +807,7 @@ diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
 index 2d6d5582c3e9..040674734128 100644
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -6986,11 +6986,6 @@ enqueue_task_fair(struct rq *rq, struct task_struct *p, int flags)
+@@ -6959,11 +6959,6 @@ enqueue_task_fair(struct rq *rq, struct task_struct *p, int flags)
  	if (!(p->se.sched_delayed && (task_on_rq_migrating(p) || (flags & ENQUEUE_RESTORE))))
  		util_est_enqueue(&rq->cfs, p);
  
@@ -819,7 +819,7 @@ index 2d6d5582c3e9..040674734128 100644
  	/*
  	 * If in_iowait is set, the code below may not trigger any cpufreq
  	 * utilization updates, so do it here explicitly with the IOWAIT flag
-@@ -6999,6 +6994,11 @@ enqueue_task_fair(struct rq *rq, struct task_struct *p, int flags)
+@@ -6972,6 +6967,11 @@ enqueue_task_fair(struct rq *rq, struct task_struct *p, int flags)
  	if (p->in_iowait)
  		cpufreq_update_util(rq, SCHED_CPUFREQ_IOWAIT);
  
@@ -841,7 +841,7 @@ diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
 index 0fb9bf995a47..03d9a49a68b9 100644
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -2311,7 +2311,8 @@ static bool task_numa_compare(struct task_numa_env *env,
+@@ -2288,7 +2288,8 @@ static bool task_numa_compare(struct task_numa_env *env,
  
  	rcu_read_lock();
  	cur = rcu_dereference(dst_rq->curr);
@@ -861,7 +861,7 @@ diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
 index e43993a4e580..18c85857bff0 100644
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -6984,7 +6984,7 @@ enqueue_task_fair(struct rq *rq, struct task_struct *p, int flags)
+@@ -6957,7 +6957,7 @@ enqueue_task_fair(struct rq *rq, struct task_struct *p, int flags)
  	 * Let's add the task's estimated utilization to the cfs_rq's
  	 * estimated utilization, before we update schedutil.
  	 */
@@ -870,7 +870,7 @@ index e43993a4e580..18c85857bff0 100644
  		util_est_enqueue(&rq->cfs, p);
  
  	/*
-@@ -7224,7 +7224,7 @@ static int dequeue_entities(struct rq *rq, struct sched_entity *se, int flags)
+@@ -7197,7 +7197,7 @@ static int dequeue_entities(struct rq *rq, struct sched_entity *se, int flags)
   */
  static bool dequeue_task_fair(struct rq *rq, struct task_struct *p, int flags)
  {
@@ -889,7 +889,7 @@ diff --git a/kernel/sched/core.c b/kernel/sched/core.c
 index c81cf642dba0..0f4ab0c17c58 100644
 --- a/kernel/sched/core.c
 +++ b/kernel/sched/core.c
-@@ -1749,7 +1749,7 @@ static inline void uclamp_rq_dec_id(struct rq *rq, struct task_struct *p,
+@@ -1747,7 +1747,7 @@ static inline void uclamp_rq_dec_id(struct rq *rq, struct task_struct *p,
  	}
  }
  
@@ -898,7 +898,7 @@ index c81cf642dba0..0f4ab0c17c58 100644
  {
  	enum uclamp_id clamp_id;
  
-@@ -1765,7 +1765,8 @@ static inline void uclamp_rq_inc(struct rq *rq, struct task_struct *p)
+@@ -1763,7 +1763,8 @@ static inline void uclamp_rq_inc(struct rq *rq, struct task_struct *p)
  	if (unlikely(!p->sched_class->uclamp_enabled))
  		return;
  
@@ -908,7 +908,7 @@ index c81cf642dba0..0f4ab0c17c58 100644
  		return;
  
  	for_each_clamp_id(clamp_id)
-@@ -2033,7 +2034,7 @@ static void __init init_uclamp(void)
+@@ -2031,7 +2032,7 @@ static void __init init_uclamp(void)
  }
  
  #else /* !CONFIG_UCLAMP_TASK */
@@ -917,7 +917,7 @@ index c81cf642dba0..0f4ab0c17c58 100644
  static inline void uclamp_rq_dec(struct rq *rq, struct task_struct *p) { }
  static inline void uclamp_fork(struct task_struct *p) { }
  static inline void uclamp_post_fork(struct task_struct *p) { }
-@@ -2069,12 +2070,14 @@ void enqueue_task(struct rq *rq, struct task_struct *p, int flags)
+@@ -2067,12 +2068,14 @@ void enqueue_task(struct rq *rq, struct task_struct *p, int flags)
  	if (!(flags & ENQUEUE_NOCLOCK))
  		update_rq_clock(rq);
  

@@ -141,7 +141,7 @@ _stable=${_major}.${_minor}
 
 _srcname=linux-${_stable}
 pkgdesc='CachyMod Linux Kernel with other patches and improvements'
-pkgrel=1
+pkgrel=2
 _kernver="$pkgver-$pkgrel"
 _kernuname="${pkgver}-${_pkgsuffix}"
 arch=('x86_64')
@@ -167,16 +167,6 @@ source=(
     "0001-cachyos-zstd.patch"
     "0001-reduce-tasklist-lock-hold-time.patch"
     "0001-sched-ext-high-performance-clock.patch"
-    "0001-sched-fair-remove-cachy-mods.patch"
-)
-
-if [[ "$_prefer_eevdf" =~ ^(yes|y|1)$ ]]; then
-    source+=("0001-linux6.12.y-optimal-base-slice.patch")
-else
-    source+=("0001-linux6.12.y-bore.patch")
-fi
-
-source+=(
     "0002-kconfig-add-800Hz.patch"
     "0100-mm-kconfig-enable-rt-thp.patch"
     "0200-clearlinux-extras.patch"
@@ -191,6 +181,10 @@ source+=(
 
 if [[ "$_prevent_avx2" =~ ^(yes|y|1)$ ]]; then
     source+=("0300-x86-prevent-avx2-vector.patch")
+fi
+if [[ -z "$_prefer_eevdf" || "$_prefer_eevdf" =~ ^(no|n|0)$ ]]; then
+    source+=("0310-sched-fair-remove-cachy-mods.patch")
+    source+=("0320-linux6.12.y-bore.patch")
 fi
 if [[ -s "custom.sh" ]]; then
     source+=("custom.sh")
