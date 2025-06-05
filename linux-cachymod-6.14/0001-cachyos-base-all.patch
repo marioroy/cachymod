@@ -7587,7 +7587,7 @@ diff --git a/drivers/hid/hid-ids.h b/drivers/hid/hid-ids.h
 index 288a2b864cc4..50cd02b049fc 100644
 --- a/drivers/hid/hid-ids.h
 +++ b/drivers/hid/hid-ids.h
-@@ -217,6 +217,7 @@
+@@ -221,6 +221,7 @@
  #define USB_DEVICE_ID_ASUSTEK_ROG_NKEY_KEYBOARD2	0x19b6
  #define USB_DEVICE_ID_ASUSTEK_ROG_NKEY_KEYBOARD3	0x1a30
  #define USB_DEVICE_ID_ASUSTEK_ROG_Z13_LIGHTBAR		0x18c6
@@ -30394,7 +30394,7 @@ diff --git a/drivers/hid/hid-ids.h b/drivers/hid/hid-ids.h
 index 50cd02b049fc..b716cafc63b1 100644
 --- a/drivers/hid/hid-ids.h
 +++ b/drivers/hid/hid-ids.h
-@@ -89,6 +89,8 @@
+@@ -93,6 +93,8 @@
  
  #define USB_VENDOR_ID_APPLE		0x05ac
  #define BT_VENDOR_ID_APPLE		0x004c
@@ -30403,7 +30403,7 @@ index 50cd02b049fc..b716cafc63b1 100644
  #define USB_DEVICE_ID_APPLE_MIGHTYMOUSE	0x0304
  #define USB_DEVICE_ID_APPLE_MAGICMOUSE	0x030d
  #define USB_DEVICE_ID_APPLE_MAGICMOUSE2	0x0269
-@@ -168,14 +170,15 @@
+@@ -172,14 +174,15 @@
  #define USB_DEVICE_ID_APPLE_WELLSPRING9_ANSI	0x0272
  #define USB_DEVICE_ID_APPLE_WELLSPRING9_ISO		0x0273
  #define USB_DEVICE_ID_APPLE_WELLSPRING9_JIS		0x0274
@@ -30427,7 +30427,7 @@ index 50cd02b049fc..b716cafc63b1 100644
  #define USB_DEVICE_ID_APPLE_FOUNTAIN_TP_ONLY	0x030a
  #define USB_DEVICE_ID_APPLE_GEYSER1_TP_ONLY	0x030b
  #define USB_DEVICE_ID_APPLE_IRCONTROL	0x8240
-@@ -189,6 +192,12 @@
+@@ -193,6 +196,12 @@
  #define USB_DEVICE_ID_APPLE_MAGIC_KEYBOARD_NUMPAD_2021   0x029f
  #define USB_DEVICE_ID_APPLE_TOUCHBAR_BACKLIGHT 0x8102
  #define USB_DEVICE_ID_APPLE_TOUCHBAR_DISPLAY 0x8302
@@ -31684,7 +31684,7 @@ diff --git a/drivers/hid/hid-quirks.c b/drivers/hid/hid-quirks.c
 index 5d7a418ccdbe..b7f60ef8917c 100644
 --- a/drivers/hid/hid-quirks.c
 +++ b/drivers/hid/hid-quirks.c
-@@ -312,6 +312,7 @@ static const struct hid_device_id hid_have_special_driver[] = {
+@@ -314,6 +314,7 @@ static const struct hid_device_id hid_have_special_driver[] = {
  	{ HID_USB_DEVICE(USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_WELLSPRINGT2_J140K) },
  	{ HID_USB_DEVICE(USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_WELLSPRINGT2_J132) },
  	{ HID_USB_DEVICE(USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_WELLSPRINGT2_J680) },
@@ -31692,7 +31692,7 @@ index 5d7a418ccdbe..b7f60ef8917c 100644
  	{ HID_USB_DEVICE(USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_WELLSPRINGT2_J213) },
  	{ HID_USB_DEVICE(USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_WELLSPRINGT2_J214K) },
  	{ HID_USB_DEVICE(USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_WELLSPRINGT2_J223) },
-@@ -328,8 +329,6 @@ static const struct hid_device_id hid_have_special_driver[] = {
+@@ -330,8 +331,6 @@ static const struct hid_device_id hid_have_special_driver[] = {
  	{ HID_USB_DEVICE(USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_GEYSER1_TP_ONLY) },
  	{ HID_USB_DEVICE(USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_MAGIC_KEYBOARD_2021) },
  	{ HID_USB_DEVICE(USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_MAGIC_KEYBOARD_FINGERPRINT_2021) },
@@ -31701,7 +31701,7 @@ index 5d7a418ccdbe..b7f60ef8917c 100644
  #endif
  #if IS_ENABLED(CONFIG_HID_APPLEIR)
  	{ HID_USB_DEVICE(USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_IRCONTROL) },
-@@ -338,6 +337,12 @@ static const struct hid_device_id hid_have_special_driver[] = {
+@@ -340,6 +339,12 @@ static const struct hid_device_id hid_have_special_driver[] = {
  	{ HID_USB_DEVICE(USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_IRCONTROL4) },
  	{ HID_USB_DEVICE(USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_IRCONTROL5) },
  #endif
@@ -31714,7 +31714,7 @@ index 5d7a418ccdbe..b7f60ef8917c 100644
  #if IS_ENABLED(CONFIG_HID_ASUS)
  	{ HID_I2C_DEVICE(USB_VENDOR_ID_ASUSTEK, USB_DEVICE_ID_ASUSTEK_I2C_KEYBOARD) },
  	{ HID_I2C_DEVICE(USB_VENDOR_ID_ASUSTEK, USB_DEVICE_ID_ASUSTEK_I2C_TOUCHPAD) },
-@@ -957,14 +962,6 @@ static const struct hid_device_id hid_mouse_ignore_list[] = {
+@@ -959,14 +964,6 @@ static const struct hid_device_id hid_mouse_ignore_list[] = {
  	{ HID_USB_DEVICE(USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_WELLSPRING9_ANSI) },
  	{ HID_USB_DEVICE(USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_WELLSPRING9_ISO) },
  	{ HID_USB_DEVICE(USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_WELLSPRING9_JIS) },

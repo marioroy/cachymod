@@ -1468,6 +1468,26 @@ index 73f321b52895e..9549f97233a9e 100644
 -- 
 2.49.0
 
+bpf, sockmap: Fix data lost during EAGAIN retries
+https://lore.kernel.org/all/20250407142234.47591-2-jiayuan.chen@linux.dev/
+
+diff --git a/net/core/skmsg.c b/net/core/skmsg.c
+index 0ddc4c718833..29cb5ffd56c0 100644
+--- a/net/core/skmsg.c
++++ b/net/core/skmsg.c
+@@ -679,7 +679,8 @@ static void sk_psock_backlog(struct work_struct *work)
+ 			if (ret <= 0) {
+ 				if (ret == -EAGAIN) {
+ 					sk_psock_skb_state(psock, state, len, off);
+-
++					/* Restore redir info we cleared before */
++					skb_bpf_set_redir(skb, psock->sk, ingress);
+ 					/* Delay slightly to prioritize any
+ 					 * other work that might be here.
+ 					 */
+-- 
+2.47.1
+
 Revert "bpf: remove unnecessary rcu_read_{lock,unlock}() in multi-uprobe attach logic"
 https://lore.kernel.org/all/20250520054943.5002-1-xuewen.yan@unisoc.com/
 
