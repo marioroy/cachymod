@@ -17032,7 +17032,7 @@ index 4a8d76a4f3ce..2736d454121e 100644
  
  static enum drm_mode_subconnector get_subconnector_type(struct dc_link *link)
  {
-@@ -2961,6 +2963,33 @@ static int amdgpu_dm_smu_write_watermarks_table(struct amdgpu_device *adev)
+@@ -2955,6 +2957,33 @@ static int amdgpu_dm_smu_write_watermarks_table(struct amdgpu_device *adev)
  	return 0;
  }
  
@@ -17066,7 +17066,7 @@ index 4a8d76a4f3ce..2736d454121e 100644
  /**
   * dm_hw_init() - Initialize DC device
   * @ip_block: Pointer to the amdgpu_ip_block for this hw instance.
-@@ -2992,6 +3021,10 @@ static int dm_hw_init(struct amdgpu_ip_block *ip_block)
+@@ -2986,6 +3015,10 @@ static int dm_hw_init(struct amdgpu_ip_block *ip_block)
  		return r;
  	amdgpu_dm_hpd_init(adev);
  
@@ -17077,7 +17077,7 @@ index 4a8d76a4f3ce..2736d454121e 100644
  	return 0;
  }
  
-@@ -3007,6 +3040,8 @@ static int dm_hw_fini(struct amdgpu_ip_block *ip_block)
+@@ -3001,6 +3034,8 @@ static int dm_hw_fini(struct amdgpu_ip_block *ip_block)
  {
  	struct amdgpu_device *adev = ip_block->adev;
  
@@ -17086,7 +17086,7 @@ index 4a8d76a4f3ce..2736d454121e 100644
  	amdgpu_dm_hpd_fini(adev);
  
  	amdgpu_dm_irq_fini(adev);
-@@ -4656,7 +4691,7 @@ static int amdgpu_dm_mode_config_init(struct amdgpu_device *adev)
+@@ -4650,7 +4685,7 @@ static int amdgpu_dm_mode_config_init(struct amdgpu_device *adev)
  		return r;
  	}
  
@@ -17095,7 +17095,7 @@ index 4a8d76a4f3ce..2736d454121e 100644
  	if (amdgpu_dm_create_color_properties(adev)) {
  		dc_state_release(state->context);
  		kfree(state);
-@@ -8396,11 +8431,18 @@ static int amdgpu_dm_i2c_xfer(struct i2c_adapter *i2c_adap,
+@@ -8390,11 +8425,18 @@ static int amdgpu_dm_i2c_xfer(struct i2c_adapter *i2c_adap,
  		cmd.payloads[i].data = msgs[i].buf;
  	}
  
@@ -17119,7 +17119,7 @@ index 4a8d76a4f3ce..2736d454121e 100644
  
  	kfree(cmd.payloads);
  	return result;
-@@ -8417,9 +8459,7 @@ static const struct i2c_algorithm amdgpu_dm_i2c_algo = {
+@@ -8411,9 +8453,7 @@ static const struct i2c_algorithm amdgpu_dm_i2c_algo = {
  };
  
  static struct amdgpu_i2c_adapter *
@@ -17130,7 +17130,7 @@ index 4a8d76a4f3ce..2736d454121e 100644
  {
  	struct amdgpu_device *adev = ddc_service->ctx->driver_context;
  	struct amdgpu_i2c_adapter *i2c;
-@@ -8430,9 +8470,14 @@ create_i2c(struct ddc_service *ddc_service,
+@@ -8424,9 +8464,14 @@ create_i2c(struct ddc_service *ddc_service,
  	i2c->base.owner = THIS_MODULE;
  	i2c->base.dev.parent = &adev->pdev->dev;
  	i2c->base.algo = &amdgpu_dm_i2c_algo;
@@ -17146,7 +17146,7 @@ index 4a8d76a4f3ce..2736d454121e 100644
  
  	return i2c;
  }
-@@ -8478,7 +8523,7 @@ static int amdgpu_dm_connector_init(struct amdgpu_display_manager *dm,
+@@ -8472,7 +8517,7 @@ static int amdgpu_dm_connector_init(struct amdgpu_display_manager *dm,
  	link->priv = aconnector;
  
  
@@ -26207,7 +26207,6 @@ Signed-off-by: Peter Jung <admin@ptr1337.dev>
  drivers/acpi/acpica/aclocal.h                 |  4 +-
  drivers/acpi/acpica/nsrepair2.c               |  2 +-
  drivers/bluetooth/btusb.c                     |  2 +
- .../gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c | 16 ++--
  drivers/gpu/drm/i915/display/intel_dsb.c      |  4 +
  drivers/iio/magnetometer/ak8974.c             |  4 +-
  drivers/input/joystick/magellan.c             |  2 +-
@@ -26223,7 +26222,7 @@ Signed-off-by: Peter Jung <admin@ptr1337.dev>
  net/bluetooth/hci_conn.c                      | 24 ++++++
  net/bluetooth/hci_event.c                     | 73 ++++++++++-------
  scripts/package/PKGBUILD                      |  5 ++
- 22 files changed, 192 insertions(+), 56 deletions(-)
+ 21 files changed, 187 insertions(+), 45 deletions(-)
  create mode 100644 lib/longest_symbol_kunit.c
 
 diff --git a/arch/Kconfig b/arch/Kconfig
@@ -26326,37 +26325,6 @@ index ccd0a21da395..0c9609978fe5 100644
  	{ USB_DEVICE(0x0489, 0xe14f), .driver_info = BTUSB_MEDIATEK |
  						     BTUSB_WIDEBAND_SPEECH },
  	{ USB_DEVICE(0x0489, 0xe150), .driver_info = BTUSB_MEDIATEK |
-diff --git a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c
-index 2736d454121e..e01dc2b64c14 100644
---- a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c
-+++ b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c
-@@ -672,21 +672,15 @@ static void dm_crtc_high_irq(void *interrupt_params)
- 	spin_lock_irqsave(&adev_to_drm(adev)->event_lock, flags);
- 
- 	if (acrtc->dm_irq_params.stream &&
--		acrtc->dm_irq_params.vrr_params.supported) {
--		bool replay_en = acrtc->dm_irq_params.stream->link->replay_settings.replay_feature_enabled;
--		bool psr_en = acrtc->dm_irq_params.stream->link->psr_settings.psr_feature_enabled;
--		bool fs_active_var_en = acrtc->dm_irq_params.freesync_config.state == VRR_STATE_ACTIVE_VARIABLE;
--
-+	    acrtc->dm_irq_params.vrr_params.supported &&
-+	    acrtc->dm_irq_params.freesync_config.state ==
-+		    VRR_STATE_ACTIVE_VARIABLE) {
- 		mod_freesync_handle_v_update(adev->dm.freesync_module,
- 					     acrtc->dm_irq_params.stream,
- 					     &acrtc->dm_irq_params.vrr_params);
- 
--		/* update vmin_vmax only if freesync is enabled, or only if PSR and REPLAY are disabled */
--		if (fs_active_var_en || (!fs_active_var_en && !replay_en && !psr_en)) {
--			dc_stream_adjust_vmin_vmax(adev->dm.dc,
--					acrtc->dm_irq_params.stream,
--					&acrtc->dm_irq_params.vrr_params.adjust);
--		}
-+		dc_stream_adjust_vmin_vmax(adev->dm.dc, acrtc->dm_irq_params.stream,
-+					   &acrtc->dm_irq_params.vrr_params.adjust);
- 	}
- 
- 	/*
 diff --git a/drivers/gpu/drm/i915/display/intel_dsb.c b/drivers/gpu/drm/i915/display/intel_dsb.c
 index e6f8fc743fb4..73f6febfb6c4 100644
 --- a/drivers/gpu/drm/i915/display/intel_dsb.c
