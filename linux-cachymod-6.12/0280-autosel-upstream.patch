@@ -433,7 +433,7 @@ diff --git a/block/elevator.c b/block/elevator.c
 index 43ba4ab1ada7f..1f76e9efd7717 100644
 --- a/block/elevator.c
 +++ b/block/elevator.c
-@@ -757,7 +757,6 @@ ssize_t elv_iosched_store(struct gendisk *disk, const char *buf,
+@@ -764,7 +764,6 @@ ssize_t elv_iosched_store(struct gendisk *disk, const char *buf,
  ssize_t elv_iosched_show(struct gendisk *disk, char *name)
  {
  	struct request_queue *q = disk->queue;
@@ -441,7 +441,7 @@ index 43ba4ab1ada7f..1f76e9efd7717 100644
  	struct elevator_type *cur = NULL, *e;
  	int len = 0;
  
-@@ -768,7 +767,7 @@ ssize_t elv_iosched_show(struct gendisk *disk, char *name)
+@@ -775,7 +774,7 @@ ssize_t elv_iosched_show(struct gendisk *disk, char *name)
  		len += sprintf(name+len, "[none] ");
  	} else {
  		len += sprintf(name+len, "none ");

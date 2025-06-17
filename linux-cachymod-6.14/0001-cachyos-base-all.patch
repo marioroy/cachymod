@@ -14435,7 +14435,7 @@ Signed-off-by: Peter Jung <admin@ptr1337.dev>
  block/Kconfig.iosched                         |   14 +
  block/Makefile                                |    8 +
  block/adios.c                                 | 1344 +++++++
- block/elevator.c                              |   13 +
+ block/elevator.c                              |   12 +
  drivers/Makefile                              |   13 +-
  drivers/ata/ahci.c                            |   23 +-
  drivers/cpufreq/Kconfig.x86                   |    2 -
@@ -14464,9 +14464,9 @@ Signed-off-by: Peter Jung <admin@ptr1337.dev>
  drivers/md/dm-crypt.c                         |    5 +
  drivers/media/v4l2-core/Kconfig               |    5 +
  drivers/media/v4l2-core/Makefile              |    2 +
- drivers/media/v4l2-core/v4l2loopback.c        | 3292 +++++++++++++++++
- drivers/media/v4l2-core/v4l2loopback.h        |   98 +
- .../media/v4l2-core/v4l2loopback_formats.h    |  445 +++
+ drivers/media/v4l2-core/v4l2loopback.c        | 3315 +++++++++++++++++
+ drivers/media/v4l2-core/v4l2loopback.h        |  108 +
+ .../media/v4l2-core/v4l2loopback_formats.h    |  453 +++
  drivers/pci/controller/Makefile               |    6 +
  drivers/pci/controller/intel-nvme-remap.c     |  462 +++
  drivers/pci/quirks.c                          |  101 +
@@ -14497,7 +14497,7 @@ Signed-off-by: Peter Jung <admin@ptr1337.dev>
  mm/vmpressure.c                               |    4 +
  mm/vmscan.c                                   |    4 +
  net/ipv4/inet_connection_sock.c               |    2 +-
- 72 files changed, 7882 insertions(+), 98 deletions(-)
+ 72 files changed, 7922 insertions(+), 98 deletions(-)
  create mode 100644 block/adios.c
  create mode 100644 drivers/media/v4l2-core/v4l2loopback.c
  create mode 100644 drivers/media/v4l2-core/v4l2loopback.h
@@ -16651,13 +16651,13 @@ diff --git a/block/elevator.c b/block/elevator.c
 index cd2ce4921601..0d102c8632a8 100644
 --- a/block/elevator.c
 +++ b/block/elevator.c
-@@ -556,11 +556,24 @@ static struct elevator_type *elevator_get_default(struct request_queue *q)
+@@ -556,11 +556,23 @@ static struct elevator_type *elevator_get_default(struct request_queue *q)
  	if (q->tag_set->flags & BLK_MQ_F_NO_SCHED_BY_DEFAULT)
  		return NULL;
  
 +#ifdef CONFIG_MQ_IOSCHED_DEFAULT_ADIOS
 +	return elevator_find_get("adios");
-+#else // !CONFIG_MQ_IOSCHED_DEFAULT_ADIOS
++#endif // !CONFIG_MQ_IOSCHED_DEFAULT_ADIOS
 +
  	if (q->nr_hw_queues != 1 &&
  	    !blk_mq_is_shared_tags(q->tag_set->flags))
@@ -16672,7 +16672,6 @@ index cd2ce4921601..0d102c8632a8 100644
 +#else
  	return elevator_find_get("mq-deadline");
 +#endif
-+#endif // CONFIG_MQ_IOSCHED_DEFAULT_ADIOS
  }
  
  /*
@@ -17525,7 +17524,7 @@ new file mode 100644
 index 000000000000..468d47f4950b
 --- /dev/null
 +++ b/drivers/media/v4l2-core/v4l2loopback.c
-@@ -0,0 +1,3292 @@
+@@ -0,0 +1,3315 @@
 +/* -*- c-file-style: "linux" -*- */
 +/*
 + * v4l2loopback.c  --  video4linux2 loopback driver
@@ -17561,6 +17560,10 @@ index 000000000000..468d47f4950b
 +#include <linux/miscdevice.h>
 +#include "v4l2loopback.h"
 +
++#define V4L2LOOPBACK_CTL_ADD_legacy 0x4C80
++#define V4L2LOOPBACK_CTL_REMOVE_legacy 0x4C81
++#define V4L2LOOPBACK_CTL_QUERY_legacy 0x4C82
++
 +#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
 +#error This module is not supported on kernels before 4.0.0.
 +#endif
@@ -17569,12 +17572,16 @@ index 000000000000..468d47f4950b
 +#define strscpy strlcpy
 +#endif
 +
-+#if defined(timer_setup) && defined(from_timer)
++#if defined(timer_setup)
 +#define HAVE_TIMER_SETUP
 +#endif
 +
 +#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 7, 0)
 +#define VFL_TYPE_VIDEO VFL_TYPE_GRABBER
++#endif
++
++#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 2, 0)
++#define timer_delete_sync del_timer_sync
 +#endif
 +
 +#define V4L2LOOPBACK_VERSION_CODE                                              \
@@ -19316,8 +19323,8 @@ index 000000000000..468d47f4950b
 +static void buffer_written(struct v4l2_loopback_device *dev,
 +			   struct v4l2l_buffer *buf)
 +{
-+	del_timer_sync(&dev->sustain_timer);
-+	del_timer_sync(&dev->timeout_timer);
++	timer_delete_sync(&dev->sustain_timer);
++	timer_delete_sync(&dev->timeout_timer);
 +
 +	spin_lock_bh(&dev->list_lock);
 +	list_move_tail(&buf->list_head, &dev->outbufs_list);
@@ -19894,8 +19901,8 @@ index 000000000000..468d47f4950b
 +	}
 +
 +	if (atomic_dec_and_test(&dev->open_count)) {
-+		del_timer_sync(&dev->sustain_timer);
-+		del_timer_sync(&dev->timeout_timer);
++		timer_delete_sync(&dev->sustain_timer);
++		timer_delete_sync(&dev->timeout_timer);
 +		if (!dev->keep_format) {
 +			mutex_lock(&dev->image_mutex);
 +			free_buffers(dev);
@@ -20189,7 +20196,8 @@ index 000000000000..468d47f4950b
 +#ifdef HAVE_TIMER_SETUP
 +static void sustain_timer_clb(struct timer_list *t)
 +{
-+	struct v4l2_loopback_device *dev = from_timer(dev, t, sustain_timer);
++	struct v4l2_loopback_device *dev =
++		container_of(t, struct v4l2_loopback_device, sustain_timer);
 +#else
 +static void sustain_timer_clb(unsigned long nr)
 +{
@@ -20214,7 +20222,8 @@ index 000000000000..468d47f4950b
 +#ifdef HAVE_TIMER_SETUP
 +static void timeout_timer_clb(struct timer_list *t)
 +{
-+	struct v4l2_loopback_device *dev = from_timer(dev, t, timeout_timer);
++	struct v4l2_loopback_device *dev =
++		container_of(t, struct v4l2_loopback_device, timeout_timer);
 +#else
 +static void timeout_timer_clb(unsigned long nr)
 +{
@@ -20500,6 +20509,7 @@ index 000000000000..468d47f4950b
 +	struct v4l2_loopback_config *confptr = &conf;
 +	int device_nr, capture_nr, output_nr;
 +	int ret;
++	const __u32 version = V4L2LOOPBACK_VERSION_CODE;
 +
 +	ret = mutex_lock_killable(&v4l2loopback_ctl_mutex);
 +	if (ret)
@@ -20512,6 +20522,7 @@ index 000000000000..468d47f4950b
 +		break;
 +		/* add a v4l2loopback device (pair), based on the user-provided specs */
 +	case V4L2LOOPBACK_CTL_ADD:
++	case V4L2LOOPBACK_CTL_ADD_legacy:
 +		if (parm) {
 +			if ((ret = copy_from_user(&conf, (void *)parm,
 +						  sizeof(conf))) < 0)
@@ -20524,7 +20535,8 @@ index 000000000000..468d47f4950b
 +		break;
 +		/* remove a v4l2loopback device (both capture and output) */
 +	case V4L2LOOPBACK_CTL_REMOVE:
-+		ret = v4l2loopback_lookup((int)parm, &dev);
++	case V4L2LOOPBACK_CTL_REMOVE_legacy:
++		ret = v4l2loopback_lookup((__u32)parm, &dev);
 +		if (ret >= 0 && dev) {
 +			ret = -EBUSY;
 +			if (dev->open_count.counter > 0)
@@ -20537,6 +20549,7 @@ index 000000000000..468d47f4950b
 +		 * this is mostly about limits (which cannot be queried directly with  VIDIOC_G_FMT and friends
 +		 */
 +	case V4L2LOOPBACK_CTL_QUERY:
++	case V4L2LOOPBACK_CTL_QUERY_legacy:
 +		if (!parm)
 +			break;
 +		if ((ret = copy_from_user(&conf, (void *)parm, sizeof(conf))) <
@@ -20584,6 +20597,15 @@ index 000000000000..468d47f4950b
 +		conf.debug = debug;
 +		MARK();
 +		if (copy_to_user((void *)parm, &conf, sizeof(conf))) {
++			ret = -EFAULT;
++			break;
++		}
++		ret = 0;
++		break;
++	case V4L2LOOPBACK_CTL_VERSION:
++		if (!parm)
++			break;
++		if (copy_to_user((void *)parm, &version, sizeof(version))) {
 +			ret = -EFAULT;
 +			break;
 +		}
@@ -20823,7 +20845,7 @@ new file mode 100644
 index 000000000000..ec0be6cbe97d
 --- /dev/null
 +++ b/drivers/media/v4l2-core/v4l2loopback.h
-@@ -0,0 +1,98 @@
+@@ -0,0 +1,108 @@
 +/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
 +/*
 + * v4l2loopback.h
@@ -20837,7 +20859,7 @@ index 000000000000..ec0be6cbe97d
 +#define _V4L2LOOPBACK_H
 +
 +#define V4L2LOOPBACK_VERSION_MAJOR 0
-+#define V4L2LOOPBACK_VERSION_MINOR 14
++#define V4L2LOOPBACK_VERSION_MINOR 15
 +#define V4L2LOOPBACK_VERSION_BUGFIX 0
 +
 +/* /dev/v4l2loopback interface */
@@ -20858,8 +20880,8 @@ index 000000000000..ec0be6cbe97d
 +         * or one (and only one) of them must be -1
 +         *
 +         */
-+	int output_nr;
-+	int unused; /*capture_nr;*/
++	__s32 output_nr;
++	__s32 unused; /*capture_nr;*/
 +
 +	/**
 +         * a nice name for your device
@@ -20871,27 +20893,27 @@ index 000000000000..ec0be6cbe97d
 +         * allowed frame size
 +         * if too low, default values are used
 +         */
-+	unsigned int min_width;
-+	unsigned int max_width;
-+	unsigned int min_height;
-+	unsigned int max_height;
++	__u32 min_width;
++	__u32 max_width;
++	__u32 min_height;
++	__u32 max_height;
 +
 +	/**
 +         * number of buffers to allocate for the queue
 +         * if set to <=0, default values are used
 +         */
-+	int max_buffers;
++	__s32 max_buffers;
 +
 +	/**
 +         * how many consumers are allowed to open this device concurrently
 +         * if set to <=0, default values are used
 +         */
-+	int max_openers;
++	__s32 max_openers;
 +
 +	/**
 +         * set the debugging level for this device
 +         */
-+	int debug;
++	__s32 debug;
 +
 +	/**
 +         * whether to announce OUTPUT/CAPTURE capabilities exclusively
@@ -20900,8 +20922,16 @@ index 000000000000..ec0be6cbe97d
 +	 * NOTE: this is going to be removed once separate output/capture
 +	 *       devices are implemented
 +         */
-+	int announce_all_caps;
++	__s32 announce_all_caps;
 +};
++
++#define V4L2LOOPBACK_CTL_IOCTLMAGIC '~'
++
++/* a pointer to an (unsigned int) that - on success - will hold
++ * the version code of the v4l2loopback module
++ * as returned by KERNEL_VERSION(MAJOR, MINOR, BUGFIX)
++ */
++#define V4L2LOOPBACK_CTL_VERSION _IOR(V4L2LOOPBACK_CTL_IOCTLMAGIC, 0, __u32)
 +
 +/* a pointer to a (struct v4l2_loopback_config) that has all values you wish to impose on the
 + * to-be-created device set.
@@ -20910,16 +20940,18 @@ index 000000000000..ec0be6cbe97d
 + * returns the device_nr of the OUTPUT device (which can be used with V4L2LOOPBACK_CTL_QUERY,
 + * to get more information on the device)
 + */
-+#define V4L2LOOPBACK_CTL_ADD 0x4C80
++#define V4L2LOOPBACK_CTL_ADD \
++	_IOW(V4L2LOOPBACK_CTL_IOCTLMAGIC, 1, struct v4l2_loopback_config)
++
++/* the device-number (either CAPTURE or OUTPUT) associated with the loopback-device */
++#define V4L2LOOPBACK_CTL_REMOVE _IOW(V4L2LOOPBACK_CTL_IOCTLMAGIC, 2, __u32)
 +
 +/* a pointer to a (struct v4l2_loopback_config) that has output_nr and/or capture_nr set
 + * (the two values must either refer to video-devices associated with the same loopback device
 + *  or exactly one of them must be <0
 + */
-+#define V4L2LOOPBACK_CTL_QUERY 0x4C82
-+
-+/* the device-number (either CAPTURE or OUTPUT) associated with the loopback-device */
-+#define V4L2LOOPBACK_CTL_REMOVE 0x4C81
++#define V4L2LOOPBACK_CTL_QUERY \
++	_IOWR(V4L2LOOPBACK_CTL_IOCTLMAGIC, 3, struct v4l2_loopback_config)
 +
 +#endif /* _V4L2LOOPBACK_H */
 diff --git a/drivers/media/v4l2-core/v4l2loopback_formats.h b/drivers/media/v4l2-core/v4l2loopback_formats.h
@@ -20927,7 +20959,7 @@ new file mode 100644
 index 000000000000..d855a3796554
 --- /dev/null
 +++ b/drivers/media/v4l2-core/v4l2loopback_formats.h
-@@ -0,0 +1,445 @@
+@@ -0,0 +1,453 @@
 +static const struct v4l2l_format formats[] = {
 +#ifndef V4L2_PIX_FMT_VP9
 +#define V4L2_PIX_FMT_VP9 v4l2_fourcc('V', 'P', '9', '0')
@@ -20965,6 +20997,14 @@ index 000000000000..d855a3796554
 +	{
 +		.name = "32 bpp RGBA, le",
 +		.fourcc = V4L2_PIX_FMT_ABGR32,
++		.depth = 32,
++		.flags = 0,
++	},
++#endif
++#ifdef V4L2_PIX_FMT_XBGR32
++	{
++		.name = "32 bpp BGRX-8-8-8-8",
++		.fourcc = V4L2_PIX_FMT_XBGR32,
 +		.depth = 32,
 +		.flags = 0,
 +	},
@@ -65319,4 +65359,125 @@ index 469fc3059be0..0ae819f0c927 100644
  
 -- 
 2.49.0.634.g8613c2bb6c
+
+Revert "kbuild: remove EXTRA_*FLAGS support"
+https://github.com/torvalds/linux/commit/fc0e234203c44523da02762d95354e2ba4916229
+
+From e966ad0edd0056c7491b8f23992c11734ab61ddf Mon Sep 17 00:00:00 2001
+From: Masahiro Yamada <masahiroy@xxxxxxxxxx>
+Date: Thu, 6 Feb 2025 01:39:38 +0900
+Subject: [PATCH] kbuild: remove EXTRA_*FLAGS support
+
+Commit f77bf01425b1 ("kbuild: introduce ccflags-y, asflags-y and
+ldflags-y") deprecated these in 2007. The migration should have been
+completed by now.
+
+Signed-off-by: Masahiro Yamada <masahiroy@xxxxxxxxxx>
+Reviewed-by: Kees Cook <kees@xxxxxxxxxx>
+Reviewed-by: Nathan Chancellor <nathan@xxxxxxxxxx>
+---
+ Documentation/dev-tools/checkpatch.rst | 18 ------------------
+ Documentation/kbuild/makefiles.rst     |  3 ---
+ scripts/Makefile.build                 |  4 ----
+ scripts/Makefile.lib                   |  5 -----
+ scripts/checkpatch.pl                  | 14 --------------
+ 5 files changed, 44 deletions(-)
+
+diff --git a/Documentation/dev-tools/checkpatch.rst b/Documentation/dev-tools/checkpatch.rst
+index abb3ff6820766e..76bd0ddb004161 100644
+--- a/Documentation/dev-tools/checkpatch.rst
++++ b/Documentation/dev-tools/checkpatch.rst
+@@ -342,24 +342,6 @@ API usage
+ 
+     See: https://www.kernel.org/doc/html/latest/RCU/whatisRCU.html#full-list-of-rcu-apis
+ 
+-  **DEPRECATED_VARIABLE**
+-    EXTRA_{A,C,CPP,LD}FLAGS are deprecated and should be replaced by the new
+-    flags added via commit f77bf01425b1 ("kbuild: introduce ccflags-y,
+-    asflags-y and ldflags-y").
+-
+-    The following conversion scheme maybe used::
+-
+-      EXTRA_AFLAGS    ->  asflags-y
+-      EXTRA_CFLAGS    ->  ccflags-y
+-      EXTRA_CPPFLAGS  ->  cppflags-y
+-      EXTRA_LDFLAGS   ->  ldflags-y
+-
+-    See:
+-
+-      1. https://lore.kernel.org/lkml/20070930191054.GA15876@uranus.ravnborg.org/
+-      2. https://lore.kernel.org/lkml/1313384834-24433-12-git-send-email-lacombar@gmail.com/
+-      3. https://www.kernel.org/doc/html/latest/kbuild/makefiles.html#compilation-flags
+-
+   **DEVICE_ATTR_FUNCTIONS**
+     The function names used in DEVICE_ATTR is unusual.
+     Typically, the store and show functions are used with <attr>_store and
+diff --git a/Documentation/kbuild/makefiles.rst b/Documentation/kbuild/makefiles.rst
+index d36519f194dc0d..25e04e47fafff6 100644
+--- a/Documentation/kbuild/makefiles.rst
++++ b/Documentation/kbuild/makefiles.rst
+@@ -318,9 +318,6 @@ ccflags-y, asflags-y and ldflags-y
+   These three flags apply only to the kbuild makefile in which they
+   are assigned. They are used for all the normal cc, as and ld
+   invocations happening during a recursive build.
+-  Note: Flags with the same behaviour were previously named:
+-  EXTRA_CFLAGS, EXTRA_AFLAGS and EXTRA_LDFLAGS.
+-  They are still supported but their usage is deprecated.
+ 
+   ccflags-y specifies options for compiling with $(CC).
+ 
+diff --git a/scripts/Makefile.build b/scripts/Makefile.build
+index 993708d1187459..a59650ba140bd5 100644
+--- a/scripts/Makefile.build
++++ b/scripts/Makefile.build
+@@ -20,10 +20,6 @@ always-m :=
+ targets :=
+ subdir-y :=
+ subdir-m :=
+-EXTRA_AFLAGS   :=
+-EXTRA_CFLAGS   :=
+-EXTRA_CPPFLAGS :=
+-EXTRA_LDFLAGS  :=
+ asflags-y  :=
+ ccflags-y  :=
+ rustflags-y :=
+diff --git a/scripts/Makefile.lib b/scripts/Makefile.lib
+index cad20f0e66ee9c..47f56ef719372b 100644
+--- a/scripts/Makefile.lib
++++ b/scripts/Makefile.lib
+@@ -1,9 +1,4 @@
+ # SPDX-License-Identifier: GPL-2.0
+-# Backward compatibility
+-asflags-y  += $(EXTRA_AFLAGS)
+-ccflags-y  += $(EXTRA_CFLAGS)
+-cppflags-y += $(EXTRA_CPPFLAGS)
+-ldflags-y  += $(EXTRA_LDFLAGS)
+ 
+ # flags that take effect in current and sub directories
+ KBUILD_AFLAGS += $(subdir-asflags-y)
+diff --git a/scripts/checkpatch.pl b/scripts/checkpatch.pl
+index 7b28ad3317427a..8f70bedc18be59 100755
+--- a/scripts/checkpatch.pl
++++ b/scripts/checkpatch.pl
+@@ -3689,20 +3689,6 @@ sub process {
+ 			}
+ 		}
+ 
+-		if (($realfile =~ /Makefile.*/ || $realfile =~ /Kbuild.*/) &&
+-		    ($line =~ /\+(EXTRA_[A-Z]+FLAGS).*/)) {
+-			my $flag = $1;
+-			my $replacement = {
+-				'EXTRA_AFLAGS' =>   'asflags-y',
+-				'EXTRA_CFLAGS' =>   'ccflags-y',
+-				'EXTRA_CPPFLAGS' => 'cppflags-y',
+-				'EXTRA_LDFLAGS' =>  'ldflags-y',
+-			};
+-
+-			WARN("DEPRECATED_VARIABLE",
+-			     "Use of $flag is deprecated, please use \`$replacement->{$flag} instead.\n" . $herecurr) if ($replacement->{$flag});
+-		}
+-
+ # check for DT compatible documentation
+ 		if (defined $root &&
+ 			(($realfile =~ /\.dtsi?$/ && $line =~ /^\+\s*compatible\s*=\s*\"/) ||
 

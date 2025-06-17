@@ -4335,8 +4335,8 @@ Subject: [PATCH] ADIOS v1.5.8
  block/Kconfig.iosched |   14 +
  block/Makefile        |    8 +
  block/adios.c         | 1344 +++++++++++++++++++++++++++++++++++++++++
- block/elevator.c      |    5 +
- 4 files changed, 1371 insertions(+)
+ block/elevator.c      |   12 +
+ 4 files changed, 1378 insertions(+)
  create mode 100644 block/adios.c
 
 diff --git a/block/Kconfig.iosched b/block/Kconfig.iosched
@@ -5741,20 +5741,27 @@ diff --git a/block/elevator.c b/block/elevator.c
 index cd2ce49216..7c6ff2c47c 100644
 --- a/block/elevator.c
 +++ b/block/elevator.c
-@@ -564,11 +564,16 @@ static struct elevator_type *elevator_get_default(struct request_queue *q)
+@@ -564,11 +564,23 @@ static struct elevator_type *elevator_get_default(struct request_queue *q)
  	if (q->tag_set->flags & BLK_MQ_F_NO_SCHED_BY_DEFAULT)
  		return NULL;
  
 +#ifdef CONFIG_MQ_IOSCHED_DEFAULT_ADIOS
 +	return elevator_find_get("adios");
-+#else // !CONFIG_MQ_IOSCHED_DEFAULT_ADIOS
++#endif // !CONFIG_MQ_IOSCHED_DEFAULT_ADIOS
 +
  	if (q->nr_hw_queues != 1 &&
  	    !blk_mq_is_shared_tags(q->tag_set->flags))
++#if defined(CONFIG_CACHY)
++		return elevator_find_get("mq-deadline");
++#else
  		return NULL;
++#endif
  
++#if defined(CONFIG_CACHY) && defined(CONFIG_IOSCHED_BFQ)
++	return elevator_find_get("bfq");
++#else
  	return elevator_find_get("mq-deadline");
-+#endif // CONFIG_MQ_IOSCHED_DEFAULT_ADIOS
++#endif
  }
  
  /*
@@ -10714,4 +10721,125 @@ index b5205d464a8a2d..2295abbecd14f5 100644
  	ACPI_SIG_BERT, ACPI_SIG_BGRT, ACPI_SIG_CPEP, ACPI_SIG_ECDT,
  	ACPI_SIG_EINJ, ACPI_SIG_ERST, ACPI_SIG_HEST, ACPI_SIG_MADT,
  	ACPI_SIG_MSCT, ACPI_SIG_SBST, ACPI_SIG_SLIT, ACPI_SIG_SRAT,
+
+Revert "kbuild: remove EXTRA_*FLAGS support"
+https://github.com/torvalds/linux/commit/fc0e234203c44523da02762d95354e2ba4916229
+
+From e966ad0edd0056c7491b8f23992c11734ab61ddf Mon Sep 17 00:00:00 2001
+From: Masahiro Yamada <masahiroy@xxxxxxxxxx>
+Date: Thu, 6 Feb 2025 01:39:38 +0900
+Subject: [PATCH] kbuild: remove EXTRA_*FLAGS support
+
+Commit f77bf01425b1 ("kbuild: introduce ccflags-y, asflags-y and
+ldflags-y") deprecated these in 2007. The migration should have been
+completed by now.
+
+Signed-off-by: Masahiro Yamada <masahiroy@xxxxxxxxxx>
+Reviewed-by: Kees Cook <kees@xxxxxxxxxx>
+Reviewed-by: Nathan Chancellor <nathan@xxxxxxxxxx>
+---
+ Documentation/dev-tools/checkpatch.rst | 18 ------------------
+ Documentation/kbuild/makefiles.rst     |  3 ---
+ scripts/Makefile.build                 |  4 ----
+ scripts/Makefile.lib                   |  5 -----
+ scripts/checkpatch.pl                  | 14 --------------
+ 5 files changed, 44 deletions(-)
+
+diff --git a/Documentation/dev-tools/checkpatch.rst b/Documentation/dev-tools/checkpatch.rst
+index abb3ff6820766e..76bd0ddb004161 100644
+--- a/Documentation/dev-tools/checkpatch.rst
++++ b/Documentation/dev-tools/checkpatch.rst
+@@ -342,24 +342,6 @@ API usage
+ 
+     See: https://www.kernel.org/doc/html/latest/RCU/whatisRCU.html#full-list-of-rcu-apis
+ 
+-  **DEPRECATED_VARIABLE**
+-    EXTRA_{A,C,CPP,LD}FLAGS are deprecated and should be replaced by the new
+-    flags added via commit f77bf01425b1 ("kbuild: introduce ccflags-y,
+-    asflags-y and ldflags-y").
+-
+-    The following conversion scheme maybe used::
+-
+-      EXTRA_AFLAGS    ->  asflags-y
+-      EXTRA_CFLAGS    ->  ccflags-y
+-      EXTRA_CPPFLAGS  ->  cppflags-y
+-      EXTRA_LDFLAGS   ->  ldflags-y
+-
+-    See:
+-
+-      1. https://lore.kernel.org/lkml/20070930191054.GA15876@uranus.ravnborg.org/
+-      2. https://lore.kernel.org/lkml/1313384834-24433-12-git-send-email-lacombar@gmail.com/
+-      3. https://www.kernel.org/doc/html/latest/kbuild/makefiles.html#compilation-flags
+-
+   **DEVICE_ATTR_FUNCTIONS**
+     The function names used in DEVICE_ATTR is unusual.
+     Typically, the store and show functions are used with <attr>_store and
+diff --git a/Documentation/kbuild/makefiles.rst b/Documentation/kbuild/makefiles.rst
+index d36519f194dc0d..25e04e47fafff6 100644
+--- a/Documentation/kbuild/makefiles.rst
++++ b/Documentation/kbuild/makefiles.rst
+@@ -318,9 +318,6 @@ ccflags-y, asflags-y and ldflags-y
+   These three flags apply only to the kbuild makefile in which they
+   are assigned. They are used for all the normal cc, as and ld
+   invocations happening during a recursive build.
+-  Note: Flags with the same behaviour were previously named:
+-  EXTRA_CFLAGS, EXTRA_AFLAGS and EXTRA_LDFLAGS.
+-  They are still supported but their usage is deprecated.
+ 
+   ccflags-y specifies options for compiling with $(CC).
+ 
+diff --git a/scripts/Makefile.build b/scripts/Makefile.build
+index 993708d1187459..a59650ba140bd5 100644
+--- a/scripts/Makefile.build
++++ b/scripts/Makefile.build
+@@ -20,10 +20,6 @@ always-m :=
+ targets :=
+ subdir-y :=
+ subdir-m :=
+-EXTRA_AFLAGS   :=
+-EXTRA_CFLAGS   :=
+-EXTRA_CPPFLAGS :=
+-EXTRA_LDFLAGS  :=
+ asflags-y  :=
+ ccflags-y  :=
+ rustflags-y :=
+diff --git a/scripts/Makefile.lib b/scripts/Makefile.lib
+index cad20f0e66ee9c..47f56ef719372b 100644
+--- a/scripts/Makefile.lib
++++ b/scripts/Makefile.lib
+@@ -1,9 +1,4 @@
+ # SPDX-License-Identifier: GPL-2.0
+-# Backward compatibility
+-asflags-y  += $(EXTRA_AFLAGS)
+-ccflags-y  += $(EXTRA_CFLAGS)
+-cppflags-y += $(EXTRA_CPPFLAGS)
+-ldflags-y  += $(EXTRA_LDFLAGS)
+ 
+ # flags that take effect in current and sub directories
+ KBUILD_AFLAGS += $(subdir-asflags-y)
+diff --git a/scripts/checkpatch.pl b/scripts/checkpatch.pl
+index 7b28ad3317427a..8f70bedc18be59 100755
+--- a/scripts/checkpatch.pl
++++ b/scripts/checkpatch.pl
+@@ -3699,20 +3699,6 @@ sub process {
+ 			}
+ 		}
+ 
+-		if (($realfile =~ /Makefile.*/ || $realfile =~ /Kbuild.*/) &&
+-		    ($line =~ /\+(EXTRA_[A-Z]+FLAGS).*/)) {
+-			my $flag = $1;
+-			my $replacement = {
+-				'EXTRA_AFLAGS' =>   'asflags-y',
+-				'EXTRA_CFLAGS' =>   'ccflags-y',
+-				'EXTRA_CPPFLAGS' => 'cppflags-y',
+-				'EXTRA_LDFLAGS' =>  'ldflags-y',
+-			};
+-
+-			WARN("DEPRECATED_VARIABLE",
+-			     "Use of $flag is deprecated, please use \`$replacement->{$flag} instead.\n" . $herecurr) if ($replacement->{$flag});
+-		}
+-
+ # check for DT compatible documentation
+ 		if (defined $root &&
+ 			(($realfile =~ /\.dtsi?$/ && $line =~ /^\+\s*compatible\s*=\s*\"/) ||
 

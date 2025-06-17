@@ -240,7 +240,7 @@ diff --git a/scripts/Makefile.build b/scripts/Makefile.build
 index 13dcd86e74ca8..338e1aec0eaa3 100644
 --- a/scripts/Makefile.build
 +++ b/scripts/Makefile.build
-@@ -54,18 +54,23 @@ endif
+@@ -50,18 +50,23 @@ endif
  
  # ===========================================================================
  
@@ -267,7 +267,7 @@ index 13dcd86e74ca8..338e1aec0eaa3 100644
  endif
  
  targets-for-modules := $(foreach x, o mod, \
-@@ -354,6 +359,10 @@ $(obj)/%.o: $(obj)/%.S FORCE
+@@ -350,6 +355,10 @@ $(obj)/%.o: $(obj)/%.S FORCE
  targets += $(filter-out $(subdir-builtin), $(real-obj-y))
  targets += $(filter-out $(subdir-modorder), $(real-obj-m))
  targets += $(lib-y) $(always-y)
@@ -278,7 +278,7 @@ index 13dcd86e74ca8..338e1aec0eaa3 100644
  
  # Linker scripts preprocessor (.lds.S -> .lds)
  # ---------------------------------------------------------------------------
-@@ -364,6 +373,24 @@ quiet_cmd_cpp_lds_S = LDS     $@
+@@ -360,6 +369,24 @@ quiet_cmd_cpp_lds_S = LDS     $@
  $(obj)/%.lds: $(src)/%.lds.S FORCE
  	$(call if_changed_dep,cpp_lds_S)
  
@@ -303,7 +303,7 @@ index 13dcd86e74ca8..338e1aec0eaa3 100644
  # ASN.1 grammar
  # ---------------------------------------------------------------------------
  quiet_cmd_asn1_compiler = ASN.1   $(basename $@).[ch]
-@@ -377,7 +404,7 @@ $(obj)/%.asn1.c $(obj)/%.asn1.h: $(src)/%.asn1 $(objtree)/scripts/asn1_compiler
+@@ -373,7 +400,7 @@ $(obj)/%.asn1.c $(obj)/%.asn1.h: $(src)/%.asn1 $(objtree)/scripts/asn1_compiler
  # ---------------------------------------------------------------------------
  
  # To build objects in subdirs, we need to descend into the directories
@@ -312,7 +312,7 @@ index 13dcd86e74ca8..338e1aec0eaa3 100644
  $(subdir-modorder): $(obj)/%/modules.order: $(obj)/% ;
  
  #
-@@ -394,6 +421,12 @@ quiet_cmd_ar_builtin = AR      $@
+@@ -390,6 +417,12 @@ quiet_cmd_ar_builtin = AR      $@
  $(obj)/built-in.a: $(real-obj-y) FORCE
  	$(call if_changed,ar_builtin)
  
@@ -325,7 +325,7 @@ index 13dcd86e74ca8..338e1aec0eaa3 100644
  # This is a list of build artifacts from the current Makefile and its
  # sub-directories. The timestamp should be updated when any of the member files.
  
-@@ -411,6 +444,14 @@ $(obj)/modules.order: $(obj-m) FORCE
+@@ -407,6 +440,14 @@ $(obj)/modules.order: $(obj-m) FORCE
  $(obj)/lib.a: $(lib-y) FORCE
  	$(call if_changed,ar)
  
@@ -340,7 +340,7 @@ index 13dcd86e74ca8..338e1aec0eaa3 100644
  quiet_cmd_ld_multi_m = LD [M]  $@
        cmd_ld_multi_m = $(LD) $(ld_flags) -r -o $@ @$< $(cmd_objtool)
  
-@@ -476,7 +517,8 @@ $(single-subdir-goals): $(single-subdirs)
+@@ -472,7 +513,8 @@ $(single-subdir-goals): $(single-subdirs)
  PHONY += $(subdir-ym)
  $(subdir-ym):
  	$(Q)$(MAKE) $(build)=$@ \
@@ -354,7 +354,7 @@ diff --git a/scripts/Makefile.lib b/scripts/Makefile.lib
 index 2fe73cda0bddb..9cfd23590334d 100644
 --- a/scripts/Makefile.lib
 +++ b/scripts/Makefile.lib
-@@ -39,8 +39,13 @@ else
+@@ -34,8 +34,13 @@ else
  obj-m := $(filter-out %/, $(obj-m))
  endif
  

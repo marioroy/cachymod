@@ -640,7 +640,7 @@ diff --git a/scripts/Makefile.lib b/scripts/Makefile.lib
 index 01a9f567d5af..e7859ad90224 100644
 --- a/scripts/Makefile.lib
 +++ b/scripts/Makefile.lib
-@@ -191,6 +191,26 @@ _c_flags += $(if $(patsubst n%,, \
+@@ -186,6 +186,26 @@ _c_flags += $(if $(patsubst n%,, \
  	-D__KCSAN_INSTRUMENT_BARRIERS__)
  endif
  

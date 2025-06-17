@@ -1,0 +1,58 @@
+Updates for ADIOS v1.5.8
+
+  - Relax default_global_latency_window
+  - Increase default_bq_refill_below_ratio
+  - Sync default 1m_shrink options (v2.0.0-rc4)
+  - Reposition requests unconditionally (v2.0.0-rc3)
+  - FIFO prio_queue (v1.5.12)
+
+diff -uarp a/block/adios.c b/block/adios.c
+--- a/block/adios.c
++++ b/block/adios.c
+@@ -33,14 +33,14 @@ enum adios_op_type {
+ };
+
+ // Global variable to control the latency
+-static u64 default_global_latency_window = 16000000ULL;
++static u64 default_global_latency_window = 37000000ULL;
+ // Ratio below which batch queues should be refilled
+-static u8  default_bq_refill_below_ratio = 15;
++static u8  default_bq_refill_below_ratio = 23;
+
+ // Dynamic thresholds for shrinkage
+-static u32 default_lm_shrink_at_kreqs  = 10000;
+-static u32 default_lm_shrink_at_gbytes =   100;
+-static u32 default_lm_shrink_resist    =     2;
++static u32 default_lm_shrink_at_kreqs  = 5000;
++static u32 default_lm_shrink_at_gbytes =   50;
++static u32 default_lm_shrink_resist    =    2;
+
+ // Latency targets for each operation type
+ static u64 default_latency_target[ADIOS_OPTYPES] = {
+@@ -576,11 +576,9 @@ static void adios_request_merged(struct
+ 	bool dl_idx = adios_optype_not_read(req);
+ 	struct adios_data *ad = q->elevator->elevator_data;
+ 
+-	// if the merge was a front merge, we need to reposition request
+-	if (type == ELEVATOR_FRONT_MERGE) {
+-		del_from_dl_tree(ad, dl_idx, req);
+-		add_to_dl_tree(ad, dl_idx, req);
+-	}
++	// Reposition request in the deadline-sorted tree
++	del_from_dl_tree(ad, dl_idx, req);
++	add_to_dl_tree(ad, dl_idx, req);
+ }
+ 
+ // Handle merging of requests after one has been merged into another
+@@ -624,7 +622,7 @@ static void insert_request(struct blk_mq
+ 
+ 	if (insert_flags & BLK_MQ_INSERT_AT_HEAD) {
+ 		spin_lock_irqsave(&ad->pq_lock, flags);
+-		list_add(&rq->queuelist, &ad->prio_queue);
++		list_add_tail(&rq->queuelist, &ad->prio_queue);
+ 		spin_unlock_irqrestore(&ad->pq_lock, flags);
+ 		return;
+ 	}
+-- 
+2.40.2
+
