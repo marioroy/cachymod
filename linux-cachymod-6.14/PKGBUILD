@@ -147,7 +147,7 @@ _stable=${_major}.${_minor}
 
 _srcname=linux-${_stable}
 pkgdesc='CachyMod Linux Kernel with other patches and improvements'
-pkgrel=2
+pkgrel=3
 _kernver="$pkgver-$pkgrel"
 _kernuname="${pkgver}-${_pkgsuffix}"
 arch=('x86_64')
@@ -174,7 +174,6 @@ source=(
     "0210-cachymod-misc.patch"
     "0240-pipe-update.patch"
     "0250-amdgpu-update.patch"
-    "0260-adios-update.patch"
     "0270-sched-fair-update.patch"
     "0280-autosel-upstream.patch"
     "0290-dl-server-for-ext-tasks.patch"
