@@ -116,7 +116,7 @@ index a03c3c1d7f50a6..d72a2fbb8cb857 100644
  		}
  
  		rq_i->core_pick = p;
-@@ -8678,6 +8678,9 @@ void __init sched_init(void)
+@@ -8680,6 +8680,9 @@ void __init sched_init(void)
  		hrtick_rq_init(rq);
  		atomic_set(&rq->nr_iowait, 0);
  		fair_server_init(rq);
@@ -991,7 +991,7 @@ https://lore.kernel.org/all/aFB65Zfis1iBvKoc@slm.duckdns.org/
 diff --git a/kernel/sched/core.c b/kernel/sched/core.c
 --- a/kernel/sched/core.c
 +++ b/kernel/sched/core.c
-@@ -8573,7 +8573,7 @@ void __init sched_init(void)
+@@ -8575,7 +8575,7 @@ void __init sched_init(void)
  		init_cfs_bandwidth(&root_task_group.cfs_bandwidth, NULL);
  #endif /* CONFIG_FAIR_GROUP_SCHED */
  #ifdef CONFIG_EXT_GROUP_SCHED
@@ -1000,7 +1000,7 @@ diff --git a/kernel/sched/core.c b/kernel/sched/core.c
  #endif /* CONFIG_EXT_GROUP_SCHED */
  #ifdef CONFIG_RT_GROUP_SCHED
  		root_task_group.rt_se = (struct sched_rt_entity **)ptr;
-@@ -9016,7 +9016,7 @@ struct task_group *sched_create_group(st
+@@ -9018,7 +9018,7 @@ struct task_group *sched_create_group(st
  	if (!alloc_rt_sched_group(tg, parent))
  		goto err;
  

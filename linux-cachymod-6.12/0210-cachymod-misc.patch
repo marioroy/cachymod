@@ -5,7 +5,7 @@ diff --git a/include/net/bluetooth/hci_core.h b/include/net/bluetooth/hci_core.h
 index f0b49aad519eb2..bde158fc9eebdf 100644
 --- a/include/net/bluetooth/hci_core.h
 +++ b/include/net/bluetooth/hci_core.h
-@@ -1770,6 +1770,7 @@ struct hci_conn_params *hci_pend_le_action_lookup(struct list_head *list,
+@@ -1771,6 +1771,7 @@ struct hci_conn_params *hci_pend_le_action_lookup(struct list_head *list,
  void hci_uuids_clear(struct hci_dev *hdev);
  
  void hci_link_keys_clear(struct hci_dev *hdev);
@@ -17,7 +17,7 @@ diff --git a/net/bluetooth/hci_conn.c b/net/bluetooth/hci_conn.c
 index d097e308a7554f..79bcc5e7309d87 100644
 --- a/net/bluetooth/hci_conn.c
 +++ b/net/bluetooth/hci_conn.c
-@@ -2897,3 +2897,27 @@ int hci_abort_conn(struct hci_conn *conn, u8 reason)
+@@ -2899,3 +2899,27 @@ int hci_abort_conn(struct hci_conn *conn, u8 reason)
  	 */
  	return hci_cmd_sync_run_once(hdev, abort_conn_sync, conn, NULL);
  }
@@ -1103,7 +1103,7 @@ diff --git a/kernel/sched/core.c b/kernel/sched/core.c
 index 9015c792830c2..7bac05aa3d6c5 100644
 --- a/kernel/sched/core.c
 +++ b/kernel/sched/core.c
-@@ -8252,7 +8252,7 @@ static void cpuset_cpu_active(void)
+@@ -8260,7 +8260,7 @@ static void cpuset_cpu_active(void)
  static int cpuset_cpu_inactive(unsigned int cpu)
  {
  	if (!cpuhp_tasks_frozen) {
@@ -1253,7 +1253,7 @@ diff --git a/kernel/sched/core.c b/kernel/sched/core.c
 index 7bac05aa3d6c5..01e06dd3184a7 100644
 --- a/kernel/sched/core.c
 +++ b/kernel/sched/core.c
-@@ -8249,19 +8249,14 @@ static void cpuset_cpu_active(void)
+@@ -8257,19 +8257,14 @@ static void cpuset_cpu_active(void)
  	cpuset_update_active_cpus();
  }
  
@@ -1274,7 +1274,7 @@ index 7bac05aa3d6c5..01e06dd3184a7 100644
  }
  
  static inline void sched_smt_present_inc(int cpu)
-@@ -8323,6 +8318,11 @@ int sched_cpu_deactivate(unsigned int cpu)
+@@ -8331,6 +8326,11 @@ int sched_cpu_deactivate(unsigned int cpu)
  	struct rq *rq = cpu_rq(cpu);
  	int ret;
  
@@ -1286,7 +1286,7 @@ index 7bac05aa3d6c5..01e06dd3184a7 100644
  	/*
  	 * Remove CPU from nohz.idle_cpus_mask to prevent participating in
  	 * load balancing when not active
-@@ -8368,15 +8368,7 @@ int sched_cpu_deactivate(unsigned int cpu)
+@@ -8376,15 +8376,7 @@ int sched_cpu_deactivate(unsigned int cpu)
  		return 0;
  
  	sched_update_numa(cpu, false);
@@ -1475,7 +1475,7 @@ diff --git a/net/core/skmsg.c b/net/core/skmsg.c
 index 0ddc4c718833..29cb5ffd56c0 100644
 --- a/net/core/skmsg.c
 +++ b/net/core/skmsg.c
-@@ -679,7 +679,8 @@ static void sk_psock_backlog(struct work_struct *work)
+@@ -689,7 +689,8 @@ static void sk_psock_backlog(struct work_struct *work)
  			if (ret <= 0) {
  				if (ret == -EAGAIN) {
  					sk_psock_skb_state(psock, state, len, off);
@@ -1487,49 +1487,6 @@ index 0ddc4c718833..29cb5ffd56c0 100644
  					 */
 -- 
 2.47.1
-
-Revert "bpf: remove unnecessary rcu_read_{lock,unlock}() in multi-uprobe attach logic"
-https://lore.kernel.org/all/20250520054943.5002-1-xuewen.yan@unisoc.com/
-
-diff --git a/kernel/trace/bpf_trace.c b/kernel/trace/bpf_trace.c
-index 187dc37d61d4..0c4b6af10601 100644
---- a/kernel/trace/bpf_trace.c
-+++ b/kernel/trace/bpf_trace.c
-@@ -3348,7 +3348,9 @@ int bpf_uprobe_multi_link_attach(const union bpf_attr *attr, struct bpf_prog *pr
- 	}
- 
- 	if (pid) {
-+		rcu_read_lock();
- 		task = get_pid_task(find_vpid(pid), PIDTYPE_TGID);
-+		rcu_read_unlock();
- 		if (!task) {
- 			err = -ESRCH;
- 			goto error_path_put;
--- 
-2.25.1
-
-sched/core: Tweak wait_task_inactive() to force dequeue sched_delayed tasks
-https://lore.kernel.org/all/20250425195757.2139558-1-jstultz@google.com/
-
-diff --git a/kernel/sched/core.c b/kernel/sched/core.c
-index c81cf642dba05..b986cd2fb19b7 100644
---- a/kernel/sched/core.c
-+++ b/kernel/sched/core.c
-@@ -2279,6 +2279,12 @@ unsigned long wait_task_inactive(struct task_struct *p, unsigned int match_state
- 		 * just go back and repeat.
- 		 */
- 		rq = task_rq_lock(p, &rf);
-+		/*
-+		 * If task is sched_delayed, force dequeue it, to avoid always
-+		 * hitting the tick timeout in the queued case
-+		 */
-+		if (p->se.sched_delayed)
-+			dequeue_task(rq, p, DEQUEUE_SLEEP | DEQUEUE_DELAYED);
- 		trace_sched_wait_task(p);
- 		running = task_on_cpu(rq, p);
- 		queued = task_on_rq_queued(p);
--- 
-2.49.0.850.g28803427d3-goog
 
 sched/fair: Prevent from cpufreq not being updated when delayed-task is iowait
 https://lore.kernel.org/all/20250226114301.4900-1-xuewen.yan@unisoc.com/
@@ -2227,25 +2184,6 @@ index 61f4b6dd5380..8cb1505a5a0c 100644
  		if (srng->flags & HAL_SRNG_FLAGS_CACHED)
 -- 
 2.48.1
-
-The "ret" variable isn't initialized if we don't enter the loop.
-https://lore.kernel.org/all/aAkhvV0nSbrsef1P@stanley.mountain/#t
-
-diff --git a/drivers/rpmsg/qcom_smd.c b/drivers/rpmsg/qcom_smd.c
-index 40d386809d6b..bb161def3175 100644
---- a/drivers/rpmsg/qcom_smd.c
-+++ b/drivers/rpmsg/qcom_smd.c
-@@ -746,7 +746,7 @@ static int __qcom_smd_send(struct qcom_smd_channel *channel, const void *data,
- 	__le32 hdr[5] = { cpu_to_le32(len), };
- 	int tlen = sizeof(hdr) + len;
- 	unsigned long flags;
--	int ret;
-+	int ret = 0;
- 
- 	/* Word aligned channels only accept word size aligned data */
- 	if (channel->info_word && len % 4)
--- 
-2.47.2
 
 Revert tcp: fix to allow timestamp undo if no retransmits were sent
 https://lore.kernel.org/all/64ea9333-e7f9-0df-b0f2-8d566143acab@ewheeler.net/

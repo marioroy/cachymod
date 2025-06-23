@@ -135,13 +135,13 @@ fi
 
 _pkgsuffix=cachymod-612
 _major=6.12
-_minor=33
+_minor=34
 pkgver=${_major}.${_minor}
 _stable=${_major}.${_minor}
 
 _srcname=linux-${_stable}
 pkgdesc='CachyMod Linux Kernel with other patches and improvements'
-pkgrel=4
+pkgrel=1
 _kernver="$pkgver-$pkgrel"
 _kernuname="${pkgver}-${_pkgsuffix}"
 arch=('x86_64')
@@ -176,7 +176,6 @@ source=(
     "0240-pipe-update.patch"
     "0250-amdgpu-update.patch"
     "0270-sched-fair-update.patch"
-    "0280-autosel-upstream.patch"
     "0290-dl-server-for-ext-tasks.patch"
 )
 

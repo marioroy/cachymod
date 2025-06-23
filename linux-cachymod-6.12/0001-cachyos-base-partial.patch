@@ -8794,7 +8794,7 @@ diff --git a/drivers/net/wireless/ath/ath11k/core.c b/drivers/net/wireless/ath/a
 index c576bbba52bf15..e4db3cdecf296d 100644
 --- a/drivers/net/wireless/ath/ath11k/core.c
 +++ b/drivers/net/wireless/ath/ath11k/core.c
-@@ -1924,6 +1924,7 @@ void ath11k_core_halt(struct ath11k *ar)
+@@ -1926,6 +1926,7 @@ void ath11k_core_halt(struct ath11k *ar)
  	ath11k_mac_scan_finish(ar);
  	ath11k_mac_peer_cleanup_all(ar);
  	cancel_delayed_work_sync(&ar->scan.timeout);
@@ -8806,7 +8806,7 @@ diff --git a/drivers/net/wireless/ath/ath11k/core.h b/drivers/net/wireless/ath/a
 index a9dc7fe7765a14..c142b79ba543bb 100644
 --- a/drivers/net/wireless/ath/ath11k/core.h
 +++ b/drivers/net/wireless/ath/ath11k/core.h
-@@ -687,7 +687,7 @@ struct ath11k {
+@@ -689,7 +689,7 @@ struct ath11k {
  	struct mutex conf_mutex;
  	/* protects the radio specific data like debug stats, ppdu_stats_info stats,
  	 * vdev_stop_status info, scan data, ath11k_sta info, ath11k_vif info,
@@ -8815,7 +8815,7 @@ index a9dc7fe7765a14..c142b79ba543bb 100644
  	 */
  	spinlock_t data_lock;
  
-@@ -745,6 +745,9 @@ struct ath11k {
+@@ -747,6 +747,9 @@ struct ath11k {
  	struct completion bss_survey_done;
  
  	struct work_struct regd_update_work;
@@ -8865,7 +8865,7 @@ index 1556392f7ad489..b8080065cfc755 100644
  	spin_unlock_bh(&ar->data_lock);
  
  	rcu_assign_pointer(ar->ab->pdevs_active[ar->pdev_idx], NULL);
-@@ -10019,6 +10030,7 @@ static const struct wiphy_iftype_ext_capab ath11k_iftypes_ext_capa[] = {
+@@ -10101,6 +10112,7 @@ static const struct wiphy_iftype_ext_capab ath11k_iftypes_ext_capa[] = {
  
  static void __ath11k_mac_unregister(struct ath11k *ar)
  {
@@ -8873,7 +8873,7 @@ index 1556392f7ad489..b8080065cfc755 100644
  	cancel_work_sync(&ar->regd_update_work);
  
  	ieee80211_unregister_hw(ar->hw);
-@@ -10418,6 +10430,8 @@ int ath11k_mac_allocate(struct ath11k_base *ab)
+@@ -10500,6 +10512,8 @@ int ath11k_mac_allocate(struct ath11k_base *ab)
  		init_completion(&ar->thermal.wmi_sync);
  
  		INIT_DELAYED_WORK(&ar->scan.timeout, ath11k_scan_timeout_work);
