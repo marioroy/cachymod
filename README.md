@@ -30,20 +30,18 @@ bash build.sh
 
 # full or lazy preemption
 sudo pacman -U linux-cachymod-612-bore-lto-{6,h}*.zst
-sudo pacman -U linux-cachymod-612-bore-polly-{6,h}*.zst
 sudo pacman -U linux-cachymod-612-bore-clang-{6,h}*.zst
 sudo pacman -U linux-cachymod-612-bore-gcc-{6,h}*.zst
 
 # rt preemption
 sudo pacman -U linux-cachymod-612-bore-lto-rt*.zst
-sudo pacman -U linux-cachymod-612-bore-polly-rt*.zst
 sudo pacman -U linux-cachymod-612-bore-clang-rt*.zst
 sudo pacman -U linux-cachymod-612-bore-gcc-rt*.zst
 ```
 
 Removal is via pacman as well. Change the kernel version, build tag,
 and build type accordingly to { 612, 615 }, { bore, eevdf }, and
-{ lto, polly, gcc }, respectively.
+{ lto, clang, gcc }, respectively.
 
 ```text
 # full or lazy preemption
@@ -108,7 +106,7 @@ done
 echo "Installing the kernel..."
 
 if [ -z "$_kernel_suffix" ]; then
-    if [[ "$_buildtype" = "thin" || "$_buildtype" = "full" ]]; then
+    if [[ "$_buildtype" =~ ^(thin|full)$ ]]; then
         buildtype="lto"
     else
         buildtype="$_buildtype"

@@ -5,7 +5,7 @@
 ### BUILD OPTIONS
 # Set these variables to ANYTHING that is not null or choose proper variable to enable them
 
-# Custom kernel suffix. Default "{bore,eevdf}-{gcc,polly,lto}"
+# Custom kernel suffix. Default "{bore,eevdf}-{gcc,clang,lto}"
 : "${_kernel_suffix:=}"
 
 # The default is patching the kernel with the complete BORE CPU scheduler
@@ -62,15 +62,15 @@
 # { generic, generic_v1, generic_v2, generic_v3, generic_v4, native, zen4 }
 : "${_processor_opt:=}"
 
-# Select build type { full, thin, polly, gcc }
-# full:  Build the kernel with clang (full-LTO + polly), suffix "-lto"
+# Select build type { full, thin, clang, gcc }
+# full:  Build the kernel with clang full-LTO, suffix "-lto"
 #        Uses 1 thread for linking, slow and uses more memory (>16GB),
 #        theoretically with the highest performance gains
-# thin:  Build the kernel with clang (thin-LTO + polly), suffix "-lto"
+# thin:  Build the kernel with clang thin-LTO, suffix "-lto"
 #        Uses multiple threads, faster and lesser memory consumption,
 #        possibly lower runtime performance than full
-# polly: Build the kernel with clang polyhedral loop optimizer, suffix "-polly"
-# gcc:   Build the kernel with gcc, suffix "-gcc"
+# clang: Build kernel with clang, suffix "-clang"
+# gcc:   Build kernel with gcc, suffix "-gcc"
 : "${_buildtype:=thin}"
 
 # Build a debug package with non-stripped vmlinux
@@ -105,7 +105,7 @@
 
 # ATTENTION: Do not modify after this line
 
-if [[ "$_buildtype" =~ ^(gcc|polly)$ ]]; then
+if [[ "$_buildtype" =~ ^(gcc|clang)$ ]]; then
     _autofdo="no"
     _autofdo_profile_name=""
     _propeller="no"
@@ -141,7 +141,7 @@ _stable=${_major}.${_minor}
 
 _srcname=linux-${_stable}
 pkgdesc='CachyMod Linux Kernel with other patches and improvements'
-pkgrel=1
+pkgrel=2
 _kernver="$pkgver-$pkgrel"
 _kernuname="${pkgver}-${_pkgsuffix}"
 arch=('x86_64')
@@ -181,9 +181,9 @@ if [[ -s "custom.sh" ]]; then
 fi
 
 # LLVM makedepends
-if [[ "$buildtype" =~ (lto|polly) ]]; then
-    makedepends+=( clang llvm lld polly )
-    source+=("dkms-clang.patch" "polly.patch")
+if [[ "$buildtype" =~ (lto|clang) ]]; then
+    makedepends+=( clang llvm lld )
+    source+=("dkms-clang.patch" "flags-clang.patch")
     BUILD_FLAGS=( CC=clang LD=ld.lld LLVM_IAS=1 )
     CLANG_BIN=$(which clang) ; CLANG_BIN="${CLANG_BIN%clang}"
     [ "$CLANG_BIN"  = "/usr/bin/" ] && BUILD_FLAGS+=( LLVM=1 )
@@ -294,15 +294,12 @@ prepare() {
     case "$_buildtype" in
         thin)
             scripts/config -e LTO -e LTO_CLANG -e ARCH_SUPPORTS_LTO_CLANG -e ARCH_SUPPORTS_LTO_CLANG_THIN -e HAS_LTO_CLANG -d LTO_NONE -d LTO_CLANG_FULL -d LTO_CLANG_THIN -e LTO_CLANG_THIN_DIST -e HAVE_GCC_PLUGINS
-            scripts/config -e POLLY_CLANG
             ;;
         full)
             scripts/config -e LTO -e LTO_CLANG -e ARCH_SUPPORTS_LTO_CLANG -e ARCH_SUPPORTS_LTO_CLANG_THIN -e HAS_LTO_CLANG -d LTO_NONE -e LTO_CLANG_FULL -d LTO_CLANG_THIN -d LTO_CLANG_THIN_DIST -e HAVE_GCC_PLUGINS
-            scripts/config -e POLLY_CLANG
             ;;
-        polly)
+        clang)
             scripts/config -e LTO -e LTO_CLANG -e ARCH_SUPPORTS_LTO_CLANG -e ARCH_SUPPORTS_LTO_CLANG_THIN -e HAS_LTO_CLANG -e LTO_NONE -d LTO_CLANG_FULL -d LTO_CLANG_THIN -d LTO_CLANG_THIN_DIST -e HAVE_GCC_PLUGINS
-            scripts/config -e POLLY_CLANG
             ;;
         gcc)
             scripts/config -e LTO_NONE
@@ -313,8 +310,6 @@ prepare() {
 
     if [ "$buildtype" = "lto" ]; then
         echo "Selecting 'clang' compiler, '$_buildtype' LLVM level..."
-    elif [ "$buildtype" = "polly" ]; then
-        echo "Selecting 'clang' compiler, '$_buildtype' optimizations..."
     else
         echo "Selecting '$_buildtype' compiler, no LTO..."
     fi

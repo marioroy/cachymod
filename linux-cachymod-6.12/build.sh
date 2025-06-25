@@ -8,7 +8,7 @@ set -e
 # Build options. Unless selections given, answer "yes/y/1", "no/n/0" or "".
 ###############################################################################
 
-# Custom kernel suffix. Default "{bore,eevdf}-{gcc,polly,lto}"
+# Custom kernel suffix. Default "{bore,eevdf}-{gcc,clang,lto}"
 : "${_kernel_suffix:=}"
 
 # The default is patching the kernel with the complete BORE CPU scheduler.
@@ -81,14 +81,14 @@ set -e
 #   sapphirerapids, alderlake, raptorlake, meteorlake, emeraldrapids }
 : "${_processor_opt:=}"
 
-# Select build type { full, thin, polly, gcc }
-# full:  Build the kernel with clang (full-LTO + polly), suffix "-lto"
+# Select build type { full, thin, clang, gcc }
+# full:  Build the kernel with clang full-LTO, suffix "-lto"
 #        Uses 1 thread for linking, slow and uses more memory (>16GB),
 #        theoretically with the highest performance gains
-# thin:  Build the kernel with clang (thin-LTO + polly), suffix "-lto"
+# thin:  Build the kernel with clang thin-LTO, suffix "-lto"
 #        Uses multiple threads, faster and lesser memory consumption,
 #        possibly lower runtime performance than full
-# polly: Build kernel with clang polyhedral loop optimizer, suffix "-polly"
+# clang: Build kernel with clang, suffix "-clang"
 # gcc:   Build kernel with gcc, suffix "-gcc"
 : "${_buildtype:=thin}"
 
