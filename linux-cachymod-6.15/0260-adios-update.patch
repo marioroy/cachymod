@@ -1,9 +1,29 @@
 Updates for ADIOS v1.5.12
 
-  - Relax default_global_latency_window
-  - Increase default_bq_refill_below_ratio
+From testing, ADIOS v2.0.0 incurs additional overhead on CPUs with many cores
+Continue with ADIOS v1.5.12 + backports (B) at this time
+
+ BOOST file_mapping parallel reads (64 threads)
+ rgn.advise(bip::mapped_region::advice_willneed)
+ mq-deadline   :  2.200  2.190  2.180  2.165  2.199
+ adios 2.0.0   :  3.246  3.491  3.305  3.346  3.498
+ adios 1.5.12+ :  2.648  2.560  2.581  2.541  2.543 (A)
+ adios 1.5.12+ :  2.380  2.396  2.382  2.369  2.377 (B)
+
+(A) ADIOS v1.5.12 + backports
+  - Relax default_global_latency_window (32ms)
+  - Increase default_bq_refill_below_ratio (25)
   - Sync default 1m_shrink options (v2.0.0-rc4)
   - Reposition requests unconditionally (v2.0.0-rc3)
+
+(B) ADIOS v1.5.12 + backports
+  - Relax default_global_latency_window (37ms)
+  - Increase default_bq_refill_below_ratio (23)
+  - Sync default 1m_shrink options (v2.0.0-rc4)
+  - Reposition requests unconditionally (v2.0.0-rc3)
+
+Signed-off-by: Mario Roy <...>
+
 
 diff -uarp a/block/adios.c b/block/adios.c
 --- a/block/adios.c

@@ -1,6 +1,6 @@
 #
 # Automatically generated file; DO NOT EDIT.
-# Linux/x86 6.15.3 Kernel Configuration
+# Linux/x86 6.15.4 Kernel Configuration
 #
 CONFIG_CC_VERSION_TEXT="gcc (GCC) 15.1.1 20250425"
 CONFIG_CC_IS_GCC=y
@@ -7100,7 +7100,7 @@ CONFIG_DRM_AMD_DC=y
 CONFIG_DRM_AMD_DC_FP=y
 CONFIG_DRM_AMD_DC_SI=y
 CONFIG_DRM_AMD_SECURE_DISPLAY=y
-CONFIG_AMD_PRIVATE_COLOR=y
+# CONFIG_AMD_PRIVATE_COLOR is not set
 # end of Display Engine Configuration
 
 CONFIG_HSA_AMD=y

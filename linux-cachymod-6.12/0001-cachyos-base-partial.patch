@@ -1154,7 +1154,7 @@ diff --git a/drivers/ata/ahci.c b/drivers/ata/ahci.c
 index 45f63b09828a..d8bcb8b7544f 100644
 --- a/drivers/ata/ahci.c
 +++ b/drivers/ata/ahci.c
-@@ -1629,7 +1629,7 @@ static irqreturn_t ahci_thunderx_irq_handler(int irq, void *dev_instance)
+@@ -1662,7 +1662,7 @@ static irqreturn_t ahci_thunderx_irq_handler(int irq, void *dev_instance)
  }
  #endif
  
@@ -1163,7 +1163,7 @@ index 45f63b09828a..d8bcb8b7544f 100644
  		struct ahci_host_priv *hpriv)
  {
  	int i;
-@@ -1642,7 +1642,7 @@ static void ahci_remap_check(struct pci_dev *pdev, int bar,
+@@ -1675,7 +1675,7 @@ static void ahci_remap_check(struct pci_dev *pdev, int bar,
  	    pci_resource_len(pdev, bar) < SZ_512K ||
  	    bar != AHCI_PCI_BAR_STANDARD ||
  	    !(readl(hpriv->mmio + AHCI_VSCAP) & 1))
@@ -1172,7 +1172,7 @@ index 45f63b09828a..d8bcb8b7544f 100644
  
  	cap = readq(hpriv->mmio + AHCI_REMAP_CAP);
  	for (i = 0; i < AHCI_MAX_REMAP; i++) {
-@@ -1657,18 +1657,11 @@ static void ahci_remap_check(struct pci_dev *pdev, int bar,
+@@ -1690,18 +1690,11 @@ static void ahci_remap_check(struct pci_dev *pdev, int bar,
  	}
  
  	if (!hpriv->remapped_nvme)
@@ -1195,7 +1195,7 @@ index 45f63b09828a..d8bcb8b7544f 100644
  }
  
  static int ahci_get_irq_vector(struct ata_host *host, int port)
-@@ -1907,7 +1900,9 @@ static int ahci_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
+@@ -1940,7 +1933,9 @@ static int ahci_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
  	hpriv->mmio = pcim_iomap_table(pdev)[ahci_pci_bar];
  
  	/* detect remapped nvme devices */
@@ -2626,7 +2626,7 @@ index 8103bc24a54e..5448adb10b21 100644
  /*
   * Some NVIDIA GPU devices do not work with bus reset, SBR needs to be
   * prevented for those affected devices.
-@@ -5171,6 +5271,7 @@ static const struct pci_dev_acs_enabled {
+@@ -5194,6 +5294,7 @@ static const struct pci_dev_acs_enabled {
  	{ PCI_VENDOR_ID_ZHAOXIN, PCI_ANY_ID, pci_quirk_zhaoxin_pcie_ports_acs },
  	/* Wangxun nics */
  	{ PCI_VENDOR_ID_WANGXUN, PCI_ANY_ID, pci_quirk_wangxun_nic_acs },
@@ -4618,7 +4618,7 @@ diff --git a/kernel/sched/ext.c b/kernel/sched/ext.c
 index 4c4681cb9337..284d69169795 100644
 --- a/kernel/sched/ext.c
 +++ b/kernel/sched/ext.c
-@@ -4892,9 +4892,9 @@ static void scx_dump_task(struct seq_buf *s, struct scx_dump_ctx *dctx,
+@@ -4897,9 +4897,9 @@ static void scx_dump_task(struct seq_buf *s, struct scx_dump_ctx *dctx,
  		  scx_get_task_state(p), p->scx.flags & ~SCX_TASK_STATE_MASK,
  		  p->scx.dsq_flags, ops_state & SCX_OPSS_STATE_MASK,
  		  ops_state >> SCX_OPSS_QSEQ_SHIFT);
@@ -8794,7 +8794,7 @@ diff --git a/drivers/net/wireless/ath/ath11k/core.c b/drivers/net/wireless/ath/a
 index c576bbba52bf15..e4db3cdecf296d 100644
 --- a/drivers/net/wireless/ath/ath11k/core.c
 +++ b/drivers/net/wireless/ath/ath11k/core.c
-@@ -1926,6 +1926,7 @@ void ath11k_core_halt(struct ath11k *ar)
+@@ -1972,6 +1972,7 @@ void ath11k_core_halt(struct ath11k *ar)
  	ath11k_mac_scan_finish(ar);
  	ath11k_mac_peer_cleanup_all(ar);
  	cancel_delayed_work_sync(&ar->scan.timeout);

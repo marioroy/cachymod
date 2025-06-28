@@ -18,7 +18,7 @@ diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu_gfx.c b/drivers/gpu/drm/amd/amdgp
 index 1db1e6ec0184f..c5646af055abc 100644
 --- a/drivers/gpu/drm/amd/amdgpu/amdgpu_gfx.c
 +++ b/drivers/gpu/drm/amd/amdgpu/amdgpu_gfx.c
-@@ -2182,6 +2182,9 @@ void amdgpu_gfx_profile_ring_begin_use(struct amdgpu_ring *ring)
+@@ -2192,6 +2192,9 @@ void amdgpu_gfx_profile_ring_begin_use(struct amdgpu_ring *ring)
  	enum PP_SMC_POWER_PROFILE profile;
  	int r;
  
@@ -28,7 +28,7 @@ index 1db1e6ec0184f..c5646af055abc 100644
  	if (adev->gfx.num_gfx_rings)
  		profile = PP_SMC_POWER_PROFILE_FULLSCREEN3D;
  	else
-@@ -2212,6 +2215,11 @@ void amdgpu_gfx_profile_ring_begin_use(struct amdgpu_ring *ring)
+@@ -2222,6 +2225,11 @@ void amdgpu_gfx_profile_ring_begin_use(struct amdgpu_ring *ring)
  
  void amdgpu_gfx_profile_ring_end_use(struct amdgpu_ring *ring)
  {

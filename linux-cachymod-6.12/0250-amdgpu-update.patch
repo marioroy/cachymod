@@ -93,7 +93,7 @@ https://lore.kernel.org/all/20250404193923.1413163-7-seanjc@google.com/
 diff -uarp a/drivers/iommu/amd/iommu.c b/drivers/iommu/amd/iommu.c
 --- a/drivers/iommu/amd/iommu.c
 +++ b/drivers/iommu/amd/iommu.c
-@@ -3650,6 +3650,9 @@ static int amd_ir_set_vcpu_affinity(stru
+@@ -3681,6 +3681,9 @@ static int amd_ir_set_vcpu_affinity(stru
  	struct irq_2_irte *irte_info = &ir_data->irq_2_irte;
  	struct iommu_dev_data *dev_data;
  
@@ -103,7 +103,7 @@ diff -uarp a/drivers/iommu/amd/iommu.c b/drivers/iommu/amd/iommu.c
  	if (ir_data->iommu == NULL)
  		return -EINVAL;
  
-@@ -3665,16 +3668,6 @@ static int amd_ir_set_vcpu_affinity(stru
+@@ -3696,16 +3699,6 @@ static int amd_ir_set_vcpu_affinity(stru
  	ir_data->cfg = irqd_cfg(data);
  	pi_data->ir_data = ir_data;
  

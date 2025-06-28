@@ -165,7 +165,7 @@ diff --git a/kernel/sched/ext.c b/kernel/sched/ext.c
 index ec91a4d95722..9a568ee8e1f5 100644
 --- a/kernel/sched/ext.c
 +++ b/kernel/sched/ext.c
-@@ -4585,7 +4585,7 @@ static void scx_ops_disable_workfn(struct kthread_work *work)
+@@ -4590,7 +4590,7 @@ static void scx_ops_disable_workfn(struct kthread_work *work)
  	struct task_struct *p;
  	struct rhashtable_iter rht_iter;
  	struct scx_dispatch_q *dsq;
@@ -174,7 +174,7 @@ index ec91a4d95722..9a568ee8e1f5 100644
  
  	kind = atomic_read(&scx_exit_kind);
  	while (true) {
-@@ -4668,6 +4668,15 @@ static void scx_ops_disable_workfn(struct kthread_work *work)
+@@ -4673,6 +4673,15 @@ static void scx_ops_disable_workfn(struct kthread_work *work)
  	scx_task_iter_stop(&sti);
  	percpu_up_write(&scx_fork_rwsem);
  
@@ -190,7 +190,7 @@ index ec91a4d95722..9a568ee8e1f5 100644
  	/* no task is on scx, turn off all the switches and flush in-progress calls */
  	static_branch_disable(&__scx_ops_enabled);
  	for (i = SCX_OPI_BEGIN; i < SCX_OPI_END; i++)
-@@ -7282,6 +7291,68 @@ __bpf_kfunc struct cgroup *scx_bpf_task_cgroup(struct task_struct *p)
+@@ -7287,6 +7296,68 @@ __bpf_kfunc struct cgroup *scx_bpf_task_cgroup(struct task_struct *p)
  }
  #endif
  
@@ -259,7 +259,7 @@ index ec91a4d95722..9a568ee8e1f5 100644
  __bpf_kfunc_end_defs();
  
  BTF_KFUNCS_START(scx_kfunc_ids_any)
-@@ -7313,6 +7384,7 @@ BTF_ID_FLAGS(func, scx_bpf_cpu_rq)
+@@ -7318,6 +7389,7 @@ BTF_ID_FLAGS(func, scx_bpf_cpu_rq)
  #ifdef CONFIG_CGROUP_SCHED
  BTF_ID_FLAGS(func, scx_bpf_task_cgroup, KF_RCU | KF_ACQUIRE)
  #endif

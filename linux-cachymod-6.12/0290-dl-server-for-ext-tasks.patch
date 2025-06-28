@@ -667,7 +667,7 @@ index 442493c7695725..8f596635353e55 100644
  }
  
  static void wakeup_preempt_scx(struct rq *rq, struct task_struct *p,int wake_flags) {}
-@@ -4645,6 +4671,31 @@ static void scx_ops_disable_workfn(struct kthread_work *work)
+@@ -4650,6 +4676,31 @@ static void scx_ops_disable_workfn(struct kthread_work *work)
  
  	scx_ops_init_task_enabled = false;
  
@@ -699,7 +699,7 @@ index 442493c7695725..8f596635353e55 100644
  	scx_task_iter_start(&sti);
  	while ((p = scx_task_iter_next_locked(&sti))) {
  		const struct sched_class *old_class = p->sched_class;
-@@ -4668,15 +4719,6 @@ static void scx_ops_disable_workfn(struct kthread_work *work)
+@@ -4673,15 +4724,6 @@ static void scx_ops_disable_workfn(struct kthread_work *work)
  	scx_task_iter_stop(&sti);
  	percpu_up_write(&scx_fork_rwsem);
  
@@ -715,7 +715,7 @@ index 442493c7695725..8f596635353e55 100644
  	/* no task is on scx, turn off all the switches and flush in-progress calls */
  	static_branch_disable(&__scx_ops_enabled);
  	for (i = SCX_OPI_BEGIN; i < SCX_OPI_END; i++)
-@@ -5390,6 +5432,28 @@ static int scx_enable(struct sched_ext_ops *ops, struct bpf_link *link)
+@@ -5395,6 +5437,28 @@ static int scx_enable(struct sched_ext_ops *ops, struct bpf_link *link)
  		check_class_changed(task_rq(p), p, old_class, p->prio);
  	}
  	scx_task_iter_stop(&sti);
@@ -744,7 +744,7 @@ index 442493c7695725..8f596635353e55 100644
  	percpu_up_write(&scx_fork_rwsem);
  
  	scx_ops_bypass(false);
-@@ -7020,8 +7084,8 @@ __bpf_kfunc u32 scx_bpf_cpuperf_cur(s32 cpu)
+@@ -7025,8 +7089,8 @@ __bpf_kfunc u32 scx_bpf_cpuperf_cur(s32 cpu)
   * relative scale between 0 and %SCX_CPUPERF_ONE. This determines how the
   * schedutil cpufreq governor chooses the target frequency.
   *
@@ -755,7 +755,7 @@ index 442493c7695725..8f596635353e55 100644
   * use. Consult hardware and cpufreq documentation for more information. The
   * current performance level can be monitored using scx_bpf_cpuperf_cur().
   */
-@@ -7387,6 +7451,38 @@ BTF_ID_FLAGS(func, scx_bpf_now)
+@@ -7392,6 +7456,38 @@ BTF_ID_FLAGS(func, scx_bpf_now)
  BTF_ID_FLAGS(func, scx_bpf_now)
  BTF_KFUNCS_END(scx_kfunc_ids_any)
  
@@ -962,7 +962,7 @@ https://lore.kernel.org/all/aEyy27BecPPHDWHc@slm.duckdns.org/
 diff --git a/kernel/sched/ext.c b/kernel/sched/ext.c
 --- a/kernel/sched/ext.c
 +++ b/kernel/sched/ext.c
-@@ -4079,12 +4079,12 @@ void scx_group_set_weight(struct task_gr
+@@ -4084,12 +4084,12 @@ void scx_group_set_weight(struct task_gr
  {
  	percpu_down_read(&scx_cgroup_rwsem);
  
@@ -981,68 +981,6 @@ diff --git a/kernel/sched/ext.c b/kernel/sched/ext.c
  
  	percpu_up_read(&scx_cgroup_rwsem);
  }
--- 
-2.40.2
-
-sched_ext, sched/core: Don't call scx_group_set_weight() prematurely
-from sched_create_group()
-https://lore.kernel.org/all/aFB65Zfis1iBvKoc@slm.duckdns.org/
-
-diff --git a/kernel/sched/core.c b/kernel/sched/core.c
---- a/kernel/sched/core.c
-+++ b/kernel/sched/core.c
-@@ -8575,7 +8575,7 @@ void __init sched_init(void)
- 		init_cfs_bandwidth(&root_task_group.cfs_bandwidth, NULL);
- #endif /* CONFIG_FAIR_GROUP_SCHED */
- #ifdef CONFIG_EXT_GROUP_SCHED
--		root_task_group.scx_weight = CGROUP_WEIGHT_DFL;
-+		scx_tg_init(&root_task_group);
- #endif /* CONFIG_EXT_GROUP_SCHED */
- #ifdef CONFIG_RT_GROUP_SCHED
- 		root_task_group.rt_se = (struct sched_rt_entity **)ptr;
-@@ -9018,7 +9018,7 @@ struct task_group *sched_create_group(st
- 	if (!alloc_rt_sched_group(tg, parent))
- 		goto err;
- 
--	scx_group_set_weight(tg, CGROUP_WEIGHT_DFL);
-+	scx_tg_init(tg);
- 	alloc_uclamp_sched_group(tg, parent);
- 
- 	return tg;
-diff --git a/kernel/sched/ext.c b/kernel/sched/ext.c
---- a/kernel/sched/ext.c
-+++ b/kernel/sched/ext.c
-@@ -3944,6 +3944,11 @@ bool scx_can_stop_tick(struct rq *rq)
- 	cgroup_warned_missing_idle = true;
- }
- 
-+void scx_tg_init(struct task_group *tg)
-+{
-+	tg->scx_weight = CGROUP_WEIGHT_DFL;
-+}
-+
- int scx_tg_online(struct task_group *tg)
- {
- 	int ret = 0;
-diff --git a/kernel/sched/ext.h b/kernel/sched/ext.h
---- a/kernel/sched/ext.h
-+++ b/kernel/sched/ext.h
-@@ -70,6 +70,7 @@ static inline void scx_update_idle(struc
- 
- #ifdef CONFIG_CGROUP_SCHED
- #ifdef CONFIG_EXT_GROUP_SCHED
-+void scx_tg_init(struct task_group *tg);
- int scx_tg_online(struct task_group *tg);
- void scx_tg_offline(struct task_group *tg);
- int scx_cgroup_can_attach(struct cgroup_taskset *tset);
-@@ -79,6 +80,7 @@ void scx_cgroup_cancel_attach(struct cgr
- void scx_group_set_weight(struct task_group *tg, unsigned long cgrp_weight);
- void scx_group_set_idle(struct task_group *tg, bool idle);
- #else	/* CONFIG_EXT_GROUP_SCHED */
-+static inline void scx_tg_init(struct task_group *tg) {}
- static inline int scx_tg_online(struct task_group *tg) { return 0; }
- static inline void scx_tg_offline(struct task_group *tg) {}
- static inline int scx_cgroup_can_attach(struct cgroup_taskset *tset) { return 0; }
 -- 
 2.40.2
 

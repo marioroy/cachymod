@@ -17,10 +17,10 @@ Signed-off-by: Peter Jung <admin@ptr1337.dev>
  include/asm-generic/vmlinux.lds.h     |  49 ++++++--
  scripts/Makefile.autofdo              |  24 ++++
  scripts/Makefile.lib                  |  20 +++
- scripts/Makefile.propeller            |  28 +++++
+ scripts/Makefile.propeller            |  39 +++++
  tools/objtool/check.c                 |   2 +
  tools/objtool/elf.c                   |  15 ++-
- 15 files changed, 520 insertions(+), 16 deletions(-)
+ 15 files changed, 531 insertions(+), 16 deletions(-)
  create mode 100644 Documentation/dev-tools/autofdo.rst
  create mode 100644 Documentation/dev-tools/propeller.rst
  create mode 100644 scripts/Makefile.autofdo
@@ -672,7 +672,7 @@ new file mode 100644
 index 000000000000..344190717e47
 --- /dev/null
 +++ b/scripts/Makefile.propeller
-@@ -0,0 +1,28 @@
+@@ -0,0 +1,39 @@
 +# SPDX-License-Identifier: GPL-2.0
 +
 +# Enable available and selected Clang Propeller features.
@@ -680,7 +680,14 @@ index 000000000000..344190717e47
 +  CFLAGS_PROPELLER_CLANG := -fbasic-block-sections=list=$(CLANG_PROPELLER_PROFILE_PREFIX)_cc_profile.txt -ffunction-sections
 +  KBUILD_LDFLAGS += --symbol-ordering-file=$(CLANG_PROPELLER_PROFILE_PREFIX)_ld_profile.txt --no-warn-symbol-ordering
 +else
-+  CFLAGS_PROPELLER_CLANG := -fbasic-block-sections=labels
++  # Starting with Clang v20, the '-fbasic-block-sections=labels' option is
++  # deprecated. Use the recommended '-fbasic-block-address-map' option.
++  # Link: https://github.com/llvm/llvm-project/pull/110039
++  ifeq ($(call clang-min-version, 200000),y)
++    CFLAGS_PROPELLER_CLANG := -fbasic-block-address-map
++  else
++    CFLAGS_PROPELLER_CLANG := -fbasic-block-sections=labels
++  endif
 +endif
 +
 +# Propeller requires debug information to embed module names in the profiles.
@@ -696,7 +703,11 @@ index 000000000000..344190717e47
 +  ifdef CLANG_PROPELLER_PROFILE_PREFIX
 +    KBUILD_LDFLAGS += --lto-basic-block-sections=$(CLANG_PROPELLER_PROFILE_PREFIX)_cc_profile.txt
 +  else
-+    KBUILD_LDFLAGS += --lto-basic-block-sections=labels
++    ifeq ($(call test-ge, $(CONFIG_LLD_VERSION), 200000),y)
++      KBUILD_LDFLAGS += --lto-basic-block-address-map
++    else
++      KBUILD_LDFLAGS += --lto-basic-block-sections=labels
++    endif
 +  endif
 +endif
 +

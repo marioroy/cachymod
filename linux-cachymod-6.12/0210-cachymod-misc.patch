@@ -778,7 +778,7 @@ Signed-off-by: Ionut Nechita <ionut_n2001@xxxxxxxxxx>
 diff --git a/kernel/workqueue.c b/kernel/workqueue.c
 --- a/kernel/workqueue.c
 +++ b/kernel/workqueue.c
-@@ -7841,20 +7841,20 @@ static void __init wq_cpu_intensive_thresh_init(void)
+@@ -7842,20 +7842,20 @@ static void __init wq_cpu_intensive_thresh_init(void)
  		return;
  
  	/*
@@ -1450,44 +1450,6 @@ index e9b448d1b1b70..fdc00516c0b54 100644
 --
 2.34.1
 
-fs/ceph: set superblock s_magic for IMA fsmagic matching: up to 60x speedup
-https://lore.kernel.org/all/20250529174453.293618-1-twelho@welho.tech/
-
-diff --git a/fs/ceph/super.c b/fs/ceph/super.c
-index 73f321b52895e..9549f97233a9e 100644
---- a/fs/ceph/super.c
-+++ b/fs/ceph/super.c
-@@ -1227,6 +1227,7 @@ static int ceph_set_super(struct super_block *s, struct fs_context *fc)
- 	s->s_time_min = 0;
- 	s->s_time_max = U32_MAX;
- 	s->s_flags |= SB_NODIRATIME | SB_NOATIME;
-+	s->s_magic = CEPH_SUPER_MAGIC;
- 
- 	ceph_fscrypt_set_ops(s);
- 
--- 
-2.49.0
-
-bpf, sockmap: Fix data lost during EAGAIN retries
-https://lore.kernel.org/all/20250407142234.47591-2-jiayuan.chen@linux.dev/
-
-diff --git a/net/core/skmsg.c b/net/core/skmsg.c
-index 0ddc4c718833..29cb5ffd56c0 100644
---- a/net/core/skmsg.c
-+++ b/net/core/skmsg.c
-@@ -689,7 +689,8 @@ static void sk_psock_backlog(struct work_struct *work)
- 			if (ret <= 0) {
- 				if (ret == -EAGAIN) {
- 					sk_psock_skb_state(psock, state, len, off);
--
-+					/* Restore redir info we cleared before */
-+					skb_bpf_set_redir(skb, psock->sk, ingress);
- 					/* Delay slightly to prioritize any
- 					 * other work that might be here.
- 					 */
--- 
-2.47.1
-
 sched/fair: Prevent from cpufreq not being updated when delayed-task is iowait
 https://lore.kernel.org/all/20250226114301.4900-1-xuewen.yan@unisoc.com/
 
@@ -2126,97 +2088,4 @@ index e670ac282333..439f6029d3b9 100644
  #endif /* _LINUX_SCHED_IDLE_H */
 -- 
 2.47.1
-
-wifi: ath11k: fix ring-buffer corruption
-https://lore.kernel.org/all/20250321094916.19098-1-johan+linaro@kernel.org/
-
-diff --git a/drivers/net/wireless/ath/ath11k/ce.c b/drivers/net/wireless/ath/ath11k/ce.c
-index e66e86bdec20..9d8efec46508 100644
---- a/drivers/net/wireless/ath/ath11k/ce.c
-+++ b/drivers/net/wireless/ath/ath11k/ce.c
-@@ -393,11 +393,10 @@ static int ath11k_ce_completed_recv_next(struct ath11k_ce_pipe *pipe,
- 		goto err;
- 	}
- 
-+	/* Make sure descriptor is read after the head pointer. */
-+	dma_rmb();
-+
- 	*nbytes = ath11k_hal_ce_dst_status_get_length(desc);
--	if (*nbytes == 0) {
--		ret = -EIO;
--		goto err;
--	}
- 
- 	*skb = pipe->dest_ring->skb[sw_index];
- 	pipe->dest_ring->skb[sw_index] = NULL;
-@@ -430,8 +429,8 @@ static void ath11k_ce_recv_process_cb(struct ath11k_ce_pipe *pipe)
- 		dma_unmap_single(ab->dev, ATH11K_SKB_RXCB(skb)->paddr,
- 				 max_nbytes, DMA_FROM_DEVICE);
- 
--		if (unlikely(max_nbytes < nbytes)) {
--			ath11k_warn(ab, "rxed more than expected (nbytes %d, max %d)",
-+		if (unlikely(max_nbytes < nbytes || nbytes == 0)) {
-+			ath11k_warn(ab, "unexpected rx length (nbytes %d, max %d)",
- 				    nbytes, max_nbytes);
- 			dev_kfree_skb_any(skb);
- 			continue;
-diff --git a/drivers/net/wireless/ath/ath11k/hal.c b/drivers/net/wireless/ath/ath11k/hal.c
-index 61f4b6dd5380..8cb1505a5a0c 100644
---- a/drivers/net/wireless/ath/ath11k/hal.c
-+++ b/drivers/net/wireless/ath/ath11k/hal.c
-@@ -599,7 +599,7 @@ u32 ath11k_hal_ce_dst_status_get_length(void *buf)
- 	struct hal_ce_srng_dst_status_desc *desc = buf;
- 	u32 len;
- 
--	len = FIELD_GET(HAL_CE_DST_STATUS_DESC_FLAGS_LEN, desc->flags);
-+	len = FIELD_GET(HAL_CE_DST_STATUS_DESC_FLAGS_LEN, READ_ONCE(desc->flags));
- 	desc->flags &= ~HAL_CE_DST_STATUS_DESC_FLAGS_LEN;
- 
- 	return len;
-@@ -829,7 +829,7 @@ void ath11k_hal_srng_access_begin(struct ath11k_base *ab, struct hal_srng *srng)
- 		srng->u.src_ring.cached_tp =
- 			*(volatile u32 *)srng->u.src_ring.tp_addr;
- 	} else {
--		srng->u.dst_ring.cached_hp = *srng->u.dst_ring.hp_addr;
-+		srng->u.dst_ring.cached_hp = READ_ONCE(*srng->u.dst_ring.hp_addr);
- 
- 		/* Try to prefetch the next descriptor in the ring */
- 		if (srng->flags & HAL_SRNG_FLAGS_CACHED)
--- 
-2.48.1
-
-Revert tcp: fix to allow timestamp undo if no retransmits were sent
-https://lore.kernel.org/all/64ea9333-e7f9-0df-b0f2-8d566143acab@ewheeler.net/
-
-diff --git a/net/ipv4/tcp_input.c b/net/ipv4/tcp_input.c
-index cc05ec1faac8..233b77890795 100644
---- a/net/ipv4/tcp_input.c
-+++ b/net/ipv4/tcp_input.c
-@@ -2500,22 +2500,8 @@ static bool tcp_skb_spurious_retrans(const struct tcp_sock *tp,
-  */
- static inline bool tcp_packet_delayed(const struct tcp_sock *tp)
- {
--	const struct sock *sk = (const struct sock *)tp;
--
--	if (tp->retrans_stamp &&
--	    tcp_tsopt_ecr_before(tp, tp->retrans_stamp))
--		return true;  /* got echoed TS before first retransmission */
--
--	/* Check if nothing was retransmitted (retrans_stamp==0), which may
--	 * happen in fast recovery due to TSQ. But we ignore zero retrans_stamp
--	 * in TCP_SYN_SENT, since when we set FLAG_SYN_ACKED we also clear
--	 * retrans_stamp even if we had retransmitted the SYN.
--	 */
--	if (!tp->retrans_stamp &&	   /* no record of a retransmit/SYN? */
--	    sk->sk_state != TCP_SYN_SENT)  /* not the FLAG_SYN_ACKED case? */
--		return true;  /* nothing was retransmitted */
--
--	return false;
-+	return tp->retrans_stamp &&
-+	       tcp_tsopt_ecr_before(tp, tp->retrans_stamp);
- }
- 
- /* Undo procedures. */
--- 
-2.40.2
 

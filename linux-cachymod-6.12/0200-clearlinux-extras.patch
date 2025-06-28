@@ -733,7 +733,7 @@ diff --git a/arch/x86/kvm/vmx/vmx.c b/arch/x86/kvm/vmx/vmx.c
 index bc6f0fea48b4..e671fbe70d5a 100644
 --- a/arch/x86/kvm/vmx/vmx.c
 +++ b/arch/x86/kvm/vmx/vmx.c
-@@ -8671,4 +8671,4 @@ static int __init vmx_init(void)
+@@ -8674,4 +8674,4 @@ static int __init vmx_init(void)
  	kvm_x86_vendor_exit();
  	return r;
  }

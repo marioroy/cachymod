@@ -135,13 +135,13 @@ fi
 
 _pkgsuffix=cachymod-612
 _major=6.12
-_minor=34
+_minor=35
 pkgver=${_major}.${_minor}
 _stable=${_major}.${_minor}
 
 _srcname=linux-${_stable}
 pkgdesc='CachyMod Linux Kernel with other patches and improvements'
-pkgrel=2
+pkgrel=1
 _kernver="$pkgver-$pkgrel"
 _kernuname="${pkgver}-${_pkgsuffix}"
 arch=('x86_64')
@@ -260,6 +260,9 @@ prepare() {
 
     echo "Setting config..."
     cp ../config .config
+
+    ### Remove RT version file
+    rm -f localversion-rt
 
     ### Select CPU optimization (default Generic)
     if [ -n "$_processor_opt" ]; then
