@@ -119,7 +119,11 @@ if [ -z "$_kernel_suffix" ]; then
     _kernel_suffix="${buildtag}-${buildtype}"
 fi
 
-sudo pacman -U --noconfirm linux-cachymod-612-${_kernel_suffix}-{6,h}*
+if [[ "$_build_debug" =~ ^(yes|y|1)$ ]]; then
+    sudo pacman -U --noconfirm linux-cachymod-612-${_kernel_suffix}-{6,d,h}*
+else
+    sudo pacman -U --noconfirm linux-cachymod-612-${_kernel_suffix}-{6,h}*
+fi
 
 sync
 ```
