@@ -1,11 +1,11 @@
-Adjust ADIOS v2.1.1 defaults
+Adjust ADIOS v2.2.3 defaults
 
 Signed-off-by: Mario Roy <...>
 
 diff -uarp a/block/adios.c b/block/adios.c
 --- a/block/adios.c
 +++ b/block/adios.c
-@@ -34,9 +34,9 @@ enum adios_op_type {
+@@ -35,9 +35,9 @@ enum adios_op_type {
  };
  
  // Global variable to control the latency

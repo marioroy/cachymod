@@ -5,7 +5,7 @@ diff --git a/include/net/bluetooth/hci_core.h b/include/net/bluetooth/hci_core.h
 index f0b49aad519eb2..bde158fc9eebdf 100644
 --- a/include/net/bluetooth/hci_core.h
 +++ b/include/net/bluetooth/hci_core.h
-@@ -1771,6 +1771,7 @@ struct hci_conn_params *hci_pend_le_action_lookup(struct list_head *list,
+@@ -1773,6 +1773,7 @@ struct hci_conn_params *hci_pend_le_action_lookup(struct list_head *list,
  void hci_uuids_clear(struct hci_dev *hdev);
  
  void hci_link_keys_clear(struct hci_dev *hdev);

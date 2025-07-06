@@ -151,7 +151,7 @@ diff --git a/mm/vma.c b/mm/vma.c
  	tlb_gather_mmu(&tlb, mm);
  	update_hiwater_rss(mm);
  	unmap_vmas(&tlb, mas, vma, vma->vm_start, vma->vm_end, vma->vm_end,
-@@ -1116,7 +1115,6 @@ static inline void vms_clear_ptes(struct vma_munmap_struct *vms,
+@@ -1105,7 +1104,6 @@ static inline void vms_clear_ptes(struct vma_munmap_struct *vms,
  	 * were isolated before we downgraded mmap_lock.
  	 */
  	mas_set(mas_detach, 1);

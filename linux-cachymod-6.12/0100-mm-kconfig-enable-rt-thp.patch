@@ -1,7 +1,7 @@
 diff -uar a/mm/Kconfig b/mm/Kconfig
 --- a/mm/Kconfig
 +++ b/mm/Kconfig
-@@ -815,7 +815,7 @@
+@@ -878,7 +878,7 @@
  
  menuconfig TRANSPARENT_HUGEPAGE
  	bool "Transparent Hugepage Support"
