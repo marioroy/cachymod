@@ -4765,10 +4765,10 @@ index fe7947f77406..99e138cfdd95 100644
 -- 
 2.48.1
 
-From f72853389f10686f9a289fdd729a618c417cdd40 Mon Sep 17 00:00:00 2001
+From f8e15774869c3b8842dcca7ae9b0cee281075a18 Mon Sep 17 00:00:00 2001
 From: Masahito S <firelzrd@gmail.com>
-Date: Mon, 7 Jul 2025 00:17:21 +0900
-Subject: [PATCH] ADIOS-2.2.3
+Date: Mon, 7 Jul 2025 15:53:21 +0900
+Subject: [PATCH] ADIOS-2.2.5
 
 ---
  block/Kconfig.iosched                         |   14 +
@@ -4828,7 +4828,7 @@ index 3a941dc0d27f..94e3bf608bd2 100644
 +
 diff --git a/block/adios.c b/block/adios.c
 new file mode 100644
-index 0000000000..a779e96787
+index 0000000000..80020021c4
 --- /dev/null
 +++ b/block/adios.c
 @@ -0,0 +1,1448 @@
@@ -4857,7 +4857,7 @@ index 0000000000..a779e96787
 +#include "blk-mq.h"
 +#include "blk-mq-sched.h"
 +
-+#define ADIOS_VERSION "2.2.3"
++#define ADIOS_VERSION "2.2.5"
 +
 +// Define operation types supported by ADIOS
 +enum adios_op_type {
@@ -5776,7 +5776,7 @@ index 0000000000..a779e96787
 +	struct adios_data *ad;
 +	struct elevator_queue *eq;
 +	int ret = -ENOMEM;
-+	int cpu = 0;
++	u8 optype = 0;
 +
 +	eq = elevator_alloc(q, e);
 +	if (!eq)
@@ -5823,8 +5823,8 @@ index 0000000000..a779e96787
 +		goto destroy_dl_group_pool;
 +	}
 +
-+	for (cpu = 0; cpu < ADIOS_OPTYPES; cpu++) {
-+		struct latency_model *model = &ad->latency_model[cpu];
++	for (optype = 0; optype < ADIOS_OPTYPES; optype++) {
++		struct latency_model *model = &ad->latency_model[optype];
 +		seqlock_init(&model->lock);
 +
 +		model->pcpu_buckets = alloc_percpu(struct lm_buckets);
@@ -5836,8 +5836,8 @@ index 0000000000..a779e96787
 +		model->lm_shrink_at_gbytes = default_lm_shrink_at_gbytes;
 +		model->lm_shrink_resist    = default_lm_shrink_resist;
 +
-+		ad->latency_target[cpu] = default_latency_target[cpu];
-+		ad->batch_limit[cpu] = default_batch_limit[cpu];
++		ad->latency_target[optype] = default_latency_target[optype];
++		ad->batch_limit[optype] = default_batch_limit[optype];
 +	}
 +	timer_setup(&ad->update_timer, update_timer_callback, 0);
 +	
@@ -5860,8 +5860,8 @@ index 0000000000..a779e96787
 +
 +free_buckets:
 +	pr_err("adios: Failed to allocate per-cpu buckets\n");
-+	while (--cpu >= 0) {
-+		struct latency_model *prev_model = &ad->latency_model[cpu];
++	while (--optype >= 0) {
++		struct latency_model *prev_model = &ad->latency_model[optype];
 +		free_percpu(prev_model->pcpu_buckets);
 +	}
 +	kfree(ad->aggr_buckets);
