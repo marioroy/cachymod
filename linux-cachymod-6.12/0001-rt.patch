@@ -2122,7 +2122,7 @@ index ddc096d6b0c20..6f1d3426691db 100644
  		clear_buddies(cfs_rq, curr);
  	}
  }
-@@ -5746,7 +5746,7 @@ entity_tick(struct cfs_rq *cfs_rq, struct sched_entity *curr, int queued)
+@@ -5748,7 +5748,7 @@ entity_tick(struct cfs_rq *cfs_rq, struct sched_entity *curr, int queued)
  	 * validating it and just reschedule.
  	 */
  	if (queued) {
@@ -2131,7 +2131,7 @@ index ddc096d6b0c20..6f1d3426691db 100644
  		return;
  	}
  	/*
-@@ -8936,7 +8936,7 @@ static void check_preempt_wakeup_fair(struct rq *rq, struct task_struct *p, int
+@@ -8961,7 +8961,7 @@ static void check_preempt_wakeup_fair(struct rq *rq, struct task_struct *p, int
  	return;
  
  preempt:
@@ -2144,7 +2144,7 @@ diff --git a/kernel/sched/sched.h b/kernel/sched/sched.h
 index d79de755c1c26..8c30262a02632 100644
 --- a/kernel/sched/sched.h
 +++ b/kernel/sched/sched.h
-@@ -2677,6 +2677,7 @@ extern void init_sched_rt_class(void);
+@@ -2678,6 +2678,7 @@ extern void init_sched_rt_class(void);
  extern void init_sched_fair_class(void);
  
  extern void resched_curr(struct rq *rq);

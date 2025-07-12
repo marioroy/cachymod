@@ -4187,7 +4187,7 @@ diff --git a/kernel/sched/sched.h b/kernel/sched/sched.h
 index 5426969cf478..f6035afd8513 100644
 --- a/kernel/sched/sched.h
 +++ b/kernel/sched/sched.h
-@@ -2798,7 +2798,7 @@ extern void deactivate_task(struct rq *rq, struct task_struct *p, int flags);
+@@ -2799,7 +2799,7 @@ extern void deactivate_task(struct rq *rq, struct task_struct *p, int flags);
  
  extern void wakeup_preempt(struct rq *rq, struct task_struct *p, int flags);
  

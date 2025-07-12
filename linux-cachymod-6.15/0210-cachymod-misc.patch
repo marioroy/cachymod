@@ -236,7 +236,7 @@ diff --git a/block/mq-deadline.c b/block/mq-deadline.c
 index 233c9712ec57..0f8218a2650a 100644
 --- a/block/mq-deadline.c
 +++ b/block/mq-deadline.c
-@@ -624,7 +624,7 @@ static int dd_init_sched(struct request_queue *q, struct elevator_type *e)
+@@ -600,7 +600,7 @@ static int dd_init_sched(struct request_queue *q, struct elevator_type *e)
  	dd->fifo_expire[DD_READ] = read_expire;
  	dd->fifo_expire[DD_WRITE] = write_expire;
  	dd->writes_starved = writes_starved;

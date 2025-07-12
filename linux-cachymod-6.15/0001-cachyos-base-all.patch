@@ -1,4 +1,4 @@
-From 30d9c30602fb23e6834337aebb80c83b0151ea57 Mon Sep 17 00:00:00 2001
+From 6094a7c1a5137a9f9a497d42600db18179c4357b Mon Sep 17 00:00:00 2001
 From: Peter Jung <admin@ptr1337.dev>
 Date: Sun, 6 Jul 2025 11:19:18 +0200
 Subject: [PATCH 1/6] amd-pstate
@@ -398,9 +398,9 @@ index f1ebc60d967f..8426de317835 100644
   * Set of available CPUs grouped by their corresponding capacities
   * Each list entry contains a CPU mask reflecting CPUs that share the same
 -- 
-2.50.0.145.g83014dc05f
+2.50.1
 
-From 999fe18891d0aa7dd05671896d06fb0763c9e1ae Mon Sep 17 00:00:00 2001
+From 4f3f9ced1a84b9e7b0021df35ccd281ef3e867a3 Mon Sep 17 00:00:00 2001
 From: Peter Jung <admin@ptr1337.dev>
 Date: Sun, 6 Jul 2025 11:19:37 +0200
 Subject: [PATCH 2/6] asus
@@ -8104,9 +8104,9 @@ index 783e2a336861..78261ea49995 100644
  					   u32 *retval)
  {
 -- 
-2.50.0.145.g83014dc05f
+2.50.1
 
-From 78c18b07640b3c74c64fc69bb5521894a15d36af Mon Sep 17 00:00:00 2001
+From b05ccc60d2a4cb724fc2151ffc422253dfc70a7b Mon Sep 17 00:00:00 2001
 From: Peter Jung <admin@ptr1337.dev>
 Date: Sun, 6 Jul 2025 11:19:51 +0200
 Subject: [PATCH 3/6] bbr3
@@ -11508,9 +11508,9 @@ index e4c616bbd727..e4a7a25d667d 100644
  	event = icsk->icsk_pending;
  
 -- 
-2.50.0.145.g83014dc05f
+2.50.1
 
-From 3a27273a1dcfcc92359722d87eed2b365917b136 Mon Sep 17 00:00:00 2001
+From eb786cd32bbd8100dae0ed0fefca37ec9489d597 Mon Sep 17 00:00:00 2001
 From: Peter Jung <admin@ptr1337.dev>
 Date: Sun, 6 Jul 2025 11:20:17 +0200
 Subject: [PATCH 4/6] cachy
@@ -11554,9 +11554,9 @@ Signed-off-by: Peter Jung <admin@ptr1337.dev>
  drivers/md/dm-crypt.c                         |    5 +
  drivers/media/v4l2-core/Kconfig               |    5 +
  drivers/media/v4l2-core/Makefile              |    2 +
- drivers/media/v4l2-core/v4l2loopback.c        | 3313 +++++++++++++++++
+ drivers/media/v4l2-core/v4l2loopback.c        | 3315 +++++++++++++++++
  drivers/media/v4l2-core/v4l2loopback.h        |  108 +
- .../media/v4l2-core/v4l2loopback_formats.h    |  445 +++
+ .../media/v4l2-core/v4l2loopback_formats.h    |  453 +++
  drivers/pci/controller/Makefile               |    6 +
  drivers/pci/controller/intel-nvme-remap.c     |  462 +++
  drivers/pci/quirks.c                          |  101 +
@@ -11596,7 +11596,7 @@ Signed-off-by: Peter Jung <admin@ptr1337.dev>
  scripts/Makefile.vmlinux_o                    |   16 +-
  scripts/Makefile.vmlinux_thinlink             |   53 +
  scripts/head-object-list.txt                  |    1 +
- 79 files changed, 8101 insertions(+), 68 deletions(-)
+ 79 files changed, 8111 insertions(+), 68 deletions(-)
  create mode 100644 block/adios.c
  create mode 100644 drivers/media/v4l2-core/v4l2loopback.c
  create mode 100644 drivers/media/v4l2-core/v4l2loopback.h
@@ -11668,7 +11668,7 @@ index cb207c79680d..6fbab98fb639 100644
 +
 +		Only supported for particular Intel Xe graphics platforms.
 diff --git a/Documentation/admin-guide/kernel-parameters.txt b/Documentation/admin-guide/kernel-parameters.txt
-index 8f75ec177399..c865280efa8e 100644
+index 76a34e0aef76..186454e1c55b 100644
 --- a/Documentation/admin-guide/kernel-parameters.txt
 +++ b/Documentation/admin-guide/kernel-parameters.txt
 @@ -2318,6 +2318,9 @@
@@ -11811,7 +11811,7 @@ index dd844ac8d910..4feb3b9f8f73 100644
  M:	Russell King <linux@armlinux.org.uk>
  L:	linux-clk@vger.kernel.org
 diff --git a/Makefile b/Makefile
-index 66b61bf90388..61e8fda26edc 100644
+index 959b55a05d1b..fb62ab04038f 100644
 --- a/Makefile
 +++ b/Makefile
 @@ -298,7 +298,8 @@ no-dot-config-targets := $(clean-targets) \
@@ -12149,7 +12149,7 @@ index 3a941dc0d27f..94e3bf608bd2 100644
 +
 diff --git a/block/adios.c b/block/adios.c
 new file mode 100644
-index 0000000000..80020021c4
+index 000000000000..80020021c41d
 --- /dev/null
 +++ b/block/adios.c
 @@ -0,0 +1,1448 @@
@@ -14351,7 +14351,7 @@ new file mode 100644
 index 000000000000..74bd8125caa3
 --- /dev/null
 +++ b/drivers/media/v4l2-core/v4l2loopback.c
-@@ -0,0 +1,3313 @@
+@@ -0,0 +1,3315 @@
 +/* -*- c-file-style: "linux" -*- */
 +/*
 + * v4l2loopback.c  --  video4linux2 loopback driver
@@ -14399,7 +14399,7 @@ index 000000000000..74bd8125caa3
 +#define strscpy strlcpy
 +#endif
 +
-+#if defined(timer_setup) && defined(from_timer)
++#if defined(timer_setup)
 +#define HAVE_TIMER_SETUP
 +#endif
 +
@@ -17023,7 +17023,8 @@ index 000000000000..74bd8125caa3
 +#ifdef HAVE_TIMER_SETUP
 +static void sustain_timer_clb(struct timer_list *t)
 +{
-+	struct v4l2_loopback_device *dev = from_timer(dev, t, sustain_timer);
++	struct v4l2_loopback_device *dev =
++		container_of(t, struct v4l2_loopback_device, sustain_timer);
 +#else
 +static void sustain_timer_clb(unsigned long nr)
 +{
@@ -17048,7 +17049,8 @@ index 000000000000..74bd8125caa3
 +#ifdef HAVE_TIMER_SETUP
 +static void timeout_timer_clb(struct timer_list *t)
 +{
-+	struct v4l2_loopback_device *dev = from_timer(dev, t, timeout_timer);
++	struct v4l2_loopback_device *dev =
++		container_of(t, struct v4l2_loopback_device, timeout_timer);
 +#else
 +static void timeout_timer_clb(unsigned long nr)
 +{
@@ -17784,7 +17786,7 @@ new file mode 100644
 index 000000000000..d855a3796554
 --- /dev/null
 +++ b/drivers/media/v4l2-core/v4l2loopback_formats.h
-@@ -0,0 +1,445 @@
+@@ -0,0 +1,453 @@
 +static const struct v4l2l_format formats[] = {
 +#ifndef V4L2_PIX_FMT_VP9
 +#define V4L2_PIX_FMT_VP9 v4l2_fourcc('V', 'P', '9', '0')
@@ -17822,6 +17824,14 @@ index 000000000000..d855a3796554
 +	{
 +		.name = "32 bpp RGBA, le",
 +		.fourcc = V4L2_PIX_FMT_ABGR32,
++		.depth = 32,
++		.flags = 0,
++	},
++#endif
++#ifdef V4L2_PIX_FMT_XBGR32
++	{
++		.name = "32 bpp BGRX-8-8-8-8",
++		.fourcc = V4L2_PIX_FMT_XBGR32,
 +		.depth = 32,
 +		.flags = 0,
 +	},
@@ -21171,9 +21181,9 @@ index 7274dfc65af6..90710b87a387 100644
  arch/m68k/coldfire/head.o
  arch/m68k/kernel/head.o
 -- 
-2.50.0.145.g83014dc05f
+2.50.1
 
-From 9a977dbe713a7beac6224ada3182826368e94744 Mon Sep 17 00:00:00 2001
+From a302329108d5c8d4fb76a78021b37a46e3b7db90 Mon Sep 17 00:00:00 2001
 From: Peter Jung <admin@ptr1337.dev>
 Date: Sun, 6 Jul 2025 11:21:11 +0200
 Subject: [PATCH 5/6] fixes
@@ -21651,7 +21661,7 @@ index 000000000000..2cf5153edbc2
 +
 +#endif /* _ASM_X86_AMD_FCH_H_ */
 diff --git a/arch/x86/kernel/cpu/amd.c b/arch/x86/kernel/cpu/amd.c
-index a59d6d8fc71f..3619cf556ff7 100644
+index 2c5003f05920..f97517b928bb 100644
 --- a/arch/x86/kernel/cpu/amd.c
 +++ b/arch/x86/kernel/cpu/amd.c
 @@ -9,6 +9,7 @@
@@ -21662,7 +21672,7 @@ index a59d6d8fc71f..3619cf556ff7 100644
  #include <asm/processor.h>
  #include <asm/apic.h>
  #include <asm/cacheinfo.h>
-@@ -1242,3 +1243,56 @@ void amd_check_microcode(void)
+@@ -1286,3 +1287,56 @@ void amd_check_microcode(void)
  	if (cpu_feature_enabled(X86_FEATURE_ZEN2))
  		on_each_cpu(zenbleed_check_cpu, NULL, 1);
  }
@@ -21867,7 +21877,7 @@ index dd75916157f0..59ecaa990bce 100644
  		return;
  	}
 diff --git a/drivers/platform/x86/amd/pmc/pmc-quirks.c b/drivers/platform/x86/amd/pmc/pmc-quirks.c
-index 2e3f6fc67c56..5c7c01f66cde 100644
+index 7ed12c1d3b34..f292111bd065 100644
 --- a/drivers/platform/x86/amd/pmc/pmc-quirks.c
 +++ b/drivers/platform/x86/amd/pmc/pmc-quirks.c
 @@ -11,6 +11,7 @@
@@ -21978,9 +21988,9 @@ index 452374d63c24..08f80d7c5df0 100644
  	mkdir -p "${builddir}"
  	cp System.map "${builddir}/System.map"
 -- 
-2.50.0.145.g83014dc05f
+2.50.1
 
-From e92815fe147242efb325e93fb603b8a373223734 Mon Sep 17 00:00:00 2001
+From bdddb837fac885b6a2c6ae3e3e0a8f51189458b6 Mon Sep 17 00:00:00 2001
 From: Peter Jung <admin@ptr1337.dev>
 Date: Sun, 6 Jul 2025 11:21:25 +0200
 Subject: [PATCH 6/6] t2
@@ -28450,7 +28460,7 @@ index e540092d664d..9e17e8e56308 100644
  	kfree(iommu);
  }
 diff --git a/drivers/iommu/intel/iommu.c b/drivers/iommu/intel/iommu.c
-index 9d2d34c1b2ff..9fae97551672 100644
+index ff07ee2940f5..a495aa76e5ee 100644
 --- a/drivers/iommu/intel/iommu.c
 +++ b/drivers/iommu/intel/iommu.c
 @@ -1289,52 +1289,13 @@ static void iommu_disable_translation(struct intel_iommu *iommu)
@@ -28712,7 +28722,7 @@ index 9d2d34c1b2ff..9fae97551672 100644
  static DEVICE_ATTR_RO(domains_used);
  
 diff --git a/drivers/iommu/intel/iommu.h b/drivers/iommu/intel/iommu.h
-index 8661e0864701..fc12de633e28 100644
+index 814f5ed20018..a07a190c6d82 100644
 --- a/drivers/iommu/intel/iommu.h
 +++ b/drivers/iommu/intel/iommu.h
 @@ -722,7 +722,9 @@ struct intel_iommu {
@@ -35501,5 +35511,5 @@ index 784912f570e9..86adc23c851a 100755
  						last;
  					}
 -- 
-2.50.0.145.g83014dc05f
+2.50.1
 

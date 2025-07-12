@@ -79,7 +79,7 @@ index 20d3cdcb14f6cd..372c63fdf90a32 100644
  	}
  
  	hci_encrypt_cfm(conn, status);
-@@ -3067,6 +3078,34 @@ static void hci_inquiry_result_evt(struct hci_dev *hdev, void *edata,
+@@ -3033,6 +3044,34 @@ static void hci_inquiry_result_evt(struct hci_dev *hdev, void *edata,
  	hci_dev_unlock(hdev);
  }
  
@@ -114,7 +114,7 @@ index 20d3cdcb14f6cd..372c63fdf90a32 100644
  static void hci_conn_complete_evt(struct hci_dev *hdev, void *data,
  				  struct sk_buff *skb)
  {
-@@ -3159,23 +3198,11 @@ static void hci_conn_complete_evt(struct hci_dev *hdev, void *data,
+@@ -3125,23 +3164,11 @@ static void hci_conn_complete_evt(struct hci_dev *hdev, void *data,
  		if (ev->encr_mode == 1 && !test_bit(HCI_CONN_ENCRYPT, &conn->flags) &&
  		    ev->link_type == ACL_LINK) {
  			struct link_key *key;
@@ -139,7 +139,7 @@ index 20d3cdcb14f6cd..372c63fdf90a32 100644
  				hci_encrypt_cfm(conn, ev->status);
  			}
  		}
-@@ -3614,24 +3641,8 @@ static void hci_encrypt_change_evt(struct hci_dev *hdev, void *data,
+@@ -3580,24 +3607,8 @@ static void hci_encrypt_change_evt(struct hci_dev *hdev, void *data,
  
  	/* Try reading the encryption key size for encrypted ACL links */
  	if (!ev->status && ev->encrypt && conn->type == ACL_LINK) {
@@ -221,7 +221,7 @@ diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
 index 9279bfb..857808d 100644
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -9513,12 +9513,11 @@ int can_migrate_task(struct task_struct *p, struct lb_env *env)
+@@ -9538,12 +9538,11 @@ int can_migrate_task(struct task_struct *p, struct lb_env *env)
  			return 0;
  
  		/* Prevent to re-select dst_cpu via env's CPUs: */
@@ -1467,7 +1467,7 @@ diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
 index 2d6d5582c3e9..040674734128 100644
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -7058,11 +7058,6 @@ enqueue_task_fair(struct rq *rq, struct task_struct *p, int flags)
+@@ -7066,11 +7066,6 @@ enqueue_task_fair(struct rq *rq, struct task_struct *p, int flags)
  	if (!(p->se.sched_delayed && (task_on_rq_migrating(p) || (flags & ENQUEUE_RESTORE))))
  		util_est_enqueue(&rq->cfs, p);
  
@@ -1479,7 +1479,7 @@ index 2d6d5582c3e9..040674734128 100644
  	/*
  	 * If in_iowait is set, the code below may not trigger any cpufreq
  	 * utilization updates, so do it here explicitly with the IOWAIT flag
-@@ -7071,6 +7066,11 @@ enqueue_task_fair(struct rq *rq, struct task_struct *p, int flags)
+@@ -7079,6 +7074,11 @@ enqueue_task_fair(struct rq *rq, struct task_struct *p, int flags)
  	if (p->in_iowait)
  		cpufreq_update_util(rq, SCHED_CPUFREQ_IOWAIT);
  
@@ -1521,7 +1521,7 @@ diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
 index e43993a4e580..18c85857bff0 100644
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -7056,7 +7056,7 @@ enqueue_task_fair(struct rq *rq, struct task_struct *p, int flags)
+@@ -7064,7 +7064,7 @@ enqueue_task_fair(struct rq *rq, struct task_struct *p, int flags)
  	 * Let's add the task's estimated utilization to the cfs_rq's
  	 * estimated utilization, before we update schedutil.
  	 */
@@ -1530,7 +1530,7 @@ index e43993a4e580..18c85857bff0 100644
  		util_est_enqueue(&rq->cfs, p);
  
  	/*
-@@ -7296,7 +7296,7 @@ static int dequeue_entities(struct rq *rq, struct sched_entity *se, int flags)
+@@ -7312,7 +7312,7 @@ static int dequeue_entities(struct rq *rq, struct sched_entity *se, int flags)
   */
  static bool dequeue_task_fair(struct rq *rq, struct task_struct *p, int flags)
  {

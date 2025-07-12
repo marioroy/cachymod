@@ -379,7 +379,7 @@ index f16d53928bb97c..51f3340bf750d7 100644
  			return  -EINVAL;
  		}
  
--		if (rq->cfs.h_nr_running) {
+-		if (rq->cfs.h_nr_queued) {
 +		if (dl_server_active(dl_se)) {
 +			was_active = true;
  			update_rq_clock(rq);
@@ -407,7 +407,7 @@ index f16d53928bb97c..51f3340bf750d7 100644
 +		if (was_active)
 +			dl_server_start(dl_se);
  
--		if (rq->cfs.h_nr_running)
+-		if (rq->cfs.h_nr_queued)
 -			dl_server_start(&rq->fair_server);
 +		if (retval < 0)
 +			return retval;
@@ -798,8 +798,8 @@ diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
 index 6b17d3da034afb..2ff885d5d0106b 100644
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -7136,7 +7136,7 @@ enqueue_task_fair(struct rq *rq, struct task_struct *p, int flags)
- 	if (!rq_h_nr_running && rq->cfs.h_nr_running) {
+@@ -7148,7 +7148,7 @@ enqueue_task_fair(struct rq *rq, struct task_struct *p, int flags)
+ 	if (!rq_h_nr_queued && rq->cfs.h_nr_queued) {
  		/* Account for idle runtime */
  		if (!rq->nr_running)
 -			dl_server_update_idle_time(rq, rq->curr);
@@ -807,7 +807,7 @@ index 6b17d3da034afb..2ff885d5d0106b 100644
  		dl_server_start(&rq->fair_server);
  	}
  
-@@ -8953,7 +8953,7 @@ preempt:
+@@ -8978,7 +8978,7 @@ preempt:
  	resched_curr_lazy(rq);
  }
  
@@ -816,7 +816,7 @@ index 6b17d3da034afb..2ff885d5d0106b 100644
  {
  	struct sched_entity *se;
  	struct cfs_rq *cfs_rq;
-@@ -8991,7 +8991,7 @@ pick_next_task_fair(struct rq *rq, struct task_struct *prev, struct rq_flags *rf
+@@ -9016,7 +9016,7 @@ pick_next_task_fair(struct rq *rq, struct task_struct *prev, struct rq_flags *rf
  	int new_tasks;
  
  again:
@@ -825,7 +825,7 @@ index 6b17d3da034afb..2ff885d5d0106b 100644
  	if (!p)
  		goto idle;
  	se = &p->se;
-@@ -9070,7 +9070,8 @@ idle:
+@@ -9095,7 +9095,8 @@ idle:
  	return NULL;
  }
  
@@ -835,7 +835,7 @@ index 6b17d3da034afb..2ff885d5d0106b 100644
  {
  	return pick_next_task_fair(rq, prev, NULL);
  }
-@@ -9080,9 +9081,11 @@ static bool fair_server_has_tasks(struct sched_dl_entity *dl_se)
+@@ -9105,9 +9106,11 @@ static bool fair_server_has_tasks(struct sched_dl_entity *dl_se)
  	return !!dl_se->rq->cfs.nr_running;
  }
  
@@ -904,7 +904,7 @@ index c323d015486cff..68a2f415c603c1 100644
  
  static inline bool dl_server_active(struct sched_dl_entity *dl_se)
  {
-@@ -1144,6 +1147,7 @@ struct rq {
+@@ -1145,6 +1148,7 @@ struct rq {
  #endif
  
  	struct sched_dl_entity	fair_server;
@@ -912,7 +912,7 @@ index c323d015486cff..68a2f415c603c1 100644
  
  #ifdef CONFIG_FAIR_GROUP_SCHED
  	/* list of leaf cfs_rq on this CPU: */
-@@ -2403,7 +2407,7 @@ struct sched_class {
+@@ -2404,7 +2408,7 @@ struct sched_class {
  	void (*wakeup_preempt)(struct rq *rq, struct task_struct *p, int flags);
  
  	int (*balance)(struct rq *rq, struct task_struct *prev, struct rq_flags *rf);
@@ -921,7 +921,7 @@ index c323d015486cff..68a2f415c603c1 100644
  	/*
  	 * Optional! When implemented pick_next_task() should be equivalent to:
  	 *
-@@ -2413,7 +2417,8 @@ struct sched_class {
+@@ -2414,7 +2418,8 @@ struct sched_class {
  	 *       set_next_task_first(next);
  	 *   }
  	 */
@@ -931,7 +931,7 @@ index c323d015486cff..68a2f415c603c1 100644
  
  	void (*put_prev_task)(struct rq *rq, struct task_struct *p, struct task_struct *next);
  	void (*set_next_task)(struct rq *rq, struct task_struct *p, bool first);
-@@ -2576,7 +2581,7 @@ static inline bool sched_fair_runnable(struct rq *rq)
+@@ -2577,7 +2582,7 @@ static inline bool sched_fair_runnable(struct rq *rq)
  }
  
  extern struct task_struct *pick_next_task_fair(struct rq *rq, struct task_struct *prev, struct rq_flags *rf);
@@ -955,32 +955,4 @@ index 2d4e279f05ee95..5de508f9550b1b 100644
  		return NULL;
 -- 
 cgit 1.2.3-korg
-
-sched_ext: Make scx_group_set_weight() always update tg->scx.weight
-https://lore.kernel.org/all/aEyy27BecPPHDWHc@slm.duckdns.org/
-
-diff --git a/kernel/sched/ext.c b/kernel/sched/ext.c
---- a/kernel/sched/ext.c
-+++ b/kernel/sched/ext.c
-@@ -4084,12 +4084,12 @@ void scx_group_set_weight(struct task_gr
- {
- 	percpu_down_read(&scx_cgroup_rwsem);
- 
--	if (scx_cgroup_enabled && tg->scx_weight != weight) {
--		if (SCX_HAS_OP(cgroup_set_weight))
--			SCX_CALL_OP(SCX_KF_UNLOCKED, cgroup_set_weight,
--				    tg_cgrp(tg), weight);
--		tg->scx_weight = weight;
--	}
-+	if (scx_cgroup_enabled && SCX_HAS_OP(cgroup_set_weight) &&
-+	    tg->scx_weight != weight)
-+		SCX_CALL_OP(SCX_KF_UNLOCKED, cgroup_set_weight,
-+			    tg_cgrp(tg), weight);
-+
-+	tg->scx_weight = weight;
- 
- 	percpu_up_read(&scx_cgroup_rwsem);
- }
--- 
-2.40.2
 

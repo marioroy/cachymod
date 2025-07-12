@@ -67,7 +67,7 @@ diff --git a/kernel/sched/sched.h b/kernel/sched/sched.h
 index 023b844..8d42d3c 100644
 --- a/kernel/sched/sched.h
 +++ b/kernel/sched/sched.h
-@@ -3362,6 +3362,31 @@ static inline bool update_other_load_avgs(struct rq *rq) { return false; }
+@@ -3363,6 +3363,31 @@ static inline bool update_other_load_avgs(struct rq *rq) { return false; }
  
  unsigned long uclamp_eff_value(struct task_struct *p, enum uclamp_id clamp_id);
  
@@ -99,7 +99,7 @@ index 023b844..8d42d3c 100644
  static inline unsigned long uclamp_rq_get(struct rq *rq,
  					  enum uclamp_id clamp_id)
  {
-@@ -3385,7 +3410,7 @@ static inline bool uclamp_rq_is_capped(struct rq *rq)
+@@ -3386,7 +3411,7 @@ static inline bool uclamp_rq_is_capped(struct rq *rq)
  	unsigned long rq_util;
  	unsigned long max_util;
  
@@ -108,7 +108,7 @@ index 023b844..8d42d3c 100644
  		return false;
  
  	rq_util = cpu_util_cfs(cpu_of(rq)) + cpu_util_rt(rq);
-@@ -3394,19 +3419,6 @@ static inline bool uclamp_rq_is_capped(struct rq *rq)
+@@ -3395,19 +3420,6 @@ static inline bool uclamp_rq_is_capped(struct rq *rq)
  	return max_util != SCHED_CAPACITY_SCALE && rq_util >= max_util;
  }
  
@@ -128,7 +128,7 @@ index 023b844..8d42d3c 100644
  #define for_each_clamp_id(clamp_id) \
  	for ((clamp_id) = 0; (clamp_id) < UCLAMP_CNT; (clamp_id)++)
  
-@@ -3454,6 +3466,8 @@ static inline bool uclamp_is_used(void)
+@@ -3455,6 +3467,8 @@ static inline bool uclamp_is_used(void)
  	return false;
  }
  

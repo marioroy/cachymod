@@ -135,13 +135,13 @@ fi
 
 _pkgsuffix=cachymod-612
 _major=6.12
-_minor=36
+_minor=37
 pkgver=${_major}.${_minor}
 _stable=${_major}.${_minor}
 
 _srcname=linux-${_stable}
 pkgdesc='CachyMod Linux Kernel with other patches and improvements'
-pkgrel=2
+pkgrel=1
 _kernver="$pkgver-$pkgrel"
 _kernuname="${pkgver}-${_pkgsuffix}"
 arch=('x86_64')
@@ -186,6 +186,7 @@ fi
 if [[ -z "$_prefer_eevdf" || "$_prefer_eevdf" =~ ^(no|n|0)$ ]]; then
     source+=("0310-sched-fair-remove-cachy-mods.patch")
     source+=("0320-linux6.12.y-bore.patch")
+    source+=("0330-linux6.12.y-bore-update.patch")
 fi
 if [[ -s "custom.sh" ]]; then
     source+=("custom.sh")
