@@ -4765,17 +4765,17 @@ index fe7947f77406..99e138cfdd95 100644
 -- 
 2.48.1
 
-From f8e15774869c3b8842dcca7ae9b0cee281075a18 Mon Sep 17 00:00:00 2001
+From 27467d5c136ded050eca45bc3ca4ba22d6641da9 Mon Sep 17 00:00:00 2001
 From: Masahito S <firelzrd@gmail.com>
-Date: Mon, 7 Jul 2025 15:53:21 +0900
-Subject: [PATCH] ADIOS-2.2.5
+Date: Wed, 16 Jul 2025 03:12:53 +0900
+Subject: [PATCH] ADIOS-2.3.0
 
 ---
  block/Kconfig.iosched                         |   14 +
  block/Makefile                                |    8 +
- block/adios.c                                 | 1448 +++++++
+ block/adios.c                                 | 1450 +++++++
  block/elevator.c                              |   12 +
- 4 files changed, 1482 insertions(+)
+ 4 files changed, 1484 insertions(+)
  create mode 100644 block/adios.c
 
 diff --git a/block/Kconfig.iosched b/block/Kconfig.iosched
@@ -4828,10 +4828,10 @@ index 3a941dc0d27f..94e3bf608bd2 100644
 +
 diff --git a/block/adios.c b/block/adios.c
 new file mode 100644
-index 0000000000..80020021c4
+index 0000000000..b1201ac165
 --- /dev/null
 +++ b/block/adios.c
-@@ -0,0 +1,1448 @@
+@@ -0,0 +1,1450 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
 + * Adaptive Deadline I/O Scheduler (ADIOS)
@@ -4857,7 +4857,7 @@ index 0000000000..80020021c4
 +#include "blk-mq.h"
 +#include "blk-mq-sched.h"
 +
-+#define ADIOS_VERSION "2.2.5"
++#define ADIOS_VERSION "2.3.0"
 +
 +// Define operation types supported by ADIOS
 +enum adios_op_type {
@@ -5175,8 +5175,6 @@ index 0000000000..80020021c4
 +	unsigned long flags;
 +	int cpu;
 +
-+	reset_buckets(ad->aggr_buckets);
-+
 +	write_seqlock_irqsave(&model->lock, flags);
 +
 +	// Aggregate data from all CPUs and reset per-cpu buckets.
@@ -5200,25 +5198,29 @@ index 0000000000..80020021c4
 +		reset_buckets(pcpu_b);
 +	}
 +
++	// Count the number of entries in aggregated buckets
++	small_count = lm_count_small_entries(aggr->small_bucket);
++	large_count = lm_count_large_entries(aggr->large_bucket);
++
 +	// Whether enough time has elapsed since the last update
 +	now = jiffies;
 +	time_elapsed = unlikely(!model->base) || model->last_update_jiffies +
 +		msecs_to_jiffies(LM_INTERVAL_THRESHOLD) <= now;
 +
-+	// Count the number of entries in aggregated buckets
-+	small_count = lm_count_small_entries(aggr->small_bucket);
-+	large_count = lm_count_large_entries(aggr->large_bucket);
-+
 +	// Update small buckets
 +	if (small_count && (time_elapsed ||
-+			LM_SAMPLES_THRESHOLD <= small_count || !model->base))
++			LM_SAMPLES_THRESHOLD <= small_count || !model->base)) {
 +		small_processed = lm_update_small_buckets(
 +			model, aggr->small_bucket, small_count, !model->base);
++		memset(&aggr->small_bucket[0], 0, sizeof(aggr->small_bucket));
++	}
 +	// Update large buckets
 +	if (large_count && (time_elapsed ||
-+			LM_SAMPLES_THRESHOLD <= large_count || !model->slope))
++			LM_SAMPLES_THRESHOLD <= large_count || !model->slope)) {
 +		large_processed = lm_update_large_buckets(
 +			model, aggr->large_bucket, large_count, !model->slope);
++		memset(&aggr->large_bucket[0], 0, sizeof(aggr->large_bucket));
++	}
 +
 +	// Update the base parameter if small bucket was processed
 +	if (small_processed && likely(model->small_count))
@@ -5229,8 +5231,8 @@ index 0000000000..80020021c4
 +		model->slope = div_u64(model->large_sum_delay,
 +			DIV_ROUND_UP_ULL(model->large_sum_bsize, 1024));
 +
-+	// Reset statistics and update last updated jiffies if time has elapsed
-+	if (time_elapsed)
++	// Update last updated jiffies if update happened or time has elapsed
++	if (small_processed || large_processed || time_elapsed)
 +		model->last_update_jiffies = now;
 +
 +	write_sequnlock_irqrestore(&model->lock, flags);

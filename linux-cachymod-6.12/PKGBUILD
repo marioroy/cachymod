@@ -135,7 +135,7 @@ fi
 
 _pkgsuffix=cachymod-612
 _major=6.12
-_minor=37
+_minor=38
 pkgver=${_major}.${_minor}
 _stable=${_major}.${_minor}
 
