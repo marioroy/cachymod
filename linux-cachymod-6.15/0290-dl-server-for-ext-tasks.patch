@@ -48,7 +48,7 @@ diff --git a/kernel/sched/core.c b/kernel/sched/core.c
 index a03c3c1d7f50a6..d72a2fbb8cb857 100644
 --- a/kernel/sched/core.c
 +++ b/kernel/sched/core.c
-@@ -6044,7 +6044,7 @@ __pick_next_task(struct rq *rq, struct task_struct *prev, struct rq_flags *rf)
+@@ -6049,7 +6049,7 @@ __pick_next_task(struct rq *rq, struct task_struct *prev, struct rq_flags *rf)
  
  		/* Assume the next prioritized class is idle_sched_class */
  		if (!p) {
@@ -57,7 +57,7 @@ index a03c3c1d7f50a6..d72a2fbb8cb857 100644
  			put_prev_set_next_task(rq, prev, p);
  		}
  
-@@ -6056,11 +6056,11 @@ restart:
+@@ -6061,11 +6061,11 @@ restart:
  
  	for_each_active_class(class) {
  		if (class->pick_next_task) {
@@ -71,7 +71,7 @@ index a03c3c1d7f50a6..d72a2fbb8cb857 100644
  			if (p) {
  				put_prev_set_next_task(rq, prev, p);
  				return p;
-@@ -6090,7 +6090,7 @@ static inline bool cookie_match(struct task_struct *a, struct task_struct *b)
+@@ -6095,7 +6095,7 @@ static inline bool cookie_match(struct task_struct *a, struct task_struct *b)
  	return a->core_cookie == b->core_cookie;
  }
  
@@ -80,7 +80,7 @@ index a03c3c1d7f50a6..d72a2fbb8cb857 100644
  {
  	const struct sched_class *class;
  	struct task_struct *p;
-@@ -6098,7 +6098,7 @@ static inline struct task_struct *pick_task(struct rq *rq)
+@@ -6103,7 +6103,7 @@ static inline struct task_struct *pick_task(struct rq *rq)
  	rq->dl_server = NULL;
  
  	for_each_active_class(class) {
@@ -89,7 +89,7 @@ index a03c3c1d7f50a6..d72a2fbb8cb857 100644
  		if (p)
  			return p;
  	}
-@@ -6198,7 +6198,7 @@ pick_next_task(struct rq *rq, struct task_struct *prev, struct rq_flags *rf)
+@@ -6203,7 +6203,7 @@ pick_next_task(struct rq *rq, struct task_struct *prev, struct rq_flags *rf)
  	 * and there are no cookied tasks running on siblings.
  	 */
  	if (!need_sync) {
@@ -98,7 +98,7 @@ index a03c3c1d7f50a6..d72a2fbb8cb857 100644
  		if (!next->core_cookie) {
  			rq->core_pick = NULL;
  			rq->core_dl_server = NULL;
-@@ -6229,7 +6229,7 @@ pick_next_task(struct rq *rq, struct task_struct *prev, struct rq_flags *rf)
+@@ -6234,7 +6234,7 @@ pick_next_task(struct rq *rq, struct task_struct *prev, struct rq_flags *rf)
  		if (i != cpu && (rq_i != rq->core || !core_clock_updated))
  			update_rq_clock(rq_i);
  
@@ -107,7 +107,7 @@ index a03c3c1d7f50a6..d72a2fbb8cb857 100644
  		rq_i->core_dl_server = rq_i->dl_server;
  
  		if (!max || prio_less(max, p, fi_before))
-@@ -6251,7 +6251,7 @@ pick_next_task(struct rq *rq, struct task_struct *prev, struct rq_flags *rf)
+@@ -6256,7 +6256,7 @@ pick_next_task(struct rq *rq, struct task_struct *prev, struct rq_flags *rf)
  			if (cookie)
  				p = sched_core_find(rq_i, cookie);
  			if (!p)
@@ -116,7 +116,7 @@ index a03c3c1d7f50a6..d72a2fbb8cb857 100644
  		}
  
  		rq_i->core_pick = p;
-@@ -8679,6 +8679,9 @@ void __init sched_init(void)
+@@ -8684,6 +8684,9 @@ void __init sched_init(void)
  		hrtick_rq_init(rq);
  		atomic_set(&rq->nr_iowait, 0);
  		fair_server_init(rq);
@@ -130,7 +130,7 @@ diff --git a/kernel/sched/deadline.c b/kernel/sched/deadline.c
 index 0f30697ad7956d..d3828ec689bffa 100644
 --- a/kernel/sched/deadline.c
 +++ b/kernel/sched/deadline.c
-@@ -1570,7 +1570,7 @@ throttle:
+@@ -1572,7 +1572,7 @@ throttle:
  	 * The fair server (sole dl_server) does not account for real-time
  	 * workload because it is running fair work.
  	 */
@@ -139,7 +139,7 @@ index 0f30697ad7956d..d3828ec689bffa 100644
  		return;
  
  #ifdef CONFIG_RT_GROUP_SCHED
-@@ -1609,28 +1609,29 @@ throttle:
+@@ -1611,26 +1611,27 @@ throttle:
   * as time available for the fair server, avoiding a penalty for the
   * rt scheduler that did not consumed that time.
   */
@@ -147,7 +147,7 @@ index 0f30697ad7956d..d3828ec689bffa 100644
 +void dl_server_update_idle_time(struct rq *rq, struct task_struct *p,
 +			       struct sched_dl_entity *rq_dl_server)
  {
- 	s64 delta_exec, scaled_delta_exec;
+ 	s64 delta_exec;
  
 -	if (!rq->fair_server.dl_defer)
 +	if (!rq_dl_server->dl_defer)
@@ -162,11 +162,8 @@ index 0f30697ad7956d..d3828ec689bffa 100644
  	if (delta_exec < 0)
  		return;
  
--	scaled_delta_exec = dl_scaled_delta_exec(rq, &rq->fair_server, delta_exec);
-+	scaled_delta_exec = dl_scaled_delta_exec(rq, rq_dl_server, delta_exec);
- 
--	rq->fair_server.runtime -= scaled_delta_exec;
-+	rq_dl_server->runtime -= scaled_delta_exec;
+-	rq->fair_server.runtime -= delta_exec;
++	rq_dl_server->runtime -= delta_exec;
  
 -	if (rq->fair_server.runtime < 0) {
 -		rq->fair_server.dl_defer_running = 0;

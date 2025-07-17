@@ -651,7 +651,7 @@ index e9bb1b4c58..54749ed003 100644
  EXPORT_TRACEPOINT_SYMBOL_GPL(ipi_send_cpu);
  EXPORT_TRACEPOINT_SYMBOL_GPL(ipi_send_cpumask);
  
-@@ -8553,6 +8555,10 @@ void __init sched_init(void)
+@@ -8558,6 +8560,10 @@ void __init sched_init(void)
  	BUG_ON(!sched_class_above(&ext_sched_class, &idle_sched_class));
  #endif
  

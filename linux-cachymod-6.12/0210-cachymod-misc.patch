@@ -1103,7 +1103,7 @@ diff --git a/kernel/sched/core.c b/kernel/sched/core.c
 index 9015c792830c2..7bac05aa3d6c5 100644
 --- a/kernel/sched/core.c
 +++ b/kernel/sched/core.c
-@@ -8260,7 +8260,7 @@ static void cpuset_cpu_active(void)
+@@ -8265,7 +8265,7 @@ static void cpuset_cpu_active(void)
  static int cpuset_cpu_inactive(unsigned int cpu)
  {
  	if (!cpuhp_tasks_frozen) {
@@ -1253,7 +1253,7 @@ diff --git a/kernel/sched/core.c b/kernel/sched/core.c
 index 7bac05aa3d6c5..01e06dd3184a7 100644
 --- a/kernel/sched/core.c
 +++ b/kernel/sched/core.c
-@@ -8257,19 +8257,14 @@ static void cpuset_cpu_active(void)
+@@ -8262,19 +8262,14 @@ static void cpuset_cpu_active(void)
  	cpuset_update_active_cpus();
  }
  
@@ -1274,7 +1274,7 @@ index 7bac05aa3d6c5..01e06dd3184a7 100644
  }
  
  static inline void sched_smt_present_inc(int cpu)
-@@ -8331,6 +8326,11 @@ int sched_cpu_deactivate(unsigned int cpu)
+@@ -8336,6 +8331,11 @@ int sched_cpu_deactivate(unsigned int cpu)
  	struct rq *rq = cpu_rq(cpu);
  	int ret;
  
@@ -1286,7 +1286,7 @@ index 7bac05aa3d6c5..01e06dd3184a7 100644
  	/*
  	 * Remove CPU from nohz.idle_cpus_mask to prevent participating in
  	 * load balancing when not active
-@@ -8376,15 +8376,7 @@ int sched_cpu_deactivate(unsigned int cpu)
+@@ -8381,15 +8381,7 @@ int sched_cpu_deactivate(unsigned int cpu)
  		return 0;
  
  	sched_update_numa(cpu, false);

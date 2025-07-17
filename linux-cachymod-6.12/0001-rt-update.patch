@@ -959,7 +959,7 @@ diff -uarp a/kernel/module/version.c b/kernel/module/version.c
 diff -uarp a/kernel/sched/core.c b/kernel/sched/core.c
 --- a/kernel/sched/core.c
 +++ b/kernel/sched/core.c
-@@ -7692,6 +7692,30 @@ static inline void preempt_dynamic_init(
+@@ -7697,6 +7697,30 @@ static inline void preempt_dynamic_init(
  
  #endif /* CONFIG_PREEMPT_DYNAMIC */
  
