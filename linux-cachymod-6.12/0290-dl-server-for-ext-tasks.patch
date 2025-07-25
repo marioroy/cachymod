@@ -953,3 +953,54 @@ index 2d4e279f05ee95..5de508f9550b1b 100644
 -- 
 cgit 1.2.3-korg
 
+sched/deadline: Ignore initialization for hotplugging CPUs
+https://git.kernel.org/pub/scm/linux/kernel/git/arighi/linux.git/commit/?h=scx&id=1640d002e0299f43c6414964e35db2c507a11d3d
+
+When a CPU is coming online, it may trigger an enqueue operation before
+it is fully brought up. This can lead to an attempt to configure the
+dl_server prematurely.
+
+Handle this gracefully, simply ignoring this particular event. The
+dl_server configuration can be retried later once the CPU is fully
+online.
+
+Signed-off-by: Andrea Righi <arighi@xxxxxxxxxx>
+---
+ kernel/sched/deadline.c | 12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)
+
+diff --git a/kernel/sched/deadline.c b/kernel/sched/deadline.c
+index 5d5819d445fb94..78d2a3b0a4cded 100644
+--- a/kernel/sched/deadline.c
++++ b/kernel/sched/deadline.c
+@@ -1637,9 +1637,14 @@ void dl_server_start(struct sched_dl_entity *dl_se)
+ 	if (!dl_server(dl_se)) {
+ 		u64 runtime =  50 * NSEC_PER_MSEC;
+ 		u64 period = 1000 * NSEC_PER_MSEC;
++		int err;
+ 
+-		if (dl_server_apply_params(dl_se, runtime, period, 1))
++		err = dl_server_apply_params(dl_se, runtime, period, 1);
++		if (err == -EAGAIN)
+ 			return;
++
++		WARN_ON_ONCE(err);
++
+ 		dl_se->dl_server = 1;
+ 		dl_se->dl_defer = 1;
+ 		setup_new_dl_entity(dl_se);
+@@ -1710,7 +1715,10 @@ int dl_server_apply_params(struct sched_dl_entity *dl_se, u64 runtime, u64 perio
+ 	// Hotplugged CPUs coming online do an enqueue but are not a part of any
+ 	// root domain containing cpu_active() CPUs. So in this case, don't mess
+ 	// with accounting and we can retry later.
+-	if (!cpus || __dl_overflow(dl_b, cap, old_bw, new_bw))
++	if (!cpus)
++		return -EAGAIN;
++
++	if (__dl_overflow(dl_b, cap, old_bw, new_bw))
+ 		return -EBUSY;
+ 
+ 	if (init) {
+-- 
+cgit 1.2.3-korg
+

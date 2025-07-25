@@ -716,7 +716,7 @@ diff --git a/tools/objtool/check.c b/tools/objtool/check.c
 index f0d8796b984a..634a67dba86c 100644
 --- a/tools/objtool/check.c
 +++ b/tools/objtool/check.c
-@@ -4569,6 +4569,8 @@ static int validate_ibt(struct objtool_file *file)
+@@ -4570,6 +4570,8 @@ static int validate_ibt(struct objtool_file *file)
  		    !strcmp(sec->name, "__jump_table")			||
  		    !strcmp(sec->name, "__mcount_loc")			||
  		    !strcmp(sec->name, ".kcfi_traps")			||

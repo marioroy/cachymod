@@ -1,3 +1,6 @@
+patch-6.15-rt2
+https://cdn.kernel.org/pub/linux/kernel/projects/rt/6.15/
+
 diff --git a/arch/arm/Kconfig b/arch/arm/Kconfig
 index 25ed6f1a7c7ae..89466636d460c 100644
 --- a/arch/arm/Kconfig
@@ -1070,3 +1073,10 @@ index eefb67d9883c2..20ac8a5ac27d7 100644
  #endif
  	NULL
  };
+diff --git a/localversion-rt b/localversion-rt
+new file mode 100644
+index 0000000000000..c3054d08a1129
+--- /dev/null
++++ b/localversion-rt
+@@ -0,0 +1 @@
++-rt2

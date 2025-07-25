@@ -129,7 +129,7 @@ fi
 
 _pkgsuffix=cachymod-615
 _major=6.15
-_minor=7
+_minor=8
 pkgver=${_major}.${_minor}
 _stable=${_major}.${_minor}
 #_stable=${_major}
@@ -175,7 +175,6 @@ fi
 if [[ -z "$_prefer_eevdf" || "$_prefer_eevdf" =~ ^(no|n|0)$ ]]; then
     source+=("0310-sched-fair-remove-cachy-mods.patch")
     source+=("0320-linux6.15.y-bore.patch")
-    source+=("0330-linux6.15.y-bore-update.patch")
 fi
 if [[ -s "custom.sh" ]]; then
     source+=("custom.sh")

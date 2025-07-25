@@ -601,7 +601,7 @@ diff --git a/kernel/sched/ext.c b/kernel/sched/ext.c
 index 442493c7695725..8f596635353e55 100644
 --- a/kernel/sched/ext.c
 +++ b/kernel/sched/ext.c
-@@ -1830,6 +1830,9 @@ static void update_curr_scx(struct rq *rq)
+@@ -1834,6 +1834,9 @@ static void update_curr_scx(struct rq *rq)
  		if (!curr->scx.slice)
  			touch_core_sched(rq, curr);
  	}
@@ -611,7 +611,7 @@ index 442493c7695725..8f596635353e55 100644
  }
  
  static bool scx_dsq_priq_less(struct rb_node *node_a,
-@@ -2308,6 +2311,15 @@ static void enqueue_task_scx(struct rq *rq, struct task_struct *p, int enq_flags
+@@ -2312,6 +2315,15 @@ static void enqueue_task_scx(struct rq *rq, struct task_struct *p, int enq_flags
  	if (enq_flags & SCX_ENQ_WAKEUP)
  		touch_core_sched(rq, p);
  
@@ -627,7 +627,7 @@ index 442493c7695725..8f596635353e55 100644
  	do_enqueue_task(rq, p, enq_flags, sticky_cpu);
  out:
  	rq->scx.flags &= ~SCX_RQ_IN_WAKEUP;
-@@ -2403,6 +2415,11 @@ static bool dequeue_task_scx(struct rq *rq, struct task_struct *p, int deq_flags
+@@ -2407,6 +2419,11 @@ static bool dequeue_task_scx(struct rq *rq, struct task_struct *p, int deq_flags
  	sub_nr_running(rq, 1);
  
  	dispatch_dequeue(rq, p);
@@ -639,7 +639,7 @@ index 442493c7695725..8f596635353e55 100644
  	return true;
  }
  
-@@ -3281,7 +3298,7 @@ static struct task_struct *first_local_task(struct rq *rq)
+@@ -3285,7 +3302,7 @@ static struct task_struct *first_local_task(struct rq *rq)
  					struct task_struct, scx.dsq_list.node);
  }
  
@@ -648,7 +648,7 @@ index 442493c7695725..8f596635353e55 100644
  {
  	struct task_struct *prev = rq->curr;
  	struct task_struct *p;
-@@ -3894,6 +3911,15 @@ static void switching_to_scx(struct rq *rq, struct task_struct *p)
+@@ -3898,6 +3915,15 @@ static void switching_to_scx(struct rq *rq, struct task_struct *p)
  static void switched_from_scx(struct rq *rq, struct task_struct *p)
  {
  	scx_ops_disable_task(p);
@@ -664,7 +664,7 @@ index 442493c7695725..8f596635353e55 100644
  }
  
  static void wakeup_preempt_scx(struct rq *rq, struct task_struct *p,int wake_flags) {}
-@@ -4740,6 +4766,31 @@ static void scx_ops_disable_workfn(struct kthread_work *work)
+@@ -4744,6 +4770,31 @@ static void scx_ops_disable_workfn(struct kthread_work *work)
  
  	scx_ops_init_task_enabled = false;
  
@@ -696,7 +696,7 @@ index 442493c7695725..8f596635353e55 100644
  	scx_task_iter_start(&sti);
  	while ((p = scx_task_iter_next_locked(&sti))) {
  		const struct sched_class *old_class = p->sched_class;
-@@ -4763,15 +4814,6 @@ static void scx_ops_disable_workfn(struct kthread_work *work)
+@@ -4767,15 +4818,6 @@ static void scx_ops_disable_workfn(struct kthread_work *work)
  	scx_task_iter_stop(&sti);
  	percpu_up_write(&scx_fork_rwsem);
  
@@ -712,7 +712,7 @@ index 442493c7695725..8f596635353e55 100644
  	/* no task is on scx, turn off all the switches and flush in-progress calls */
  	static_branch_disable(&__scx_ops_enabled);
  	for (i = SCX_OPI_BEGIN; i < SCX_OPI_END; i++)
-@@ -5526,6 +5568,28 @@ static int scx_enable(struct sched_ext_ops *ops, struct bpf_link *link)
+@@ -5530,6 +5572,28 @@ static int scx_enable(struct sched_ext_ops *ops, struct bpf_link *link)
  		check_class_changed(task_rq(p), p, old_class, p->prio);
  	}
  	scx_task_iter_stop(&sti);
@@ -741,7 +741,7 @@ index 442493c7695725..8f596635353e55 100644
  	percpu_up_write(&scx_fork_rwsem);
  
  	scx_ops_bypass(false);
-@@ -7111,8 +7175,8 @@ __bpf_kfunc u32 scx_bpf_cpuperf_cur(s32 cpu)
+@@ -7115,8 +7179,8 @@ __bpf_kfunc u32 scx_bpf_cpuperf_cur(s32 cpu)
   * relative scale between 0 and %SCX_CPUPERF_ONE. This determines how the
   * schedutil cpufreq governor chooses the target frequency.
   *
@@ -752,7 +752,7 @@ index 442493c7695725..8f596635353e55 100644
   * use. Consult hardware and cpufreq documentation for more information. The
   * current performance level can be monitored using scx_bpf_cpuperf_cur().
   */
-@@ -7390,6 +7454,38 @@ BTF_ID_FLAGS(func, scx_bpf_now)
+@@ -7394,6 +7458,38 @@ BTF_ID_FLAGS(func, scx_bpf_now)
  BTF_ID_FLAGS(func, scx_bpf_events, KF_TRUSTED_ARGS)
  BTF_KFUNCS_END(scx_kfunc_ids_any)
  
@@ -950,6 +950,164 @@ index 2d4e279f05ee95..5de508f9550b1b 100644
  {
  	if (!sched_stop_runnable(rq))
  		return NULL;
+-- 
+cgit 1.2.3-korg
+
+sched/deadline: Ignore initialization for hotplugging CPUs
+https://git.kernel.org/pub/scm/linux/kernel/git/arighi/linux.git/commit/?h=scx&id=1640d002e0299f43c6414964e35db2c507a11d3d
+
+When a CPU is coming online, it may trigger an enqueue operation before
+it is fully brought up. This can lead to an attempt to configure the
+dl_server prematurely.
+
+Handle this gracefully, simply ignoring this particular event. The
+dl_server configuration can be retried later once the CPU is fully
+online.
+
+Signed-off-by: Andrea Righi <arighi@xxxxxxxxxx>
+---
+ kernel/sched/deadline.c | 12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)
+
+diff --git a/kernel/sched/deadline.c b/kernel/sched/deadline.c
+index 5d5819d445fb94..78d2a3b0a4cded 100644
+--- a/kernel/sched/deadline.c
++++ b/kernel/sched/deadline.c
+@@ -1656,9 +1656,14 @@ void dl_server_start(struct sched_dl_entity *dl_se)
+ 	if (!dl_server(dl_se)) {
+ 		u64 runtime =  50 * NSEC_PER_MSEC;
+ 		u64 period = 1000 * NSEC_PER_MSEC;
++		int err;
+ 
+-		if (dl_server_apply_params(dl_se, runtime, period, 1))
++		err = dl_server_apply_params(dl_se, runtime, period, 1);
++		if (err == -EAGAIN)
+ 			return;
++
++		WARN_ON_ONCE(err);
++
+ 		dl_se->dl_server = 1;
+ 		dl_se->dl_defer = 1;
+ 		setup_new_dl_entity(dl_se);
+@@ -1729,7 +1734,10 @@ int dl_server_apply_params(struct sched_dl_entity *dl_se, u64 runtime, u64 perio
+ 	// Hotplugged CPUs coming online do an enqueue but are not a part of any
+ 	// root domain containing cpu_active() CPUs. So in this case, don't mess
+ 	// with accounting and we can retry later.
+-	if (!cpus || __dl_overflow(dl_b, cap, old_bw, new_bw))
++	if (!cpus)
++		return -EAGAIN;
++
++	if (__dl_overflow(dl_b, cap, old_bw, new_bw))
+ 		return -EBUSY;
+ 
+ 	if (init) {
+-- 
+cgit 1.2.3-korg
+
+sched/deadline: Fix bandwidth accounting for ext_server
+https://git.kernel.org/pub/scm/linux/kernel/git/arighi/linux.git/commit/?h=scx&id=b0d9048f3667b5e61f2afc2960964b0f199d258b
+
+Always account for both the ext_server and fair_server bandwidths,
+especially during CPU hotplug operations. Ignoring either can lead to
+imbalances in total_bw when sched_ext schedulers are active and CPUs are
+brought online / offline.
+
+This fixes a failure in the total_bw sched_ext selftest, which was
+reporting bandwidth imbalances when running the full suite of sched_ext
+tests (or, more exactly, combined with the hotplug selftest).
+
+Signed-off-by: Andrea Righi <arighi@xxxxxxxxxx>
+---
+ kernel/sched/deadline.c | 29 +++++++++++++++++++++--------
+ kernel/sched/topology.c |  5 +++++
+ 2 files changed, 26 insertions(+), 8 deletions(-)
+
+diff --git a/kernel/sched/deadline.c b/kernel/sched/deadline.c
+index 78d2a3b0a4cded..0eebd3ef30202d 100644
+--- a/kernel/sched/deadline.c
++++ b/kernel/sched/deadline.c
+@@ -3032,9 +3032,17 @@ void dl_clear_root_domain(struct root_domain *rd)
+ 	 * them, we need to account for them here explicitly.
+ 	 */
+ 	for_each_cpu(i, rd->span) {
+-		struct sched_dl_entity *dl_se = &cpu_rq(i)->fair_server;
++		struct sched_dl_entity *dl_se;
+ 
+-		if (dl_server(dl_se) && cpu_active(i))
++		if (!cpu_active(i))
++			continue;
++
++		dl_se = &cpu_rq(i)->fair_server;
++		if (dl_server(dl_se))
++			__dl_add(&rd->dl_bw, dl_se->dl_bw, dl_bw_cpus(i));
++
++		dl_se = &cpu_rq(i)->ext_server;
++		if (dl_server(dl_se))
+ 			__dl_add(&rd->dl_bw, dl_se->dl_bw, dl_bw_cpus(i));
+ 	}
+ }
+@@ -3542,6 +3550,7 @@ static int dl_bw_manage(enum dl_bw_request req, int cpu, u64 dl_bw)
+ 	struct dl_bw *dl_b;
+ 	bool overflow = 0;
+ 	u64 fair_server_bw = 0;
++	u64 ext_server_bw = 0;
+ 
+ 	rcu_read_lock_sched();
+ 	dl_b = dl_bw_of(cpu);
+@@ -3574,27 +3583,31 @@ static int dl_bw_manage(enum dl_bw_request req, int cpu, u64 dl_bw)
+ 		cap -= arch_scale_cpu_capacity(cpu);
+ 
+ 		/*
+-		 * cpu is going offline and NORMAL tasks will be moved away
+-		 * from it. We can thus discount dl_server bandwidth
+-		 * contribution as it won't need to be servicing tasks after
+-		 * the cpu is off.
++		 * cpu is going offline and NORMAL and EXT tasks will be
++		 * moved away from it. We can thus discount dl_server
++		 * bandwidth contribution as it won't need to be servicing
++		 * tasks after the cpu is off.
+ 		 */
+ 		if (cpu_rq(cpu)->fair_server.dl_server)
+ 			fair_server_bw = cpu_rq(cpu)->fair_server.dl_bw;
+ 
++		if (cpu_rq(cpu)->ext_server.dl_server)
++			ext_server_bw = cpu_rq(cpu)->ext_server.dl_bw;
++
+ 		/*
+ 		 * Not much to check if no DEADLINE bandwidth is present.
+ 		 * dl_servers we can discount, as tasks will be moved out the
+ 		 * offlined CPUs anyway.
+ 		 */
+-		if (dl_b->total_bw - fair_server_bw > 0) {
++		if (dl_b->total_bw - fair_server_bw - ext_server_bw > 0) {
+ 			/*
+ 			 * Leaving at least one CPU for DEADLINE tasks seems a
+ 			 * wise thing to do. As said above, cpu is not offline
+ 			 * yet, so account for that.
+ 			 */
+ 			if (dl_bw_cpus(cpu) - 1)
+-				overflow = __dl_overflow(dl_b, cap, fair_server_bw, 0);
++				overflow = __dl_overflow(dl_b, cap,
++							 fair_server_bw + ext_server_bw, 0);
+ 			else
+ 				overflow = 1;
+ 		}
+diff --git a/kernel/sched/topology.c b/kernel/sched/topology.c
+index 8e06b1d22e91e1..7907974a6f627c 100644
+--- a/kernel/sched/topology.c
++++ b/kernel/sched/topology.c
+@@ -521,6 +521,11 @@ void rq_attach_root(struct rq *rq, struct root_domain *rd)
+ 	if (rq->fair_server.dl_server)
+ 		__dl_server_attach_root(&rq->fair_server, rq);
+ 
++#ifdef CONFIG_SCHED_CLASS_EXT
++	if (rq->ext_server.dl_server)
++		__dl_server_attach_root(&rq->ext_server, rq);
++#endif
++
+ 	rq_unlock_irqrestore(rq, &rf);
+ 
+ 	if (old_rd)
 -- 
 cgit 1.2.3-korg
 

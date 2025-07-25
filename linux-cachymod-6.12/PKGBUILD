@@ -135,7 +135,7 @@ fi
 
 _pkgsuffix=cachymod-612
 _major=6.12
-_minor=39
+_minor=40
 pkgver=${_major}.${_minor}
 _stable=${_major}.${_minor}
 
@@ -186,7 +186,6 @@ fi
 if [[ -z "$_prefer_eevdf" || "$_prefer_eevdf" =~ ^(no|n|0)$ ]]; then
     source+=("0310-sched-fair-remove-cachy-mods.patch")
     source+=("0320-linux6.12.y-bore.patch")
-    source+=("0330-linux6.12.y-bore-update.patch")
 fi
 if [[ -s "custom.sh" ]]; then
     source+=("custom.sh")
@@ -277,7 +276,7 @@ prepare() {
                 scripts/config --set-val X86_64_VERSION "${X86_64_LEVEL}"
             else
                 echo "Selecting CPU (MARCH) : ${MARCH}"
-                scripts/config -k -d CONFIG_GENERIC_CPU
+                scripts/config -d CONFIG_GENERIC_CPU
                 scripts/config -k -e "CONFIG_M${MARCH}"
             fi
         fi

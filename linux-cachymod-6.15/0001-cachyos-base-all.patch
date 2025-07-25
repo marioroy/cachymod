@@ -13857,7 +13857,7 @@ index e8bdd7f0c460..b4aafe6103bc 100644
  	.atomic_set_property = amdgpu_dm_atomic_crtc_set_property,
  	.atomic_get_property = amdgpu_dm_atomic_crtc_get_property,
  #endif
-@@ -742,7 +742,7 @@ int amdgpu_dm_crtc_init(struct amdgpu_display_manager *dm,
+@@ -751,7 +751,7 @@ int amdgpu_dm_crtc_init(struct amdgpu_display_manager *dm,
  
  	drm_mode_crtc_set_gamma_size(&acrtc->base, MAX_COLOR_LEGACY_LUT_ENTRIES);
  
@@ -21199,7 +21199,6 @@ Signed-off-by: Peter Jung <admin@ptr1337.dev>
  arch/x86/include/asm/amd/fch.h                |  13 +
  arch/x86/kernel/cpu/amd.c                     |  54 +++
  drivers/bluetooth/btusb.c                     |   2 +
- .../amd/display/amdgpu_dm/amdgpu_dm_crtc.c    |  11 +-
  drivers/gpu/drm/i915/display/intel_dsb.c      |   4 +
  drivers/hid/hid-quirks.c                      |   5 +-
  drivers/i2c/busses/Kconfig                    |   2 +-
@@ -21210,7 +21209,7 @@ Signed-off-by: Peter Jung <admin@ptr1337.dev>
  scripts/Makefile.lib                          |   5 +
  scripts/checkpatch.pl                         |  14 +
  scripts/package/PKGBUILD                      |   5 +
- 18 files changed, 519 insertions(+), 13 deletions(-)
+ 17 files changed, 509 insertions(+), 12 deletions(-)
  create mode 100644 Documentation/arch/x86/amd-debugging.rst
  create mode 100644 arch/x86/include/asm/amd/fch.h
 
@@ -21744,28 +21743,6 @@ index ef9689f87769..f73e9b1b020f 100644
  	{ USB_DEVICE(0x0489, 0xe14f), .driver_info = BTUSB_MEDIATEK |
  						     BTUSB_WIDEBAND_SPEECH },
  	{ USB_DEVICE(0x0489, 0xe150), .driver_info = BTUSB_MEDIATEK |
-diff --git a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm_crtc.c b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm_crtc.c
-index b4aafe6103bc..5d5210f99dcf 100644
---- a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm_crtc.c
-+++ b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm_crtc.c
-@@ -737,7 +737,16 @@ int amdgpu_dm_crtc_init(struct amdgpu_display_manager *dm,
- 	 * support programmable degamma anywhere.
- 	 */
- 	is_dcn = dm->adev->dm.dc->caps.color.dpp.dcn_arch;
--	drm_crtc_enable_color_mgmt(&acrtc->base, is_dcn ? MAX_COLOR_LUT_ENTRIES : 0,
-+	/* Dont't enable DRM CRTC degamma property for DCN401 since the
-+	 * pre-blending degamma LUT doesn't apply to cursor, and therefore
-+	 * can't work similar to a post-blending degamma LUT as in other hw
-+	 * versions.
-+	 * TODO: revisit it once KMS plane color API is merged.
-+	 */
-+	drm_crtc_enable_color_mgmt(&acrtc->base,
-+				   (is_dcn &&
-+				    dm->adev->dm.dc->ctx->dce_version != DCN_VERSION_4_01) ?
-+				     MAX_COLOR_LUT_ENTRIES : 0,
- 				   true, MAX_COLOR_LUT_ENTRIES);
- 
- 	drm_mode_crtc_set_gamma_size(&acrtc->base, MAX_COLOR_LEGACY_LUT_ENTRIES);
 diff --git a/drivers/gpu/drm/i915/display/intel_dsb.c b/drivers/gpu/drm/i915/display/intel_dsb.c
 index 9fc4003d1579..e5ece83a1df1 100644
 --- a/drivers/gpu/drm/i915/display/intel_dsb.c
@@ -23702,7 +23679,7 @@ index 4741ff626771..b991ed962366 100644
  			hid_err(parser->device, "invalid report_size %d\n",
  					parser->global.report_size);
  			return -1;
-@@ -2294,6 +2297,12 @@ int hid_connect(struct hid_device *hdev, unsigned int connect_mask)
+@@ -2303,6 +2306,12 @@ int hid_connect(struct hid_device *hdev, unsigned int connect_mask)
  	case BUS_I2C:
  		bus = "I2C";
  		break;

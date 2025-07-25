@@ -69,7 +69,7 @@ set -e
 # Select "lazy" for low-latency desktop, matching the CachyOS RT kernel preemption.
 # Select "rt" for real-time preemption, running time-sensitive instruments.
 # The _enable_sched_ext build option is ignored for real-time preemption.
-: "${_preempt:=full}"
+: "${_preempt:=lazy}"
 
 # Use automatic CPU optimization
 : "${_use_auto_optimization:=yes}"
