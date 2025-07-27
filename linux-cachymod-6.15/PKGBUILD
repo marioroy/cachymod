@@ -141,7 +141,7 @@ _stable=${_major}.${_minor}
 
 _srcname=linux-${_stable}
 pkgdesc='CachyMod Linux Kernel with other patches and improvements'
-pkgrel=1
+pkgrel=2
 _kernver="$pkgver-$pkgrel"
 _kernuname="${pkgver}-${_pkgsuffix}"
 arch=('x86_64')
@@ -280,8 +280,10 @@ prepare() {
     scripts/config -e CACHY
 
     ### Enable the BORE CPU scheduler
-    echo "Enabling BORE CPU scheduler..."
-    scripts/config -e SCHED_BORE
+    if [[ -z "$_prefer_eevdf" || "$_prefer_eevdf" =~ ^(no|n|0)$ ]]; then
+        echo "Enabling BORE CPU scheduler..."
+        scripts/config -e SCHED_BORE
+    fi
 
     ### Enable sched_ext scheduler
     if [[ "$_enable_sched_ext" =~ ^(yes|y|1)$ && "$_preempt" != "rt" ]]; then

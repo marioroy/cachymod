@@ -819,7 +819,7 @@ index 7280ed04c9..3de075880e 100644
 +#else // !CONFIG_SCHED_BORE
  static unsigned int get_update_sysctl_factor(void)
  {
- 	unsigned int cpus = min_t(unsigned int, num_online_cpus(), 8);
+ 	unsigned int cpus = num_online_cpus();
 @@ -218,6 +242,7 @@ static void update_sysctl(void)
  	SET_SYSCTL(sched_base_slice);
  #undef SET_SYSCTL

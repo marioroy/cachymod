@@ -24,6 +24,7 @@
 # Patch0158: 0158-clocksource-only-perform-extended-clocksource-checks.patch
 # Patch0164: 0164-KVM-VMX-make-vmx-init-a-late-init-call-to-get-to-ini.patch
 # Patch0165: slack.patch
+# Patch0166: 0166-sched-fair-remove-upper-limit-on-cpu-number.patch
 # Patch0167: 0167-net-sock-increase-default-number-of-_SK_MEM_PACKETS-.patch
 # Patch0174: 0174-memcg-increase-MEMCG_CHARGE_BATCH-to-128.patch
 ##
@@ -700,6 +701,31 @@ index bc6f0fea48b4..e671fbe70d5a 100644
  	.thread_pid	= &init_struct_pid,
  	.thread_node	= LIST_HEAD_INIT(init_signals.thread_head),
  #ifdef CONFIG_AUDIT
+
+# Patch0166: 0166-sched-fair-remove-upper-limit-on-cpu-number.patch
+
+Subject: [PATCH] sched/fair: remove upper limit on cpu number
+
+Signed-off-by: Colin Ian King <colin.i.king@xxxxxxxxxx>
+---
+ kernel/sched/fair.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
+index 2048138ce54b..903ead0afacb 100644
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -206,7 +206,7 @@ static inline void update_load_set(struct load_weight *lw, unsigned long w)
+  */
+ static unsigned int get_update_sysctl_factor(void)
+ {
+-	unsigned int cpus = min_t(unsigned int, num_online_cpus(), 8);
++	unsigned int cpus = num_online_cpus();
+ 	unsigned int factor;
+ 
+ 	switch (sysctl_sched_tunable_scaling) {
+-- 
+2.42.1
 
 # Patch0167: 0167-net-sock-increase-default-number-of-_SK_MEM_PACKETS-.patch
 
