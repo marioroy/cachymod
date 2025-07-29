@@ -141,7 +141,7 @@ _stable=${_major}.${_minor}
 
 _srcname=linux-${_stable}
 pkgdesc='CachyMod Linux Kernel with other patches and improvements'
-pkgrel=2
+pkgrel=3
 _kernver="$pkgver-$pkgrel"
 _kernuname="${pkgver}-${_pkgsuffix}"
 arch=('x86_64')
@@ -164,7 +164,6 @@ source=(
     "0100-mm-kconfig-enable-rt-thp.patch"
     "0200-clearlinux-extras.patch"
     "0210-cachymod-misc.patch"
-    "0250-amdgpu-update.patch"
     "0260-adios-update.patch"
     "0290-dl-server-for-ext-tasks.patch"
 )
