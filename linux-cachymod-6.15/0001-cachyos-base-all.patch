@@ -13810,7 +13810,7 @@ diff --git a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c b/drivers/gpu/drm
 index 87c2bc5f64a6..927fb4992a6a 100644
 --- a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c
 +++ b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c
-@@ -4574,7 +4574,7 @@ static int amdgpu_dm_mode_config_init(struct amdgpu_device *adev)
+@@ -4576,7 +4576,7 @@ static int amdgpu_dm_mode_config_init(struct amdgpu_device *adev)
  		return r;
  	}
  
@@ -20720,7 +20720,7 @@ index 3783e45bfc92..75f48ea2b336 100644
  
  #ifdef CONFIG_MEMCG
  
-@@ -1147,6 +1169,10 @@ static unsigned int shrink_folio_list(struct list_head *folio_list,
+@@ -1155,6 +1177,10 @@ static unsigned int shrink_folio_list(struct list_head *folio_list,
  		if (!sc->may_unmap && folio_mapped(folio))
  			goto keep_locked;
  
@@ -20731,7 +20731,7 @@ index 3783e45bfc92..75f48ea2b336 100644
  		/*
  		 * The number of dirty pages determines if a node is marked
  		 * reclaim_congested. kswapd will stall and start writing
-@@ -2521,6 +2547,15 @@ static void get_scan_count(struct lruvec *lruvec, struct scan_control *sc,
+@@ -2529,6 +2555,15 @@ static void get_scan_count(struct lruvec *lruvec, struct scan_control *sc,
  		goto out;
  	}
  
@@ -20747,7 +20747,7 @@ index 3783e45bfc92..75f48ea2b336 100644
  	/*
  	 * If there is enough inactive page cache, we do not reclaim
  	 * anything from the anonymous working right now.
-@@ -2638,6 +2673,14 @@ static void get_scan_count(struct lruvec *lruvec, struct scan_control *sc,
+@@ -2646,6 +2681,14 @@ static void get_scan_count(struct lruvec *lruvec, struct scan_control *sc,
  			BUG();
  		}
  
@@ -20762,7 +20762,7 @@ index 3783e45bfc92..75f48ea2b336 100644
  		nr[lru] = scan;
  	}
  }
-@@ -2657,6 +2700,96 @@ static bool can_age_anon_pages(struct pglist_data *pgdat,
+@@ -2665,6 +2708,96 @@ static bool can_age_anon_pages(struct pglist_data *pgdat,
  	return can_demote(pgdat->node_id, sc);
  }
  
@@ -20859,7 +20859,7 @@ index 3783e45bfc92..75f48ea2b336 100644
  #ifdef CONFIG_LRU_GEN
  
  #ifdef CONFIG_LRU_GEN_ENABLED
-@@ -4623,11 +4756,21 @@ static int get_tier_idx(struct lruvec *lruvec, int type)
+@@ -4631,11 +4764,21 @@ static int get_tier_idx(struct lruvec *lruvec, int type)
  	return tier - 1;
  }
  
@@ -20883,7 +20883,7 @@ index 3783e45bfc92..75f48ea2b336 100644
  		return LRU_GEN_FILE;
  
  	if (swappiness >= MAX_SWAPPINESS)
-@@ -4646,7 +4789,7 @@ static int isolate_folios(struct lruvec *lruvec, struct scan_control *sc, int sw
+@@ -4654,7 +4797,7 @@ static int isolate_folios(struct lruvec *lruvec, struct scan_control *sc, int sw
  			  int *type_scanned, struct list_head *list)
  {
  	int i;
@@ -20892,7 +20892,7 @@ index 3783e45bfc92..75f48ea2b336 100644
  
  	for_each_evictable_type(i, swappiness) {
  		int scanned;
-@@ -4889,6 +5032,12 @@ static int shrink_one(struct lruvec *lruvec, struct scan_control *sc)
+@@ -4897,6 +5040,12 @@ static int shrink_one(struct lruvec *lruvec, struct scan_control *sc)
  	struct mem_cgroup *memcg = lruvec_memcg(lruvec);
  	struct pglist_data *pgdat = lruvec_pgdat(lruvec);
  
@@ -20905,7 +20905,7 @@ index 3783e45bfc92..75f48ea2b336 100644
  	/* lru_gen_age_node() called mem_cgroup_calculate_protection() */
  	if (mem_cgroup_below_min(NULL, memcg))
  		return MEMCG_LRU_YOUNG;
-@@ -6027,6 +6176,8 @@ static void shrink_node(pg_data_t *pgdat, struct scan_control *sc)
+@@ -6035,6 +6184,8 @@ static void shrink_node(pg_data_t *pgdat, struct scan_control *sc)
  
  	prepare_scan_control(pgdat, sc);
  

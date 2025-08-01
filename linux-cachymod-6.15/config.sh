@@ -4,12 +4,6 @@
 ### Exit immediately on error.
 set -e
 
-### Answer unconfigured (NEW) kernel options in the CachyOS config.
-scripts/config -d DRM_MGAG200_DISABLE_WRITECOMBINE
-scripts/config -d GPIO_BT8XX
-scripts/config -d INTEL_TDX_HOST
-scripts/config -d SND_SE6X
-
 ### Disable memory hotplug not needed for desktop use.
 scripts/config -d MEMORY_HOTPLUG
 
@@ -269,9 +263,6 @@ if [[ $(uname -m) = *"x86"* ]]; then
 
     ### Disable x86 instruction decoder selftest.
     scripts/config -d X86_DECODER_SELFTEST
-
-    ### Disable 5-level page tables support.
-    scripts/config -d X86_5LEVEL
 
     ### Disable strong stack protector.
     scripts/config -d STACKPROTECTOR_STRONG -e STACKPROTECTOR

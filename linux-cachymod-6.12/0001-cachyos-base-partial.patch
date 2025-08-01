@@ -4579,7 +4579,7 @@ index 77d015d5db0c..da42024f7ade 100644
  
  #ifdef CONFIG_MEMCG
  
-@@ -1104,6 +1126,10 @@ static unsigned int shrink_folio_list(struct list_head *folio_list,
+@@ -1112,6 +1134,10 @@ static unsigned int shrink_folio_list(struct list_head *folio_list,
  		    folio_mapped(folio) && folio_test_referenced(folio))
  			goto keep_locked;
  
@@ -4590,7 +4590,7 @@ index 77d015d5db0c..da42024f7ade 100644
  		/*
  		 * The number of dirty pages determines if a node is marked
  		 * reclaim_congested. kswapd will stall and start writing
-@@ -2430,6 +2456,15 @@ static void get_scan_count(struct lruvec *lruvec, struct scan_control *sc,
+@@ -2438,6 +2464,15 @@ static void get_scan_count(struct lruvec *lruvec, struct scan_control *sc,
  		goto out;
  	}
  
@@ -4606,7 +4606,7 @@ index 77d015d5db0c..da42024f7ade 100644
  	/*
  	 * If there is enough inactive page cache, we do not reclaim
  	 * anything from the anonymous working right now.
-@@ -2574,6 +2609,14 @@ static void get_scan_count(struct lruvec *lruvec, struct scan_control *sc,
+@@ -2582,6 +2617,14 @@ static void get_scan_count(struct lruvec *lruvec, struct scan_control *sc,
  			BUG();
  		}
  
@@ -4621,7 +4621,7 @@ index 77d015d5db0c..da42024f7ade 100644
  		nr[lru] = scan;
  	}
  }
-@@ -2593,6 +2636,96 @@ static bool can_age_anon_pages(struct pglist_data *pgdat,
+@@ -2601,6 +2644,96 @@ static bool can_age_anon_pages(struct pglist_data *pgdat,
  	return can_demote(pgdat->node_id, sc);
  }
  
@@ -4718,7 +4718,7 @@ index 77d015d5db0c..da42024f7ade 100644
  #ifdef CONFIG_LRU_GEN
  
  #ifdef CONFIG_LRU_GEN_ENABLED
-@@ -4543,6 +4676,12 @@ static int isolate_folios(struct lruvec *lruvec, struct scan_control *sc, int sw
+@@ -4551,6 +4684,12 @@ static int isolate_folios(struct lruvec *lruvec, struct scan_control *sc, int sw
  	 */
  	if (!swappiness)
  		type = LRU_GEN_FILE;
@@ -4731,7 +4731,7 @@ index 77d015d5db0c..da42024f7ade 100644
  	else if (min_seq[LRU_GEN_ANON] < min_seq[LRU_GEN_FILE])
  		type = LRU_GEN_ANON;
  	else if (swappiness == 1)
-@@ -4825,6 +4964,8 @@ static int shrink_one(struct lruvec *lruvec, struct scan_control *sc)
+@@ -4833,6 +4972,8 @@ static int shrink_one(struct lruvec *lruvec, struct scan_control *sc)
  	struct mem_cgroup *memcg = lruvec_memcg(lruvec);
  	struct pglist_data *pgdat = lruvec_pgdat(lruvec);
  
@@ -4740,7 +4740,7 @@ index 77d015d5db0c..da42024f7ade 100644
  	/* lru_gen_age_node() called mem_cgroup_calculate_protection() */
  	if (mem_cgroup_below_min(NULL, memcg))
  		return MEMCG_LRU_YOUNG;
-@@ -5972,6 +6113,8 @@ static void shrink_node(pg_data_t *pgdat, struct scan_control *sc)
+@@ -5980,6 +6121,8 @@ static void shrink_node(pg_data_t *pgdat, struct scan_control *sc)
  
  	prepare_scan_control(pgdat, sc);
  
@@ -6322,7 +6322,6 @@ Subject: [PATCH 4/8] fixes
 
 Signed-off-by: Eric Naim <dnaim@cachyos.org>
 ---
- arch/Kconfig                            |  4 +-
  arch/x86/include/asm/futex.h            |  8 +++-
  arch/x86/mm/tlb.c                       |  2 +-
  drivers/gpu/drm/amd/amdgpu/amdgpu_drv.c |  5 +++
@@ -6333,30 +6332,8 @@ Signed-off-by: Eric Naim <dnaim@cachyos.org>
  kernel/sched/ext.c                      |  4 +-
  kernel/workqueue.c                      | 22 +++++++--
  scripts/package/PKGBUILD                |  5 +++
- 11 files changed, 108 insertions(+), 47 deletions(-)
+ 10 files changed, 106 insertions(+), 45 deletions(-)
 
-diff --git a/arch/Kconfig b/arch/Kconfig
-index bd9f095d69fa..5fc4aa6b6b67 100644
---- a/arch/Kconfig
-+++ b/arch/Kconfig
-@@ -1089,7 +1089,7 @@ config ARCH_MMAP_RND_BITS
- 	int "Number of bits to use for ASLR of mmap base address" if EXPERT
- 	range ARCH_MMAP_RND_BITS_MIN ARCH_MMAP_RND_BITS_MAX
- 	default ARCH_MMAP_RND_BITS_DEFAULT if ARCH_MMAP_RND_BITS_DEFAULT
--	default ARCH_MMAP_RND_BITS_MIN
-+	default ARCH_MMAP_RND_BITS_MAX
- 	depends on HAVE_ARCH_MMAP_RND_BITS
- 	help
- 	  This value can be used to select the number of bits to use to
-@@ -1123,7 +1123,7 @@ config ARCH_MMAP_RND_COMPAT_BITS
- 	int "Number of bits to use for ASLR of mmap base address for compatible applications" if EXPERT
- 	range ARCH_MMAP_RND_COMPAT_BITS_MIN ARCH_MMAP_RND_COMPAT_BITS_MAX
- 	default ARCH_MMAP_RND_COMPAT_BITS_DEFAULT if ARCH_MMAP_RND_COMPAT_BITS_DEFAULT
--	default ARCH_MMAP_RND_COMPAT_BITS_MIN
-+	default ARCH_MMAP_RND_COMPAT_BITS_MAX
- 	depends on HAVE_ARCH_MMAP_RND_COMPAT_BITS
- 	help
- 	  This value can be used to select the number of bits to use to
 diff --git a/arch/x86/include/asm/futex.h b/arch/x86/include/asm/futex.h
 index 99d345b686fa..6e2458088800 100644
 --- a/arch/x86/include/asm/futex.h

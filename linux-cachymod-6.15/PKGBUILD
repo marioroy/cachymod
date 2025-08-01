@@ -129,7 +129,7 @@ fi
 
 _pkgsuffix=cachymod-615
 _major=6.15
-_minor=8
+_minor=9
 pkgver=${_major}.${_minor}
 _stable=${_major}.${_minor}
 #_stable=${_major}
@@ -141,7 +141,7 @@ _stable=${_major}.${_minor}
 
 _srcname=linux-${_stable}
 pkgdesc='CachyMod Linux Kernel with other patches and improvements'
-pkgrel=4
+pkgrel=1
 _kernver="$pkgver-$pkgrel"
 _kernuname="${pkgver}-${_pkgsuffix}"
 arch=('x86_64')
@@ -166,6 +166,7 @@ source=(
     "0210-cachymod-misc.patch"
     "0260-adios-update.patch"
     "0290-dl-server-for-ext-tasks.patch"
+    "0290-optimize-sched-fair.patch"
 )
 
 if [[ "$_prevent_avx2" =~ ^(yes|y|1)$ ]]; then
@@ -352,7 +353,8 @@ prepare() {
 
     case "$_preempt" in
         rt)
-            scripts/config -d PREEMPT_NONE -d PREEMPT_VOLUNTARY -e PREEMPT -d PREEMPT_LAZY -d PREEMPT_DYNAMIC -e PREEMPT_RT;;
+            scripts/config -d PREEMPT_NONE -d PREEMPT_VOLUNTARY -e PREEMPT -d PREEMPT_LAZY -d PREEMPT_DYNAMIC -e PREEMPT_RT
+            scripts/config -e DRM_MGAG200_DISABLE_WRITECOMBINE;;
         dynamic)
             scripts/config -d PREEMPT_NONE -d PREEMPT_VOLUNTARY -e PREEMPT -d PREEMPT_LAZY -e PREEMPT_DYNAMIC -d PREEMPT_RT;;
         lazy)

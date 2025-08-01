@@ -977,7 +977,7 @@ index 138d9f4658..5f1d4dd44c 100644
  	/*
  	 * Tell update_rq_clock() that we've just updated,
  	 * so we don't do microscopic update in schedule()
-@@ -13146,6 +13222,9 @@ static void task_tick_fair(struct rq *rq, struct task_struct *curr, int queued)
+@@ -13144,6 +13220,9 @@ static void task_tick_fair(struct rq *rq, struct task_struct *curr, int queued)
  static void task_fork_fair(struct task_struct *p)
  {
  	set_task_max_allowed_capacity(p);
@@ -987,7 +987,7 @@ index 138d9f4658..5f1d4dd44c 100644
  }
  
  /*
-@@ -13263,6 +13342,9 @@ static void switched_to_fair(struct rq *rq, struct task_struct *p)
+@@ -13261,6 +13340,9 @@ static void switched_to_fair(struct rq *rq, struct task_struct *p)
  {
  	WARN_ON_ONCE(p->se.sched_delayed);
  
@@ -1001,7 +1001,7 @@ diff --git a/kernel/sched/sched.h b/kernel/sched/sched.h
 index 47972f34ea..a7c69cfbcf 100644
 --- a/kernel/sched/sched.h
 +++ b/kernel/sched/sched.h
-@@ -2104,7 +2104,11 @@ extern int group_balance_cpu(struct sched_group *sg);
+@@ -2136,7 +2136,11 @@ extern int group_balance_cpu(struct sched_group *sg);
  extern void update_sched_domain_debugfs(void);
  extern void dirty_sched_domain_sysctl(int cpu);
  
@@ -1013,7 +1013,7 @@ index 47972f34ea..a7c69cfbcf 100644
  
  static inline const struct cpumask *task_user_cpus(struct task_struct *p)
  {
-@@ -2804,7 +2808,12 @@ extern void wakeup_preempt(struct rq *rq, struct task_struct *p, int flags);
+@@ -2836,7 +2840,12 @@ extern void wakeup_preempt(struct rq *rq, struct task_struct *p, int flags);
  extern __read_mostly unsigned int sysctl_sched_nr_migrate;
  extern __read_mostly unsigned int sysctl_sched_migration_cost;
  

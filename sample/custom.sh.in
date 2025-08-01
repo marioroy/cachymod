@@ -143,9 +143,13 @@ set -e
 #scripts/config -d VIDEO_SAA7134
 #scripts/config -d VIDEO_STK1160
 
-# Disable GSPCA based webcams
+# Disable GSPCA based webcams and software defined radio USB devices
 # https://github.com/torvalds/linux/blob/master/drivers/media/usb/gspca/Kconfig
+# https://github.com/torvalds/linux/blob/master/drivers/media/usb/airspy/Kconfig
+# https://github.com/torvalds/linux/blob/master/drivers/media/usb/hackrf/Kconfig
 #scripts/config -d USB_GSPCA
+#scripts/config -d USB_AIRSPY
+#scripts/config -d USB_HACKRF
 
 # Disable network drivers
 # https://github.com/torvalds/linux/blob/master/drivers/net/ethernet/

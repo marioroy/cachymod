@@ -1,7 +1,7 @@
 #!/bin/bash
 # Trim kernel by deselecting options not enabled in the Clear Linux config.
 # Options already unset in the CachyOS config were pruned from this list.
-# Last checked: 2025-03-07
+# Last checked: 2025-08-01
 
 # Exit immediately on error.
 set -e
@@ -409,6 +409,7 @@ scripts/config -d WCN36XX_DEBUGFS
 scripts/config -d ATH11K_AHB
 scripts/config -d ATH12K_DEBUG
 scripts/config -d ATH12K_TRACING
+scripts/config -d ATH12K_COREDUMP
 scripts/config -d AT76C50X_USB
 scripts/config -d BRCM_TRACING
 scripts/config -d BRCMDBG
@@ -779,6 +780,7 @@ scripts/config -d SENSORS_BPA_RS600
 scripts/config -d SENSORS_FSP_3Y
 scripts/config -d SENSORS_IBM_CFFPS
 scripts/config -d SENSORS_DPS920AB
+scripts/config -d SENSORS_INA233
 scripts/config -d SENSORS_INSPUR_IPSPS
 scripts/config -d SENSORS_IR35221
 scripts/config -d SENSORS_IR36021
@@ -854,6 +856,7 @@ scripts/config -d MFD_88PM805
 scripts/config -d MFD_88PM860X
 scripts/config -d MFD_MAX14577
 scripts/config -d MFD_MAX77693
+scripts/config -d MFD_MAX77705
 scripts/config -d MFD_MAX77843
 scripts/config -d MFD_MAX8907
 scripts/config -d MFD_MAX8925
@@ -865,6 +868,7 @@ scripts/config -d MFD_MENF21BMC
 scripts/config -d EZX_PCAP
 scripts/config -d MFD_RETU
 scripts/config -d MFD_PCF50633
+scripts/config -d MFD_QNAP_MCU
 scripts/config -d MFD_RDC321X
 scripts/config -d MFD_RT4831
 scripts/config -d MFD_RT5033
@@ -931,6 +935,7 @@ scripts/config -d REGULATOR_MAX8952
 scripts/config -d REGULATOR_MAX77826
 scripts/config -d REGULATOR_MT6311
 scripts/config -d REGULATOR_PCA9450
+scripts/config -d REGULATOR_PF9453
 scripts/config -d REGULATOR_PV88060
 scripts/config -d REGULATOR_PV88080
 scripts/config -d REGULATOR_PV88090
@@ -979,10 +984,6 @@ scripts/config -d DVB_USB
 #
 # Software defined radio USB devices
 #
-# Added USB_AIRSPY and USB_HACKRF not found in the CachyOS config
-#
-scripts/config -d USB_AIRSPY
-scripts/config -d USB_HACKRF
 scripts/config -d USB_MSI2500
 
 #
@@ -1227,7 +1228,6 @@ scripts/config -d SND_SOC_MSM8916_WCD_DIGITAL
 scripts/config -d SND_SOC_PCM1681
 scripts/config -d SND_SOC_PCM179X_I2C
 scripts/config -d SND_SOC_PCM179X_SPI
-scripts/config -d SND_SOC_PCM3168A_I2C
 scripts/config -d SND_SOC_PCM3168A_SPI
 scripts/config -d SND_SOC_PCM5102A
 scripts/config -d SND_SOC_PCM512x_SPI
@@ -1432,7 +1432,6 @@ scripts/config -d MS_BLOCK
 #
 # MemoryStick Host Controller Drivers
 #
-scripts/config -d LEDS_CLASS_MULTICOLOR
 scripts/config -d LEDS_BRIGHTNESS_HW_CHANGED
 
 #
@@ -1454,6 +1453,11 @@ scripts/config -d LEDS_TLC591XX
 scripts/config -d LEDS_LM355x
 
 #
+# Flash and Torch LED drivers
+#
+scripts/config -d LEDS_LM3601X
+
+#
 # LED Triggers
 #
 scripts/config -d LEDS_TRIGGER_DISK
@@ -1464,7 +1468,6 @@ scripts/config -d LEDS_TRIGGER_CPU
 # iptables trigger is under Netfilter config (LED target)
 #
 scripts/config -d LEDS_TRIGGER_PANIC
-scripts/config -d LEDS_TRIGGER_PATTERN
 scripts/config -d LEDS_TRIGGER_INPUT_EVENTS
 
 #

@@ -13,7 +13,7 @@ diff -uarp a/Makefile b/Makefile
 +		   -mprefer-vector-width=256
 +endif
 +ifdef CONFIG_LTO_CLANG
-+KBUILD_LDFLAGS	+= --lto-O3 --lto-CGO3 --thinlto-jobs=5
++KBUILD_LDFLAGS	+= --lto-O3 --lto-CGO3 --thinlto-jobs=6
 +endif
 +
  # Tell gcc to never replace conditional load with a non-conditional one
