@@ -749,6 +749,8 @@ x86/tsc: Use rdtsc_ordered() when RDTSCP or LFENCE_RDTSC are supported
 Signed-off-by: Mario Limonciello <mario.limonciello@xxxxxxxxxx>
 Signed-off-by: Ionut Nechita <ionut_n2001@xxxxxxxxxx>
 
+Commit: https://github.com/sunlightlinux/linux-sunlight/commit/e586ac2956
+
 diff --git a/arch/x86/include/asm/tsc.h b/arch/x86/include/asm/tsc.h
 --- a/arch/x86/include/asm/tsc.h
 +++ b/arch/x86/include/asm/tsc.h
@@ -772,8 +774,9 @@ Description:
  - By using new processors it helps to have
    a higher threshold for thresh
 
-Bug: N/A
 Signed-off-by: Ionut Nechita <ionut_n2001@xxxxxxxxxx>
+
+Commit: https://github.com/sunlightlinux/linux-sunlight/commit/6f43b28aab
 
 diff --git a/kernel/workqueue.c b/kernel/workqueue.c
 --- a/kernel/workqueue.c
@@ -806,27 +809,102 @@ diff --git a/kernel/workqueue.c b/kernel/workqueue.c
 -- 
 2.43.0
 
-Minor change BLK_DEV_RUST_NULL with default n
+sched/core: Further optimize sched_move_task by avoiding
+  lock acquisition when autogroup is enabled
 
 Description:
- -  Minor change BLK_DEV_RUST_NULL with default n
+ - Some sched_move_task calls are useless because task_struct->sched_task_group
+   might not change (remains equal to task_group of cpu_cgroup) when the system
+   has autogroup enabled. This patch optimizes the process by:
 
+   1. Splitting sched_change_group() into two functions: one to get the task_group
+   and another to perform the actual group change
+   2. Adding a new sched_needs_group_change() function to check if a change is needed
+   3. Most importantly, performing this check *before* acquiring the runqueue lock
+   to completely avoid lock acquisition when no change is needed
+
+   This approach provides a significant performance improvement over the original
+   patch, reducing the time spent in sched_move_task by 74-96% (compared to the
+   57.4% improvement in the original patch) in test scenarios involving frequent
+   task creation and exit.
+
+Based on the original idea from:
+Link: https://lkml.kernel.org/r/20230321064459.39421-1-wuchi.zero@gmail.com
 Signed-off-by: Ionut Nechita <ionut_n2001@xxxxxxxxxx>
 
-diff --git a/drivers/block/Kconfig b/drivers/block/Kconfig
---- a/drivers/block/Kconfig
-+++ b/drivers/block/Kconfig
-@@ -355,8 +355,9 @@ config VIRTIO_BLK
-           QEMU based VMMs (like KVM or Xen).  Say Y or M.
+Commit: https://github.com/sunlightlinux/linux-sunlight/commit/581d1c6fdd
+
+diff --git a/kernel/sched/core.c b/kernel/sched/core.c
+index ba17620b8352..e1e9a65bd64b 100644
+--- a/kernel/sched/core.c
++++ b/kernel/sched/core.c
+@@ -9089,7 +9089,7 @@ void sched_release_group(struct task_group *tg)
+ 	spin_unlock_irqrestore(&task_group_lock, flags);
+ }
  
- config BLK_DEV_RUST_NULL
--	tristate "Rust null block driver (Experimental)"
-+	bool "Rust null block driver (Experimental)"
- 	depends on RUST
-+	default n
- 	help
- 	  This is the Rust implementation of the null block driver. For now it
- 	  is only a minimal stub.
+-static void sched_change_group(struct task_struct *tsk)
++static struct task_group *sched_get_task_group(struct task_struct *tsk)
+ {
+ 	struct task_group *tg;
+ 
+@@ -9101,8 +9101,13 @@ static void sched_change_group(struct task_struct *tsk)
+ 	tg = container_of(task_css_check(tsk, cpu_cgrp_id, true),
+ 			  struct task_group, css);
+ 	tg = autogroup_task_group(tsk, tg);
+-	tsk->sched_task_group = tg;
+ 
++	return tg;
++}
++
++static void sched_change_group(struct task_struct *tsk, struct task_group *group)
++{
++	tsk->sched_task_group = group;
+ #ifdef CONFIG_FAIR_GROUP_SCHED
+ 	if (tsk->sched_class->task_change_group)
+ 		tsk->sched_class->task_change_group(tsk);
+@@ -9111,6 +9116,18 @@ static void sched_change_group(struct task_struct *tsk)
+ 		set_task_rq(tsk, task_cpu(tsk));
+ }
+ 
++static struct task_group *sched_needs_group_change(struct task_struct *tsk)
++{
++	struct task_group *new_group;
++
++	new_group = sched_get_task_group(tsk);
++
++	if (likely(new_group == tsk->sched_task_group))
++		return NULL;
++
++	return new_group;
++}
++
+ /*
+  * Change task's runqueue when it moves between groups.
+  *
+@@ -9120,10 +9137,14 @@ static void sched_change_group(struct task_struct *tsk)
+  */
+ void sched_move_task(struct task_struct *tsk, bool for_autogroup)
+ {
++	struct task_group *new_group;
+ 	int queued, running, queue_flags =
+ 		DEQUEUE_SAVE | DEQUEUE_MOVE | DEQUEUE_NOCLOCK;
+ 	struct rq *rq;
+ 
++	if (!(new_group = sched_needs_group_change(tsk)))
++		return;
++
+ 	CLASS(task_rq_lock, rq_guard)(tsk);
+ 	rq = rq_guard.rq;
+ 
+@@ -9137,7 +9158,7 @@ void sched_move_task(struct task_struct *tsk, bool for_autogroup)
+ 	if (running)
+ 		put_prev_task(rq, tsk);
+ 
+-	sched_change_group(tsk);
++	sched_change_group(tsk, new_group);
+ 	if (!for_autogroup)
+ 		scx_cgroup_move_task(tsk);
+ 
 -- 
 2.43.0
 
@@ -2150,6 +2228,25 @@ diff -uarp a/drivers/bluetooth/btusb.c b/drivers/bluetooth/btusb.c
  	{ USB_DEVICE(0x0489, 0xe123), .driver_info = BTUSB_REALTEK |
  						     BTUSB_WIDEBAND_SPEECH },
  	{ USB_DEVICE(0x0489, 0xe125), .driver_info = BTUSB_REALTEK |
+-- 
+2.40.2
+
+Add Logitech C310
+
+diff --git a/drivers/usb/core/quirks.c b/drivers/usb/core/quirks.c
+index 0cf94c7a2c9c..20450f7a0c92 100644
+--- a/drivers/usb/core/quirks.c
++++ b/drivers/usb/core/quirks.c
+@@ -268,6 +268,9 @@ static const struct usb_device_id usb_quirk_list[] = {
+ 	/* Logitech Harmony 700-series */
+ 	{ USB_DEVICE(0x046d, 0xc122), .driver_info = USB_QUIRK_DELAY_INIT },
+ 
++	/* Logitech Webcam C310 */
++	{ USB_DEVICE(0x046d, 0x081b), .driver_info = USB_QUIRK_RESET_RESUME },
++
+ 	/* Philips PSC805 audio device */
+ 	{ USB_DEVICE(0x0471, 0x0155), .driver_info = USB_QUIRK_RESET_RESUME },
+ 
 -- 
 2.40.2
 

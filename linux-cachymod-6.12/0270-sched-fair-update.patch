@@ -54,7 +54,7 @@ index 621cfc7..45daa41 100644
  		uclamp_sync_util_min_rt_default();
  	}
  
-@@ -9348,7 +9348,7 @@ static ssize_t cpu_uclamp_write(struct kernfs_open_file *of, char *buf,
+@@ -9369,7 +9369,7 @@ static ssize_t cpu_uclamp_write(struct kernfs_open_file *of, char *buf,
  	if (req.ret)
  		return req.ret;
  
@@ -207,7 +207,7 @@ diff --git a/kernel/sched/core.c b/kernel/sched/core.c
 index cfaca30..c81cf64 100644
 --- a/kernel/sched/core.c
 +++ b/kernel/sched/core.c
-@@ -10717,7 +10717,6 @@ void sched_mm_cid_after_execve(struct task_struct *t)
+@@ -10738,7 +10738,6 @@ void sched_mm_cid_after_execve(struct task_struct *t)
  		smp_mb();
  		t->last_mm_cid = t->mm_cid = mm_cid_get(rq, mm);
  	}

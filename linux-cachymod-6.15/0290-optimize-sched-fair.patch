@@ -163,7 +163,7 @@ index 8988d38d46a3..2efa7e9590c7 100644
  		root_task_group.cfs_rq = (struct cfs_rq **)ptr;
  		ptr += nr_cpu_ids * sizeof(void **);
  
-@@ -9762,7 +9759,7 @@ static int cpu_cfs_stat_show(struct seq_file *sf, void *v)
+@@ -9783,7 +9780,7 @@ static int cpu_cfs_stat_show(struct seq_file *sf, void *v)
  		int i;
  
  		for_each_possible_cpu(i) {
@@ -472,7 +472,7 @@ index 2efa7e9590c7..377361fae8e8 100644
  
  #ifdef CONFIG_SMP
  	init_defrootdomain();
-@@ -9530,7 +9521,7 @@ static int tg_set_cfs_bandwidth(struct task_group *tg, u64 period, u64 quota,
+@@ -9551,7 +9542,7 @@ static int tg_set_cfs_bandwidth(struct task_group *tg, u64 period, u64 quota,
  	}
  
  	for_each_online_cpu(i) {
@@ -481,7 +481,7 @@ index 2efa7e9590c7..377361fae8e8 100644
  		struct rq *rq = cfs_rq->rq;
  
  		guard(rq_lock_irq)(rq);
-@@ -9778,7 +9769,7 @@ static u64 throttled_time_self(struct task_group *tg)
+@@ -9799,7 +9790,7 @@ static u64 throttled_time_self(struct task_group *tg)
  	u64 total = 0;
  
  	for_each_possible_cpu(i) {
