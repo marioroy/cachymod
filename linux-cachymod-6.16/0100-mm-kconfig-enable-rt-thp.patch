@@ -1,0 +1,25 @@
+diff -uar a/mm/Kconfig b/mm/Kconfig
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -891,7 +891,7 @@
+ 
+ menuconfig TRANSPARENT_HUGEPAGE
+ 	bool "Transparent Hugepage Support"
+-	depends on HAVE_ARCH_TRANSPARENT_HUGEPAGE && !PREEMPT_RT
++	depends on HAVE_ARCH_TRANSPARENT_HUGEPAGE
+ 	select COMPACTION
+ 	select XARRAY_MULTI
+ 	select MM_ID
+diff -uar a/init/Kconfig b/init/Kconfig
+--- a/init/Kconfig
++++ b/init/Kconfig
+@@ -943,7 +943,7 @@
+ 	bool "Memory placement aware NUMA scheduler"
+ 	depends on ARCH_SUPPORTS_NUMA_BALANCING
+ 	depends on !ARCH_WANT_NUMA_VARIABLE_LOCALITY
+-	depends on SMP && NUMA && MIGRATION && !PREEMPT_RT
++	depends on SMP && NUMA && MIGRATION
+ 	help
+ 	  This option adds support for automatic NUMA aware memory/task placement.
+ 	  The mechanism is quite primitive and is based on migrating memory when
+
