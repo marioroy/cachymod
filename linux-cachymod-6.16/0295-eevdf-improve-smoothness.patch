@@ -1,0 +1,65 @@
+
+Few updates for improving the EEVDF desktop experience
+
+Note: Exclude this patch if applying 0001-bore-cachy.patch, optionally
+
+ PKGBUILD source=(
+     ...
+   # "0295-eevdf-improve-smoothness.patch"  (comment out patch)
+     "0001-bore-cachy.patch"
+ )
+
+Signed-off-by: Mario Roy <...>
+
+
+The CachyOS default migration_cost with EEVDF is a little extreme
+Bump the value to mitigate stutters, helful with many cores CPU
+
+diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -85,7 +85,7 @@ static unsigned int normalized_sysctl_sched_base_slice
+ #endif /* CONFIG_CACHY */
+ 
+ #ifdef CONFIG_CACHY
+-__read_mostly unsigned int sysctl_sched_migration_cost	= 300000UL;
++__read_mostly unsigned int sysctl_sched_migration_cost	= 350000UL;
+ #else
+ __read_mostly unsigned int sysctl_sched_migration_cost	= 500000UL;
+ #endif
+-- 
+2.40.2
+
+sched/fair: remove upper limit on cpu number, as done in Clear Linux
+
+diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -206,7 +206,7 @@ static inline void update_load_set(struct load_weight *lw, unsigned long w)
+  */
+ static unsigned int get_update_sysctl_factor(void)
+ {
+-	unsigned int cpus = min_t(unsigned int, num_online_cpus(), 8);
++	unsigned int cpus = num_online_cpus();
+ 	unsigned int factor;
+ 
+ 	switch (sysctl_sched_tunable_scaling) {
+-- 
+2.40.2
+
+sched/fair: improve smoothness, as done in BORE
+
+diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -713,6 +713,7 @@ static void update_entity_lag(struct cfs_rq *cfs_rq, struct sched_entity *se)
+ 
+ 	vlag = avg_vruntime(cfs_rq) - se->vruntime;
+ 	limit = calc_delta_fair(max_t(u64, 2*se->slice, TICK_NSEC), se);
++	limit >>= 1;
+ 
+ 	se->vlag = clamp(vlag, -limit, limit);
+ }
+-- 
+2.40.2
+

@@ -132,7 +132,7 @@ _stable=${_major}.${_minor}
 
 _srcname=linux-${_stable}
 pkgdesc='CachyMod Linux Kernel with other patches and improvements'
-pkgrel=2
+pkgrel=3
 _kernver="$pkgver-$pkgrel"
 _kernuname="${pkgver}-${_pkgsuffix}"
 arch=('x86_64')
@@ -158,6 +158,7 @@ source=(
     "0200-clearlinux-extras.patch"
     "0210-cachymod-misc.patch"
     "0290-dl-server-for-ext-tasks.patch"
+    "0295-eevdf-improve-smoothness.patch"
 )
 
 if [[ "$_prevent_avx2" =~ ^(yes|y|1)$ ]]; then

@@ -459,26 +459,6 @@ index e9b448d1b1b70..fdc00516c0b54 100644
 --
 2.34.1
 
-The CachyOS default migration_cost with EEVDF is too extreme.
-Bump the value a little bit to mitigate stutters.
-
-Signed-off-by: Mario Roy <...>
-
-diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
---- a/kernel/sched/fair.c
-+++ b/kernel/sched/fair.c
-@@ -85,7 +85,7 @@ static unsigned int normalized_sysctl_sc
- #endif /* CONFIG_CACHY */
- 
- #ifdef CONFIG_CACHY
--__read_mostly unsigned int sysctl_sched_migration_cost	= 300000UL;
-+__read_mostly unsigned int sysctl_sched_migration_cost	= 350000UL;
- #else
- __read_mostly unsigned int sysctl_sched_migration_cost	= 500000UL;
- #endif
--- 
-2.40.2
-
 sched/fair: Prevent from cpufreq not being updated when delayed-task is iowait
 https://lore.kernel.org/all/20250226114301.4900-1-xuewen.yan@unisoc.com/
 
