@@ -13,7 +13,7 @@ Signed-off-by: Mario Roy <...>
 
 
 The CachyOS default migration_cost with EEVDF is a little extreme
-Bump the value to mitigate stutters, helful with many cores CPU
+Bump the value to mitigate stutters, helpful with many cores CPU
 
 diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
 --- a/kernel/sched/fair.c
