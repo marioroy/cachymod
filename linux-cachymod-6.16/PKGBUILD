@@ -10,7 +10,7 @@
 
 # Include BORE patch
 # The kernel will have "eevdf" or "bore" suffix unless specified above
-: "${_include_bore:=no}"
+: "${_include_bore:=yes}"
 
 # Prevent AVX2 floating-point instructions. (Clear and XanMod default)
 # The default is no, matching CachyOS preference.
