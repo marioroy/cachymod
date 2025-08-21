@@ -9478,7 +9478,7 @@ index 0cb1e9873aab..4e3e4d3ce88c 100644
  /*
   * Scheduler run of queue, if there are requests pending and no one in the
   * driver that will restart queueing.
-@@ -2465,10 +2480,21 @@ static bool bfq_bio_merge(struct request_queue *q, struct bio *bio,
+@@ -2463,10 +2478,21 @@ static bool bfq_bio_merge(struct request_queue *q, struct bio *bio,
  	 * returned by bfq_bic_lookup does not go away before
  	 * bfqd->lock is taken.
  	 */
@@ -9502,7 +9502,7 @@ index 0cb1e9873aab..4e3e4d3ce88c 100644
  
  	if (bic) {
  		/*
-@@ -5317,6 +5343,18 @@ static struct request *bfq_dispatch_request(struct blk_mq_hw_ctx *hctx)
+@@ -5315,6 +5341,18 @@ static struct request *bfq_dispatch_request(struct blk_mq_hw_ctx *hctx)
  	struct bfq_queue *in_serv_queue;
  	bool waiting_rq, idle_timer_disabled = false;
  
@@ -9521,7 +9521,7 @@ index 0cb1e9873aab..4e3e4d3ce88c 100644
  	spin_lock_irq(&bfqd->lock);
  
  	in_serv_queue = bfqd->in_service_queue;
-@@ -5328,6 +5366,7 @@ static struct request *bfq_dispatch_request(struct blk_mq_hw_ctx *hctx)
+@@ -5326,6 +5364,7 @@ static struct request *bfq_dispatch_request(struct blk_mq_hw_ctx *hctx)
  			waiting_rq && !bfq_bfqq_wait_request(in_serv_queue);
  	}
  
@@ -9529,7 +9529,7 @@ index 0cb1e9873aab..4e3e4d3ce88c 100644
  	spin_unlock_irq(&bfqd->lock);
  	bfq_update_dispatch_stats(hctx->queue, rq,
  			idle_timer_disabled ? in_serv_queue : NULL,
-@@ -6250,10 +6289,9 @@ static inline void bfq_update_insert_stats(struct request_queue *q,
+@@ -6248,10 +6287,9 @@ static inline void bfq_update_insert_stats(struct request_queue *q,
  
  static struct bfq_queue *bfq_init_rq(struct request *rq);
  
@@ -9541,7 +9541,7 @@ index 0cb1e9873aab..4e3e4d3ce88c 100644
  	struct bfq_data *bfqd = q->elevator->elevator_data;
  	struct bfq_queue *bfqq;
  	bool idle_timer_disabled = false;
-@@ -6315,7 +6353,7 @@ static void bfq_insert_requests(struct blk_mq_hw_ctx *hctx,
+@@ -6313,7 +6351,7 @@ static void bfq_insert_requests(struct blk_mq_hw_ctx *hctx,
  
  		rq = list_first_entry(list, struct request, queuelist);
  		list_del_init(&rq->queuelist);
@@ -9550,7 +9550,7 @@ index 0cb1e9873aab..4e3e4d3ce88c 100644
  	}
  }
  
-@@ -7254,6 +7292,8 @@ static int bfq_init_queue(struct request_queue *q, struct elevator_type *e)
+@@ -7251,6 +7289,8 @@ static int bfq_init_queue(struct request_queue *q, struct elevator_type *e)
  	q->elevator = eq;
  	spin_unlock_irq(&q->queue_lock);
  
@@ -9559,7 +9559,7 @@ index 0cb1e9873aab..4e3e4d3ce88c 100644
  	/*
  	 * Our fallback bfqq if bfq_find_alloc_queue() runs into OOM issues.
  	 * Grab a permanent reference to it, so that the normal code flow
-@@ -7371,8 +7411,6 @@ static int bfq_init_queue(struct request_queue *q, struct elevator_type *e)
+@@ -7368,8 +7408,6 @@ static int bfq_init_queue(struct request_queue *q, struct elevator_type *e)
  	/* see comments on the definition of next field inside bfq_data */
  	bfqd->actuator_load_threshold = 4;
  
@@ -9665,7 +9665,7 @@ index 2edf1cac06d5..1bae19f17722 100644
  	spin_unlock(&dd->lock);
  
  	return rq;
-@@ -585,6 +606,9 @@ static int dd_init_sched(struct request_queue *q, struct elevator_type *e)
+@@ -571,6 +592,9 @@ static int dd_init_sched(struct request_queue *q, struct elevator_type *e)
  
  	eq->elevator_data = dd;
  
@@ -9675,7 +9675,7 @@ index 2edf1cac06d5..1bae19f17722 100644
  	for (prio = 0; prio <= DD_PRIO_MAX; prio++) {
  		struct dd_per_prio *per_prio = &dd->per_prio[prio];
  
-@@ -601,7 +625,6 @@ static int dd_init_sched(struct request_queue *q, struct elevator_type *e)
+@@ -587,7 +611,6 @@ static int dd_init_sched(struct request_queue *q, struct elevator_type *e)
  	dd->last_dir = DD_WRITE;
  	dd->fifo_batch = fifo_batch;
  	dd->prio_aging_expire = prio_aging_expire;
@@ -9683,7 +9683,7 @@ index 2edf1cac06d5..1bae19f17722 100644
  
  	/* We dispatch from request queue wide instead of hw queue */
  	blk_queue_flag_set(QUEUE_FLAG_SQ_SCHED, q);
-@@ -657,7 +680,19 @@ static bool dd_bio_merge(struct request_queue *q, struct bio *bio,
+@@ -643,7 +666,19 @@ static bool dd_bio_merge(struct request_queue *q, struct bio *bio,
  	struct request *free = NULL;
  	bool ret;
  
@@ -9704,7 +9704,7 @@ index 2edf1cac06d5..1bae19f17722 100644
  	ret = blk_mq_sched_try_merge(q, bio, nr_segs, &free);
  	spin_unlock(&dd->lock);
  
-@@ -670,10 +705,9 @@ static bool dd_bio_merge(struct request_queue *q, struct bio *bio,
+@@ -656,10 +691,9 @@ static bool dd_bio_merge(struct request_queue *q, struct bio *bio,
  /*
   * add rq to rbtree and fifo
   */
@@ -9716,7 +9716,7 @@ index 2edf1cac06d5..1bae19f17722 100644
  	struct deadline_data *dd = q->elevator->elevator_data;
  	const enum dd_data_dir data_dir = rq_data_dir(rq);
  	u16 ioprio = req_get_ioprio(rq);
-@@ -731,7 +765,7 @@ static void dd_insert_requests(struct blk_mq_hw_ctx *hctx,
+@@ -717,7 +751,7 @@ static void dd_insert_requests(struct blk_mq_hw_ctx *hctx,
  
  		rq = list_first_entry(list, struct request, queuelist);
  		list_del_init(&rq->queuelist);
@@ -11850,7 +11850,7 @@ index aa93b0ecbbc6..ba65e1b56fd6 100644
  }
  
  static int ahci_get_irq_vector(struct ata_host *host, int port)
-@@ -1939,7 +1932,9 @@ static int ahci_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
+@@ -1949,7 +1942,9 @@ static int ahci_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
  		return -ENOMEM;
  
  	/* detect remapped nvme devices */
@@ -11885,7 +11885,7 @@ diff --git a/drivers/cpufreq/intel_pstate.c b/drivers/cpufreq/intel_pstate.c
 index 60326ab5475f..7c4ae6df83a6 100644
 --- a/drivers/cpufreq/intel_pstate.c
 +++ b/drivers/cpufreq/intel_pstate.c
-@@ -3947,6 +3947,8 @@ static int __init intel_pstate_setup(char *str)
+@@ -3949,6 +3949,8 @@ static int __init intel_pstate_setup(char *str)
  
  	if (!strcmp(str, "disable"))
  		no_load = 1;
@@ -11953,7 +11953,7 @@ diff --git a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c b/drivers/gpu/drm
 index f58fa5da7fe5..3a39877bd790 100644
 --- a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c
 +++ b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c
-@@ -4639,7 +4639,7 @@ static int amdgpu_dm_mode_config_init(struct amdgpu_device *adev)
+@@ -4650,7 +4650,7 @@ static int amdgpu_dm_mode_config_init(struct amdgpu_device *adev)
  		return r;
  	}
  
@@ -12041,7 +12041,7 @@ diff --git a/drivers/gpu/drm/amd/pm/amdgpu_pm.c b/drivers/gpu/drm/amd/pm/amdgpu_
 index edd9895b46c0..130196b8ceae 100644
 --- a/drivers/gpu/drm/amd/pm/amdgpu_pm.c
 +++ b/drivers/gpu/drm/amd/pm/amdgpu_pm.c
-@@ -3071,6 +3071,9 @@ static ssize_t amdgpu_hwmon_show_power_cap_min(struct device *dev,
+@@ -3073,6 +3073,9 @@ static ssize_t amdgpu_hwmon_show_power_cap_min(struct device *dev,
  					 struct device_attribute *attr,
  					 char *buf)
  {
@@ -19028,26 +19028,11 @@ Subject: [PATCH 5/6] fixes
 
 Signed-off-by: Peter Jung <admin@ptr1337.dev>
 ---
- drivers/bluetooth/btusb.c                |  2 +
  drivers/gpu/drm/drm_atomic_uapi.c        | 51 ++++++++++++++++--------
  drivers/gpu/drm/i915/display/intel_dsb.c |  4 ++
- fs/btrfs/tree-log.c                      | 44 +++++++++++++-------
  scripts/package/PKGBUILD                 |  5 +++
- 5 files changed, 75 insertions(+), 31 deletions(-)
+ 3 files changed, 44 insertions(+), 16 deletions(-)
 
-diff --git a/drivers/bluetooth/btusb.c b/drivers/bluetooth/btusb.c
-index e8977fff4212..e608355f8349 100644
---- a/drivers/bluetooth/btusb.c
-+++ b/drivers/bluetooth/btusb.c
-@@ -709,6 +709,8 @@ static const struct usb_device_id quirks_table[] = {
- 						     BTUSB_WIDEBAND_SPEECH },
- 	{ USB_DEVICE(0x0489, 0xe139), .driver_info = BTUSB_MEDIATEK |
- 						     BTUSB_WIDEBAND_SPEECH },
-+	{ USB_DEVICE(0x0489, 0xe14e), .driver_info = BTUSB_MEDIATEK |
-+						     BTUSB_WIDEBAND_SPEECH },
- 	{ USB_DEVICE(0x0489, 0xe14f), .driver_info = BTUSB_MEDIATEK |
- 						     BTUSB_WIDEBAND_SPEECH },
- 	{ USB_DEVICE(0x0489, 0xe150), .driver_info = BTUSB_MEDIATEK |
 diff --git a/drivers/gpu/drm/drm_atomic_uapi.c b/drivers/gpu/drm/drm_atomic_uapi.c
 index c2726af6698e..2ae41a522e92 100644
 --- a/drivers/gpu/drm/drm_atomic_uapi.c
@@ -19146,78 +19131,6 @@ index 481488d1fe67..271229500c62 100644
  	dsb = kzalloc(sizeof(*dsb), GFP_KERNEL);
  	if (!dsb)
  		goto out;
-diff --git a/fs/btrfs/tree-log.c b/fs/btrfs/tree-log.c
-index cea8a7e9d6d3..cd904f281489 100644
---- a/fs/btrfs/tree-log.c
-+++ b/fs/btrfs/tree-log.c
-@@ -2413,23 +2413,30 @@ static int replay_one_buffer(struct btrfs_root *log, struct extent_buffer *eb,
- 
- 	nritems = btrfs_header_nritems(eb);
- 	for (i = 0; i < nritems; i++) {
--		btrfs_item_key_to_cpu(eb, &key, i);
-+		struct btrfs_inode_item *inode_item;
- 
--		/* inode keys are done during the first stage */
--		if (key.type == BTRFS_INODE_ITEM_KEY &&
--		    wc->stage == LOG_WALK_REPLAY_INODES) {
--			struct btrfs_inode_item *inode_item;
--			u32 mode;
-+		btrfs_item_key_to_cpu(eb, &key, i);
- 
--			inode_item = btrfs_item_ptr(eb, i,
--					    struct btrfs_inode_item);
-+		if (key.type == BTRFS_INODE_ITEM_KEY) {
-+			inode_item = btrfs_item_ptr(eb, i, struct btrfs_inode_item);
- 			/*
--			 * If we have a tmpfile (O_TMPFILE) that got fsync'ed
--			 * and never got linked before the fsync, skip it, as
--			 * replaying it is pointless since it would be deleted
--			 * later. We skip logging tmpfiles, but it's always
--			 * possible we are replaying a log created with a kernel
--			 * that used to log tmpfiles.
-+			 * An inode with no links is either:
-+			 *
-+			 * 1) A tmpfile (O_TMPFILE) that got fsync'ed and never
-+			 *    got linked before the fsync, skip it, as replaying
-+			 *    it is pointless since it would be deleted later.
-+			 *    We skip logging tmpfiles, but it's always possible
-+			 *    we are replaying a log created with a kernel that
-+			 *    used to log tmpfiles;
-+			 *
-+			 * 2) A non-tmpfile which got its last link deleted
-+			 *    while holding an open fd on it and later got
-+			 *    fsynced through that fd. We always log the
-+			 *    parent inodes when inode->last_unlink_trans is
-+			 *    set to the current transaction, so ignore all the
-+			 *    inode items for this inode. We will delete the
-+			 *    inode when processing the parent directory with
-+			 *    replay_dir_deletes().
- 			 */
- 			if (btrfs_inode_nlink(eb, inode_item) == 0) {
- 				wc->ignore_cur_inode = true;
-@@ -2437,6 +2444,13 @@ static int replay_one_buffer(struct btrfs_root *log, struct extent_buffer *eb,
- 			} else {
- 				wc->ignore_cur_inode = false;
- 			}
-+		}
-+
-+		/* Inode keys are done during the first stage. */
-+		if (key.type == BTRFS_INODE_ITEM_KEY &&
-+		    wc->stage == LOG_WALK_REPLAY_INODES) {
-+			u32 mode;
-+
- 			ret = replay_xattr_deletes(wc->trans, root, log,
- 						   path, key.objectid);
- 			if (ret)
-@@ -2875,7 +2889,7 @@ static inline void btrfs_remove_log_ctx(struct btrfs_root *root,
- 	mutex_unlock(&root->log_mutex);
- }
- 
--/* 
-+/*
-  * Invoked in log mutex context, or be sure there is no other task which
-  * can access the list.
-  */
 diff --git a/scripts/package/PKGBUILD b/scripts/package/PKGBUILD
 index 452374d63c24..08f80d7c5df0 100644
 --- a/scripts/package/PKGBUILD

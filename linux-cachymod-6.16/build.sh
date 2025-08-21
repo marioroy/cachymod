@@ -11,6 +11,10 @@ set -e
 # Custom kernel suffix. Default "{gcc,clang,lto}"
 : "${_kernel_suffix:=}"
 
+# Include BORE patch
+# The kernel will have "eevdf" or "bore" suffix unless specified above
+: "${_include_bore:=no}"
+
 # Prevent AVX2 floating-point instructions. (Clear and XanMod default)
 # The default is no, matching CachyOS preference.
 : "${_prevent_avx2:=no}"
@@ -86,6 +90,7 @@ set -e
 # Refer to https://github.com/GloriousEggroll/Linux-Pollrate-Patch
 # E.g. "${_extra_patch_or_url1:=1010-usb-pollrate.patch}"
 # The 1???-*.patch files are ignored by git
+: "${_extra_patch_or_url0:=}"
 : "${_extra_patch_or_url1:=}"
 : "${_extra_patch_or_url2:=}"
 : "${_extra_patch_or_url3:=}"
@@ -110,7 +115,7 @@ export _extra_patch_or_url7 _extra_patch_or_url8 _extra_patch_or_url9
 export _kernel_suffix _prevent_avx2 _runtrim_script _enable_sched_ext
 export _localmodcfg _localmodcfg_path _makenconfig _makegconfig _makexconfig
 export _hugepage _HZ_ticks _ticktype _preempt _processor_opt
-export _buildtype _build_debug
+export _buildtype _build_debug _include_bore
 
 # Build kernel lazy and lazy-headers packages
 time nice -n 15 makepkg -scf --cleanbuild --skipinteg || exit 1

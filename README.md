@@ -21,36 +21,56 @@ sudo pacman -Sy nvidia-dkms
 ## Building and Installation
 
 Copy the `linux-cachymod-6.16` folder to a work area and change
-directory. Optionally, adjust build options in `build.sh`.
+directory. Optionally, adjust the build options in `build.sh`.
 Select `_preempt=rt` for the realtime kernel.
 
 ```bash
 bash build.sh
 
-# full or lazy preemption
-sudo pacman -U linux-cachymod-616-lto-{6,h}*.zst
-sudo pacman -U linux-cachymod-616-clang-{6,h}*.zst
-sudo pacman -U linux-cachymod-616-gcc-{6,h}*.zst
+# BORE full or lazy preemption
+sudo pacman -U linux-cachymod-616-bore-lto-{6,h}*.zst
+sudo pacman -U linux-cachymod-616-bore-clang-{6,h}*.zst
+sudo pacman -U linux-cachymod-616-bore-gcc-{6,h}*.zst
 
-# rt preemption
-sudo pacman -U linux-cachymod-616-lto-rt*.zst
-sudo pacman -U linux-cachymod-616-clang-rt*.zst
-sudo pacman -U linux-cachymod-616-gcc-rt*.zst
+# BORE RT preemption
+sudo pacman -U linux-cachymod-616-bore-lto-rt*.zst
+sudo pacman -U linux-cachymod-616-bore-clang-rt*.zst
+sudo pacman -U linux-cachymod-616-bore-gcc-rt*.zst
+
+# EEVDF full or lazy preemption
+sudo pacman -U linux-cachymod-616-eevdf-lto-{6,h}*.zst
+sudo pacman -U linux-cachymod-616-eevdf-clang-{6,h}*.zst
+sudo pacman -U linux-cachymod-616-eevdf-gcc-{6,h}*.zst
+
+# EEVDF RT preemption
+sudo pacman -U linux-cachymod-616-eevdf-lto-rt*.zst
+sudo pacman -U linux-cachymod-616-eevdf-clang-rt*.zst
+sudo pacman -U linux-cachymod-616-eevdf-gcc-rt*.zst
 ```
 
-Removal is via pacman as well. Change the build type accordingly.
-Tip: `ls /usr/src` for the list of kernels installed on the system.
+Removal is via pacman as well. Change the build type { lto, clang, gcc },
+accordingly. Tip: `ls /usr/src` for the list of kernels on the system.
 
 ```text
-# full or lazy preemption
+# BORE full or lazy preemption
 sudo pacman -Rsn \
-  linux-cachymod-616-lto \
-  linux-cachymod-616-lto-headers
+  linux-cachymod-616-bore-lto \
+  linux-cachymod-616-bore-lto-headers
 
-# rt preemption
+# BORE RT preemption
 sudo pacman -Rsn \
-  linux-cachymod-616-lto-rt \
-  linux-cachymod-616-lto-rt-headers
+  linux-cachymod-616-bore-lto-rt \
+  linux-cachymod-616-bore-lto-rt-headers
+
+# EEVDF full or lazy preemption
+sudo pacman -Rsn \
+  linux-cachymod-616-eevdf-lto \
+  linux-cachymod-616-eevdf-lto-headers
+
+# EEVDF RT preemption
+sudo pacman -Rsn \
+  linux-cachymod-616-eevdf-lto-rt \
+  linux-cachymod-616-eevdf-lto-rt-headers
 ```
 
 ## Developer Notes
@@ -60,13 +80,13 @@ you like, and edit that file. I have four depending on the
 type of kernel I want to build.
 
 ```text
-# fast localmod build
+# fast localmod build `_preempt=full`
 mario.fast
 mario.fast-rt
 
-# same thing, but without localmod
-mario.lazy
-mario.lazy-rt
+# same thing, but without localmod `_preempt=full`
+mario.full
+mario.full-rt
 ```
 
 Custom kernel tuning is possible via `custom.sh`, if it exists.
@@ -90,11 +110,17 @@ done
 echo "Installing the kernel..."
 
 if [ -z "$_kernel_suffix" ]; then
-    if [[ "$_buildtype" =~ ^(thin|full)$ ]]; then
-        _kernel_suffix="lto"
+    if [[ "$_include_bore" =~ ^(yes|y|1)$ ]]; then
+        buildtag="bore"
     else
-        _kernel_suffix="$_buildtype"
+        buildtag="eevdf"
     fi
+    if [[ "$_buildtype" =~ ^(thin|full)$ ]]; then
+        buildtype="lto"
+    else
+        buildtype="$_buildtype"
+    fi
+    _kernel_suffix="${buildtag}-${buildtype}"
 fi
 
 if [[ "$_build_debug" =~ ^(yes|y|1)$ ]]; then

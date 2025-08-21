@@ -153,7 +153,7 @@ diff --git a/kernel/sched/deadline.c b/kernel/sched/deadline.c
 index e2d51f4306b3..3c478a1b2890 100644
 --- a/kernel/sched/deadline.c
 +++ b/kernel/sched/deadline.c
-@@ -3471,6 +3471,9 @@ static void __dl_clear_params(struct sched_dl_entity *dl_se)
+@@ -3473,6 +3473,9 @@ static void __dl_clear_params(struct sched_dl_entity *dl_se)
  	dl_se->dl_non_contending	= 0;
  	dl_se->dl_overrun		= 0;
  	dl_se->dl_server		= 0;
@@ -1142,7 +1142,7 @@ index 17f8cd5df1aa..92ca2f5b7cb9 100644
  			__dl_add(&rd->dl_bw, dl_se->dl_bw, dl_bw_cpus(i));
  	}
  }
-@@ -3569,6 +3577,7 @@ static int dl_bw_manage(enum dl_bw_request req, int cpu, u64 dl_bw)
+@@ -3571,6 +3579,7 @@ static int dl_bw_manage(enum dl_bw_request req, int cpu, u64 dl_bw)
  	struct dl_bw *dl_b;
  	bool overflow = 0;
  	u64 fair_server_bw = 0;
@@ -1150,7 +1150,7 @@ index 17f8cd5df1aa..92ca2f5b7cb9 100644
  
  	rcu_read_lock_sched();
  	dl_b = dl_bw_of(cpu);
-@@ -3601,27 +3610,31 @@ static int dl_bw_manage(enum dl_bw_request req, int cpu, u64 dl_bw)
+@@ -3603,27 +3612,31 @@ static int dl_bw_manage(enum dl_bw_request req, int cpu, u64 dl_bw)
  		cap -= arch_scale_cpu_capacity(cpu);
  
  		/*

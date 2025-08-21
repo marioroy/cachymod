@@ -1,14 +1,6 @@
 
 Few updates for improving the EEVDF desktop experience
 
-Note: Exclude this patch if applying 0001-bore-cachy.patch, optionally
-
- PKGBUILD source=(
-     ...
-   # "0295-eevdf-improve-smoothness.patch"  (comment out patch)
-     "0001-bore-cachy.patch"
- )
-
 Signed-off-by: Mario Roy <...>
 
 
@@ -52,11 +44,13 @@ sched/fair: improve smoothness, as done in BORE
 diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -713,6 +713,7 @@ static void update_entity_lag(struct cfs_rq *cfs_rq, struct sched_entity *se)
+@@ -713,6 +713,9 @@ static void update_entity_lag(struct cfs_rq *cfs_rq, struct sched_entity *se)
  
  	vlag = avg_vruntime(cfs_rq) - se->vruntime;
  	limit = calc_delta_fair(max_t(u64, 2*se->slice, TICK_NSEC), se);
++#ifdef CONFIG_CACHY
 +	limit >>= 1;
++#endif
  
  	se->vlag = clamp(vlag, -limit, limit);
  }

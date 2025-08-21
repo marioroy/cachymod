@@ -152,7 +152,7 @@ diff --git a/block/mq-deadline.c b/block/mq-deadline.c
 index f3e38471d140..79e0e54542c7 100644
 --- a/block/mq-deadline.c
 +++ b/block/mq-deadline.c
-@@ -624,7 +624,7 @@ static int dd_init_sched(struct request_queue *q, struct elevator_type *e)
+@@ -610,7 +610,7 @@ static int dd_init_sched(struct request_queue *q, struct elevator_type *e)
  	dd->fifo_expire[DD_READ] = read_expire;
  	dd->fifo_expire[DD_WRITE] = write_expire;
  	dd->writes_starved = writes_starved;
@@ -598,7 +598,7 @@ Bluetooth adapters of many Acer laptops don't work without it
 diff -uarp a/drivers/bluetooth/btusb.c b/drivers/bluetooth/btusb.c
 --- a/drivers/bluetooth/btusb.c
 +++ b/drivers/bluetooth/btusb.c
-@@ -569,6 +569,8 @@ static const struct usb_device_id quirks
+@@ -570,6 +570,8 @@ static const struct usb_device_id quirks
  						     BTUSB_WIDEBAND_SPEECH },
  	{ USB_DEVICE(0x13d3, 0x3591), .driver_info = BTUSB_REALTEK |
  						     BTUSB_WIDEBAND_SPEECH },
