@@ -188,10 +188,16 @@ fi
 if [[ "$buildtype" =~ (lto|clang) ]]; then
     makedepends+=( clang llvm lld )
     source+=("dkms-clang.patch" "flags-clang.patch" "thindist.patch")
+
     BUILD_FLAGS=( CC=clang LD=ld.lld LLVM_IAS=1 )
     CLANG_BIN=$(which clang) ; CLANG_BIN="${CLANG_BIN%clang}"
-    [ "$CLANG_BIN"  = "/usr/bin/" ] && BUILD_FLAGS+=( LLVM=1 )
-    [ "$CLANG_BIN" != "/usr/bin/" ] && BUILD_FLAGS+=( LLVM="$CLANG_BIN" )
+    [ "$CLANG_BIN" = "/usr/bin/" ] && BUILD_FLAGS+=( LLVM=1 )
+
+    if [[ "$CLANG_BIN" != "/usr/bin/" && -x "${CLANG_BIN}/llvm-strip" ]]; then
+        BUILD_FLAGS+=( LLVM="$CLANG_BIN" )
+    else
+        BUILD_FLAGS+=( LLVM=1 )
+    fi
 else
     BUILD_FLAGS=( CC=gcc )
 fi
