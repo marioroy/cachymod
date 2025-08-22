@@ -14,17 +14,6 @@ scripts/config -d PVH
 scripts/config -d PARAVIRT_TIME_ACCOUNTING
 
 #
-# Partition Types
-#
-scripts/config -d AIX_PARTITION
-scripts/config -d MAC_PARTITION
-scripts/config -d BSD_DISKLABEL
-scripts/config -d MINIX_SUBPARTITION
-scripts/config -d SOLARIS_X86_PARTITION
-scripts/config -d LDM_PARTITION
-scripts/config -d KARMA_PARTITION
-
-#
 # Data Access Monitoring
 #
 scripts/config -d DAMON
@@ -173,13 +162,6 @@ scripts/config -d MTD_NAND_ECC_SW_BCH
 scripts/config -d MTD_NAND_ECC_MXIC
 scripts/config -d MTD_UBI_NVMEM
 scripts/config -d PNP_DEBUG_MESSAGES
-
-#
-# NVME Support
-#
-scripts/config -d NVME_VERBOSE_ERRORS
-scripts/config -d NVME_TARGET_DEBUGFS
-scripts/config -d NVME_TARGET_TCP_TLS
 
 #
 # Misc devices

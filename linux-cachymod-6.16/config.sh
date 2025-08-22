@@ -17,11 +17,14 @@ scripts/config --set-val LOG_BUF_SHIFT 16
 ### Decrease the maximum number of vCPUs per KVM guest.
 scripts/config --set-val KVM_MAX_NR_VCPUS 128
 
-### Decrease the maximum number of GPUs.
-scripts/config --set-val VGA_ARB_MAX_GPUS 4
-
 ### Enable ACPI options. (default -m)
-scripts/config -e ACPI_TAD -e ACPI_VIDEO -e ACPI_WMI -e INPUT_SPARSEKMAP
+scripts/config -e ACPI_TAD -e ACPI_VIDEO -e ACPI_WMI
+
+### Enable input device support (default -m)
+scripts/config -e INPUT_FF_MEMLESS
+scripts/config -e INPUT_SPARSEKMAP
+scripts/config -e INPUT_MATRIXKMAP
+scripts/config -e INPUT_VIVALDIFMAP
 
 ### Enable input modules. (default -m)
 scripts/config -e SERIO -e SERIO_I8042 -e SERIO_LIBPS2 -e UHID -e USB_HID
@@ -32,41 +35,16 @@ scripts/config -e HID_MICROSOFT -e HID_SAMSUNG -e HID_VIVALDI
 scripts/config -e SERIO_GPIO_PS2 -e SERIO_SERPORT
 
 ### Enable storage modules. (default -m)
-scripts/config -e NVME_KEYRING -e NVME_AUTH -e NVME_CORE
 scripts/config -e BLK_DEV_DM -e BLK_DEV_LOOP -e BLK_DEV_NVME
 scripts/config -e BLK_DEV_MD -d MD_AUTODETECT -d DM_INIT
-scripts/config -e USB_XHCI_PCI -e USB_XHCI_PCI_RENESAS -e USB_XHCI_PLATFORM
-scripts/config -e USB_STORAGE -e USB_STORAGE_REALTEK -e USB_UAS
+#scripts/config -e USB_XHCI_PCI -e USB_XHCI_PCI_RENESAS -e USB_XHCI_PLATFORM
+#scripts/config -e USB_STORAGE -e USB_STORAGE_REALTEK -e USB_UAS
 
 ### Enable file systems. (default -m)
 scripts/config -d MSDOS_FS -e FAT_FS -e VFAT_FS
-scripts/config -e EXT4_FS -e FS_MBCACHE -e JBD2
-scripts/config -e BTRFS_FS -e F2FS_FS -e XFS_FS
 
 ### Set tree-based hierarchical RCU fanout value. (default 64)
 scripts/config --set-val RCU_FANOUT 32
-
-### Disable hardware monitors.
-scripts/config -d IGB_HWMON
-scripts/config -d IXGBE_HWMON
-scripts/config -d TIGON3_HWMON
-scripts/config -d SCSI_UFS_HWMON
-scripts/config -d SENSORS_IIO_HWMON
-
-### Disable more drivers.
-scripts/config -d AGP
-scripts/config -d ATA_SFF
-scripts/config -d ISDN
-scripts/config -d NET_FC
-scripts/config -d RD_BZIP2
-scripts/config -d RD_LZMA
-scripts/config -d RD_LZO
-scripts/config -d RD_LZ4
-scripts/config -d FUSION
-scripts/config -d MACINTOSH_DRIVERS
-scripts/config -d SCSI_PROC_FS
-scripts/config -d SCSI_CONSTANTS
-scripts/config -d SCSI_LOWLEVEL
 
 ### Disable tracers.
 scripts/config -d ATH5K_TRACER
@@ -103,11 +81,7 @@ scripts/config -d PM_TRACE_RTC
 scripts/config -d LATENCYTOP
 scripts/config -d LEDS_TRIGGER_CPU
 scripts/config -d LEDS_TRIGGER_GPIO
-scripts/config -d PCIEAER_INJECT
-scripts/config -d PCIE_ECRC
 scripts/config -d GENERIC_IRQ_DEBUGFS
-scripts/config -d GENERIC_IRQ_INJECTION
-scripts/config -d FUNCTION_ERROR_INJECTION
 scripts/config -d PRINTK_INDEX
 scripts/config -d SOFTLOCKUP_DETECTOR_INTR_STORM
 scripts/config -d GENERIC_IRQ_STAT_SNAPSHOT
@@ -284,9 +258,6 @@ if [[ $(uname -m) = *"x86"* ]]; then
     ### Disable Kexec and crash features.
     scripts/config -d KEXEC -d KEXEC_FILE -d CRASH_DUMP
 
-    ### Disable kexec handover
-    scripts/config -d KEXEC_HANDOVER
-
     ### Disable low-overhead sampling-based memory safety error detector.
     scripts/config -d KFENCE
 
@@ -321,11 +292,5 @@ if [[ $(uname -m) = *"x86"* ]]; then
     scripts/config --set-val NR_CPUS_DEFAULT 64
     scripts/config --set-val NR_CPUS 512
     scripts/config --set-val NODES_SHIFT 10
-
-    ### Default to the 2:1 compression allocator (zbud) as the default allocator.
-    scripts/config -d ZSWAP_DEFAULT_ON -d ZSWAP_SHRINKER_DEFAULT_ON
-    scripts/config -d ZSWAP_ZPOOL_DEFAULT_ZSMALLOC -d ZSMALLOC_STAT
-    scripts/config -e ZSWAP_ZPOOL_DEFAULT_ZBUD -e ZBUD
-    scripts/config --set-str ZSWAP_ZPOOL_DEFAULT "zbud"
 fi
 
