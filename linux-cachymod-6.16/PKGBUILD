@@ -157,7 +157,6 @@ source=(
     "config"
     "config.sh"
     "trim.sh"
-    "mkinitcpio.template"
     "0001-dl-server-prerequisite.patch"
     "0001-rt.patch"
     "0001-cachyos-base-all.patch"
@@ -517,11 +516,6 @@ _package() {
 
     # Include mkinitcpio preset file, excluding PRESETS 'fallback'
     [ "$_preempt" = "rt" ] && flavour="${_kernel_suffix}-rt" || flavour="${_kernel_suffix}"
-
-    install -Dm644 "${srcdir}/mkinitcpio.template" \
-        "${pkgdir}/etc/mkinitcpio.d/linux-cachymod-616-${flavour}.preset"
-    sed -i "s/__FLAVOUR__/${flavour}/" \
-        "${pkgdir}/etc/mkinitcpio.d/linux-cachymod-616-${flavour}.preset"
 
     echo "Installing modules..."
     ZSTD_CLEVEL=6 make "${BUILD_FLAGS[@]}" INSTALL_MOD_PATH="$pkgdir/usr" INSTALL_MOD_STRIP=1 \
