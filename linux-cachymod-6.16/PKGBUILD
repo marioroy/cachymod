@@ -129,7 +129,7 @@ fi
 
 _pkgsuffix=cachymod-616
 _major=6.16
-_minor=2
+_minor=3
 pkgver=${_major}.${_minor}
 _stable=${_major}.${_minor}
 #_stable=${_major}
@@ -141,7 +141,7 @@ _stable=${_major}.${_minor}
 
 _srcname=linux-${_stable}
 pkgdesc='CachyMod Linux Kernel with other patches and improvements'
-pkgrel=3
+pkgrel=1
 _kernver="$pkgver-$pkgrel"
 _kernuname="${pkgver}-${_pkgsuffix}"
 arch=('x86_64')

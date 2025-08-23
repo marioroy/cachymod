@@ -37,8 +37,6 @@ scripts/config -e SERIO_GPIO_PS2 -e SERIO_SERPORT
 ### Enable storage modules. (default -m)
 scripts/config -e BLK_DEV_DM -e BLK_DEV_LOOP -e BLK_DEV_NVME
 scripts/config -e BLK_DEV_MD -d MD_AUTODETECT -d DM_INIT
-#scripts/config -e USB_XHCI_PCI -e USB_XHCI_PCI_RENESAS -e USB_XHCI_PLATFORM
-#scripts/config -e USB_STORAGE -e USB_STORAGE_REALTEK -e USB_UAS
 
 ### Enable file systems. (default -m)
 scripts/config -d MSDOS_FS -e FAT_FS -e VFAT_FS
