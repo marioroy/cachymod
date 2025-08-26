@@ -141,7 +141,7 @@ _stable=${_major}.${_minor}
 
 _srcname=linux-${_stable}
 pkgdesc='CachyMod Linux Kernel with other patches and improvements'
-pkgrel=1
+pkgrel=2
 _kernver="$pkgver-$pkgrel"
 _kernuname="${pkgver}-${_pkgsuffix}"
 arch=('x86_64')
@@ -174,8 +174,7 @@ fi
 
 if [[ "$_include_bore" =~ ^(yes|y|1)$ ]]; then
     source+=("0310-sched-fair-remove-cachy-mods.patch")
-    source+=("0320-linux6.16.1-bore-5.9.6.patch")
-    source+=("0330-linux6.16.1-bore-5.9.6-fixes.patch")
+    source+=("0320-linux6.16.y-bore.patch")
 else
     source+=("0295-eevdf-improve-smoothness.patch")
 fi
