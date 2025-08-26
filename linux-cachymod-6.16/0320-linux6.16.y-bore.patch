@@ -248,7 +248,7 @@ index 0000000000..e27e32ec27
 +
 +#ifdef CONFIG_SCHED_BORE
 +u8   __read_mostly sched_bore                   = 1;
-+u8   __read_mostly sched_burst_inherit_type     = 1;
++u8   __read_mostly sched_burst_inherit_type     = 2;
 +u8   __read_mostly sched_burst_smoothness       = 1;
 +u8   __read_mostly sched_burst_penalty_offset   = 24;
 +uint __read_mostly sched_burst_penalty_scale    = 1536;
