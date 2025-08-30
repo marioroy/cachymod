@@ -152,7 +152,7 @@ diff --git a/block/mq-deadline.c b/block/mq-deadline.c
 index f3e38471d140..79e0e54542c7 100644
 --- a/block/mq-deadline.c
 +++ b/block/mq-deadline.c
-@@ -610,7 +610,7 @@ static int dd_init_sched(struct request_queue *q, struct elevator_type *e)
+@@ -604,7 +604,7 @@ static int dd_init_sched(struct request_queue *q, struct elevator_type *e)
  	dd->fifo_expire[DD_READ] = read_expire;
  	dd->fifo_expire[DD_WRITE] = write_expire;
  	dd->writes_starved = writes_starved;
@@ -178,7 +178,7 @@ diff --git a/include/linux/blkdev.h b/include/linux/blkdev.h
 index 181a0deadc9e..56031f7aa114 100644
 --- a/include/linux/blkdev.h
 +++ b/include/linux/blkdev.h
-@@ -655,7 +655,8 @@ enum {
+@@ -656,7 +656,8 @@ enum {
  	QUEUE_FLAG_MAX
  };
  
@@ -658,26 +658,6 @@ index 994526c65bfc..640abb4dce7f 100644
 -- 
 2.40.2
 
-cgroup: avoid null de-ref in css_rstat_exit()
-https://lore.kernel.org/all/20250731192734.106214-1-inwardvessel@gmail.com/
-
-diff --git a/kernel/cgroup/rstat.c b/kernel/cgroup/rstat.c
-index cbeaa499a96a..408e52d5f7a4 100644
---- a/kernel/cgroup/rstat.c
-+++ b/kernel/cgroup/rstat.c
-@@ -488,6 +488,9 @@ void css_rstat_exit(struct cgroup_subsys_state *css)
- 	if (!css_uses_rstat(css))
- 		return;
- 
-+	if (!css->rstat_cpu)
-+		return;
-+
- 	css_rstat_flush(css);
- 
- 	/* sanity check */
--- 
-2.47.3
-
 processor_idle: Skip dummy wait for processors based on Zen microarchitecture
 https://lore.kernel.org/all/20220921063638.2489-1-kprateek.nayak@amd.com/
 
@@ -701,62 +681,4 @@ index 2c2dc559e0f8de..48d6b137e8f6ae 100644
  	 * Modern (>=Nehalem) Intel systems use ACPI via intel_idle,
 -- 
 2.40.2
-
-drm/amdgpu: fix task hang from failed job submission during process kill
-https://lore.kernel.org/all/20250812083116.4091828-1-Tong.Liu01@amd.com/
-
-diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu_cs.c b/drivers/gpu/drm/amd/amdgpu/amdgpu_cs.c
-index e1e48e6f1f35..cdc02860011c 100644
---- a/drivers/gpu/drm/amd/amdgpu/amdgpu_cs.c
-+++ b/drivers/gpu/drm/amd/amdgpu/amdgpu_cs.c
-@@ -1139,6 +1139,9 @@ static int amdgpu_cs_vm_handling(struct amdgpu_cs_parser *p)
- 		}
- 	}
- 
-+	if (!amdgpu_vm_ready(vm))
-+		return -EINVAL;
-+
- 	r = amdgpu_vm_clear_freed(adev, vm, NULL);
- 	if (r)
- 		return r;
-diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu_vm.c b/drivers/gpu/drm/amd/amdgpu/amdgpu_vm.c
-index 283dd44f04b0..bf42246a3db2 100644
---- a/drivers/gpu/drm/amd/amdgpu/amdgpu_vm.c
-+++ b/drivers/gpu/drm/amd/amdgpu/amdgpu_vm.c
-@@ -654,11 +654,10 @@ int amdgpu_vm_validate(struct amdgpu_device *adev, struct amdgpu_vm *vm,
-  * Check if all VM PDs/PTs are ready for updates
-  *
-  * Returns:
-- * True if VM is not evicting.
-+ * True if VM is not evicting and all VM entities are not stopped
-  */
- bool amdgpu_vm_ready(struct amdgpu_vm *vm)
- {
--	bool empty;
- 	bool ret;
- 
- 	amdgpu_vm_eviction_lock(vm);
-@@ -666,10 +665,18 @@ bool amdgpu_vm_ready(struct amdgpu_vm *vm)
- 	amdgpu_vm_eviction_unlock(vm);
- 
- 	spin_lock(&vm->status_lock);
--	empty = list_empty(&vm->evicted);
-+	ret &= list_empty(&vm->evicted);
- 	spin_unlock(&vm->status_lock);
- 
--	return ret && empty;
-+	spin_lock(&vm->immediate.lock);
-+	ret &= !vm->immediate.stopped;
-+	spin_unlock(&vm->immediate.lock);
-+
-+	spin_lock(&vm->delayed.lock);
-+	ret &= !vm->delayed.stopped;
-+	spin_unlock(&vm->delayed.lock);
-+
-+	return ret;
- }
- 
- /**
--- 
-2.34.1
 

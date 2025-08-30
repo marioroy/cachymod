@@ -28,24 +28,24 @@ Select `_preempt=rt` for the realtime kernel.
 bash build.sh
 
 # BORE full or lazy preemption
-sudo pacman -U linux-cachymod-616-bore-lto-{6,h}*.zst
-sudo pacman -U linux-cachymod-616-bore-clang-{6,h}*.zst
-sudo pacman -U linux-cachymod-616-bore-gcc-{6,h}*.zst
+sudo pacman -U linux-cachymod-bore-lto-{6,h}*.zst
+sudo pacman -U linux-cachymod-bore-clang-{6,h}*.zst
+sudo pacman -U linux-cachymod-bore-gcc-{6,h}*.zst
 
 # BORE RT preemption
-sudo pacman -U linux-cachymod-616-bore-lto-rt*.zst
-sudo pacman -U linux-cachymod-616-bore-clang-rt*.zst
-sudo pacman -U linux-cachymod-616-bore-gcc-rt*.zst
+sudo pacman -U linux-cachymod-bore-lto-rt*.zst
+sudo pacman -U linux-cachymod-bore-clang-rt*.zst
+sudo pacman -U linux-cachymod-bore-gcc-rt*.zst
 
 # EEVDF full or lazy preemption
-sudo pacman -U linux-cachymod-616-eevdf-lto-{6,h}*.zst
-sudo pacman -U linux-cachymod-616-eevdf-clang-{6,h}*.zst
-sudo pacman -U linux-cachymod-616-eevdf-gcc-{6,h}*.zst
+sudo pacman -U linux-cachymod-eevdf-lto-{6,h}*.zst
+sudo pacman -U linux-cachymod-eevdf-clang-{6,h}*.zst
+sudo pacman -U linux-cachymod-eevdf-gcc-{6,h}*.zst
 
 # EEVDF RT preemption
-sudo pacman -U linux-cachymod-616-eevdf-lto-rt*.zst
-sudo pacman -U linux-cachymod-616-eevdf-clang-rt*.zst
-sudo pacman -U linux-cachymod-616-eevdf-gcc-rt*.zst
+sudo pacman -U linux-cachymod-eevdf-lto-rt*.zst
+sudo pacman -U linux-cachymod-eevdf-clang-rt*.zst
+sudo pacman -U linux-cachymod-eevdf-gcc-rt*.zst
 ```
 
 Removal is via pacman as well. Change the build type { lto, clang, gcc },
@@ -54,23 +54,23 @@ accordingly. Tip: `ls /usr/src` for the list of kernels on the system.
 ```text
 # BORE full or lazy preemption
 sudo pacman -Rsn \
-  linux-cachymod-616-bore-lto \
-  linux-cachymod-616-bore-lto-headers
+  linux-cachymod-bore-lto \
+  linux-cachymod-bore-lto-headers
 
 # BORE RT preemption
 sudo pacman -Rsn \
-  linux-cachymod-616-bore-lto-rt \
-  linux-cachymod-616-bore-lto-rt-headers
+  linux-cachymod-bore-lto-rt \
+  linux-cachymod-bore-lto-rt-headers
 
 # EEVDF full or lazy preemption
 sudo pacman -Rsn \
-  linux-cachymod-616-eevdf-lto \
-  linux-cachymod-616-eevdf-lto-headers
+  linux-cachymod-eevdf-lto \
+  linux-cachymod-eevdf-lto-headers
 
 # EEVDF RT preemption
 sudo pacman -Rsn \
-  linux-cachymod-616-eevdf-lto-rt \
-  linux-cachymod-616-eevdf-lto-rt-headers
+  linux-cachymod-eevdf-lto-rt \
+  linux-cachymod-eevdf-lto-rt-headers
 ```
 
 ## Developer Notes
@@ -101,32 +101,29 @@ Optionally, append kernel installation steps at the end of the script.
 
 ```text
 # Wait for pacman to finish
-
-while [ -e "/var/lib/pacman/db.lck" ]; do
-  # sleep $((1 + RANDOM % 9))
-    sleep 1
-done
+while [ -e "/var/lib/pacman/db.lck" ]; do sleep 1; done
 
 echo "Installing the kernel..."
+[[ "$_include_bore" =~ ^(yes|y|1)$ ]] \
+    && buildtag="bore" || buildtag="eevdf"
 
-if [ -z "$_kernel_suffix" ]; then
-    if [[ "$_include_bore" =~ ^(yes|y|1)$ ]]; then
-        buildtag="bore"
-    else
-        buildtag="eevdf"
-    fi
-    if [[ "$_buildtype" =~ ^(thin|full)$ ]]; then
-        buildtype="lto"
-    else
-        buildtype="$_buildtype"
-    fi
-    _kernel_suffix="${buildtag}-${buildtype}"
+[[ "$_buildtype" =~ ^(thin|full)$ ]] \
+    && buildtype="lto" || buildtype="$_buildtype"
+
+if [ "$_kernel_suffix" = "auto" ]; then
+    kernel_suffix="${buildtag}-${buildtype}"
+elif [ -n "$_kernel_suffix" ]; then
+    kernel_suffix="${buildtag}-${_kernel_suffix}"
+else
+    kernel_suffix="${buildtag}"
 fi
 
+[ "$_preempt" = "rt" ] && kernel_suffix="${kernel_suffix}-rt"
+
 if [[ "$_build_debug" =~ ^(yes|y|1)$ ]]; then
-    sudo pacman -U --noconfirm linux-cachymod-616-${_kernel_suffix}-{6,d,h}*
+    sudo pacman -U --noconfirm linux-cachymod-${kernel_suffix}-{6,d,h}*
 else
-    sudo pacman -U --noconfirm linux-cachymod-616-${_kernel_suffix}-{6,h}*
+    sudo pacman -U --noconfirm linux-cachymod-${kernel_suffix}-{6,h}*
 fi
 
 sync

@@ -3448,7 +3448,7 @@ diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu_job.c b/drivers/gpu/drm/amd/amdgp
 index ddb9d3269357cf..852b034f8fda40 100644
 --- a/drivers/gpu/drm/amd/amdgpu/amdgpu_job.c
 +++ b/drivers/gpu/drm/amd/amdgpu/amdgpu_job.c
-@@ -462,25 +462,22 @@ drm_sched_entity_queue_pop(struct drm_sched_entity *entity)
+@@ -455,25 +455,22 @@ drm_sched_entity_queue_pop(struct drm_sched_entity *entity)
  
  void amdgpu_job_stop_all_jobs_on_sched(struct drm_gpu_scheduler *sched)
  {
@@ -4064,7 +4064,7 @@ index 9ea0d9b71f48db..e528a13c412c41 100644
  			struct amdgpu_ring *ring = to_amdgpu_ring(sched);
  
  			if (amdgpu_vmid_uses_reserved(vm, ring->vm_hub))
-@@ -1258,7 +1259,8 @@ static int amdgpu_cs_sync_rings(struct amdgpu_cs_parser *p)
+@@ -1261,7 +1262,8 @@ static int amdgpu_cs_sync_rings(struct amdgpu_cs_parser *p)
  			return r;
  	}
  
@@ -4089,7 +4089,7 @@ index 852b034f8fda40..f66fe9bc69ccbf 100644
  	struct amdgpu_job *job = to_amdgpu_job(sched_job);
  	struct dma_fence *fence;
  	int r;
-@@ -462,7 +464,7 @@ drm_sched_entity_queue_pop(struct drm_sched_entity *entity)
+@@ -455,7 +457,7 @@ drm_sched_entity_queue_pop(struct drm_sched_entity *entity)
  
  void amdgpu_job_stop_all_jobs_on_sched(struct drm_gpu_scheduler *sched)
  {

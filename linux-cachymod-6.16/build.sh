@@ -8,8 +8,9 @@ set -e
 # Build options. Unless selections given, answer "yes/y/1", "no/n/0" or "".
 ###############################################################################
 
-# Custom kernel suffix. Default "{gcc,clang,lto}"
-: "${_kernel_suffix:=}"
+# Custom kernel suffix. Default "auto" {gcc,clang,lto}
+# Set to blank value for no kernel suffix
+: "${_kernel_suffix:=auto}"
 
 # Include BORE patch
 # The kernel will have "eevdf" or "bore" suffix unless specified above

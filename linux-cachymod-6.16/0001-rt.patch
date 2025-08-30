@@ -696,7 +696,7 @@ index 6d7b8c4667c9c..9537e44a4226f 100644
  			p->ier |= UART_IER_RLSI | UART_IER_RDI;
  			serial_port_out(&p->port, UART_IER, p->ier);
  		}
-@@ -3303,7 +3323,11 @@ EXPORT_SYMBOL_GPL(serial8250_set_defaults);
+@@ -3302,7 +3322,11 @@ EXPORT_SYMBOL_GPL(serial8250_set_defaults);
  
  static void serial8250_console_putchar(struct uart_port *port, unsigned char ch)
  {
@@ -708,7 +708,7 @@ index 6d7b8c4667c9c..9537e44a4226f 100644
  }
  
  static void serial8250_console_wait_putchar(struct uart_port *port, unsigned char ch)
-@@ -3340,11 +3364,22 @@ static void serial8250_console_restore(struct uart_8250_port *up)
+@@ -3339,11 +3363,22 @@ static void serial8250_console_restore(struct uart_8250_port *up)
  	serial8250_out_MCR(up, up->mcr | UART_MCR_DTR | UART_MCR_RTS);
  }
  
@@ -732,7 +732,7 @@ index 6d7b8c4667c9c..9537e44a4226f 100644
  		if (wait_for_lsr(up, UART_LSR_THRE))
  			return;
  	}
-@@ -3357,20 +3392,29 @@ static void fifo_wait_for_lsr(struct uart_8250_port *up, unsigned int count)
+@@ -3356,20 +3391,29 @@ static void fifo_wait_for_lsr(struct uart_8250_port *up, unsigned int count)
   * to get empty.
   */
  static void serial8250_console_fifo_write(struct uart_8250_port *up,
@@ -765,7 +765,7 @@ index 6d7b8c4667c9c..9537e44a4226f 100644
  			if (*s == '\n' && !cr_sent) {
  				serial8250_console_putchar(port, '\r');
  				cr_sent = true;
-@@ -3378,6 +3422,8 @@ static void serial8250_console_fifo_write(struct uart_8250_port *up,
+@@ -3377,6 +3421,8 @@ static void serial8250_console_fifo_write(struct uart_8250_port *up,
  				serial8250_console_putchar(port, *s++);
  				cr_sent = false;
  			}
@@ -774,7 +774,7 @@ index 6d7b8c4667c9c..9537e44a4226f 100644
  		}
  		tx_count = i;
  	}
-@@ -3386,39 +3432,57 @@ static void serial8250_console_fifo_write(struct uart_8250_port *up,
+@@ -3385,39 +3431,57 @@ static void serial8250_console_fifo_write(struct uart_8250_port *up,
  	 * Allow timeout for each byte written since the caller will only wait
  	 * for UART_LSR_BOTH_EMPTY using the timeout of a single character
  	 */
@@ -852,7 +852,7 @@ index 6d7b8c4667c9c..9537e44a4226f 100644
  
  	/* check scratch reg to see if port powered off during system sleep */
  	if (up->canary && (up->canary != serial_port_in(port, UART_SCR))) {
-@@ -3432,6 +3496,18 @@ void serial8250_console_write(struct uart_8250_port *up, const char *s,
+@@ -3431,6 +3495,18 @@ void serial8250_console_write(struct uart_8250_port *up, const char *s,
  		mdelay(port->rs485.delay_rts_before_send);
  	}
  
@@ -871,7 +871,7 @@ index 6d7b8c4667c9c..9537e44a4226f 100644
  	use_fifo = (up->capabilities & UART_CAP_FIFO) &&
  		/*
  		 * BCM283x requires to check the fifo
-@@ -3452,10 +3528,23 @@ void serial8250_console_write(struct uart_8250_port *up, const char *s,
+@@ -3451,10 +3527,23 @@ void serial8250_console_write(struct uart_8250_port *up, const char *s,
  		 */
  		!(up->port.flags & UPF_CONS_FLOW);
  
@@ -897,7 +897,7 @@ index 6d7b8c4667c9c..9537e44a4226f 100644
  
  	/*
  	 *	Finally, wait for transmitter to become empty
-@@ -3478,11 +3567,18 @@ void serial8250_console_write(struct uart_8250_port *up, const char *s,
+@@ -3477,11 +3566,18 @@ void serial8250_console_write(struct uart_8250_port *up, const char *s,
  	 *	call it if we have saved something in the saved flags
  	 *	while processing with interrupts off.
  	 */
@@ -920,7 +920,7 @@ index 6d7b8c4667c9c..9537e44a4226f 100644
  }
  
  static unsigned int probe_baud(struct uart_port *port)
-@@ -3500,8 +3596,24 @@ static unsigned int probe_baud(struct uart_port *port)
+@@ -3499,8 +3595,24 @@ static unsigned int probe_baud(struct uart_port *port)
  	return (port->uartclk / 16) / quot;
  }
  
@@ -945,7 +945,7 @@ index 6d7b8c4667c9c..9537e44a4226f 100644
  	int baud = 9600;
  	int bits = 8;
  	int parity = 'n';
-@@ -3511,6 +3623,9 @@ int serial8250_console_setup(struct uart_port *port, char *options, bool probe)
+@@ -3510,6 +3622,9 @@ int serial8250_console_setup(struct uart_port *port, char *options, bool probe)
  	if (!port->iobase && !port->membase)
  		return -ENODEV;
  

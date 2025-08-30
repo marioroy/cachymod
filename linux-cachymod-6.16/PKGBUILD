@@ -5,8 +5,9 @@
 ### BUILD OPTIONS
 # Set these variables to ANYTHING that is not null or choose proper variable to enable them
 
-# Custom kernel suffix. Default "{gcc,clang,lto}"
-: "${_kernel_suffix:=}"
+# Custom kernel suffix. Default "auto" {gcc,clang,lto}
+# Set to blank value for no kernel suffix
+: "${_kernel_suffix:=auto}"
 
 # Include BORE patch
 # The kernel will have "eevdf" or "bore" suffix unless specified above
@@ -87,7 +88,11 @@
 : "${_autofdo:=yes}"
 
 # Name for the AutoFDO profile
-: "${_autofdo_profile_name:=cachymod.afdo}"
+if [[ "$_include_bore" =~ ^(yes|y|1)$ ]]; then
+    : "${_autofdo_profile_name:=cachymod.afdo}"
+else
+    : "${_autofdo_profile_name:=cachymod_eevdf.afdo}"
+fi
 
 # Propeller should be applied, after the kernel is optimized with AutoFDO
 # Workflow:
@@ -112,24 +117,25 @@ if [[ "$_buildtype" =~ ^(gcc|clang)$ ]]; then
     _propeller_profiles="no"
 fi
 
-if [[ "$_buildtype" =~ ^(thin|full)$ ]]; then
-    buildtype="lto"
+[[ "$_include_bore" =~ ^(yes|y|1)$ ]] \
+    && buildtag="bore" || buildtag="eevdf"
+
+[[ "$_buildtype" =~ ^(thin|full)$ ]] \
+    && buildtype="lto" || buildtype="$_buildtype"
+
+if [ "$_kernel_suffix" = "auto" ]; then
+    kernel_suffix="${buildtag}-${buildtype}"
+elif [ -n "$_kernel_suffix" ]; then
+    kernel_suffix="${buildtag}-${_kernel_suffix}"
 else
-    buildtype="$_buildtype"
+    kernel_suffix="${buildtag}"
 fi
 
-if [ -z "$_kernel_suffix" ]; then
-    if [[ "$_include_bore" =~ ^(yes|y|1)$ ]]; then
-        buildtag="bore"
-    else
-        buildtag="eevdf"
-    fi
-    _kernel_suffix="${buildtag}-${buildtype}"
-fi
+[ "$_preempt" = "rt" ] && kernel_suffix="${kernel_suffix}-rt"
 
-_pkgsuffix=cachymod-616
+_pkgsuffix=cachymod
 _major=6.16
-_minor=3
+_minor=4
 pkgver=${_major}.${_minor}
 _stable=${_major}.${_minor}
 #_stable=${_major}
@@ -141,7 +147,7 @@ _stable=${_major}.${_minor}
 
 _srcname=linux-${_stable}
 pkgdesc='CachyMod Linux Kernel with other patches and improvements'
-pkgrel=4
+pkgrel=1
 _kernver="$pkgver-$pkgrel"
 _kernuname="${pkgver}-${_pkgsuffix}"
 arch=('x86_64')
@@ -226,16 +232,15 @@ fi
 
 # Use generated Propeller Profile
 if [ "$_propeller" = "yes" ] && [ "$_propeller_profiles" = "yes" ]; then
-    source+=(propeller_cc_profile.txt
-             propeller_ld_profile.txt)
+    if [[ "$_include_bore" =~ ^(yes|y|1)$ ]]; then
+        source+=(propeller_cc_profile.txt propeller_ld_profile.txt)
+    else
+        source+=(propeller_cc_profile_eevdf.txt propeller_ld_profile_eevdf.txt)
+    fi
 fi
 
 pkgbase="linux-$_pkgsuffix"
-if [ "$_preempt" = "rt" ]; then
-    pkgbase="${pkgbase}-${_kernel_suffix}-rt"
-else
-    pkgbase="${pkgbase}-${_kernel_suffix}"
-fi
+pkgbase="${pkgbase}-${kernel_suffix}"
 
 export KBUILD_BUILD_HOST=cachyos
 export KBUILD_BUILD_USER="$pkgbase"
@@ -368,8 +373,13 @@ prepare() {
 
     echo "Selecting '$_preempt' preempt type..."
 
-    echo "Enabling KBUILD_CFLAGS -O3..."
-    scripts/config -d CC_OPTIMIZE_FOR_PERFORMANCE -e CC_OPTIMIZE_FOR_PERFORMANCE_O3
+    if [ "$_buildtype" = "gcc" ]; then
+        echo "Enabling KBUILD_CFLAGS -O2..."
+        scripts/config -d CC_OPTIMIZE_FOR_PERFORMANCE_O3 -e CC_OPTIMIZE_FOR_PERFORMANCE
+    else
+        echo "Enabling KBUILD_CFLAGS -O3..."
+        scripts/config -d CC_OPTIMIZE_FOR_PERFORMANCE -e CC_OPTIMIZE_FOR_PERFORMANCE_O3
+    fi
 
     ##
     # Use cubic as the default TCP congestion control
@@ -492,7 +502,7 @@ build() {
     [[ -z "$ncpu" || "$ncpu" = "MAKEFLAGS"* ]] && ncpu=$(nproc)
 
     make "${BUILD_FLAGS[@]}" -j"$ncpu" all 2>&1 | \
-       grep -Ev '^  (AS|AR|CC|LD|BT|CE|CO|GE|HO|IN|IP|MK|OB|PA|PE|PO|RE|ST|TA|TE|UN|UP|VD|WR|X32)| warning: objtool:'
+       grep -Ev '^  (AS|AR|CC|LD|BT|CE|CO|GE|HO|IN|IP|MK|OB|PA|PE|PO|RE|ST|TA|TE|UN|UP|VD|WR|X32)'
     make -C tools/bpf/bpftool vmlinux.h feature-clang-bpf-co-re=1 | \
        grep -Ev '^  (AS|AR|CC|LD|BT|CE|CO|GE|HO|IN|IP|MK|OB|PA|PE|PO|RE|ST|TA|TE|UN|UP|VD|WR|X32)'
 }
@@ -509,7 +519,6 @@ _package() {
     cd "$_srcname"
 
     local modulesdir="$pkgdir/usr/lib/modules/$(<version)"
-    local flavour
 
     echo "Installing boot image..."
     # systemd expects to find the kernel here to allow hibernation
@@ -518,9 +527,6 @@ _package() {
 
     # Used by mkinitcpio to name the kernel
     echo "$pkgbase" | install -Dm644 /dev/stdin "$modulesdir/pkgbase"
-
-    # Include mkinitcpio preset file, excluding PRESETS 'fallback'
-    [ "$_preempt" = "rt" ] && flavour="${_kernel_suffix}-rt" || flavour="${_kernel_suffix}"
 
     echo "Installing modules..."
     ZSTD_CLEVEL=6 make "${BUILD_FLAGS[@]}" INSTALL_MOD_PATH="$pkgdir/usr" INSTALL_MOD_STRIP=1 \
