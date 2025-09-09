@@ -27,50 +27,38 @@ Select `_preempt=rt` for the realtime kernel.
 ```bash
 bash build.sh
 
-# BORE full or lazy preemption
-sudo pacman -U linux-cachymod-bore-lto-{6,h}*.zst
-sudo pacman -U linux-cachymod-bore-clang-{6,h}*.zst
+# BORE full/lazy or RT preemption
 sudo pacman -U linux-cachymod-bore-gcc-{6,h}*.zst
-
-# BORE RT preemption
-sudo pacman -U linux-cachymod-bore-lto-rt*.zst
-sudo pacman -U linux-cachymod-bore-clang-rt*.zst
 sudo pacman -U linux-cachymod-bore-gcc-rt*.zst
 
-# EEVDF full or lazy preemption
-sudo pacman -U linux-cachymod-eevdf-lto-{6,h}*.zst
-sudo pacman -U linux-cachymod-eevdf-clang-{6,h}*.zst
+# EEVDF full/lazy or RT preemption
 sudo pacman -U linux-cachymod-eevdf-gcc-{6,h}*.zst
-
-# EEVDF RT preemption
-sudo pacman -U linux-cachymod-eevdf-lto-rt*.zst
-sudo pacman -U linux-cachymod-eevdf-clang-rt*.zst
 sudo pacman -U linux-cachymod-eevdf-gcc-rt*.zst
 ```
 
-Removal is via pacman as well. Change the build type { lto, clang, gcc },
-accordingly. Tip: `ls /usr/src` for the list of kernels on the system.
+Removal is via pacman as well.
+Tip: `ls /usr/src` for the list of kernels on the system.
 
 ```text
 # BORE full or lazy preemption
 sudo pacman -Rsn \
-  linux-cachymod-bore-lto \
-  linux-cachymod-bore-lto-headers
+  linux-cachymod-bore-gcc \
+  linux-cachymod-bore-gcc-headers
 
 # BORE RT preemption
 sudo pacman -Rsn \
-  linux-cachymod-bore-lto-rt \
-  linux-cachymod-bore-lto-rt-headers
+  linux-cachymod-bore-gcc-rt \
+  linux-cachymod-bore-gcc-rt-headers
 
 # EEVDF full or lazy preemption
 sudo pacman -Rsn \
-  linux-cachymod-eevdf-lto \
-  linux-cachymod-eevdf-lto-headers
+  linux-cachymod-eevdf-gcc \
+  linux-cachymod-eevdf-gcc-headers
 
 # EEVDF RT preemption
 sudo pacman -Rsn \
-  linux-cachymod-eevdf-lto-rt \
-  linux-cachymod-eevdf-lto-rt-headers
+  linux-cachymod-eevdf-gcc-rt \
+  linux-cachymod-eevdf-gcc-rt-headers
 ```
 
 ## Developer Notes
@@ -107,11 +95,8 @@ echo "Installing the kernel..."
 [[ "$_include_bore" =~ ^(yes|y|1)$ ]] \
     && buildtag="bore" || buildtag="eevdf"
 
-[[ "$_buildtype" =~ ^(thin|full)$ ]] \
-    && buildtype="lto" || buildtype="$_buildtype"
-
 if [ "$_kernel_suffix" = "auto" ]; then
-    kernel_suffix="${buildtag}-${buildtype}"
+    kernel_suffix="${buildtag}-gcc"
 elif [ -n "$_kernel_suffix" ]; then
     kernel_suffix="${buildtag}-${_kernel_suffix}"
 else

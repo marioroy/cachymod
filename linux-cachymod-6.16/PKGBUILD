@@ -5,7 +5,7 @@
 ### BUILD OPTIONS
 # Set these variables to ANYTHING that is not null or choose proper variable to enable them
 
-# Custom kernel suffix. Default "auto" {gcc,clang,lto}
+# Custom kernel suffix. Default "auto"
 # Set to blank value for no kernel suffix
 : "${_kernel_suffix:=auto}"
 
@@ -63,68 +63,17 @@
 # { generic, generic_v1, generic_v2, generic_v3, generic_v4, native, zen4 }
 : "${_processor_opt:=}"
 
-# Select build type { full, thin, clang, gcc }
-# full:  Build the kernel with clang full-LTO, suffix "-lto"
-#        Uses 1 thread for linking, slow and uses more memory (>16GB),
-#        theoretically with the highest performance gains
-# thin:  Build the kernel with clang thin-LTO, suffix "-lto"
-#        Uses multiple threads, faster and lesser memory consumption,
-#        possibly lower runtime performance than full
-# clang: Build kernel with clang, suffix "-clang"
-# gcc:   Build kernel with gcc, suffix "-gcc"
-: "${_buildtype:=thin}"
-
 # Build a debug package with non-stripped vmlinux
 : "${_build_debug:=no}"
-
-# Enable AUTOFDO_CLANG for the first compilation to create a kernel, which can be used for profiling
-# Workflow:
-# https://cachyos.org/blog/2411-kernel-autofdo/
-# 1. Compile Kernel with _autofdo=yes and _build_debug=yes
-# 2. Boot the kernel in QEMU or on your system, see Workload
-# 3. Profile the kernel and convert the profile, see Generating the Profile for AutoFDO
-# 4. Put the profile into the sourcedir
-# 5. Run kernel build again with the _autofdo_profile_name path to profile specified
-: "${_autofdo:=yes}"
-
-# Name for the AutoFDO profile
-if [[ "$_include_bore" =~ ^(yes|y|1)$ ]]; then
-    : "${_autofdo_profile_name:=cachymod.afdo}"
-else
-    : "${_autofdo_profile_name:=cachymod_eevdf.afdo}"
-fi
-
-# Propeller should be applied, after the kernel is optimized with AutoFDO
-# Workflow:
-# 1. Proceed with above AutoFDO Optimization, but enable at the final compilation also _propeller
-# 2. Boot into the AutoFDO Kernel and profile it
-# 3. Convert the profile into the propeller profile, example:
-# create_llvm_prof --binary=/usr/src/debug/linux-cachyos-rc/vmlinux --profile=propeller.data --format=propeller --propeller_output_module_name --out=propeller_cc_profile.txt --propeller_symorder=propeller_ld_profile.txt
-# 4. Place the propeller_cc_profile.txt and propeller_ld_profile.txt into the srcdir
-# 5. Enable _propeller_prefix
-: "${_propeller:=yes}"
-
-# Enable this after the profiles have been generated
-: "${_propeller_profiles:=yes}"
 
 
 # ATTENTION: Do not modify after this line
 
-if [[ "$_buildtype" =~ ^(gcc|clang)$ ]]; then
-    _autofdo="no"
-    _autofdo_profile_name=""
-    _propeller="no"
-    _propeller_profiles="no"
-fi
-
 [[ "$_include_bore" =~ ^(yes|y|1)$ ]] \
     && buildtag="bore" || buildtag="eevdf"
 
-[[ "$_buildtype" =~ ^(thin|full)$ ]] \
-    && buildtype="lto" || buildtype="$_buildtype"
-
 if [ "$_kernel_suffix" = "auto" ]; then
-    kernel_suffix="${buildtag}-${buildtype}"
+    kernel_suffix="${buildtag}-gcc"
 elif [ -n "$_kernel_suffix" ]; then
     kernel_suffix="${buildtag}-${_kernel_suffix}"
 else
@@ -135,15 +84,10 @@ fi
 
 _pkgsuffix=cachymod
 _major=6.16
-_minor=5
+_minor=6
 pkgver=${_major}.${_minor}
 _stable=${_major}.${_minor}
 #_stable=${_major}
-
-# RC
-#_rcver=rc7
-#pkgver=${_major}.${_rcver}
-#_stable=${_major}-${_rcver}
 
 _srcname=linux-${_stable}
 pkgdesc='CachyMod Linux Kernel with other patches and improvements'
@@ -191,23 +135,7 @@ if [[ -s "custom.sh" ]]; then
     source+=("custom.sh")
 fi
 
-# LLVM makedepends
-if [[ "$buildtype" =~ (lto|clang) ]]; then
-    makedepends+=( clang llvm lld )
-    source+=("dkms-clang.patch" "flags-clang.patch" "thindist.patch")
-
-    BUILD_FLAGS=( CC=clang LD=ld.lld LLVM_IAS=1 )
-    CLANG_BIN=$(which clang) ; CLANG_BIN="${CLANG_BIN%clang}"
-    [ "$CLANG_BIN" = "/usr/bin/" ] && BUILD_FLAGS+=( LLVM=1 )
-
-    if [[ "$CLANG_BIN" != "/usr/bin/" && -x "${CLANG_BIN}/llvm-strip" ]]; then
-        BUILD_FLAGS+=( LLVM="$CLANG_BIN" )
-    else
-        BUILD_FLAGS+=( LLVM=1 )
-    fi
-else
-    BUILD_FLAGS=( CC=gcc )
-fi
+BUILD_FLAGS=( CC=gcc )
 
 # Append extra sources in build.sh
 [ -n "$_extra_patch_or_url0" ] && source+=("$_extra_patch_or_url0")
@@ -222,24 +150,6 @@ fi
 [ -n "$_extra_patch_or_url9" ] && source+=("$_extra_patch_or_url9")
 
 _die() { error "$@" ; exit 1; }
-
-# Use generated AutoFDO Profile
-if [ "$_autofdo" = "yes" ] && [ -n "$_autofdo_profile_name" ]; then
-    if [ -e "$_autofdo_profile_name" ]; then
-        source+=("$_autofdo_profile_name")
-    else
-        _die "Failed to find file ${_autofdo_profile_name}"
-    fi
-fi
-
-# Use generated Propeller Profile
-if [ "$_propeller" = "yes" ] && [ "$_propeller_profiles" = "yes" ]; then
-    if [[ "$_include_bore" =~ ^(yes|y|1)$ ]]; then
-        source+=(propeller_cc_profile.txt propeller_ld_profile.txt)
-    else
-        source+=(propeller_cc_profile_eevdf.txt propeller_ld_profile_eevdf.txt)
-    fi
-fi
 
 pkgbase="linux-$_pkgsuffix"
 pkgbase="${pkgbase}-${kernel_suffix}"
@@ -300,30 +210,7 @@ prepare() {
     scripts/config -e SCHED_BORE
 
     ### Select build type
-    [ -z "$_buildtype" ] && _die "The value is empty. Choose the correct one again."
-
-    case "$_buildtype" in
-        thin)
-            scripts/config -e LTO -e LTO_CLANG -e ARCH_SUPPORTS_LTO_CLANG -e ARCH_SUPPORTS_LTO_CLANG_THIN -e HAS_LTO_CLANG -d LTO_NONE -d LTO_CLANG_FULL -d LTO_CLANG_THIN -e LTO_CLANG_THIN_DIST -e HAVE_GCC_PLUGINS
-            ;;
-        full)
-            scripts/config -e LTO -e LTO_CLANG -e ARCH_SUPPORTS_LTO_CLANG -e ARCH_SUPPORTS_LTO_CLANG_THIN -e HAS_LTO_CLANG -d LTO_NONE -e LTO_CLANG_FULL -d LTO_CLANG_THIN -d LTO_CLANG_THIN_DIST -e HAVE_GCC_PLUGINS
-            ;;
-        clang)
-            scripts/config -e LTO -e LTO_CLANG -e ARCH_SUPPORTS_LTO_CLANG -e ARCH_SUPPORTS_LTO_CLANG_THIN -e HAS_LTO_CLANG -e LTO_NONE -d LTO_CLANG_FULL -d LTO_CLANG_THIN -d LTO_CLANG_THIN_DIST -e HAVE_GCC_PLUGINS
-            ;;
-        gcc)
-            scripts/config -e LTO_NONE
-            ;;
-        *)
-            _die "The value '$_buildtype' is invalid. Choose the correct one again."
-    esac
-
-    if [ "$buildtype" = "lto" ]; then
-        echo "Selecting 'clang' compiler, '$_buildtype' LLVM level..."
-    else
-        echo "Selecting '$_buildtype' compiler, no LTO..."
-    fi
+    scripts/config -e LTO_NONE
 
     ### Select tick rate
     [ -z "$_HZ_ticks" ] && _die "The value is empty. Choose the correct one again."
@@ -375,13 +262,8 @@ prepare() {
 
     echo "Selecting '$_preempt' preempt type..."
 
-    if [ "$_buildtype" = "gcc" ]; then
-        echo "Enabling KBUILD_CFLAGS -O2..."
-        scripts/config -d CC_OPTIMIZE_FOR_PERFORMANCE_O3 -e CC_OPTIMIZE_FOR_PERFORMANCE
-    else
-        echo "Enabling KBUILD_CFLAGS -O3..."
-        scripts/config -d CC_OPTIMIZE_FOR_PERFORMANCE -e CC_OPTIMIZE_FOR_PERFORMANCE_O3
-    fi
+    echo "Enabling KBUILD_CFLAGS -O2..."
+    scripts/config -d CC_OPTIMIZE_FOR_PERFORMANCE_O3 -e CC_OPTIMIZE_FOR_PERFORMANCE
 
     ##
     # Use cubic as the default TCP congestion control
@@ -406,27 +288,6 @@ prepare() {
     esac
 
     echo "Selecting '$_hugepage' TRANSPARENT_HUGEPAGE config..."
-
-    # Enable Clang AutoFDO
-    # Add additonal check if Thin or Full LTO is enabled otherwise die
-    if [ "$_autofdo" = "yes" ]; then
-        scripts/config -e AUTOFDO_CLANG
-    fi
-
-    if [ "$_autofdo" = "yes" ] && [ -n "$_autofdo_profile_name" ]; then
-        echo "AutoFDO profile has been found..."
-        BUILD_FLAGS+=(CLANG_AUTOFDO_PROFILE="${srcdir}/${_autofdo_profile_name}")
-    fi
-
-    # Propeller Optimization
-    if [ "$_propeller" = "yes" ]; then
-        scripts/config -e PROPELLER_CLANG
-    fi
-
-    if [ "$_propeller" = "yes" ] && [ "$_propeller_profiles" = "yes" ]; then
-        echo "Propeller profile has been found..."
-        BUILD_FLAGS+=(CLANG_PROPELLER_PROFILE_PREFIX="${srcdir}/propeller")
-    fi
 
     echo "Enabling USER_NS_UNPRIVILEGED"
     scripts/config -e USER_NS
@@ -541,10 +402,6 @@ _package() {
 _package-headers() {
     pkgdesc="Headers and scripts for building modules for the $pkgdesc kernel"
     depends=('pahole' "${pkgbase}")
-
-    if [[ "$buildtype" =~ (lto|clang) ]]; then
-        depends+=(clang llvm lld)
-    fi
 
     cd "${_srcname}"
     local builddir="$pkgdir/usr/lib/modules/$(<version)/build"
