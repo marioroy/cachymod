@@ -112,6 +112,7 @@ set -e
 export _extra_patch_or_url1 _extra_patch_or_url2 _extra_patch_or_url3
 export _extra_patch_or_url4 _extra_patch_or_url5 _extra_patch_or_url6
 export _extra_patch_or_url7 _extra_patch_or_url8 _extra_patch_or_url9
+export _extra_patch_or_url0
 
 export _kernel_suffix _prevent_avx2 _runtrim_script _enable_sched_ext
 export _localmodcfg _localmodcfg_path _makenconfig _makegconfig _makexconfig
