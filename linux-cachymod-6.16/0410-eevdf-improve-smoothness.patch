@@ -1,0 +1,87 @@
+
+Few updates for improving the EEVDF desktop experience
+
+Signed-off-by: Mario Roy <...>
+
+
+The CachyOS default migration_cost with EEVDF is a little extreme
+Bump the value to mitigate stutters, helpful with many cores CPU
+
+diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -85,7 +85,7 @@ static unsigned int normalized_sysctl_sched_base_slice
+ #endif /* CONFIG_CACHY */
+ 
+ #ifdef CONFIG_CACHY
+-__read_mostly unsigned int sysctl_sched_migration_cost	= 300000UL;
++__read_mostly unsigned int sysctl_sched_migration_cost	= 350000UL;
+ #else
+ __read_mostly unsigned int sysctl_sched_migration_cost	= 500000UL;
+ #endif
+-- 
+2.40.2
+
+sched/fair: remove upper limit on cpu number, as done in Clear Linux
+
+diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -206,7 +206,7 @@ static inline void update_load_set(struct load_weight *lw, unsigned long w)
+  */
+ static unsigned int get_update_sysctl_factor(void)
+ {
+-	unsigned int cpus = min_t(unsigned int, num_online_cpus(), 8);
++	unsigned int cpus = num_online_cpus();
+ 	unsigned int factor;
+ 
+ 	switch (sysctl_sched_tunable_scaling) {
+-- 
+2.40.2
+
+sched/fair: improve smoothness, as done in BORE
+
+diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -713,6 +713,9 @@ static void update_entity_lag(struct cfs_rq *cfs_rq, struct sched_entity *se)
+ 
+ 	vlag = avg_vruntime(cfs_rq) - se->vruntime;
+ 	limit = calc_delta_fair(max_t(u64, 2*se->slice, TICK_NSEC), se);
++#ifdef CONFIG_CACHY
++	limit >>= 1;
++#endif
+ 
+ 	se->vlag = clamp(vlag, -limit, limit);
+ }
+-- 
+2.40.2
+
+Use profiles captured with the EEVDF variant
+
+diff -uarp a/scripts/Makefile.propeller b/scripts/Makefile.propeller
+--- a/scripts/Makefile.propeller
++++ b/scripts/Makefile.propeller
+@@ -2,8 +2,8 @@
+ 
+ # Enable available and selected Clang Propeller features.
+ ifdef CLANG_PROPELLER_PROFILE_PREFIX
+-  CFLAGS_PROPELLER_CLANG := -fbasic-block-sections=list=$(CLANG_PROPELLER_PROFILE_PREFIX)_cc_profile.txt -ffunction-sections
+-  KBUILD_LDFLAGS += --symbol-ordering-file=$(CLANG_PROPELLER_PROFILE_PREFIX)_ld_profile.txt --no-warn-symbol-ordering
++  CFLAGS_PROPELLER_CLANG := -fbasic-block-sections=list=$(CLANG_PROPELLER_PROFILE_PREFIX)_cc_profile_eevdf.txt -ffunction-sections
++  KBUILD_LDFLAGS += --symbol-ordering-file=$(CLANG_PROPELLER_PROFILE_PREFIX)_ld_profile_eevdf.txt --no-warn-symbol-ordering
+ else
+   # Starting with Clang v20, the '-fbasic-block-sections=labels' option is
+   # deprecated. Use the recommended '-fbasic-block-address-map' option.
+@@ -26,7 +26,7 @@ endif
+ 
+ ifdef CONFIG_LTO_CLANG_THIN
+   ifdef CLANG_PROPELLER_PROFILE_PREFIX
+-    KBUILD_LDFLAGS += --lto-basic-block-sections=$(CLANG_PROPELLER_PROFILE_PREFIX)_cc_profile.txt
++    KBUILD_LDFLAGS += --lto-basic-block-sections=$(CLANG_PROPELLER_PROFILE_PREFIX)_cc_profile_eevdf.txt
+   else
+     ifeq ($(call test-ge, $(CONFIG_LLD_VERSION), 200000),y)
+        KBUILD_LDFLAGS += --lto-basic-block-address-map
+-- 
+2.40.2
+

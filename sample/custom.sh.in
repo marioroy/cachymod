@@ -1,0 +1,21 @@
+#!/bin/bash
+# Set/override custom kernel options
+# Make a copy, "cp custom.sh.in custom.sh" and edit custom.sh
+#
+# usage:
+# scripts/config options command ...
+#
+# commands:
+#     --enable   | -e option   Enable option
+#     --disable  | -d option   Disable option
+#     --module   | -m option   Turn option into a module
+#     --set-str option string  Set option to "string"
+#     --set-val option value   Set option to value
+#     --undefine | -u option   Undefine option
+
+set -e
+
+# Disable staging drivers
+# Drivers that are not of the "normal" Linux kernel quality level
+#scripts/config -d STAGING
+

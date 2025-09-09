@@ -1,0 +1,2171 @@
+
+Add a deadline server for sched_ext tasks (rebased)
+https://lore.kernel.org/all/20250809184800.129831-1-joelagnelf@nvidia.com/
+
+From: Joel Fernandes <joelagnelf@xxxxxxxxxx>
+
+Just rebased on Linus's master and made adjustments. These patches have been
+complete for some time without any issues. I am hoping they are merged for 6.18.
+
+sched_ext tasks currently are starved by RT hoggers especially since RT
+throttling was replaced by deadline servers to boost only CFS tasks. Several
+users in the community have reported issues with RT stalling sched_ext tasks.
+Add a sched_ext deadline server as well so that sched_ext tasks are also
+boosted and do not suffer starvation.
+
+ 2 kselftest are provided to verify the starvation fixes and bandwidth
+ allocation is looking correct.
+
+v1: https://lore.kernel.org/all/20250315022158.2354454-1-joelagnelf@nvidia.com/
+v2: https://lore.kernel.org/all/20250602180110.816225-1-joelagnelf@nvidia.com/
+v3: https://lore.kernel.org/all/20250613051734.4023260-1-joelagnelf@nvidia.com/
+v4: https://lore.kernel.org/all/20250617200523.1261231-1-joelagnelf@nvidia.com/
+v5: https://lore.kernel.org/all/20250620203234.3349930-1-joelagnelf@nvidia.com/
+v6: https://lore.kernel.org/all/20250702232944.3221001-1-joelagnelf@nvidia.com/
+
+https://git.kernel.org/pub/scm/linux/kernel/git/arighi/linux.git/
+
+Reviewed-by: Andrea Righi <arighi@xxxxxxxxxx>
+Signed-off-by: Joel Fernandes <joelagnelf@xxxxxxxxxx>
+Tested-by: Mario Roy <...>
+
+
+Subject: [PATCH 1/15] sched/debug: Fix updating of ppos on server write ops
+
+Updating "ppos" on error conditions does not make much sense. The pattern
+is to return the error code directly without modifying the position, or
+modify the position on success and return the number of bytes written.
+
+Since on success, the return value of apply is 0, there is no point in
+modifying ppos either. Fix it by removing all this and just returning
+error code or number of bytes written on success.
+
+Acked-by: Tejun Heo <tj@xxxxxxxxxx>
+Reviewed-by: Andrea Righi <arighi@xxxxxxxxxx>
+Signed-off-by: Joel Fernandes <joelagnelf@xxxxxxxxxx>
+---
+ kernel/sched/debug.c | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/kernel/sched/debug.c b/kernel/sched/debug.c
+index 3f06ab84d53f..dbe2aee8628c 100644
+--- a/kernel/sched/debug.c
++++ b/kernel/sched/debug.c
+@@ -350,8 +350,8 @@ static ssize_t sched_fair_server_write(struct file *filp, const char __user *ubu
+ 	long cpu = (long) ((struct seq_file *) filp->private_data)->private;
+ 	struct rq *rq = cpu_rq(cpu);
+ 	u64 runtime, period;
++	int retval = 0;
+ 	size_t err;
+-	int retval;
+ 	u64 value;
+ 
+ 	err = kstrtoull_from_user(ubuf, cnt, 10, &value);
+@@ -387,8 +387,6 @@ static ssize_t sched_fair_server_write(struct file *filp, const char __user *ubu
+ 		}
+ 
+ 		retval = dl_server_apply_params(&rq->fair_server, runtime, period, 0);
+-		if (retval)
+-			cnt = retval;
+ 
+ 		if (!runtime)
+ 			printk_deferred("Fair server disabled in CPU %d, system may crash due to starvation.\n",
+@@ -396,6 +394,9 @@ static ssize_t sched_fair_server_write(struct file *filp, const char __user *ubu
+ 
+ 		if (rq->cfs.h_nr_queued)
+ 			dl_server_start(&rq->fair_server);
++
++		if (retval < 0)
++			return retval;
+ 	}
+ 
+ 	*ppos += cnt;
+-- 
+2.34.1
+
+Subject: [PATCH 2/15] sched/debug: Stop and start server based on if it was
+ active
+
+Currently the DL server interface for applying parameters checks
+CFS-internals to identify if the server is active. This is error-prone
+and makes it difficult when adding new servers in the future.
+
+Fix it, by using dl_server_active() which is also used by the DL server
+code to determine if the DL server was started.
+
+Acked-by: Tejun Heo <tj@xxxxxxxxxx>
+Reviewed-by: Andrea Righi <arighi@xxxxxxxxxx>
+Signed-off-by: Joel Fernandes <joelagnelf@xxxxxxxxxx>
+---
+ kernel/sched/debug.c | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/kernel/sched/debug.c b/kernel/sched/debug.c
+index dbe2aee8628c..e71f6618c1a6 100644
+--- a/kernel/sched/debug.c
++++ b/kernel/sched/debug.c
+@@ -359,6 +359,8 @@ static ssize_t sched_fair_server_write(struct file *filp, const char __user *ubu
+ 		return err;
+ 
+ 	scoped_guard (rq_lock_irqsave, rq) {
++		bool is_active;
++
+ 		runtime  = rq->fair_server.dl_runtime;
+ 		period = rq->fair_server.dl_period;
+ 
+@@ -381,7 +383,8 @@ static ssize_t sched_fair_server_write(struct file *filp, const char __user *ubu
+ 			return  -EINVAL;
+ 		}
+ 
+-		if (rq->cfs.h_nr_queued) {
++		is_active = dl_server_active(&rq->fair_server);
++		if (is_active) {
+ 			update_rq_clock(rq);
+ 			dl_server_stop(&rq->fair_server);
+ 		}
+@@ -392,7 +395,7 @@ static ssize_t sched_fair_server_write(struct file *filp, const char __user *ubu
+ 			printk_deferred("Fair server disabled in CPU %d, system may crash due to starvation.\n",
+ 					cpu_of(rq));
+ 
+-		if (rq->cfs.h_nr_queued)
++		if (is_active)
+ 			dl_server_start(&rq->fair_server);
+ 
+ 		if (retval < 0)
+-- 
+2.34.1
+
+Subject: [PATCH 3/15] sched/deadline: Clear the defer params
+
+The defer params were not cleared in __dl_clear_params. Clear them.
+
+Without this is some of my test cases are flaking and the DL timer is
+not starting correctly AFAICS.
+
+Fixes: a110a81c52a9 ("sched/deadline: Deferrable dl server")
+Reviewed-by: Andrea Righi <arighi@xxxxxxxxxx>
+Signed-off-by: Joel Fernandes <joelagnelf@xxxxxxxxxx>
+---
+ kernel/sched/deadline.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/kernel/sched/deadline.c b/kernel/sched/deadline.c
+index e2d51f4306b3..3c478a1b2890 100644
+--- a/kernel/sched/deadline.c
++++ b/kernel/sched/deadline.c
+@@ -3473,6 +3473,9 @@ static void __dl_clear_params(struct sched_dl_entity *dl_se)
+ 	dl_se->dl_non_contending	= 0;
+ 	dl_se->dl_overrun		= 0;
+ 	dl_se->dl_server		= 0;
++	dl_se->dl_defer			= 0;
++	dl_se->dl_defer_running		= 0;
++	dl_se->dl_defer_armed		= 0;
+ 
+ #ifdef CONFIG_RT_MUTEXES
+ 	dl_se->pi_se			= dl_se;
+-- 
+2.34.1
+
+Subject: [PATCH 4/15] sched/deadline: Return EBUSY if dl_bw_cpus is zero
+
+Hotplugged CPUs coming online do an enqueue but are not a part of any
+root domain containing cpu_active() CPUs. So in this case, don't mess
+with accounting and we can retry later. Without this patch, we see
+crashes with sched_ext selftest's hotplug test due to divide by zero.
+
+Signed-off-by: Joel Fernandes <joelagnelf@xxxxxxxxxx>
+---
+ kernel/sched/deadline.c | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/kernel/sched/deadline.c b/kernel/sched/deadline.c
+index 3c478a1b2890..753e50b1e86f 100644
+--- a/kernel/sched/deadline.c
++++ b/kernel/sched/deadline.c
+@@ -1758,7 +1758,12 @@ int dl_server_apply_params(struct sched_dl_entity *dl_se, u64 runtime, u64 perio
+ 	cpus = dl_bw_cpus(cpu);
+ 	cap = dl_bw_capacity(cpu);
+ 
+-	if (__dl_overflow(dl_b, cap, old_bw, new_bw))
++	/*
++	 * Hotplugged CPUs coming online do an enqueue but are not a part of any
++	 * root domain containing cpu_active() CPUs. So in this case, don't mess
++	 * with accounting and we can retry later.
++	 */
++	if (!cpus || __dl_overflow(dl_b, cap, old_bw, new_bw))
+ 		return -EBUSY;
+ 
+ 	if (init) {
+-- 
+2.34.1
+
+Subject: [PATCH 5/15] sched: Add support to pick functions to take rf
+
+Some pick functions like the internal pick_next_task_fair() already take
+rf but some others dont. We need this for scx's server pick function.
+Prepare for this by having pick functions accept it.
+
+Reviewed-by: Andrea Righi <arighi@xxxxxxxxxx>
+Signed-off-by: Joel Fernandes <joelagnelf@xxxxxxxxxx>
+---
+ include/linux/sched.h    |  2 +-
+ kernel/sched/core.c      | 16 ++++++++--------
+ kernel/sched/deadline.c  |  8 ++++----
+ kernel/sched/ext.c       |  2 +-
+ kernel/sched/fair.c      | 13 ++++++++-----
+ kernel/sched/idle.c      |  2 +-
+ kernel/sched/rt.c        |  2 +-
+ kernel/sched/sched.h     | 10 ++++++----
+ kernel/sched/stop_task.c |  2 +-
+ 9 files changed, 31 insertions(+), 26 deletions(-)
+
+diff --git a/include/linux/sched.h b/include/linux/sched.h
+index 2b272382673d..4ce4434e7c4f 100644
+--- a/include/linux/sched.h
++++ b/include/linux/sched.h
+@@ -630,7 +630,7 @@ struct sched_rt_entity {
+ } __randomize_layout;
+ 
+ typedef bool (*dl_server_has_tasks_f)(struct sched_dl_entity *);
+-typedef struct task_struct *(*dl_server_pick_f)(struct sched_dl_entity *);
++typedef struct task_struct *(*dl_server_pick_f)(struct sched_dl_entity *, void *);
+ 
+ struct sched_dl_entity {
+ 	struct rb_node			rb_node;
+diff --git a/kernel/sched/core.c b/kernel/sched/core.c
+index be00629f0ba4..f3a26d13b926 100644
+--- a/kernel/sched/core.c
++++ b/kernel/sched/core.c
+@@ -6050,7 +6050,7 @@ __pick_next_task(struct rq *rq, struct task_struct *prev, struct rq_flags *rf)
+ 
+ 		/* Assume the next prioritized class is idle_sched_class */
+ 		if (!p) {
+-			p = pick_task_idle(rq);
++			p = pick_task_idle(rq, rf);
+ 			put_prev_set_next_task(rq, prev, p);
+ 		}
+ 
+@@ -6062,11 +6062,11 @@ __pick_next_task(struct rq *rq, struct task_struct *prev, struct rq_flags *rf)
+ 
+ 	for_each_active_class(class) {
+ 		if (class->pick_next_task) {
+-			p = class->pick_next_task(rq, prev);
++			p = class->pick_next_task(rq, prev, rf);
+ 			if (p)
+ 				return p;
+ 		} else {
+-			p = class->pick_task(rq);
++			p = class->pick_task(rq, rf);
+ 			if (p) {
+ 				put_prev_set_next_task(rq, prev, p);
+ 				return p;
+@@ -6096,7 +6096,7 @@ static inline bool cookie_match(struct task_struct *a, struct task_struct *b)
+ 	return a->core_cookie == b->core_cookie;
+ }
+ 
+-static inline struct task_struct *pick_task(struct rq *rq)
++static inline struct task_struct *pick_task(struct rq *rq, struct rq_flags *rf)
+ {
+ 	const struct sched_class *class;
+ 	struct task_struct *p;
+@@ -6104,7 +6104,7 @@ static inline struct task_struct *pick_task(struct rq *rq)
+ 	rq->dl_server = NULL;
+ 
+ 	for_each_active_class(class) {
+-		p = class->pick_task(rq);
++		p = class->pick_task(rq, rf);
+ 		if (p)
+ 			return p;
+ 	}
+@@ -6204,7 +6204,7 @@ pick_next_task(struct rq *rq, struct task_struct *prev, struct rq_flags *rf)
+ 	 * and there are no cookied tasks running on siblings.
+ 	 */
+ 	if (!need_sync) {
+-		next = pick_task(rq);
++		next = pick_task(rq, rf);
+ 		if (!next->core_cookie) {
+ 			rq->core_pick = NULL;
+ 			rq->core_dl_server = NULL;
+@@ -6235,7 +6235,7 @@ pick_next_task(struct rq *rq, struct task_struct *prev, struct rq_flags *rf)
+ 		if (i != cpu && (rq_i != rq->core || !core_clock_updated))
+ 			update_rq_clock(rq_i);
+ 
+-		rq_i->core_pick = p = pick_task(rq_i);
++		rq_i->core_pick = p = pick_task(rq_i, rf);
+ 		rq_i->core_dl_server = rq_i->dl_server;
+ 
+ 		if (!max || prio_less(max, p, fi_before))
+@@ -6257,7 +6257,7 @@ pick_next_task(struct rq *rq, struct task_struct *prev, struct rq_flags *rf)
+ 			if (cookie)
+ 				p = sched_core_find(rq_i, cookie);
+ 			if (!p)
+-				p = idle_sched_class.pick_task(rq_i);
++				p = idle_sched_class.pick_task(rq_i, rf);
+ 		}
+ 
+ 		rq_i->core_pick = p;
+diff --git a/kernel/sched/deadline.c b/kernel/sched/deadline.c
+index 753e50b1e86f..7baf2ff11587 100644
+--- a/kernel/sched/deadline.c
++++ b/kernel/sched/deadline.c
+@@ -2457,7 +2457,7 @@ static struct sched_dl_entity *pick_next_dl_entity(struct dl_rq *dl_rq)
+  * __pick_next_task_dl - Helper to pick the next -deadline task to run.
+  * @rq: The runqueue to pick the next task from.
+  */
+-static struct task_struct *__pick_task_dl(struct rq *rq)
++static struct task_struct *__pick_task_dl(struct rq *rq, struct rq_flags *rf)
+ {
+ 	struct sched_dl_entity *dl_se;
+ 	struct dl_rq *dl_rq = &rq->dl;
+@@ -2471,7 +2471,7 @@ static struct task_struct *__pick_task_dl(struct rq *rq)
+ 	WARN_ON_ONCE(!dl_se);
+ 
+ 	if (dl_server(dl_se)) {
+-		p = dl_se->server_pick_task(dl_se);
++		p = dl_se->server_pick_task(dl_se, rf);
+ 		if (!p) {
+ 			if (!dl_server_stopped(dl_se)) {
+ 				dl_se->dl_yielded = 1;
+@@ -2487,9 +2487,9 @@ static struct task_struct *__pick_task_dl(struct rq *rq)
+ 	return p;
+ }
+ 
+-static struct task_struct *pick_task_dl(struct rq *rq)
++static struct task_struct *pick_task_dl(struct rq *rq, struct rq_flags *rf)
+ {
+-	return __pick_task_dl(rq);
++	return __pick_task_dl(rq, rf);
+ }
+ 
+ static void put_prev_task_dl(struct rq *rq, struct task_struct *p, struct task_struct *next)
+diff --git a/kernel/sched/ext.c b/kernel/sched/ext.c
+index fedc0dcb8b38..f6a55cb823d8 100644
+--- a/kernel/sched/ext.c
++++ b/kernel/sched/ext.c
+@@ -3401,7 +3401,7 @@ static struct task_struct *first_local_task(struct rq *rq)
+ 					struct task_struct, scx.dsq_list.node);
+ }
+ 
+-static struct task_struct *pick_task_scx(struct rq *rq)
++static struct task_struct *pick_task_scx(struct rq *rq, struct rq_flags *rf)
+ {
+ 	struct task_struct *prev = rq->curr;
+ 	struct task_struct *p;
+diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
+index b173a059315c..2c44354b0ed0 100644
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -8856,7 +8856,7 @@ static void check_preempt_wakeup_fair(struct rq *rq, struct task_struct *p, int
+ 	resched_curr_lazy(rq);
+ }
+ 
+-static struct task_struct *pick_task_fair(struct rq *rq)
++static struct task_struct *pick_task_fair(struct rq *rq, struct rq_flags *rf)
+ {
+ 	struct sched_entity *se;
+ 	struct cfs_rq *cfs_rq;
+@@ -8894,7 +8894,7 @@ pick_next_task_fair(struct rq *rq, struct task_struct *prev, struct rq_flags *rf
+ 	int new_tasks;
+ 
+ again:
+-	p = pick_task_fair(rq);
++	p = pick_task_fair(rq, rf);
+ 	if (!p)
+ 		goto idle;
+ 	se = &p->se;
+@@ -8973,7 +8973,8 @@ pick_next_task_fair(struct rq *rq, struct task_struct *prev, struct rq_flags *rf
+ 	return NULL;
+ }
+ 
+-static struct task_struct *__pick_next_task_fair(struct rq *rq, struct task_struct *prev)
++static struct task_struct *__pick_next_task_fair(struct rq *rq, struct task_struct *prev,
++						 struct rq_flags *rf)
+ {
+ 	return pick_next_task_fair(rq, prev, NULL);
+ }
+@@ -8983,9 +8984,11 @@ static bool fair_server_has_tasks(struct sched_dl_entity *dl_se)
+ 	return !!dl_se->rq->cfs.nr_queued;
+ }
+ 
+-static struct task_struct *fair_server_pick_task(struct sched_dl_entity *dl_se)
++static struct task_struct *fair_server_pick_task(struct sched_dl_entity *dl_se, void *flags)
+ {
+-	return pick_task_fair(dl_se->rq);
++	struct rq_flags *rf = flags;
++
++	return pick_task_fair(dl_se->rq, rf);
+ }
+ 
+ void fair_server_init(struct rq *rq)
+diff --git a/kernel/sched/idle.c b/kernel/sched/idle.c
+index c39b089d4f09..6c6cc82ac2c4 100644
+--- a/kernel/sched/idle.c
++++ b/kernel/sched/idle.c
+@@ -463,7 +463,7 @@ static void set_next_task_idle(struct rq *rq, struct task_struct *next, bool fir
+ 	next->se.exec_start = rq_clock_task(rq);
+ }
+ 
+-struct task_struct *pick_task_idle(struct rq *rq)
++struct task_struct *pick_task_idle(struct rq *rq, struct rq_flags *rf)
+ {
+ 	scx_update_idle(rq, true, false);
+ 	return rq->idle;
+diff --git a/kernel/sched/rt.c b/kernel/sched/rt.c
+index 7936d4333731..145a91ae611f 100644
+--- a/kernel/sched/rt.c
++++ b/kernel/sched/rt.c
+@@ -1744,7 +1744,7 @@ static struct task_struct *_pick_next_task_rt(struct rq *rq)
+ 	return rt_task_of(rt_se);
+ }
+ 
+-static struct task_struct *pick_task_rt(struct rq *rq)
++static struct task_struct *pick_task_rt(struct rq *rq, struct rq_flags *rf)
+ {
+ 	struct task_struct *p;
+ 
+diff --git a/kernel/sched/sched.h b/kernel/sched/sched.h
+index be9745d104f7..0175946568a2 100644
+--- a/kernel/sched/sched.h
++++ b/kernel/sched/sched.h
+@@ -2402,7 +2402,7 @@ struct sched_class {
+ 	void (*wakeup_preempt)(struct rq *rq, struct task_struct *p, int flags);
+ 
+ 	int (*balance)(struct rq *rq, struct task_struct *prev, struct rq_flags *rf);
+-	struct task_struct *(*pick_task)(struct rq *rq);
++	struct task_struct *(*pick_task)(struct rq *rq, struct rq_flags *rf);
+ 	/*
+ 	 * Optional! When implemented pick_next_task() should be equivalent to:
+ 	 *
+@@ -2412,7 +2412,8 @@ struct sched_class {
+ 	 *       set_next_task_first(next);
+ 	 *   }
+ 	 */
+-	struct task_struct *(*pick_next_task)(struct rq *rq, struct task_struct *prev);
++	struct task_struct *(*pick_next_task)(struct rq *rq, struct task_struct *prev,
++					      struct rq_flags *rf);
+ 
+ 	void (*put_prev_task)(struct rq *rq, struct task_struct *p, struct task_struct *next);
+ 	void (*set_next_task)(struct rq *rq, struct task_struct *p, bool first);
+@@ -2574,8 +2575,9 @@ static inline bool sched_fair_runnable(struct rq *rq)
+ 	return rq->cfs.nr_queued > 0;
+ }
+ 
+-extern struct task_struct *pick_next_task_fair(struct rq *rq, struct task_struct *prev, struct rq_flags *rf);
+-extern struct task_struct *pick_task_idle(struct rq *rq);
++extern struct task_struct *pick_next_task_fair(struct rq *rq, struct task_struct *prev,
++					       struct rq_flags *rf);
++extern struct task_struct *pick_task_idle(struct rq *rq, struct rq_flags *rf);
+ 
+ #define SCA_CHECK		0x01
+ #define SCA_MIGRATE_DISABLE	0x02
+diff --git a/kernel/sched/stop_task.c b/kernel/sched/stop_task.c
+index 2d4e279f05ee..5de508f9550b 100644
+--- a/kernel/sched/stop_task.c
++++ b/kernel/sched/stop_task.c
+@@ -33,7 +33,7 @@ static void set_next_task_stop(struct rq *rq, struct task_struct *stop, bool fir
+ 	stop->se.exec_start = rq_clock_task(rq);
+ }
+ 
+-static struct task_struct *pick_task_stop(struct rq *rq)
++static struct task_struct *pick_task_stop(struct rq *rq, struct rq_flags *rf)
+ {
+ 	if (!sched_stop_runnable(rq))
+ 		return NULL;
+-- 
+2.34.1
+
+Subject: [PATCH 6/15] sched: Add a server arg to
+ dl_server_update_idle_time()
+
+Since we are adding more servers, make dl_server_update_idle_time()
+accept a server argument than a specific server.
+
+Reviewed-by: Andrea Righi <arighi@xxxxxxxxxx>
+Signed-off-by: Joel Fernandes <joelagnelf@xxxxxxxxxx>
+---
+ kernel/sched/deadline.c | 16 ++++++++--------
+ kernel/sched/fair.c     |  2 +-
+ kernel/sched/idle.c     |  2 +-
+ kernel/sched/sched.h    |  3 ++-
+ 4 files changed, 12 insertions(+), 11 deletions(-)
+
+diff --git a/kernel/sched/deadline.c b/kernel/sched/deadline.c
+index 7baf2ff11587..8b3535b8fca9 100644
+--- a/kernel/sched/deadline.c
++++ b/kernel/sched/deadline.c
+@@ -1618,26 +1618,26 @@ static void update_curr_dl_se(struct rq *rq, struct sched_dl_entity *dl_se, s64
+  * as time available for the fair server, avoiding a penalty for the
+  * rt scheduler that did not consumed that time.
+  */
+-void dl_server_update_idle_time(struct rq *rq, struct task_struct *p)
++void dl_server_update_idle_time(struct rq *rq, struct task_struct *p,
++			       struct sched_dl_entity *rq_dl_server)
+ {
+ 	s64 delta_exec;
+ 
+-	if (!rq->fair_server.dl_defer)
++	if (!rq_dl_server->dl_defer)
+ 		return;
+ 
+ 	/* no need to discount more */
+-	if (rq->fair_server.runtime < 0)
++	if (rq_dl_server->runtime < 0)
+ 		return;
+ 
+ 	delta_exec = rq_clock_task(rq) - p->se.exec_start;
+ 	if (delta_exec < 0)
+ 		return;
+ 
+-	rq->fair_server.runtime -= delta_exec;
+-
+-	if (rq->fair_server.runtime < 0) {
+-		rq->fair_server.dl_defer_running = 0;
+-		rq->fair_server.runtime = 0;
++	rq_dl_server->runtime -= delta_exec;
++	if (rq_dl_server->runtime < 0) {
++		rq_dl_server->dl_defer_running = 0;
++		rq_dl_server->runtime = 0;
+ 	}
+ 
+ 	p->se.exec_start = rq_clock_task(rq);
+diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
+index 2c44354b0ed0..92856513024e 100644
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -7034,7 +7034,7 @@ enqueue_task_fair(struct rq *rq, struct task_struct *p, int flags)
+ 	if (!rq_h_nr_queued && rq->cfs.h_nr_queued) {
+ 		/* Account for idle runtime */
+ 		if (!rq->nr_running)
+-			dl_server_update_idle_time(rq, rq->curr);
++			dl_server_update_idle_time(rq, rq->curr, &rq->fair_server);
+ 		dl_server_start(&rq->fair_server);
+ 	}
+ 
+diff --git a/kernel/sched/idle.c b/kernel/sched/idle.c
+index 6c6cc82ac2c4..fc3c056158b8 100644
+--- a/kernel/sched/idle.c
++++ b/kernel/sched/idle.c
+@@ -451,7 +451,7 @@ static void wakeup_preempt_idle(struct rq *rq, struct task_struct *p, int flags)
+ 
+ static void put_prev_task_idle(struct rq *rq, struct task_struct *prev, struct task_struct *next)
+ {
+-	dl_server_update_idle_time(rq, prev);
++	dl_server_update_idle_time(rq, prev, &rq->fair_server);
+ 	scx_update_idle(rq, false, true);
+ }
+ 
+diff --git a/kernel/sched/sched.h b/kernel/sched/sched.h
+index 0175946568a2..2c73d538f34e 100644
+--- a/kernel/sched/sched.h
++++ b/kernel/sched/sched.h
+@@ -387,7 +387,8 @@ extern void dl_server_init(struct sched_dl_entity *dl_se, struct rq *rq,
+ extern void sched_init_dl_servers(void);
+ 
+ extern void dl_server_update_idle_time(struct rq *rq,
+-		    struct task_struct *p);
++		    struct task_struct *p,
++		    struct sched_dl_entity *rq_dl_server);
+ extern void fair_server_init(struct rq *rq);
+ extern void __dl_server_attach_root(struct sched_dl_entity *dl_se, struct rq *rq);
+ extern int dl_server_apply_params(struct sched_dl_entity *dl_se,
+-- 
+2.34.1
+
+Subject: [PATCH 7/15] sched_ext: Add a DL server for sched_ext tasks
+
+sched_ext currently suffers starvation due to RT. The same workload when
+converted to EXT can get zero runtime if RT is 100% running, causing EXT
+processes to stall. Fix it by adding a DL server for EXT.
+
+ A kselftest is also provided later to verify:
+
+./runner -t rt_stall
+===== START =====
+TEST: rt_stall
+DESCRIPTION: Verify that RT tasks cannot stall SCHED_EXT tasks
+OUTPUT:
+TAP version 13
+1..1
+ok 1 PASS: CFS task got more than 4.00% of runtime
+
+Cc: Luigi De Matteis <ldematteis123@xxxxxxxxxx>
+Reviewed-by: Andrea Righi <arighi@xxxxxxxxxx>
+Signed-off-by: Joel Fernandes <joelagnelf@xxxxxxxxxx>
+---
+ kernel/sched/core.c     |  3 ++
+ kernel/sched/deadline.c |  2 +-
+ kernel/sched/ext.c      | 62 +++++++++++++++++++++++++++++++++++++++--
+ kernel/sched/sched.h    |  2 ++
+ 4 files changed, 66 insertions(+), 3 deletions(-)
+
+diff --git a/kernel/sched/core.c b/kernel/sched/core.c
+index f3a26d13b926..ce5b51faf9d5 100644
+--- a/kernel/sched/core.c
++++ b/kernel/sched/core.c
+@@ -8652,6 +8652,9 @@ void __init sched_init(void)
+ 		hrtick_rq_init(rq);
+ 		atomic_set(&rq->nr_iowait, 0);
+ 		fair_server_init(rq);
++#ifdef CONFIG_SCHED_CLASS_EXT
++		ext_server_init(rq);
++#endif
+ 
+ #ifdef CONFIG_SCHED_CORE
+ 		rq->core = rq;
+diff --git a/kernel/sched/deadline.c b/kernel/sched/deadline.c
+index 8b3535b8fca9..00bafa434fb8 100644
+--- a/kernel/sched/deadline.c
++++ b/kernel/sched/deadline.c
+@@ -1579,7 +1579,7 @@ static void update_curr_dl_se(struct rq *rq, struct sched_dl_entity *dl_se, s64
+ 	 * The fair server (sole dl_server) does not account for real-time
+ 	 * workload because it is running fair work.
+ 	 */
+-	if (dl_se == &rq->fair_server)
++	if (dl_se == &rq->fair_server || dl_se == &rq->ext_server)
+ 		return;
+ 
+ #ifdef CONFIG_RT_GROUP_SCHED
+diff --git a/kernel/sched/ext.c b/kernel/sched/ext.c
+index f6a55cb823d8..1f68f9e69d03 100644
+--- a/kernel/sched/ext.c
++++ b/kernel/sched/ext.c
+@@ -1913,6 +1913,9 @@ static void update_curr_scx(struct rq *rq)
+ 		if (!curr->scx.slice)
+ 			touch_core_sched(rq, curr);
+ 	}
++
++	if (dl_server_active(&rq->ext_server))
++		dl_server_update(&rq->ext_server, delta_exec);
+ }
+ 
+ static bool scx_dsq_priq_less(struct rb_node *node_a,
+@@ -2400,6 +2403,15 @@ static void enqueue_task_scx(struct rq *rq, struct task_struct *p, int enq_flags
+ 	if (enq_flags & SCX_ENQ_WAKEUP)
+ 		touch_core_sched(rq, p);
+ 
++	if (rq->scx.nr_running == 1) {
++		/* Account for idle runtime */
++		if (!rq->nr_running)
++			dl_server_update_idle_time(rq, rq->curr, &rq->ext_server);
++
++		/* Start dl_server if this is the first task being enqueued */
++		dl_server_start(&rq->ext_server);
++	}
++
+ 	do_enqueue_task(rq, p, enq_flags, sticky_cpu);
+ out:
+ 	rq->scx.flags &= ~SCX_RQ_IN_WAKEUP;
+@@ -2499,6 +2511,11 @@ static bool dequeue_task_scx(struct rq *rq, struct task_struct *p, int deq_flags
+ 	sub_nr_running(rq, 1);
+ 
+ 	dispatch_dequeue(rq, p);
++
++	/* Stop the server if this was the last task */
++	if (rq->scx.nr_running == 0)
++		dl_server_stop(&rq->ext_server);
++
+ 	return true;
+ }
+ 
+@@ -4054,6 +4071,15 @@ static void switching_to_scx(struct rq *rq, struct task_struct *p)
+ static void switched_from_scx(struct rq *rq, struct task_struct *p)
+ {
+ 	scx_disable_task(p);
++
++	/*
++	 * After class switch, if the DL server is still active, restart it so
++	 * that DL timers will be queued, in case SCX switched to higher class.
++	 */
++	if (dl_server_active(&rq->ext_server)) {
++		dl_server_stop(&rq->ext_server);
++		dl_server_start(&rq->ext_server);
++	}
+ }
+ 
+ static void wakeup_preempt_scx(struct rq *rq, struct task_struct *p,int wake_flags) {}
+@@ -7318,8 +7344,8 @@ __bpf_kfunc u32 scx_bpf_cpuperf_cur(s32 cpu)
+  * relative scale between 0 and %SCX_CPUPERF_ONE. This determines how the
+  * schedutil cpufreq governor chooses the target frequency.
+  *
+- * The actual performance level chosen, CPU grouping, and the overhead and
+- * latency of the operations are dependent on the hardware and cpufreq driver in
++ * The actual performance level chosen, CPU grouping, and the overhead and latency
++ * of the operations are dependent on the hardware and cpufreq driver in
+  * use. Consult hardware and cpufreq documentation for more information. The
+  * current performance level can be monitored using scx_bpf_cpuperf_cur().
+  */
+@@ -7611,6 +7637,38 @@ BTF_ID_FLAGS(func, scx_bpf_now)
+ BTF_ID_FLAGS(func, scx_bpf_events, KF_TRUSTED_ARGS)
+ BTF_KFUNCS_END(scx_kfunc_ids_any)
+ 
++/*
++ * Check if ext scheduler has tasks ready to run.
++ */
++static bool ext_server_has_tasks(struct sched_dl_entity *dl_se)
++{
++	return !!dl_se->rq->scx.nr_running;
++}
++
++/*
++ * Select the next task to run from the ext scheduling class.
++ */
++static struct task_struct *ext_server_pick_task(struct sched_dl_entity *dl_se,
++						void *flags)
++{
++	struct rq_flags *rf = flags;
++
++	balance_scx(dl_se->rq, dl_se->rq->curr, rf);
++	return pick_task_scx(dl_se->rq, rf);
++}
++
++/*
++ * Initialize the ext server deadline entity.
++ */
++void ext_server_init(struct rq *rq)
++{
++	struct sched_dl_entity *dl_se = &rq->ext_server;
++
++	init_dl_entity(dl_se);
++
++	dl_server_init(dl_se, rq, ext_server_has_tasks, ext_server_pick_task);
++}
++
+ static const struct btf_kfunc_id_set scx_kfunc_set_any = {
+ 	.owner			= THIS_MODULE,
+ 	.set			= &scx_kfunc_ids_any,
+diff --git a/kernel/sched/sched.h b/kernel/sched/sched.h
+index 2c73d538f34e..51ac373554de 100644
+--- a/kernel/sched/sched.h
++++ b/kernel/sched/sched.h
+@@ -390,6 +390,7 @@ extern void dl_server_update_idle_time(struct rq *rq,
+ 		    struct task_struct *p,
+ 		    struct sched_dl_entity *rq_dl_server);
+ extern void fair_server_init(struct rq *rq);
++extern void ext_server_init(struct rq *rq);
+ extern void __dl_server_attach_root(struct sched_dl_entity *dl_se, struct rq *rq);
+ extern int dl_server_apply_params(struct sched_dl_entity *dl_se,
+ 		    u64 runtime, u64 period, bool init);
+@@ -1138,6 +1139,7 @@ struct rq {
+ #endif
+ 
+ 	struct sched_dl_entity	fair_server;
++	struct sched_dl_entity	ext_server;
+ 
+ #ifdef CONFIG_FAIR_GROUP_SCHED
+ 	/* list of leaf cfs_rq on this CPU: */
+-- 
+2.34.1
+
+Subject: [PATCH 8/15] sched/debug: Add support to change sched_ext server
+ params
+
+When a sched_ext server is loaded, tasks in CFS are converted to run in
+sched_ext class. Add support to modify the ext server parameters similar
+to how the fair server parameters are modified.
+
+Re-use common code between ext and fair servers as needed.
+
+Signed-off-by: Joel Fernandes <joelagnelf@xxxxxxxxxx>
+---
+ kernel/sched/debug.c | 149 ++++++++++++++++++++++++++++++++++++-------
+ 1 file changed, 125 insertions(+), 24 deletions(-)
+
+diff --git a/kernel/sched/debug.c b/kernel/sched/debug.c
+index e71f6618c1a6..00ad35b812f7 100644
+--- a/kernel/sched/debug.c
++++ b/kernel/sched/debug.c
+@@ -341,14 +341,16 @@ enum dl_param {
+ 	DL_PERIOD,
+ };
+ 
+-static unsigned long fair_server_period_max = (1UL << 22) * NSEC_PER_USEC; /* ~4 seconds */
+-static unsigned long fair_server_period_min = (100) * NSEC_PER_USEC;     /* 100 us */
++static unsigned long dl_server_period_max = (1UL << 22) * NSEC_PER_USEC; /* ~4 seconds */
++static unsigned long dl_server_period_min = (100) * NSEC_PER_USEC;     /* 100 us */
+ 
+-static ssize_t sched_fair_server_write(struct file *filp, const char __user *ubuf,
+-				       size_t cnt, loff_t *ppos, enum dl_param param)
++static ssize_t sched_server_write_common(struct file *filp, const char __user *ubuf,
++					 size_t cnt, loff_t *ppos, enum dl_param param,
++					 void *server)
+ {
+ 	long cpu = (long) ((struct seq_file *) filp->private_data)->private;
+ 	struct rq *rq = cpu_rq(cpu);
++	struct sched_dl_entity *dl_se = (struct sched_dl_entity *)server;
+ 	u64 runtime, period;
+ 	int retval = 0;
+ 	size_t err;
+@@ -361,8 +363,8 @@ static ssize_t sched_fair_server_write(struct file *filp, const char __user *ubu
+ 	scoped_guard (rq_lock_irqsave, rq) {
+ 		bool is_active;
+ 
+-		runtime  = rq->fair_server.dl_runtime;
+-		period = rq->fair_server.dl_period;
++		runtime = dl_se->dl_runtime;
++		period = dl_se->dl_period;
+ 
+ 		switch (param) {
+ 		case DL_RUNTIME:
+@@ -378,25 +380,25 @@ static ssize_t sched_fair_server_write(struct file *filp, const char __user *ubu
+ 		}
+ 
+ 		if (runtime > period ||
+-		    period > fair_server_period_max ||
+-		    period < fair_server_period_min) {
++		    period > dl_server_period_max ||
++		    period < dl_server_period_min) {
+ 			return  -EINVAL;
+ 		}
+ 
+-		is_active = dl_server_active(&rq->fair_server);
++		is_active = dl_server_active(dl_se);
+ 		if (is_active) {
+ 			update_rq_clock(rq);
+-			dl_server_stop(&rq->fair_server);
++			dl_server_stop(dl_se);
+ 		}
+ 
+-		retval = dl_server_apply_params(&rq->fair_server, runtime, period, 0);
++		retval = dl_server_apply_params(dl_se, runtime, period, 0);
+ 
+ 		if (!runtime)
+-			printk_deferred("Fair server disabled in CPU %d, system may crash due to starvation.\n",
+-					cpu_of(rq));
++			printk_deferred("%s server disabled on CPU %d, system may crash due to starvation.\n",
++					server == &rq->fair_server ? "Fair" : "Ext", cpu_of(rq));
+ 
+ 		if (is_active)
+-			dl_server_start(&rq->fair_server);
++			dl_server_start(dl_se);
+ 
+ 		if (retval < 0)
+ 			return retval;
+@@ -406,36 +408,42 @@ static ssize_t sched_fair_server_write(struct file *filp, const char __user *ubu
+ 	return cnt;
+ }
+ 
+-static size_t sched_fair_server_show(struct seq_file *m, void *v, enum dl_param param)
++static size_t sched_server_show_common(struct seq_file *m, void *v, enum dl_param param,
++				       void *server)
+ {
+-	unsigned long cpu = (unsigned long) m->private;
+-	struct rq *rq = cpu_rq(cpu);
++	struct sched_dl_entity *dl_se = (struct sched_dl_entity *)server;
+ 	u64 value;
+ 
+ 	switch (param) {
+ 	case DL_RUNTIME:
+-		value = rq->fair_server.dl_runtime;
++		value = dl_se->dl_runtime;
+ 		break;
+ 	case DL_PERIOD:
+-		value = rq->fair_server.dl_period;
++		value = dl_se->dl_period;
+ 		break;
+ 	}
+ 
+ 	seq_printf(m, "%llu\n", value);
+ 	return 0;
+-
+ }
+ 
+ static ssize_t
+ sched_fair_server_runtime_write(struct file *filp, const char __user *ubuf,
+ 				size_t cnt, loff_t *ppos)
+ {
+-	return sched_fair_server_write(filp, ubuf, cnt, ppos, DL_RUNTIME);
++	long cpu = (long) ((struct seq_file *) filp->private_data)->private;
++	struct rq *rq = cpu_rq(cpu);
++
++	return sched_server_write_common(filp, ubuf, cnt, ppos, DL_RUNTIME,
++					&rq->fair_server);
+ }
+ 
+ static int sched_fair_server_runtime_show(struct seq_file *m, void *v)
+ {
+-	return sched_fair_server_show(m, v, DL_RUNTIME);
++	unsigned long cpu = (unsigned long) m->private;
++	struct rq *rq = cpu_rq(cpu);
++
++	return sched_server_show_common(m, v, DL_RUNTIME, &rq->fair_server);
+ }
+ 
+ static int sched_fair_server_runtime_open(struct inode *inode, struct file *filp)
+@@ -451,16 +459,55 @@ static const struct file_operations fair_server_runtime_fops = {
+ 	.release	= single_release,
+ };
+ 
++static ssize_t
++sched_ext_server_runtime_write(struct file *filp, const char __user *ubuf,
++			       size_t cnt, loff_t *ppos)
++{
++	long cpu = (long) ((struct seq_file *) filp->private_data)->private;
++	struct rq *rq = cpu_rq(cpu);
++
++	return sched_server_write_common(filp, ubuf, cnt, ppos, DL_RUNTIME,
++					&rq->ext_server);
++}
++
++static int sched_ext_server_runtime_show(struct seq_file *m, void *v)
++{
++	unsigned long cpu = (unsigned long) m->private;
++	struct rq *rq = cpu_rq(cpu);
++
++	return sched_server_show_common(m, v, DL_RUNTIME, &rq->ext_server);
++}
++
++static int sched_ext_server_runtime_open(struct inode *inode, struct file *filp)
++{
++	return single_open(filp, sched_ext_server_runtime_show, inode->i_private);
++}
++
++static const struct file_operations ext_server_runtime_fops = {
++	.open		= sched_ext_server_runtime_open,
++	.write		= sched_ext_server_runtime_write,
++	.read		= seq_read,
++	.llseek		= seq_lseek,
++	.release	= single_release,
++};
++
+ static ssize_t
+ sched_fair_server_period_write(struct file *filp, const char __user *ubuf,
+ 			       size_t cnt, loff_t *ppos)
+ {
+-	return sched_fair_server_write(filp, ubuf, cnt, ppos, DL_PERIOD);
++	long cpu = (long) ((struct seq_file *) filp->private_data)->private;
++	struct rq *rq = cpu_rq(cpu);
++
++	return sched_server_write_common(filp, ubuf, cnt, ppos, DL_PERIOD,
++					&rq->fair_server);
+ }
+ 
+ static int sched_fair_server_period_show(struct seq_file *m, void *v)
+ {
+-	return sched_fair_server_show(m, v, DL_PERIOD);
++	unsigned long cpu = (unsigned long) m->private;
++	struct rq *rq = cpu_rq(cpu);
++
++	return sched_server_show_common(m, v, DL_PERIOD, &rq->fair_server);
+ }
+ 
+ static int sched_fair_server_period_open(struct inode *inode, struct file *filp)
+@@ -476,6 +523,38 @@ static const struct file_operations fair_server_period_fops = {
+ 	.release	= single_release,
+ };
+ 
++static ssize_t
++sched_ext_server_period_write(struct file *filp, const char __user *ubuf,
++			      size_t cnt, loff_t *ppos)
++{
++	long cpu = (long) ((struct seq_file *) filp->private_data)->private;
++	struct rq *rq = cpu_rq(cpu);
++
++	return sched_server_write_common(filp, ubuf, cnt, ppos, DL_PERIOD,
++					&rq->ext_server);
++}
++
++static int sched_ext_server_period_show(struct seq_file *m, void *v)
++{
++	unsigned long cpu = (unsigned long) m->private;
++	struct rq *rq = cpu_rq(cpu);
++
++	return sched_server_show_common(m, v, DL_PERIOD, &rq->ext_server);
++}
++
++static int sched_ext_server_period_open(struct inode *inode, struct file *filp)
++{
++	return single_open(filp, sched_ext_server_period_show, inode->i_private);
++}
++
++static const struct file_operations ext_server_period_fops = {
++	.open		= sched_ext_server_period_open,
++	.write		= sched_ext_server_period_write,
++	.read		= seq_read,
++	.llseek		= seq_lseek,
++	.release	= single_release,
++};
++
+ static struct dentry *debugfs_sched;
+ 
+ static void debugfs_fair_server_init(void)
+@@ -499,6 +578,27 @@ static void debugfs_fair_server_init(void)
+ 	}
+ }
+ 
++static void debugfs_ext_server_init(void)
++{
++	struct dentry *d_ext;
++	unsigned long cpu;
++
++	d_ext = debugfs_create_dir("ext_server", debugfs_sched);
++	if (!d_ext)
++		return;
++
++	for_each_possible_cpu(cpu) {
++		struct dentry *d_cpu;
++		char buf[32];
++
++		snprintf(buf, sizeof(buf), "cpu%lu", cpu);
++		d_cpu = debugfs_create_dir(buf, d_ext);
++
++		debugfs_create_file("runtime", 0644, d_cpu, (void *) cpu, &ext_server_runtime_fops);
++		debugfs_create_file("period", 0644, d_cpu, (void *) cpu, &ext_server_period_fops);
++	}
++}
++
+ static __init int sched_init_debug(void)
+ {
+ 	struct dentry __maybe_unused *numa;
+@@ -539,6 +639,7 @@ static __init int sched_init_debug(void)
+ 	debugfs_create_file("debug", 0444, debugfs_sched, NULL, &sched_debug_fops);
+ 
+ 	debugfs_fair_server_init();
++	debugfs_ext_server_init();
+ 
+ 	return 0;
+ }
+-- 
+2.34.1
+
+Subject: [PATCH 9/15] sched/deadline: Add support to remove DL server's
+ bandwidth contribution
+
+During switching from sched_ext to FAIR tasks and vice-versa, we need
+support for removing the bandwidth contribution of either DL server. Add
+support for the same.
+
+Co-developed-by: Joel Fernandes <joelagnelf@xxxxxxxxxx>
+Signed-off-by: Andrea Righi <arighi@xxxxxxxxxx>
+---
+ kernel/sched/deadline.c | 31 +++++++++++++++++++++++++++++++
+ kernel/sched/sched.h    |  1 +
+ 2 files changed, 32 insertions(+)
+
+diff --git a/kernel/sched/deadline.c b/kernel/sched/deadline.c
+index 00bafa434fb8..17f8cd5df1aa 100644
+--- a/kernel/sched/deadline.c
++++ b/kernel/sched/deadline.c
+@@ -1776,6 +1776,12 @@ int dl_server_apply_params(struct sched_dl_entity *dl_se, u64 runtime, u64 perio
+ 		dl_rq_change_utilization(rq, dl_se, new_bw);
+ 	}
+ 
++	/* Clear these so that the dl_server is reinitialized */
++	if (new_bw == 0) {
++		dl_se->dl_defer = 0;
++		dl_se->dl_server = 0;
++	}
++
+ 	dl_se->dl_runtime = runtime;
+ 	dl_se->dl_deadline = period;
+ 	dl_se->dl_period = period;
+@@ -1789,6 +1795,31 @@ int dl_server_apply_params(struct sched_dl_entity *dl_se, u64 runtime, u64 perio
+ 	return retval;
+ }
+ 
++/**
++ * dl_server_remove_params - Remove bandwidth reservation for a DL server
++ * @dl_se: The DL server entity to remove bandwidth for
++ *
++ * This function removes the bandwidth reservation for a DL server entity,
++ * cleaning up all bandwidth accounting and server state.
++ *
++ * Returns: 0 on success, negative error code on failure
++ */
++int dl_server_remove_params(struct sched_dl_entity *dl_se)
++{
++	if (!dl_se->dl_server)
++		return 0; /* Already disabled */
++
++	/*
++	 * First dequeue if still queued. It should not be queued since
++	 * we call this only after the last dl_server_stop().
++	 */
++	if (WARN_ON_ONCE(on_dl_rq(dl_se)))
++		dequeue_dl_entity(dl_se, DEQUEUE_SLEEP);
++
++	/* Remove bandwidth reservation */
++	return dl_server_apply_params(dl_se, 0, dl_se->dl_period, false);
++}
++
+ /*
+  * Update the current task's runtime statistics (provided it is still
+  * a -deadline task and has not been removed from the dl_rq).
+diff --git a/kernel/sched/sched.h b/kernel/sched/sched.h
+index 51ac373554de..719f9424b417 100644
+--- a/kernel/sched/sched.h
++++ b/kernel/sched/sched.h
+@@ -394,6 +394,7 @@ extern void ext_server_init(struct rq *rq);
+ extern void __dl_server_attach_root(struct sched_dl_entity *dl_se, struct rq *rq);
+ extern int dl_server_apply_params(struct sched_dl_entity *dl_se,
+ 		    u64 runtime, u64 period, bool init);
++extern int dl_server_remove_params(struct sched_dl_entity *dl_se);
+ 
+ static inline bool dl_server_active(struct sched_dl_entity *dl_se)
+ {
+-- 
+2.34.1
+
+Subject: [PATCH 10/15] sched/deadline: Account ext server bandwidth
+
+Always account for both the ext_server and fair_server bandwidths,
+especially during CPU hotplug operations. Ignoring either can lead to
+imbalances in total_bw when sched_ext schedulers are active and CPUs are
+brought online / offline.
+
+Signed-off-by: Andrea Righi <arighi@xxxxxxxxxx>
+---
+ kernel/sched/deadline.c | 29 +++++++++++++++++++++--------
+ kernel/sched/topology.c |  5 +++++
+ 2 files changed, 26 insertions(+), 8 deletions(-)
+
+diff --git a/kernel/sched/deadline.c b/kernel/sched/deadline.c
+index 17f8cd5df1aa..92ca2f5b7cb9 100644
+--- a/kernel/sched/deadline.c
++++ b/kernel/sched/deadline.c
+@@ -3059,9 +3059,17 @@ void dl_clear_root_domain(struct root_domain *rd)
+ 	 * them, we need to account for them here explicitly.
+ 	 */
+ 	for_each_cpu(i, rd->span) {
+-		struct sched_dl_entity *dl_se = &cpu_rq(i)->fair_server;
++		struct sched_dl_entity *dl_se;
+ 
+-		if (dl_server(dl_se) && cpu_active(i))
++		if (!cpu_active(i))
++			continue;
++
++		dl_se = &cpu_rq(i)->fair_server;
++		if (dl_server(dl_se))
++			__dl_add(&rd->dl_bw, dl_se->dl_bw, dl_bw_cpus(i));
++
++		dl_se = &cpu_rq(i)->ext_server;
++		if (dl_server(dl_se))
+ 			__dl_add(&rd->dl_bw, dl_se->dl_bw, dl_bw_cpus(i));
+ 	}
+ }
+@@ -3571,6 +3579,7 @@ static int dl_bw_manage(enum dl_bw_request req, int cpu, u64 dl_bw)
+ 	struct dl_bw *dl_b;
+ 	bool overflow = 0;
+ 	u64 fair_server_bw = 0;
++	u64 ext_server_bw = 0;
+ 
+ 	rcu_read_lock_sched();
+ 	dl_b = dl_bw_of(cpu);
+@@ -3603,27 +3612,31 @@ static int dl_bw_manage(enum dl_bw_request req, int cpu, u64 dl_bw)
+ 		cap -= arch_scale_cpu_capacity(cpu);
+ 
+ 		/*
+-		 * cpu is going offline and NORMAL tasks will be moved away
+-		 * from it. We can thus discount dl_server bandwidth
+-		 * contribution as it won't need to be servicing tasks after
+-		 * the cpu is off.
++		 * cpu is going offline and NORMAL and EXT tasks will be
++		 * moved away from it. We can thus discount dl_server
++		 * bandwidth contribution as it won't need to be servicing
++		 * tasks after the cpu is off.
+ 		 */
+ 		if (cpu_rq(cpu)->fair_server.dl_server)
+ 			fair_server_bw = cpu_rq(cpu)->fair_server.dl_bw;
+ 
++		if (cpu_rq(cpu)->ext_server.dl_server)
++			ext_server_bw = cpu_rq(cpu)->ext_server.dl_bw;
++
+ 		/*
+ 		 * Not much to check if no DEADLINE bandwidth is present.
+ 		 * dl_servers we can discount, as tasks will be moved out the
+ 		 * offlined CPUs anyway.
+ 		 */
+-		if (dl_b->total_bw - fair_server_bw > 0) {
++		if (dl_b->total_bw - fair_server_bw - ext_server_bw > 0) {
+ 			/*
+ 			 * Leaving at least one CPU for DEADLINE tasks seems a
+ 			 * wise thing to do. As said above, cpu is not offline
+ 			 * yet, so account for that.
+ 			 */
+ 			if (dl_bw_cpus(cpu) - 1)
+-				overflow = __dl_overflow(dl_b, cap, fair_server_bw, 0);
++				overflow = __dl_overflow(dl_b, cap,
++							 fair_server_bw + ext_server_bw, 0);
+ 			else
+ 				overflow = 1;
+ 		}
+diff --git a/kernel/sched/topology.c b/kernel/sched/topology.c
+index 977e133bb8a4..f4574b0cf8eb 100644
+--- a/kernel/sched/topology.c
++++ b/kernel/sched/topology.c
+@@ -506,6 +506,11 @@ void rq_attach_root(struct rq *rq, struct root_domain *rd)
+ 	if (rq->fair_server.dl_server)
+ 		__dl_server_attach_root(&rq->fair_server, rq);
+ 
++#ifdef CONFIG_SCHED_CLASS_EXT
++	if (rq->ext_server.dl_server)
++		__dl_server_attach_root(&rq->ext_server, rq);
++#endif
++
+ 	rq_unlock_irqrestore(rq, &rf);
+ 
+ 	if (old_rd)
+-- 
+2.34.1
+
+Subject: [PATCH 11/15] sched/deadline: Allow to initialize DL server when
+ needed
+
+When switching between fair and sched_ext, we need to initialize the
+bandwidth contribution of the DL server independently for each class.
+
+Add support for on-demand initialization to handle such transitions.
+
+Signed-off-by: Andrea Righi <arighi@xxxxxxxxxx>
+---
+ kernel/sched/deadline.c | 36 +++++++++++++++++++++++++++++-------
+ kernel/sched/sched.h    |  1 +
+ 2 files changed, 30 insertions(+), 7 deletions(-)
+
+diff --git a/kernel/sched/deadline.c b/kernel/sched/deadline.c
+index 92ca2f5b7cb9..7891a7bf43d6 100644
+--- a/kernel/sched/deadline.c
++++ b/kernel/sched/deadline.c
+@@ -1652,6 +1652,32 @@ void dl_server_update(struct sched_dl_entity *dl_se, s64 delta_exec)
+ 	}
+ }
+ 
++/**
++ * dl_server_init_params - Initialize bandwidth reservation for a DL server
++ * @dl_se: The DL server entity to remove bandwidth for
++ *
++ * This function initializes the bandwidth reservation for a DL server
++ * entity, its bandwidth accounting and server state.
++ *
++ * Returns: 0 on success, negative error code on failure
++ */
++int dl_server_init_params(struct sched_dl_entity *dl_se)
++{
++	u64 runtime =  50 * NSEC_PER_MSEC;
++	u64 period = 1000 * NSEC_PER_MSEC;
++	int err;
++
++	err = dl_server_apply_params(dl_se, runtime, period, 1);
++	if (err)
++		return err;
++
++	dl_se->dl_server = 1;
++	dl_se->dl_defer = 1;
++	setup_new_dl_entity(dl_se);
++
++	return err;
++}
++
+ void dl_server_start(struct sched_dl_entity *dl_se)
+ {
+ 	struct rq *rq = dl_se->rq;
+@@ -1707,8 +1733,7 @@ void sched_init_dl_servers(void)
+ 	struct sched_dl_entity *dl_se;
+ 
+ 	for_each_online_cpu(cpu) {
+-		u64 runtime =  50 * NSEC_PER_MSEC;
+-		u64 period = 1000 * NSEC_PER_MSEC;
++		int err;
+ 
+ 		rq = cpu_rq(cpu);
+ 
+@@ -1718,11 +1743,8 @@ void sched_init_dl_servers(void)
+ 
+ 		WARN_ON(dl_server(dl_se));
+ 
+-		dl_server_apply_params(dl_se, runtime, period, 1);
+-
+-		dl_se->dl_server = 1;
+-		dl_se->dl_defer = 1;
+-		setup_new_dl_entity(dl_se);
++		err = dl_server_init_params(dl_se);
++		WARN_ON_ONCE(err);
+ 	}
+ }
+ 
+diff --git a/kernel/sched/sched.h b/kernel/sched/sched.h
+index 719f9424b417..fe587b3bb88a 100644
+--- a/kernel/sched/sched.h
++++ b/kernel/sched/sched.h
+@@ -394,6 +394,7 @@ extern void ext_server_init(struct rq *rq);
+ extern void __dl_server_attach_root(struct sched_dl_entity *dl_se, struct rq *rq);
+ extern int dl_server_apply_params(struct sched_dl_entity *dl_se,
+ 		    u64 runtime, u64 period, bool init);
++extern int dl_server_init_params(struct sched_dl_entity *dl_se);
+ extern int dl_server_remove_params(struct sched_dl_entity *dl_se);
+ 
+ static inline bool dl_server_active(struct sched_dl_entity *dl_se)
+-- 
+2.34.1
+
+Subject: [PATCH 12/15] sched_ext: Selectively enable ext and fair DL
+ servers
+
+Enable or disable the appropriate DL servers (ext and fair) depending on
+whether an scx scheduler is started in full or partial mode:
+
+ - in full mode, disable the fair DL server and enable the ext DL server
+   on all online CPUs,
+ - in partial mode (%SCX_OPS_SWITCH_PARTIAL), keep both fair and ext DL
+   servers active to support tasks in both scheduling classes.
+
+Additionally, handle CPU hotplug events by selectively enabling or
+disabling the relevant DL servers on the CPU that is going
+offline/online. This ensures correct bandwidth reseration also when CPUs
+are brought online or offline.
+
+Co-developed-by: Joel Fernandes <joelagnelf@xxxxxxxxxx>
+Signed-off-by: Andrea Righi <arighi@xxxxxxxxxx>
+---
+ kernel/sched/ext.c | 97 +++++++++++++++++++++++++++++++++++++++++-----
+ 1 file changed, 87 insertions(+), 10 deletions(-)
+
+diff --git a/kernel/sched/ext.c b/kernel/sched/ext.c
+index 1f68f9e69d03..2e01a4ad34ff 100644
+--- a/kernel/sched/ext.c
++++ b/kernel/sched/ext.c
+@@ -3611,6 +3611,57 @@ static void set_cpus_allowed_scx(struct task_struct *p,
+ 				 p, (struct cpumask *)p->cpus_ptr);
+ }
+ 
++static void dl_server_on(struct rq *rq, bool switch_all)
++{
++	struct rq_flags rf;
++	int err;
++
++	rq_lock_irqsave(rq, &rf);
++	update_rq_clock(rq);
++
++	if (switch_all) {
++		/*
++		 * If all fair tasks are moved to the scx scheduler, we
++		 * don't need the fair DL servers anymore, so remove it.
++		 *
++		 * When the current scx scheduler is unloaded, the fair DL
++		 * server will be re-initialized.
++		 */
++		if (dl_server_active(&rq->fair_server))
++			dl_server_stop(&rq->fair_server);
++		dl_server_remove_params(&rq->fair_server);
++	}
++
++	err = dl_server_init_params(&rq->ext_server);
++	WARN_ON_ONCE(err);
++
++	rq_unlock_irqrestore(rq, &rf);
++}
++
++static void dl_server_off(struct rq *rq, bool switch_all)
++{
++	struct rq_flags rf;
++	int err;
++
++	rq_lock_irqsave(rq, &rf);
++	update_rq_clock(rq);
++
++	if (dl_server_active(&rq->ext_server))
++		dl_server_stop(&rq->ext_server);
++	dl_server_remove_params(&rq->ext_server);
++
++	if (switch_all) {
++		/*
++		 * Re-initialize the fair DL server if it was previously disabled
++		 * because all fair tasks had been moved to the ext class.
++		 */
++		err = dl_server_init_params(&rq->fair_server);
++		WARN_ON_ONCE(err);
++	}
++
++	rq_unlock_irqrestore(rq, &rf);
++}
++
+ static void handle_hotplug(struct rq *rq, bool online)
+ {
+ 	struct scx_sched *sch = scx_root;
+@@ -3626,9 +3677,20 @@ static void handle_hotplug(struct rq *rq, bool online)
+ 	if (unlikely(!sch))
+ 		return;
+ 
+-	if (scx_enabled())
++	if (scx_enabled()) {
++		bool is_switching_all = READ_ONCE(scx_switching_all);
++
+ 		scx_idle_update_selcpu_topology(&sch->ops);
+ 
++		/*
++		 * Update ext and fair DL servers on hotplug events.
++		 */
++		if (online)
++			dl_server_on(rq, is_switching_all);
++		else
++			dl_server_off(rq, is_switching_all);
++	}
++
+ 	if (online && SCX_HAS_OP(sch, cpu_online))
+ 		SCX_CALL_OP(sch, SCX_KF_UNLOCKED, cpu_online, NULL, cpu);
+ 	else if (!online && SCX_HAS_OP(sch, cpu_offline))
+@@ -4914,6 +4976,7 @@ static void scx_disable_workfn(struct kthread_work *work)
+ 	struct scx_exit_info *ei = sch->exit_info;
+ 	struct scx_task_iter sti;
+ 	struct task_struct *p;
++	bool is_switching_all = READ_ONCE(scx_switching_all);
+ 	int kind, cpu;
+ 
+ 	kind = atomic_read(&sch->exit_kind);
+@@ -4969,6 +5032,22 @@ static void scx_disable_workfn(struct kthread_work *work)
+ 
+ 	scx_init_task_enabled = false;
+ 
++	for_each_online_cpu(cpu) {
++		struct rq *rq = cpu_rq(cpu);
++
++		/*
++		 * Invalidate all the rq clocks to prevent getting outdated
++		 * rq clocks from a previous scx scheduler.
++		 */
++		scx_rq_clock_invalidate(rq);
++
++		/*
++		 * We are unloading the sched_ext scheduler, we do not need its
++		 * DL server bandwidth anymore, remove it for all CPUs.
++		 */
++		dl_server_off(rq, is_switching_all);
++	}
++
+ 	scx_task_iter_start(&sti);
+ 	while ((p = scx_task_iter_next_locked(&sti))) {
+ 		const struct sched_class *old_class = p->sched_class;
+@@ -4992,15 +5071,6 @@ static void scx_disable_workfn(struct kthread_work *work)
+ 	scx_task_iter_stop(&sti);
+ 	percpu_up_write(&scx_fork_rwsem);
+ 
+-	/*
+-	 * Invalidate all the rq clocks to prevent getting outdated
+-	 * rq clocks from a previous scx scheduler.
+-	 */
+-	for_each_possible_cpu(cpu) {
+-		struct rq *rq = cpu_rq(cpu);
+-		scx_rq_clock_invalidate(rq);
+-	}
+-
+ 	/* no task is on scx, turn off all the switches and flush in-progress calls */
+ 	static_branch_disable(&__scx_enabled);
+ 	bitmap_zero(sch->has_op, SCX_OPI_END);
+@@ -5738,6 +5808,13 @@ static int scx_enable(struct sched_ext_ops *ops, struct bpf_link *link)
+ 		put_task_struct(p);
+ 	}
+ 	scx_task_iter_stop(&sti);
++
++	/*
++	 * Enable the ext DL server on all online CPUs.
++	 */
++	for_each_online_cpu(cpu)
++		dl_server_on(cpu_rq(cpu), !(ops->flags & SCX_OPS_SWITCH_PARTIAL));
++
+ 	percpu_up_write(&scx_fork_rwsem);
+ 
+ 	scx_bypass(false);
+-- 
+2.34.1
+
+Subject: [PATCH 13/15] sched/deadline: Fix DL server crash in
+ inactive_timer callback
+
+When sched_ext is rapidly disabled/enabled (the reload_loop selftest),
+the following crash is observed. This happens because the timer handler
+could not be cancelled and still fires even though the dl_server
+bandwidth may have been removed.
+hrtimer_try_to_cancel() does not guarantee timer cancellation. This
+results in a NULL pointer dereference as 'p' is bogus for a dl_se.
+
+I think this happens because the timer may be about to run, but its
+softirq has not executed yet. Because of that hrtimer_try_to_cancel()
+cannot prevent the timer from being canceled, however dl_server is still
+set to 0 by dl_server_apply_params(). When the timer handler eventually
+runs, it crashes.
+
+[   24.771835] BUG: kernel NULL pointer dereference, address: 000000000000006c
+[   24.772097] #PF: supervisor read access in kernel mode
+[   24.772248] #PF: error_code(0x0000) - not-present page
+[   24.772404] PGD 0 P4D 0
+[   24.772499] Oops: Oops: 0000 [#1] SMP PTI
+[   24.772614] CPU: 9 UID: 0 PID: 0 Comm: swapper/9 [..] #74 PREEMPT(voluntary)
+[   24.772932] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), [...]
+[   24.773149] Sched_ext: maximal (disabling)
+[   24.773944] RSP: 0018:ffffb162c0348ee0 EFLAGS: 00010046
+[   24.774100] RAX: 0000000000000000 RBX: 0000000000000000 RCX: ffff88d4412f1800
+[   24.774302] RDX: 0000000000000001 RSI: 0000000000000010 RDI: ffffffffac939240
+[   24.774498] RBP: ffff88d47e65b940 R08: 0000000000000010 R09: 00000008bad3370a
+[   24.774742] R10: 0000000000000000 R11: ffffffffa9f159d0 R12: ffff88d47e65b900
+[   24.774962] R13: ffff88d47e65b960 R14: ffff88d47e66a340 R15: ffff88d47e66aed0
+[   24.775182] FS:  0000000000000000(0000) GS:ffff88d4d1d56000(0000) knlGS:[...]
+[   24.775392] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+[   24.775579] CR2: 000000000000006c CR3: 0000000002bb0003 CR4: 0000000000770ef0
+[   24.775810] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+[   24.776023] DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
+[   24.776225] PKRU: 55555554
+[   24.776292] Call Trace:
+[   24.776373]  <IRQ>
+[   24.776453]  ? __pfx_inactive_task_timer+0x10/0x10
+[   24.776591]  __hrtimer_run_queues+0xf1/0x270
+[   24.776744]  hrtimer_interrupt+0xfa/0x220
+[   24.776847]  __sysvec_apic_timer_interrupt+0x4d/0x190
+[   24.776988]  sysvec_apic_timer_interrupt+0x69/0x80
+[   24.777132]  </IRQ>
+[   24.777194]  <TASK>
+[   24.777256]  asm_sysvec_apic_timer_interrupt+0x1a/0x20
+
+Fix, by also checking the DL server's has_task pointer which only exists
+for server tasks. This fixes the crash.
+
+Signed-off-by: Joel Fernandes <joelagnelf@xxxxxxxxxx>
+---
+ kernel/sched/deadline.c | 12 +++++++++---
+ 1 file changed, 9 insertions(+), 3 deletions(-)
+
+diff --git a/kernel/sched/deadline.c b/kernel/sched/deadline.c
+index 7891a7bf43d6..836adfb0201c 100644
+--- a/kernel/sched/deadline.c
++++ b/kernel/sched/deadline.c
+@@ -1876,7 +1876,13 @@ static enum hrtimer_restart inactive_task_timer(struct hrtimer *timer)
+ 	struct rq_flags rf;
+ 	struct rq *rq;
+ 
+-	if (!dl_server(dl_se)) {
++	/*
++	 * It is possible that after dl_server_apply_params(), the dl_se->dl_server == 0,
++	 * but the inactive timer is still queued and could not get canceled. Double check
++	 * by looking at ->server_has_tasks to make sure we're dealing with a non-server
++	 * here. Otherwise p may be bogus and we'll crash.
++	 */
++	if (!dl_server(dl_se) && !dl_se->server_has_tasks) {
+ 		p = dl_task_of(dl_se);
+ 		rq = task_rq_lock(p, &rf);
+ 	} else {
+@@ -1887,7 +1893,7 @@ static enum hrtimer_restart inactive_task_timer(struct hrtimer *timer)
+ 	sched_clock_tick();
+ 	update_rq_clock(rq);
+ 
+-	if (dl_server(dl_se))
++	if (dl_server(dl_se) || dl_se->server_has_tasks)
+ 		goto no_task;
+ 
+ 	if (!dl_task(p) || READ_ONCE(p->__state) == TASK_DEAD) {
+@@ -1915,7 +1921,7 @@ static enum hrtimer_restart inactive_task_timer(struct hrtimer *timer)
+ 	dl_se->dl_non_contending = 0;
+ unlock:
+ 
+-	if (!dl_server(dl_se)) {
++	if (!dl_server(dl_se) && !dl_se->server_has_tasks) {
+ 		task_rq_unlock(rq, p, &rf);
+ 		put_task_struct(p);
+ 	} else {
+-- 
+2.34.1
+
+Subject: [PATCH 14/15] selftests/sched_ext: Add test for sched_ext
+ dl_server
+
+Add a selftest to validate the correct behavior of the deadline server
+for the ext_sched_class.
+
+[ Joel: Replaced occurences of CFS in the test with EXT. ]
+
+Signed-off-by: Joel Fernandes <joelagnelf@xxxxxxxxxx>
+Signed-off-by: Andrea Righi <arighi@xxxxxxxxxx>
+---
+ tools/testing/selftests/sched_ext/Makefile    |   1 +
+ .../selftests/sched_ext/rt_stall.bpf.c        |  23 ++
+ tools/testing/selftests/sched_ext/rt_stall.c  | 213 ++++++++++++++++++
+ 3 files changed, 237 insertions(+)
+ create mode 100644 tools/testing/selftests/sched_ext/rt_stall.bpf.c
+ create mode 100644 tools/testing/selftests/sched_ext/rt_stall.c
+
+diff --git a/tools/testing/selftests/sched_ext/Makefile b/tools/testing/selftests/sched_ext/Makefile
+index 9d9d6b4c38b0..f0a8cba3a99f 100644
+--- a/tools/testing/selftests/sched_ext/Makefile
++++ b/tools/testing/selftests/sched_ext/Makefile
+@@ -182,6 +182,7 @@ auto-test-targets :=			\
+ 	select_cpu_dispatch_bad_dsq	\
+ 	select_cpu_dispatch_dbl_dsp	\
+ 	select_cpu_vtime		\
++	rt_stall			\
+ 	test_example			\
+ 
+ testcase-targets := $(addsuffix .o,$(addprefix $(SCXOBJ_DIR)/,$(auto-test-targets)))
+diff --git a/tools/testing/selftests/sched_ext/rt_stall.bpf.c b/tools/testing/selftests/sched_ext/rt_stall.bpf.c
+new file mode 100644
+index 000000000000..80086779dd1e
+--- /dev/null
++++ b/tools/testing/selftests/sched_ext/rt_stall.bpf.c
+@@ -0,0 +1,23 @@
++// SPDX-License-Identifier: GPL-2.0
++/*
++ * A scheduler that verified if RT tasks can stall SCHED_EXT tasks.
++ *
++ * Copyright (c) 2025 NVIDIA Corporation.
++ */
++
++#include <scx/common.bpf.h>
++
++char _license[] SEC("license") = "GPL";
++
++UEI_DEFINE(uei);
++
++void BPF_STRUCT_OPS(rt_stall_exit, struct scx_exit_info *ei)
++{
++	UEI_RECORD(uei, ei);
++}
++
++SEC(".struct_ops.link")
++struct sched_ext_ops rt_stall_ops = {
++	.exit			= (void *)rt_stall_exit,
++	.name			= "rt_stall",
++};
+diff --git a/tools/testing/selftests/sched_ext/rt_stall.c b/tools/testing/selftests/sched_ext/rt_stall.c
+new file mode 100644
+index 000000000000..d4cb545ebfd8
+--- /dev/null
++++ b/tools/testing/selftests/sched_ext/rt_stall.c
+@@ -0,0 +1,213 @@
++// SPDX-License-Identifier: GPL-2.0
++/*
++ * Copyright (c) 2025 NVIDIA Corporation.
++ */
++#define _GNU_SOURCE
++#include <stdio.h>
++#include <stdlib.h>
++#include <unistd.h>
++#include <sched.h>
++#include <sys/prctl.h>
++#include <sys/types.h>
++#include <sys/wait.h>
++#include <time.h>
++#include <linux/sched.h>
++#include <signal.h>
++#include <bpf/bpf.h>
++#include <scx/common.h>
++#include <sys/wait.h>
++#include <unistd.h>
++#include "rt_stall.bpf.skel.h"
++#include "scx_test.h"
++#include "../kselftest.h"
++
++#define CORE_ID		0	/* CPU to pin tasks to */
++#define RUN_TIME        5	/* How long to run the test in seconds */
++
++/* Simple busy-wait function for test tasks */
++static void process_func(void)
++{
++	while (1) {
++		/* Busy wait */
++		for (volatile unsigned long i = 0; i < 10000000UL; i++);
++	}
++}
++
++/* Set CPU affinity to a specific core */
++static void set_affinity(int cpu)
++{
++	cpu_set_t mask;
++
++	CPU_ZERO(&mask);
++	CPU_SET(cpu, &mask);
++	if (sched_setaffinity(0, sizeof(mask), &mask) != 0) {
++		perror("sched_setaffinity");
++		exit(EXIT_FAILURE);
++	}
++}
++
++/* Set task scheduling policy and priority */
++static void set_sched(int policy, int priority)
++{
++	struct sched_param param;
++
++	param.sched_priority = priority;
++	if (sched_setscheduler(0, policy, &param) != 0) {
++		perror("sched_setscheduler");
++		exit(EXIT_FAILURE);
++	}
++}
++
++/* Get process runtime from /proc/<pid>/stat */
++static float get_process_runtime(int pid)
++{
++	char path[256];
++	FILE *file;
++	long utime, stime;
++	int fields;
++
++	snprintf(path, sizeof(path), "/proc/%d/stat", pid);
++	file = fopen(path, "r");
++	if (file == NULL) {
++		perror("Failed to open stat file");
++		return -1;
++	}
++
++	/* Skip the first 13 fields and read the 14th and 15th */
++	fields = fscanf(file,
++			"%*d %*s %*c %*d %*d %*d %*d %*d %*u %*u %*u %*u %*u %lu %lu",
++			&utime, &stime);
++	fclose(file);
++
++	if (fields != 2) {
++		fprintf(stderr, "Failed to read stat file\n");
++		return -1;
++	}
++
++	/* Calculate the total time spent in the process */
++	long total_time = utime + stime;
++	long ticks_per_second = sysconf(_SC_CLK_TCK);
++	float runtime_seconds = total_time * 1.0 / ticks_per_second;
++
++	return runtime_seconds;
++}
++
++static enum scx_test_status setup(void **ctx)
++{
++	struct rt_stall *skel;
++
++	skel = rt_stall__open();
++	SCX_FAIL_IF(!skel, "Failed to open");
++	SCX_ENUM_INIT(skel);
++	SCX_FAIL_IF(rt_stall__load(skel), "Failed to load skel");
++
++	*ctx = skel;
++
++	return SCX_TEST_PASS;
++}
++
++static bool sched_stress_test(void)
++{
++	float cfs_runtime, rt_runtime;
++	int cfs_pid, rt_pid;
++	float expected_min_ratio = 0.04; /* 4% */
++
++	ksft_print_header();
++	ksft_set_plan(1);
++
++	/* Create and set up a EXT task */
++	cfs_pid = fork();
++	if (cfs_pid == 0) {
++		set_affinity(CORE_ID);
++		process_func();
++		exit(0);
++	} else if (cfs_pid < 0) {
++		perror("fork for EXT task");
++		ksft_exit_fail();
++	}
++
++	/* Create an RT task */
++	rt_pid = fork();
++	if (rt_pid == 0) {
++		set_affinity(CORE_ID);
++		set_sched(SCHED_FIFO, 50);
++		process_func();
++		exit(0);
++	} else if (rt_pid < 0) {
++		perror("fork for RT task");
++		ksft_exit_fail();
++	}
++
++	/* Let the processes run for the specified time */
++	sleep(RUN_TIME);
++
++	/* Get runtime for the EXT task */
++	cfs_runtime = get_process_runtime(cfs_pid);
++	if (cfs_runtime != -1)
++		ksft_print_msg("Runtime of EXT task (PID %d) is %f seconds\n", cfs_pid, cfs_runtime);
++	else
++		ksft_exit_fail_msg("Error getting runtime for EXT task (PID %d)\n", cfs_pid);
++
++	/* Get runtime for the RT task */
++	rt_runtime = get_process_runtime(rt_pid);
++	if (rt_runtime != -1)
++		ksft_print_msg("Runtime of RT task (PID %d) is %f seconds\n", rt_pid, rt_runtime);
++	else
++		ksft_exit_fail_msg("Error getting runtime for RT task (PID %d)\n", rt_pid);
++
++	/* Kill the processes */
++	kill(cfs_pid, SIGKILL);
++	kill(rt_pid, SIGKILL);
++	waitpid(cfs_pid, NULL, 0);
++	waitpid(rt_pid, NULL, 0);
++
++	/* Verify that the scx task got enough runtime */
++	float actual_ratio = cfs_runtime / (cfs_runtime + rt_runtime);
++	ksft_print_msg("EXT task got %.2f%% of total runtime\n", actual_ratio * 100);
++
++	if (actual_ratio >= expected_min_ratio) {
++		ksft_test_result_pass("PASS: EXT task got more than %.2f%% of runtime\n",
++				      expected_min_ratio * 100);
++		return true;
++	} else {
++		ksft_test_result_fail("FAIL: EXT task got less than %.2f%% of runtime\n",
++				      expected_min_ratio * 100);
++		return false;
++	}
++}
++
++static enum scx_test_status run(void *ctx)
++{
++	struct rt_stall *skel = ctx;
++	struct bpf_link *link;
++	bool res;
++
++	link = bpf_map__attach_struct_ops(skel->maps.rt_stall_ops);
++	SCX_FAIL_IF(!link, "Failed to attach scheduler");
++
++	res = sched_stress_test();
++
++	SCX_EQ(skel->data->uei.kind, EXIT_KIND(SCX_EXIT_NONE));
++	bpf_link__destroy(link);
++
++	if (!res)
++		ksft_exit_fail();
++
++	return SCX_TEST_PASS;
++}
++
++static void cleanup(void *ctx)
++{
++	struct rt_stall *skel = ctx;
++
++	rt_stall__destroy(skel);
++}
++
++struct scx_test rt_stall = {
++	.name = "rt_stall",
++	.description = "Verify that RT tasks cannot stall SCHED_EXT tasks",
++	.setup = setup,
++	.run = run,
++	.cleanup = cleanup,
++};
++REGISTER_SCX_TEST(&rt_stall)
+-- 
+2.34.1
+
+Subject: [PATCH 15/15] selftests/sched_ext: Add test for DL server total_bw
+ consistency
+
+Add a new kselftest to verify that the total_bw value in
+/sys/kernel/debug/sched/debug remains consistent across all CPUs
+under different sched_ext BPF program states:
+
+1. Before a BPF scheduler is loaded
+2. While a BPF scheduler is loaded and active
+3. After a BPF scheduler is unloaded
+
+The test runs CPU stress threads to ensure DL server bandwidth
+values stabilize before checking consistency. This helps catch
+potential issues with DL server bandwidth accounting during
+sched_ext transitions.
+
+Signed-off-by: Joel Fernandes <joelagnelf@xxxxxxxxxx>
+---
+ tools/testing/selftests/sched_ext/Makefile   |   1 +
+ tools/testing/selftests/sched_ext/total_bw.c | 282 +++++++++++++++++++
+ 2 files changed, 283 insertions(+)
+ create mode 100644 tools/testing/selftests/sched_ext/total_bw.c
+
+diff --git a/tools/testing/selftests/sched_ext/Makefile b/tools/testing/selftests/sched_ext/Makefile
+index f0a8cba3a99f..d48be158b0a1 100644
+--- a/tools/testing/selftests/sched_ext/Makefile
++++ b/tools/testing/selftests/sched_ext/Makefile
+@@ -184,6 +184,7 @@ auto-test-targets :=			\
+ 	select_cpu_vtime		\
+ 	rt_stall			\
+ 	test_example			\
++	total_bw			\
+ 
+ testcase-targets := $(addsuffix .o,$(addprefix $(SCXOBJ_DIR)/,$(auto-test-targets)))
+ 
+diff --git a/tools/testing/selftests/sched_ext/total_bw.c b/tools/testing/selftests/sched_ext/total_bw.c
+new file mode 100644
+index 000000000000..d70852cee358
+--- /dev/null
++++ b/tools/testing/selftests/sched_ext/total_bw.c
+@@ -0,0 +1,282 @@
++// SPDX-License-Identifier: GPL-2.0
++/*
++ * Test to verify that total_bw value remains consistent across all CPUs
++ * in different BPF program states.
++ *
++ * Copyright (C) 2025 Nvidia Corporation.
++ */
++#include <bpf/bpf.h>
++#include <errno.h>
++#include <pthread.h>
++#include <scx/common.h>
++#include <stdio.h>
++#include <stdlib.h>
++#include <string.h>
++#include <sys/wait.h>
++#include <unistd.h>
++#include "minimal.bpf.skel.h"
++#include "scx_test.h"
++
++#define MAX_CPUS 512
++#define STRESS_DURATION_SEC 5
++
++struct total_bw_ctx {
++	struct minimal *skel;
++	long baseline_bw[MAX_CPUS];
++	int nr_cpus;
++};
++
++static void *cpu_stress_thread(void *arg)
++{
++	volatile int i;
++	time_t end_time = time(NULL) + STRESS_DURATION_SEC;
++
++	while (time(NULL) < end_time) {
++		for (i = 0; i < 1000000; i++);
++	}
++
++	return NULL;
++}
++
++/*
++ * The first enqueue on a CPU causes the DL server to start, for that
++ * reason run stressor threads in the hopes it schedules on all CPUs.
++ */
++static int run_cpu_stress(int nr_cpus)
++{
++	pthread_t *threads;
++	int i, ret = 0;
++
++	threads = calloc(nr_cpus, sizeof(pthread_t));
++	if (!threads)
++		return -ENOMEM;
++
++	/* Create threads to run on each CPU */
++	for (i = 0; i < nr_cpus; i++) {
++		if (pthread_create(&threads[i], NULL, cpu_stress_thread, NULL)) {
++			ret = -errno;
++			fprintf(stderr, "Failed to create thread %d: %s\n", i, strerror(-ret));
++			break;
++		}
++	}
++
++	/* Wait for all threads to complete */
++	for (i = 0; i < nr_cpus; i++) {
++		if (threads[i])
++			pthread_join(threads[i], NULL);
++	}
++
++	free(threads);
++	return ret;
++}
++
++static int read_total_bw_values(long *bw_values, int max_cpus)
++{
++	FILE *fp;
++	char line[256];
++	int cpu_count = 0;
++
++	fp = fopen("/sys/kernel/debug/sched/debug", "r");
++	if (!fp) {
++		SCX_ERR("Failed to open debug file");
++		return -1;
++	}
++
++	while (fgets(line, sizeof(line), fp)) {
++		char *bw_str = strstr(line, "total_bw");
++		if (bw_str) {
++			bw_str = strchr(bw_str, ':');
++			if (bw_str) {
++				/* Only store up to max_cpus values */
++				if (cpu_count < max_cpus) {
++					bw_values[cpu_count] = atol(bw_str + 1);
++				}
++				cpu_count++;
++			}
++		}
++	}
++
++	fclose(fp);
++	return cpu_count;
++}
++
++static bool verify_total_bw_consistency(long *bw_values, int count)
++{
++	int i;
++	long first_value;
++
++	if (count <= 0)
++		return false;
++
++	first_value = bw_values[0];
++
++	for (i = 1; i < count; i++) {
++		if (bw_values[i] != first_value) {
++			SCX_ERR("Inconsistent total_bw: CPU0=%ld, CPU%d=%ld",
++				first_value, i, bw_values[i]);
++			return false;
++		}
++	}
++
++	return true;
++}
++
++static int fetch_verify_total_bw(long *bw_values, int nr_cpus)
++{
++	int attempts = 0;
++	int max_attempts = 10;
++	int count;
++
++	/*
++	 * The first enqueue on a CPU causes the DL server to start, for that
++	 * reason run stressor threads in the hopes it schedules on all CPUs.
++	 */
++	if (run_cpu_stress(nr_cpus) < 0) {
++		SCX_ERR("Failed to run CPU stress");
++		return -1;
++	}
++
++	/* Try multiple times to get stable values */
++	while (attempts < max_attempts) {
++		count = read_total_bw_values(bw_values, nr_cpus);
++		fprintf(stderr, "Read %d total_bw values (testing %d CPUs)\n", count, nr_cpus);
++		/* If system has more CPUs than we're testing, that's OK */
++		if (count < nr_cpus) {
++			SCX_ERR("Expected at least %d CPUs, got %d", nr_cpus, count);
++			attempts++;
++			sleep(1);
++			continue;
++		}
++
++		/* Only verify the CPUs we're testing */
++		if (verify_total_bw_consistency(bw_values, nr_cpus)) {
++			fprintf(stderr, "Values are consistent: %ld\n", bw_values[0]);
++			return 0;
++		}
++
++		attempts++;
++		sleep(1);
++	}
++
++	return -1;
++}
++
++static enum scx_test_status setup(void **ctx)
++{
++	struct total_bw_ctx *test_ctx;
++
++	if (access("/sys/kernel/debug/sched/debug", R_OK) != 0) {
++		fprintf(stderr, "Skipping test: debugfs sched/debug not accessible\n");
++		return SCX_TEST_SKIP;
++	}
++
++	test_ctx = calloc(1, sizeof(*test_ctx));
++	if (!test_ctx)
++		return SCX_TEST_FAIL;
++
++	test_ctx->nr_cpus = sysconf(_SC_NPROCESSORS_ONLN);
++	if (test_ctx->nr_cpus <= 0) {
++		free(test_ctx);
++		return SCX_TEST_FAIL;
++	}
++
++	/* If system has more CPUs than MAX_CPUS, just test the first MAX_CPUS */
++	if (test_ctx->nr_cpus > MAX_CPUS) {
++		test_ctx->nr_cpus = MAX_CPUS;
++	}
++
++	/* Test scenario 1: BPF program not loaded */
++	/* Read and verify baseline total_bw before loading BPF program */
++	fprintf(stderr, "BPF prog initially not loaded, reading total_bw values\n");
++	if (fetch_verify_total_bw(test_ctx->baseline_bw, test_ctx->nr_cpus) < 0) {
++		SCX_ERR("Failed to get stable baseline values");
++		free(test_ctx);
++		return SCX_TEST_FAIL;
++	}
++
++	/* Load the BPF skeleton */
++	test_ctx->skel = minimal__open();
++	if (!test_ctx->skel) {
++		free(test_ctx);
++		return SCX_TEST_FAIL;
++	}
++
++	SCX_ENUM_INIT(test_ctx->skel);
++	if (minimal__load(test_ctx->skel)) {
++		minimal__destroy(test_ctx->skel);
++		free(test_ctx);
++		return SCX_TEST_FAIL;
++	}
++
++	*ctx = test_ctx;
++	return SCX_TEST_PASS;
++}
++
++static enum scx_test_status run(void *ctx)
++{
++	struct total_bw_ctx *test_ctx = ctx;
++	struct bpf_link *link;
++	long loaded_bw[MAX_CPUS];
++	long unloaded_bw[MAX_CPUS];
++	int i;
++
++	/* Test scenario 2: BPF program loaded */
++	link = bpf_map__attach_struct_ops(test_ctx->skel->maps.minimal_ops);
++	if (!link) {
++		SCX_ERR("Failed to attach scheduler");
++		return SCX_TEST_FAIL;
++	}
++
++	fprintf(stderr, "BPF program loaded, reading total_bw values\n");
++	if (fetch_verify_total_bw(loaded_bw, test_ctx->nr_cpus) < 0) {
++		SCX_ERR("Failed to get stable values with BPF loaded");
++		bpf_link__destroy(link);
++		return SCX_TEST_FAIL;
++	}
++	bpf_link__destroy(link);
++
++	/* Test scenario 3: BPF program unloaded */
++	fprintf(stderr, "BPF program unloaded, reading total_bw values\n");
++	if (fetch_verify_total_bw(unloaded_bw, test_ctx->nr_cpus) < 0) {
++		SCX_ERR("Failed to get stable values after BPF unload");
++		return SCX_TEST_FAIL;
++	}
++
++	/* Verify all three scenarios have the same total_bw values */
++	for (i = 0; i < test_ctx->nr_cpus; i++) {
++		if (test_ctx->baseline_bw[i] != loaded_bw[i]) {
++			SCX_ERR("CPU%d: baseline_bw=%ld != loaded_bw=%ld",
++				i, test_ctx->baseline_bw[i], loaded_bw[i]);
++			return SCX_TEST_FAIL;
++		}
++
++		if (test_ctx->baseline_bw[i] != unloaded_bw[i]) {
++			SCX_ERR("CPU%d: baseline_bw=%ld != unloaded_bw=%ld",
++				i, test_ctx->baseline_bw[i], unloaded_bw[i]);
++			return SCX_TEST_FAIL;
++		}
++	}
++
++	fprintf(stderr, "All total_bw values are consistent across all scenarios\n");
++	return SCX_TEST_PASS;
++}
++
++static void cleanup(void *ctx)
++{
++	struct total_bw_ctx *test_ctx = ctx;
++
++	if (test_ctx) {
++		if (test_ctx->skel)
++			minimal__destroy(test_ctx->skel);
++		free(test_ctx);
++	}
++}
++
++struct scx_test total_bw = {
++	.name = "total_bw",
++	.description = "Verify total_bw consistency across BPF program states",
++	.setup = setup,
++	.run = run,
++	.cleanup = cleanup,
++};
++REGISTER_SCX_TEST(&total_bw)
+-- 
+2.34.1
+

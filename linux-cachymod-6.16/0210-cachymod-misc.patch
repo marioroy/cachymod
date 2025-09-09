@@ -1,0 +1,622 @@
+Switch to gnu17, a GCC bug-fix version of the C11 standard.
+
+What is C17 and what changes have been made to the language?
+https://stackoverflow.com/questions/47529854/
+
+Signed-off-by: Mario Roy <...>
+
+diff -uarp a/arch/x86/Makefile b/arch/x86/Makefile
+--- a/arch/x86/Makefile
++++ b/arch/x86/Makefile
+@@ -47,7 +47,7 @@ endif
+ 
+ # How to compile the 16-bit code.  Note we always compile for -march=i386;
+ # that way we can complain to the user if the CPU is insufficient.
+-REALMODE_CFLAGS	:= -std=gnu11 -m16 -g -Os -DDISABLE_BRANCH_PROFILING -D__DISABLE_EXPORTS \
++REALMODE_CFLAGS	:= -std=gnu17 -m16 -O2 -DDISABLE_BRANCH_PROFILING -D__DISABLE_EXPORTS \
+ 		   -Wall -Wstrict-prototypes -march=i386 -mregparm=3 \
+ 		   -fno-strict-aliasing -fomit-frame-pointer -fno-pic \
+ 		   -mno-mmx -mno-sse $(call cc-option,-fcf-protection=none)
+diff -uarp a/arch/x86/boot/compressed/Makefile b/arch/x86/boot/compressed/Makefile
+--- a/arch/x86/boot/compressed/Makefile
++++ b/arch/x86/boot/compressed/Makefile
+@@ -25,7 +25,7 @@ targets := vmlinux vmlinux.bin vmlinux.bin.gz vmlinux.bin.bz2 vmlinux.bin.lzma \
+ # avoid errors with '-march=i386', and future flags may depend on the target to
+ # be valid.
+ KBUILD_CFLAGS := -m$(BITS) -O2 $(CLANG_FLAGS)
+-KBUILD_CFLAGS += -std=gnu11
++KBUILD_CFLAGS += -std=gnu17
+ KBUILD_CFLAGS += -fno-strict-aliasing -fPIE
+ KBUILD_CFLAGS += -Wundef
+ KBUILD_CFLAGS += -DDISABLE_BRANCH_PROFILING
+diff -uarp a/drivers/firmware/efi/libstub/Makefile b/drivers/firmware/efi/libstub/Makefile
+--- a/drivers/firmware/efi/libstub/Makefile
++++ b/drivers/firmware/efi/libstub/Makefile
+@@ -11,7 +11,7 @@ cflags-y			:= $(KBUILD_CFLAGS)
+ 
+ cflags-$(CONFIG_X86_32)		:= -march=i386
+ cflags-$(CONFIG_X86_64)		:= -mcmodel=small
+-cflags-$(CONFIG_X86)		+= -m$(BITS) -D__KERNEL__ -std=gnu11 \
++cflags-$(CONFIG_X86)		+= -m$(BITS) -D__KERNEL__ -std=gnu17 \
+ 				   -fPIC -fno-strict-aliasing -mno-red-zone \
+ 				   -mno-mmx -mno-sse -fshort-wchar \
+ 				   -Wno-pointer-sign \
+diff -uarp a/Makefile b/Makefile
+--- a/Makefile
++++ b/Makefile
+@@ -464,7 +464,7 @@ HOSTRUSTC = rustc
+ export KERNELDOC
+ 
+ KBUILD_USERHOSTCFLAGS := -Wall -Wmissing-prototypes -Wstrict-prototypes \
+-			 -O2 -fomit-frame-pointer -std=gnu11
++			 -O2 -fomit-frame-pointer -std=gnu17
+ KBUILD_USERCFLAGS  := $(KBUILD_USERHOSTCFLAGS) $(USERCFLAGS)
+ KBUILD_USERLDFLAGS := $(USERLDFLAGS)
+ 
+@@ -577,7 +577,7 @@ LINUXINCLUDE    := \
+ KBUILD_AFLAGS   := -D__ASSEMBLY__ -fno-PIE
+ 
+ KBUILD_CFLAGS :=
+-KBUILD_CFLAGS += -std=gnu11
++KBUILD_CFLAGS += -std=gnu17
+ KBUILD_CFLAGS += -fshort-wchar
+ KBUILD_CFLAGS += -funsigned-char
+ KBUILD_CFLAGS += -fno-common
+-- 
+2.30.1
+
+Speed up compression
+
+diff -uarp a/scripts/Makefile.lib b/scripts/Makefile.lib
+--- a/scripts/Makefile.lib
++++ b/scripts/Makefile.lib
+@@ -452,13 +452,13 @@ quiet_cmd_xzmisc = XZMISC  $@
+ # be used because it would require zstd to allocate a 128 MB buffer.
+ 
+ quiet_cmd_zstd = ZSTD    $@
+-      cmd_zstd = cat $(real-prereqs) | $(ZSTD) -19 > $@
++      cmd_zstd = cat $(real-prereqs) | $(ZSTD) -6 > $@
+ 
+ quiet_cmd_zstd22 = ZSTD22  $@
+-      cmd_zstd22 = cat $(real-prereqs) | $(ZSTD) -22 --ultra > $@
++      cmd_zstd22 = cat $(real-prereqs) | $(ZSTD) -6 --ultra > $@
+ 
+ quiet_cmd_zstd22_with_size = ZSTD22  $@
+-      cmd_zstd22_with_size = { cat $(real-prereqs) | $(ZSTD) -22 --ultra; $(size_append); } > $@
++      cmd_zstd22_with_size = { cat $(real-prereqs) | $(ZSTD) -6 --ultra; $(size_append); } > $@
+ 
+ # ASM offsets
+ # ---------------------------------------------------------------------------
+-- 
+2.30.1
+
+Curated patches from XanMod Linux
+https://gitlab.com/xanmod/linux-patches
+
+# 0008-XANMOD-block-mq-deadline-Increase-write-priority-to-.patch
+
+Subject: [PATCH 08/20] XANMOD: block/mq-deadline: Increase write priority to
+ improve responsiveness
+
+Signed-off-by: Alexandre Frade <kernel@xxxxxxxxxx>
+---
+ block/mq-deadline.c | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/block/mq-deadline.c b/block/mq-deadline.c
+index 2edf1cac06d5..f3e38471d140 100644
+--- a/block/mq-deadline.c
++++ b/block/mq-deadline.c
+@@ -4,6 +4,9 @@
+  *  for the blk-mq scheduling framework
+  *
+  *  Copyright (C) 2016 Jens Axboe <axboe@kernel.dk>
++ *
++ *  Tunes for responsiveness by Alexandre Frade
++ *  (C) 2022 Alexandre Frade <kernel@xanmod.org>
+  */
+ #include <linux/kernel.h>
+ #include <linux/fs.h>
+@@ -28,13 +31,13 @@
+  * See Documentation/block/deadline-iosched.rst
+  */
+ static const int read_expire = HZ / 2;  /* max time before a read is submitted. */
+-static const int write_expire = 5 * HZ; /* ditto for writes, these limits are SOFT! */
++static const int write_expire = HZ;     /* ditto for writes, these limits are SOFT! */
+ /*
+  * Time after which to dispatch lower priority requests even if higher
+  * priority requests are pending.
+  */
+ static const int prio_aging_expire = 10 * HZ;
+-static const int writes_starved = 2;    /* max times reads can starve a write */
++static const int writes_starved = 1;    /* max times reads can starve a write */
+ static const int fifo_batch = 16;       /* # of sequential requests treated as one
+ 				     by the above parameters. For throughput. */
+ 
+-- 
+2.47.2
+
+# 0009-XANMOD-block-mq-deadline-Disable-front_merges-by-def.patch
+
+Subject: [PATCH 09/20] XANMOD: block/mq-deadline: Disable front_merges by
+ default
+
+Signed-off-by: Alexandre Frade <kernel@xxxxxxxxxx>
+---
+ block/mq-deadline.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/block/mq-deadline.c b/block/mq-deadline.c
+index f3e38471d140..79e0e54542c7 100644
+--- a/block/mq-deadline.c
++++ b/block/mq-deadline.c
+@@ -604,7 +604,7 @@ static int dd_init_sched(struct request_queue *q, struct elevator_type *e)
+ 	dd->fifo_expire[DD_READ] = read_expire;
+ 	dd->fifo_expire[DD_WRITE] = write_expire;
+ 	dd->writes_starved = writes_starved;
+-	dd->front_merges = 1;
++	dd->front_merges = 0;
+ 	dd->last_dir = DD_WRITE;
+ 	dd->fifo_batch = fifo_batch;
+ 	dd->prio_aging_expire = prio_aging_expire;
+-- 
+2.47.2
+
+# 0010-XANMOD-block-Set-rq_affinity-to-force-complete-I-O-r.patch
+
+Subject: [PATCH 10/20] XANMOD: block: Set rq_affinity to force complete I/O
+ requests on same CPU
+
+Signed-off-by: Alexandre Frade <kernel@xxxxxxxxxx>
+---
+ include/linux/blkdev.h | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/include/linux/blkdev.h b/include/linux/blkdev.h
+index 181a0deadc9e..56031f7aa114 100644
+--- a/include/linux/blkdev.h
++++ b/include/linux/blkdev.h
+@@ -656,7 +656,8 @@ enum {
+ 	QUEUE_FLAG_MAX
+ };
+ 
+-#define QUEUE_FLAG_MQ_DEFAULT	(1UL << QUEUE_FLAG_SAME_COMP)
++#define QUEUE_FLAG_MQ_DEFAULT	((1UL << QUEUE_FLAG_SAME_COMP) |		\
++				 (1UL << QUEUE_FLAG_SAME_FORCE))
+ 
+ void blk_queue_flag_set(unsigned int flag, struct request_queue *q);
+ void blk_queue_flag_clear(unsigned int flag, struct request_queue *q);
+-- 
+2.47.2
+
+# 0011-XANMOD-blk-wbt-Set-wbt_default_latency_nsec-to-2msec.patch
+
+Subject: [PATCH 11/20] XANMOD: blk-wbt: Set wbt_default_latency_nsec() to
+ 2msec
+
+Signed-off-by: Alexandre Frade <kernel@xxxxxxxxxx>
+---
+ block/blk-wbt.c | 10 ++--------
+ 1 file changed, 2 insertions(+), 8 deletions(-)
+
+diff --git a/block/blk-wbt.c b/block/blk-wbt.c
+index a50d4cd55f41..d5a3943960a8 100644
+--- a/block/blk-wbt.c
++++ b/block/blk-wbt.c
+@@ -730,14 +730,8 @@ EXPORT_SYMBOL_GPL(wbt_enable_default);
+ 
+ u64 wbt_default_latency_nsec(struct request_queue *q)
+ {
+-	/*
+-	 * We default to 2msec for non-rotational storage, and 75msec
+-	 * for rotational storage.
+-	 */
+-	if (blk_queue_nonrot(q))
+-		return 2000000ULL;
+-	else
+-		return 75000000ULL;
++	/* XanMod defaults to 2msec for any type of storage */
++	return 2000000ULL;
+ }
+ 
+ static int wbt_data_dir(const struct request *rq)
+-- 
+2.47.2
+
+# 0013-XANMOD-vfs-Decrease-rate-at-which-vfs-caches-are-rec.patch
+
+Subject: [PATCH 13/20] XANMOD: vfs: Decrease rate at which vfs caches are
+ reclaimed
+
+Signed-off-by: Alexandre Frade <kernel@xxxxxxxxxx>
+---
+ fs/dcache.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/fs/dcache.c b/fs/dcache.c
+index 03d58b2d4fa3..8750a35120d0 100644
+--- a/fs/dcache.c
++++ b/fs/dcache.c
+@@ -73,7 +73,7 @@
+  * If no ancestor relationship:
+  * arbitrary, since it's serialized on rename_lock
+  */
+-static int sysctl_vfs_cache_pressure __read_mostly = 100;
++static int sysctl_vfs_cache_pressure __read_mostly = 50;
+ static int sysctl_vfs_cache_pressure_denom __read_mostly = 100;
+ 
+ unsigned long vfs_pressure_ratio(unsigned long val)
+-- 
+2.47.2
+
+Curated patches from SUNLIGHT Linux
+https://github.com/sunlightlinux/linux-sunlight
+
+x86/tsc: Use rdtsc_ordered() when RDTSCP or LFENCE_RDTSC are supported
+
+Signed-off-by: Mario Limonciello <mario.limonciello@xxxxxxxxxx>
+Signed-off-by: Ionut Nechita <ionut_n2001@xxxxxxxxxx>
+
+Commit: https://github.com/sunlightlinux/linux-sunlight/commit/e586ac2956
+
+diff --git a/arch/x86/include/asm/tsc.h b/arch/x86/include/asm/tsc.h
+--- a/arch/x86/include/asm/tsc.h
++++ b/arch/x86/include/asm/tsc.h
+@@ -79,6 +79,9 @@ static inline cycles_t get_cycles(void)
+ 	if (!IS_ENABLED(CONFIG_X86_TSC) &&
+ 	    !cpu_feature_enabled(X86_FEATURE_TSC))
+ 		return 0;
++	if (cpu_feature_enabled(X86_FEATURE_LFENCE_RDTSC) ||
++	    cpu_feature_enabled(X86_FEATURE_RDTSCP))
++		return rdtsc_ordered();
+ 	return rdtsc();
+ }
+ #define get_cycles get_cycles
+-- 
+2.43.0
+
+Change default value for wq_cpu_intensive_thresh_us
+
+Description:
+ - 10ms -> 30ms (edit: change to 20ms)
+ - By using new processors it helps to have
+   a higher threshold for thresh
+
+Signed-off-by: Ionut Nechita <ionut_n2001@xxxxxxxxxx>
+Signed-off-by: Mario Roy <...>
+
+Commit: https://github.com/sunlightlinux/linux-sunlight/commit/6f43b28aab
+
+diff --git a/kernel/workqueue.c b/kernel/workqueue.c
+--- a/kernel/workqueue.c
++++ b/kernel/workqueue.c
+@@ -7864,20 +7864,20 @@ static void __init wq_cpu_intensive_thresh_init(void)
+ 		return;
+ 
+ 	/*
+-	 * The default of 10ms is derived from the fact that most modern (as of
+-	 * 2023) processors can do a lot in 10ms and that it's just below what
++	 * The default of 20ms is derived from the fact that most modern (as of
++	 * 2023) processors can do a lot in 20ms and that it's just below what
+ 	 * most consider human-perceivable. However, the kernel also runs on a
+ 	 * lot slower CPUs including microcontrollers where the threshold is way
+ 	 * too low.
+ 	 *
+-	 * Let's scale up the threshold upto 1 second if BogoMips is below 4000.
++	 * Let's scale up the threshold upto 2 second if BogoMips is below 4000.
+ 	 * This is by no means accurate but it doesn't have to be. The mechanism
+ 	 * is still useful even when the threshold is fully scaled up. Also, as
+ 	 * the reports would usually be applicable to everyone, some machines
+ 	 * operating on longer thresholds won't significantly diminish their
+ 	 * usefulness.
+ 	 */
+-	thresh = 10 * USEC_PER_MSEC;
++	thresh = 20 * USEC_PER_MSEC;
+ 
+ 	/* see init/calibrate.c for lpj -> BogoMIPS calculation */
+ 	bogo = max_t(unsigned long, loops_per_jiffy / 500000 * HZ, 1);
+-- 
+2.43.0
+
+sched/core: Further optimize sched_move_task by avoiding
+  lock acquisition when autogroup is enabled
+
+Description:
+ - Some sched_move_task calls are useless because task_struct->sched_task_group
+   might not change (remains equal to task_group of cpu_cgroup) when the system
+   has autogroup enabled. This patch optimizes the process by:
+
+   1. Splitting sched_change_group() into two functions: one to get the task_group
+   and another to perform the actual group change
+   2. Adding a new sched_needs_group_change() function to check if a change is needed
+   3. Most importantly, performing this check *before* acquiring the runqueue lock
+   to completely avoid lock acquisition when no change is needed
+
+   This approach provides a significant performance improvement over the original
+   patch, reducing the time spent in sched_move_task by 74-96% (compared to the
+   57.4% improvement in the original patch) in test scenarios involving frequent
+   task creation and exit.
+
+Based on the original idea from:
+Link: https://lkml.kernel.org/r/20230321064459.39421-1-wuchi.zero@gmail.com
+Signed-off-by: Ionut Nechita <ionut_n2001@xxxxxxxxxx>
+
+Commit: https://github.com/sunlightlinux/linux-sunlight/commit/581d1c6fdd
+
+diff --git a/kernel/sched/core.c b/kernel/sched/core.c
+index ba17620b8352..e1e9a65bd64b 100644
+--- a/kernel/sched/core.c
++++ b/kernel/sched/core.c
+@@ -9051,7 +9051,7 @@ void sched_release_group(struct task_group *tg)
+ 	spin_unlock_irqrestore(&task_group_lock, flags);
+ }
+ 
+-static void sched_change_group(struct task_struct *tsk)
++static struct task_group *sched_get_task_group(struct task_struct *tsk)
+ {
+ 	struct task_group *tg;
+ 
+@@ -9063,8 +9063,13 @@ static void sched_change_group(struct task_struct *tsk)
+ 	tg = container_of(task_css_check(tsk, cpu_cgrp_id, true),
+ 			  struct task_group, css);
+ 	tg = autogroup_task_group(tsk, tg);
+-	tsk->sched_task_group = tg;
+ 
++	return tg;
++}
++
++static void sched_change_group(struct task_struct *tsk, struct task_group *group)
++{
++	tsk->sched_task_group = group;
+ #ifdef CONFIG_FAIR_GROUP_SCHED
+ 	if (tsk->sched_class->task_change_group)
+ 		tsk->sched_class->task_change_group(tsk);
+@@ -9073,6 +9078,18 @@ static void sched_change_group(struct task_struct *tsk)
+ 		set_task_rq(tsk, task_cpu(tsk));
+ }
+ 
++static struct task_group *sched_needs_group_change(struct task_struct *tsk)
++{
++	struct task_group *new_group;
++
++	new_group = sched_get_task_group(tsk);
++
++	if (likely(new_group == tsk->sched_task_group))
++		return NULL;
++
++	return new_group;
++}
++
+ /*
+  * Change task's runqueue when it moves between groups.
+  *
+@@ -9082,10 +9099,14 @@ static void sched_change_group(struct task_struct *tsk)
+  */
+ void sched_move_task(struct task_struct *tsk, bool for_autogroup)
+ {
++	struct task_group *new_group;
+ 	int queued, running, queue_flags =
+ 		DEQUEUE_SAVE | DEQUEUE_MOVE | DEQUEUE_NOCLOCK;
+ 	struct rq *rq;
+ 
++	if (!(new_group = sched_needs_group_change(tsk)))
++		return;
++
+ 	CLASS(task_rq_lock, rq_guard)(tsk);
+ 	rq = rq_guard.rq;
+ 
+@@ -9099,7 +9120,7 @@ void sched_move_task(struct task_struct *tsk, bool for_autogroup)
+ 	if (running)
+ 		put_prev_task(rq, tsk);
+ 
+-	sched_change_group(tsk);
++	sched_change_group(tsk, new_group);
+ 	if (!for_autogroup)
+ 		scx_cgroup_move_task(tsk);
+ 
+-- 
+2.43.0
+
+sched/fair: Only increment deadline once on yield
+https://lore.kernel.org/all/20250401123622.584018-1-sieberf@amazon.com/
+
+diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
+index e43993a4e580..c1eff68d8ffc 100644
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -9040,7 +9040,7 @@ static void yield_task_fair(struct rq *rq)
+ 	 */
+ 	rq_clock_skip_update(rq);
+
+-	se->deadline += calc_delta_fair(se->slice, se);
++	se->deadline = se->vruntime + calc_delta_fair(se->slice, se);
+ }
+
+ static bool yield_to_task_fair(struct rq *rq, struct task_struct *p)
+--
+2.47.1
+
+sched/fair: do not scan twice in detach_tasks()
+https://lore.kernel.org/all/20250722102600.25976-1-shijie@os.amperecomputing.com/
+
+diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
+index 7cc9d50e3e11..9c1f21d59b5c 100644
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -11813,12 +11813,15 @@ static int sched_balance_rq(int this_cpu, struct rq *this_rq,
+ 		 * still unbalanced. ld_moved simply stays zero, so it is
+ 		 * correctly treated as an imbalance.
+ 		 */
+-		env.loop_max  = min(sysctl_sched_nr_migrate, busiest->nr_running);
+-
+ more_balance:
+ 		rq_lock_irqsave(busiest, &rf);
+ 		update_rq_clock(busiest);
+ 
++		if (!env.loop_max)
++			env.loop_max  = min(sysctl_sched_nr_migrate, busiest->cfs.h_nr_queued);
++		else
++			env.loop_max  = min(env.loop_max, busiest->cfs.h_nr_queued);
++
+ 		/*
+ 		 * cur_ld_moved - load moved in current iteration
+ 		 * ld_moved     - cumulative load moved across iterations
+-- 
+2.40.1
+
+Bluetooth adapters of many Acer laptops don't work without it
+
+diff -uarp a/drivers/bluetooth/btusb.c b/drivers/bluetooth/btusb.c
+--- a/drivers/bluetooth/btusb.c
++++ b/drivers/bluetooth/btusb.c
+@@ -570,6 +570,8 @@ static const struct usb_device_id quirks
+ 						     BTUSB_WIDEBAND_SPEECH },
+ 	{ USB_DEVICE(0x13d3, 0x3591), .driver_info = BTUSB_REALTEK |
+ 						     BTUSB_WIDEBAND_SPEECH },
++	{ USB_DEVICE(0x13d3, 0x3601), .driver_info = BTUSB_REALTEK |
++						     BTUSB_WIDEBAND_SPEECH },
+ 	{ USB_DEVICE(0x0489, 0xe123), .driver_info = BTUSB_REALTEK |
+ 						     BTUSB_WIDEBAND_SPEECH },
+ 	{ USB_DEVICE(0x0489, 0xe125), .driver_info = BTUSB_REALTEK |
+-- 
+2.40.2
+
+Add Logitech C310
+
+diff --git a/drivers/usb/core/quirks.c b/drivers/usb/core/quirks.c
+index 0cf94c7a2c9c..20450f7a0c92 100644
+--- a/drivers/usb/core/quirks.c
++++ b/drivers/usb/core/quirks.c
+@@ -268,6 +268,9 @@ static const struct usb_device_id usb_quirk_list[] = {
+ 	/* Logitech Harmony 700-series */
+ 	{ USB_DEVICE(0x046d, 0xc122), .driver_info = USB_QUIRK_DELAY_INIT },
+ 
++	/* Logitech Webcam C310 */
++	{ USB_DEVICE(0x046d, 0x081b), .driver_info = USB_QUIRK_RESET_RESUME },
++
+ 	/* Philips PSC805 audio device */
+ 	{ USB_DEVICE(0x0471, 0x0155), .driver_info = USB_QUIRK_RESET_RESUME },
+ 
+-- 
+2.40.2
+
+wifi: mt76: mt7996: Initialize hdr before passing to skb_put_data()
+https://lore.kernel.org/all/20250715-mt7996-fix-uninit-const-pointer-v1-1-b5d8d11d7b78@kernel.org/
+
+diff --git a/drivers/net/wireless/mediatek/mt76/mt7996/mcu.c b/drivers/net/wireless/mediatek/mt76/mt7996/mcu.c
+index 994526c65bfc..640abb4dce7f 100644
+--- a/drivers/net/wireless/mediatek/mt76/mt7996/mcu.c
++++ b/drivers/net/wireless/mediatek/mt76/mt7996/mcu.c
+@@ -1879,8 +1879,8 @@ mt7996_mcu_get_mmps_mode(enum ieee80211_smps_mode smps)
+ int mt7996_mcu_set_fixed_rate_ctrl(struct mt7996_dev *dev,
+ 				   void *data, u16 version)
+ {
++	struct uni_header hdr = {};
+ 	struct ra_fixed_rate *req;
+-	struct uni_header hdr;
+ 	struct sk_buff *skb;
+ 	struct tlv *tlv;
+ 	int len;
+@@ -3372,7 +3372,7 @@ int mt7996_mcu_set_hdr_trans(struct mt7996_dev *dev, bool hdr_trans)
+ {
+ 	struct {
+ 		u8 __rsv[4];
+-	} __packed hdr;
++	} __packed hdr = {};
+ 	struct hdr_trans_blacklist *req_blacklist;
+ 	struct hdr_trans_en *req_en;
+ 	struct sk_buff *skb;
+-- 
+2.40.2
+
+processor_idle: Skip dummy wait for processors based on Zen microarchitecture
+https://lore.kernel.org/all/20220921063638.2489-1-kprateek.nayak@amd.com/
+
+diff --git a/drivers/acpi/processor_idle.c b/drivers/acpi/processor_idle.c
+index 2c2dc559e0f8de..48d6b137e8f6ae 100644
+--- a/drivers/acpi/processor_idle.c
++++ b/drivers/acpi/processor_idle.c
+@@ -524,8 +524,11 @@ static __cpuidle void io_idle(unsigned long addr)
+ 	inb(addr);
+ 
+ #ifdef	CONFIG_X86
+-	/* No delay is needed if we are in guest */
+-	if (boot_cpu_has(X86_FEATURE_HYPERVISOR))
++	/*
++	 * No delay is needed if we are in guest or on a processor
++	 * based on the Zen microarchitecture.
++	 */
++	if (boot_cpu_has(X86_FEATURE_HYPERVISOR) || boot_cpu_has(X86_FEATURE_ZEN))
+ 		return;
+ 	/*
+ 	 * Modern (>=Nehalem) Intel systems use ACPI via intel_idle,
+-- 
+2.40.2
+
+Subject: [PATCH] drm/amdgpu: Wait for bootloader after PSPv11 reset
+https://gitlab.freedesktop.org/drm/amd/-/issues/4531
+
+Some PSPv11 SOCs take a longer time for PSP based mode-1 reset. Instead
+of checking for C2PMSG_33 status, add the callback wait_for_bootloader.
+Wait for bootloader to be back to steady state is already part of the
+generic mode-1 reset flow. Increase the retry count for bootloader wait
+and also fix the mask to prevent fake pass.
+
+Signed-off-by: Lijo Lazar <lijo.lazar@xxxxxxxxxx>
+Reviewed-by: Alex Deucher <alexander.deucher@xxxxxxxxxx>
+---
+ drivers/gpu/drm/amd/amdgpu/psp_v11_0.c | 19 ++++---------------
+ 1 file changed, 4 insertions(+), 15 deletions(-)
+
+diff --git a/drivers/gpu/drm/amd/amdgpu/psp_v11_0.c b/drivers/gpu/drm/amd/amdgpu/psp_v11_0.c
+index 6cc05d36e3594..64b240b51f1aa 100644
+--- a/drivers/gpu/drm/amd/amdgpu/psp_v11_0.c
++++ b/drivers/gpu/drm/amd/amdgpu/psp_v11_0.c
+@@ -149,13 +149,13 @@ static int psp_v11_0_wait_for_bootloader(struct psp_context *psp)
+ 	int ret;
+ 	int retry_loop;
+ 
+-	for (retry_loop = 0; retry_loop < 10; retry_loop++) {
++	for (retry_loop = 0; retry_loop < 20; retry_loop++) {
+ 		/* Wait for bootloader to signify that is
+ 		    ready having bit 31 of C2PMSG_35 set to 1 */
+ 		ret = psp_wait_for(psp,
+ 				   SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_35),
+ 				   0x80000000,
+-				   0x80000000,
++				   0x8000FFFF,
+ 				   false);
+ 
+ 		if (ret == 0)
+@@ -399,18 +399,6 @@ static int psp_v11_0_mode1_reset(struct psp_context *psp)
+ 
+ 	msleep(500);
+ 
+-	offset = SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_33);
+-
+-	ret = psp_wait_for(psp, offset, MBOX_TOS_RESP_FLAG, MBOX_TOS_RESP_MASK,
+-			   false);
+-
+-	if (ret) {
+-		DRM_INFO("psp mode 1 reset failed!\n");
+-		return -EINVAL;
+-	}
+-
+-	DRM_INFO("psp mode1 reset succeed \n");
+-
+ 	return 0;
+ }
+ 
+@@ -666,7 +654,8 @@ static const struct psp_funcs psp_v11_0_funcs = {
+ 	.ring_get_wptr = psp_v11_0_ring_get_wptr,
+ 	.ring_set_wptr = psp_v11_0_ring_set_wptr,
+ 	.load_usbc_pd_fw = psp_v11_0_load_usbc_pd_fw,
+-	.read_usbc_pd_fw = psp_v11_0_read_usbc_pd_fw
++	.read_usbc_pd_fw = psp_v11_0_read_usbc_pd_fw,
++	.wait_for_bootloader = psp_v11_0_wait_for_bootloader
+ };
+ 
+ void psp_v11_0_set_psp_funcs(struct psp_context *psp)
+-- 
+GitLab
+

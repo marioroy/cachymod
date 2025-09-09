@@ -1,0 +1,729 @@
+##
+# Clear Linux Patches
+# https://github.com/clearlinux-pkgs/linux
+#
+# Included in the CachyOS patch set
+# Patch0109: 0109-initialize-ata-before-graphics.patch
+# Patch0120: 0120-do-accept-in-LIFO-order-for-cache-efficiency.patch
+# Patch0121: 0121-locking-rwsem-spin-faster.patch
+#
+# Patch0104: 0104-pci-pme-wakeups.patch
+# Patch0108: 0108-smpboot-reuse-timer-calibration.patch
+# Patch0111: 0111-ipv4-tcp-allow-the-memory-tuning-for-tcp-to-go-a-lit.patch
+# Patch0112: 0112-init-wait-for-partition-and-retry-scan.patch
+# Patch0116: 0116-migrate-some-systemd-defaults-to-the-kernel-defaults.patch
+# Patch0117: 0117-xattr-allow-setting-user.-attributes-on-symlinks-by-.patch
+# Patch0128: 0128-itmt_epb-use-epb-to-scale-itmt.patch
+# Patch0130: 0130-itmt2-ADL-fixes.patch
+# Patch0131: 0131-add-a-per-cpu-minimum-high-watermark-an-tune-batch-s.patch
+# Patch0135: 0135-initcall-only-print-non-zero-initcall-debug-to-speed.patch
+# Patch0137: libsgrowdown.patch
+# Patch0141: epp-retune.patch
+# Patch0148: 0002-sched-core-add-some-branch-hints-based-on-gcov-analy.patch
+# Patch0157: scale-net-alloc.patch
+# Patch0158: 0158-clocksource-only-perform-extended-clocksource-checks.patch
+# Patch0165: slack.patch
+# Patch0167: 0167-net-sock-increase-default-number-of-_SK_MEM_PACKETS-.patch
+##
+
+# Allow disabling the LDT (local descriptor table).
+
+diff -uar a/arch/x86/Kconfig b/arch/x86/Kconfig
+--- a/arch/x86/Kconfig
++++ b/arch/x86/Kconfig
+@@ -1236,7 +1236,7 @@
+ 	default X86_LEGACY_VM86
+ 
+ config X86_16BIT
+-	bool "Enable support for 16-bit segments" if EXPERT
++	bool "Enable support for 16-bit segments"
+ 	default y
+ 	depends on MODIFY_LDT_SYSCALL
+ 	help
+@@ -2306,7 +2306,7 @@
+ 	  be set to 'N' under normal conditions.
+ 
+ config MODIFY_LDT_SYSCALL
+-	bool "Enable the LDT (local descriptor table)" if EXPERT
++	bool "Enable the LDT (local descriptor table)"
+ 	default y
+ 	help
+ 	  Linux can allow user programs to install a per-process x86
+
+# Allow disabling legacy 16-bit UID syscall wrappers.
+
+diff -uar a/init/Kconfig b/init/Kconfig
+--- a/init/Kconfig
++++ b/init/Kconfig
+@@ -1622,7 +1622,7 @@
+ 	  Only use this if you really know what you are doing.
+ 
+ config UID16
+-	bool "Enable 16-bit UID system calls" if EXPERT
++	bool "Enable 16-bit UID system calls"
+ 	depends on HAVE_UID16 && MULTIUSER
+ 	default y
+ 	help
+
+# Disable more debug knobs.
+
+diff -uar a/lib/Kconfig.debug b/lib/Kconfig.debug
+--- a/lib/Kconfig.debug
++++ b/lib/Kconfig.debug
+@@ -910,7 +910,7 @@
+ 	  regions to be regularly checked for invalid topology.
+ 
+ config DEBUG_MEMORY_INIT
+-	bool "Debug memory initialisation" if EXPERT
++	bool "Debug memory initialisation"
+ 	default !EXPERT
+ 	help
+ 	  Enable this for additional checks during memory initialisation.
+
+diff -uar a/mm/Kconfig.debug b/mm/Kconfig.debug
+--- a/mm/Kconfig.debug
++++ b/mm/Kconfig.debug
+@@ -47,7 +47,7 @@
+ 
+ config SLUB_DEBUG
+ 	default y
+-	bool "Enable SLUB debugging support" if EXPERT
++	bool "Enable SLUB debugging support"
+ 	depends on SYSFS && !SLUB_TINY
+ 	select STACKDEPOT if STACKTRACE_SUPPORT
+ 	help
+
+# Patch0104: 0104-pci-pme-wakeups.patch
+
+Subject: [PATCH] pci pme wakeups
+
+Reduce wakeups for PME checks, which are a workaround for miswired
+boards (sadly, too many of them) in laptops.
+---
+ drivers/pci/pci.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/pci/pci.c b/drivers/pci/pci.c
+index d25122fbe98a..dbfb6aaa4a07 100644
+--- a/drivers/pci/pci.c
++++ b/drivers/pci/pci.c
+@@ -60,7 +60,7 @@ struct pci_pme_device {
+ 	struct pci_dev *dev;
+ };
+ 
+-#define PME_TIMEOUT 1000 /* How long between PME checks */
++#define PME_TIMEOUT 4000 /* How long between PME checks */
+ 
+ /*
+  * Following exit from Conventional Reset, devices must be ready within 1 sec
+-- 
+https://clearlinux.org
+
+# Patch0108: 0108-smpboot-reuse-timer-calibration.patch
+
+Subject: [PATCH] smpboot: reuse timer calibration
+
+NO point recalibrating for known-constant tsc ...
+saves 200ms+ of boot time.
+---
+ arch/x86/kernel/tsc.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/arch/x86/kernel/tsc.c b/arch/x86/kernel/tsc.c
+index a698196377be..5f3ee7c31c8a 100644
+--- a/arch/x86/kernel/tsc.c
++++ b/arch/x86/kernel/tsc.c
+@@ -1597,6 +1597,9 @@ unsigned long calibrate_delay_is_known(void)
+ 	if (!constant_tsc || !mask)
+ 		return 0;
+ 
++	if (cpu != 0)
++		return cpu_data(0).loops_per_jiffy;
++
+ 	sibling = cpumask_any_but(mask, cpu);
+ 	if (sibling < nr_cpu_ids)
+ 		return cpu_data(sibling).loops_per_jiffy;
+-- 
+https://clearlinux.org
+
+# Patch0111: 0111-ipv4-tcp-allow-the-memory-tuning-for-tcp-to-go-a-lit.patch
+
+Subject: [PATCH] ipv4/tcp: allow the memory tuning for tcp to go a little
+ bigger than default
+
+---
+ net/ipv4/tcp.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/net/ipv4/tcp.c b/net/ipv4/tcp.c
+index 28ff2a820f7c..c4f240da8d70 100644
+--- a/net/ipv4/tcp.c
++++ b/net/ipv4/tcp.c
+@@ -5229,8 +5229,8 @@ void __init tcp_init(void)
+ 	tcp_init_mem();
+ 	/* Set per-socket limits to no more than 1/128 the pressure threshold */
+ 	limit = nr_free_buffer_pages() << (PAGE_SHIFT - 7);
+-	max_wshare = min(4UL*1024*1024, limit);
+-	max_rshare = min(32UL*1024*1024, limit);
++	max_wshare = min(16UL*1024*1024, limit);
++	max_rshare = min(16UL*1024*1024, limit);
+ 
+ 	init_net.ipv4.sysctl_tcp_wmem[0] = PAGE_SIZE;
+ 	init_net.ipv4.sysctl_tcp_wmem[1] = 16*1024;
+-- 
+https://clearlinux.org
+
+# Patch0112: 0112-init-wait-for-partition-and-retry-scan.patch
+
+Subject: [PATCH] init: wait for partition and retry scan
+
+As Clear Linux boots fast the device is not ready when
+the mounting code is reached, so a retry device scan will
+be performed every 0.5 sec for at least 40 sec
+and synchronize the async task.
+
+Signed-off-by: Miguel Bernal Marin <miguel.bernal.marin@xxxxxxxxxx>
+---
+ init/do_mounts.c | 16 ++++++++++++++--
+ 1 file changed, 14 insertions(+), 2 deletions(-)
+
+diff --git a/init/do_mounts.c b/init/do_mounts.c
+index 762b534978d9..107b96927049 100644
+--- a/init/do_mounts.c
++++ b/init/do_mounts.c
+@@ -476,7 +476,9 @@ void __init prepare_namespace(void)
+ 	 * For example, it is not atypical to wait 5 seconds here
+ 	 * for the touchpad of a laptop to initialize.
+ 	 */
++	async_synchronize_full();
+ 	wait_for_device_probe();
++	async_synchronize_full();
+ 
+ 	md_run_setup();
+ 
+-- 
+https://clearlinux.org
+
+--- linux-6.5.1/block/early-lookup.c~
++++ linux-6.5.1/block/early-lookup.c
+@@ -243,8 +243,18 @@
+  */
+ int __init early_lookup_bdev(const char *name, dev_t *devt)
+ {
+-	if (strncmp(name, "PARTUUID=", 9) == 0)
+-		return devt_from_partuuid(name + 9, devt);
++	if (strncmp(name, "PARTUUID=", 9) == 0) {
++		int res;
++		int  needtowait = 40<<1;
++		res = devt_from_partuuid(name + 9, devt);
++		if (!res) return res;
++		while (res && needtowait) {
++			msleep(500);
++			res = devt_from_partuuid(name + 9, devt);
++			needtowait--;
++		}
++		return res;
++	}
+ 	if (strncmp(name, "PARTLABEL=", 10) == 0)
+ 		return devt_from_partlabel(name + 10, devt);
+ 	if (strncmp(name, "/dev/", 5) == 0)
+--- linux-6.5.1/block/early-lookup.c~
++++ linux-6.5.1/block/early-lookup.c
+@@ -5,6 +5,7 @@
+  */
+ #include <linux/blkdev.h>
+ #include <linux/ctype.h>
++#include <linux/delay.h>
+ 
+ struct uuidcmp {
+ 	const char *uuid;
+-- 
+https://clearlinux.org
+
+# Patch0116: 0116-migrate-some-systemd-defaults-to-the-kernel-defaults.patch
+
+Subject: [PATCH] migrate some systemd defaults to the kernel defaults.
+
+These settings are needed to prevent networking issues when
+the networking modules come up by default without explicit
+settings, which breaks some cases.
+
+We don't want the modprobe settings to be read at boot time
+if we're not going to do anything else ever.
+---
+ drivers/net/dummy.c             | 2 +-
+ include/uapi/linux/if_bonding.h | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/net/dummy.c b/drivers/net/dummy.c
+index f82ad7419508..5e8faa70aad6 100644
+--- a/drivers/net/dummy.c
++++ b/drivers/net/dummy.c
+@@ -44,7 +44,7 @@
+ 
+ #define DRV_NAME	"dummy"
+ 
+-static int numdummies = 1;
++static int numdummies = 0;
+ 
+ /* fake multicast ability */
+ static void set_multicast_list(struct net_device *dev)
+diff --git a/include/uapi/linux/if_bonding.h b/include/uapi/linux/if_bonding.h
+index d174914a837d..bf8e2af101a3 100644
+--- a/include/uapi/linux/if_bonding.h
++++ b/include/uapi/linux/if_bonding.h
+@@ -82,7 +82,7 @@
+ #define BOND_STATE_ACTIVE       0   /* link is active */
+ #define BOND_STATE_BACKUP       1   /* link is backup */
+ 
+-#define BOND_DEFAULT_MAX_BONDS  1   /* Default maximum number of devices to support */
++#define BOND_DEFAULT_MAX_BONDS  0   /* Default maximum number of devices to support */
+ 
+ #define BOND_DEFAULT_TX_QUEUES 16   /* Default number of tx queues per device */
+ 
+-- 
+https://clearlinux.org
+
+# Patch0117: 0117-xattr-allow-setting-user.-attributes-on-symlinks-by-.patch
+
+Subject: [PATCH] xattr: allow setting user.* attributes on symlinks by owner
+
+Kvmtool and clear containers supports using user attributes to label host
+files with the virtual uid/guid of the file in the container. This allows an
+end user to manage their files and a complete uid space without all the ugly
+namespace stuff.
+
+The one gap in the support is symlinks because an end user can change the
+ownership of a symbolic link. We support attributes on these files as you
+can already (as root) set security attributes on them.
+
+The current rules seem slightly over-paranoid and as we have a use case this
+patch enables updating the attributes on a symbolic link IFF you are the
+owner of the synlink (as permissions are not usually meaningful on the link
+itself).
+
+Signed-off-by: Alan Cox <alan@xxxxxxxxxx>
+---
+ fs/xattr.c | 15 ++++++++-------
+ 1 file changed, 8 insertions(+), 7 deletions(-)
+
+diff --git a/fs/xattr.c b/fs/xattr.c
+index 998045165916..62b6fb4dedee 100644
+--- a/fs/xattr.c
++++ b/fs/xattr.c
+@@ -139,16 +139,17 @@ xattr_permission(struct user_namespace *mnt_userns, struct inode *inode,
+ 	}
+ 
+ 	/*
+-	 * In the user.* namespace, only regular files and directories can have
+-	 * extended attributes. For sticky directories, only the owner and
+-	 * privileged users can write attributes.
++	 * In the user.* namespace, only regular files, symbolic links, and
++	 * directories can have extended attributes. For symbolic links and
++	 * sticky directories, only the owner and privileged users can write
++	 * attributes.
+ 	 */
+ 	if (!strncmp(name, XATTR_USER_PREFIX, XATTR_USER_PREFIX_LEN)) {
+-		if (!S_ISREG(inode->i_mode) && !S_ISDIR(inode->i_mode))
++		if (!S_ISREG(inode->i_mode) && !S_ISDIR(inode->i_mode) && !S_ISLNK(inode->i_mode))
+ 			return (mask & MAY_WRITE) ? -EPERM : -ENODATA;
+-		if (S_ISDIR(inode->i_mode) && (inode->i_mode & S_ISVTX) &&
+-		    (mask & MAY_WRITE) &&
+-		    !inode_owner_or_capable(idmap, inode))
++		if (((S_ISDIR(inode->i_mode) && (inode->i_mode & S_ISVTX))
++		        || S_ISLNK(inode->i_mode)) && (mask & MAY_WRITE)
++		    && !inode_owner_or_capable(idmap, inode))
+ 			return -EPERM;
+ 	}
+ 
+-- 
+https://clearlinux.org
+
+# Patch0128: 0128-itmt_epb-use-epb-to-scale-itmt.patch
+
+Subject: [PATCH] itmt_epb: use epb to scale itmt
+
+---
+ arch/x86/include/asm/topology.h |  1 +
+ arch/x86/kernel/cpu/intel_epb.c |  4 ++++
+ arch/x86/kernel/itmt.c          | 29 ++++++++++++++++++++++++++++-
+ 3 files changed, 33 insertions(+), 1 deletion(-)
+
+diff --git a/arch/x86/include/asm/topology.h b/arch/x86/include/asm/topology.h
+index 2f0b6be8eaab..c31f81e2ea05 100644
+--- a/arch/x86/include/asm/topology.h
++++ b/arch/x86/include/asm/topology.h
+@@ -255,6 +255,7 @@ extern unsigned int __read_mostly sysctl_sched_itmt_enabled;
+ 
+ /* Interface to set priority of a cpu */
+ void sched_set_itmt_core_prio(int prio, int core_cpu);
++void sched_set_itmt_power_ratio(int power_ratio, int core_cpu);
+ 
+ /* Interface to notify scheduler that system supports ITMT */
+ int sched_set_itmt_support(void);
+diff --git a/arch/x86/kernel/cpu/intel_epb.c b/arch/x86/kernel/cpu/intel_epb.c
+index fbaf12e43f41..c8c2d6f1a8ac 100644
+--- a/arch/x86/kernel/cpu/intel_epb.c
++++ b/arch/x86/kernel/cpu/intel_epb.c
+@@ -166,6 +166,10 @@ static ssize_t energy_perf_bias_store(struct device *dev,
+ 	if (ret < 0)
+ 		return ret;
+ 
++	/* update the ITMT scheduler logic to use the power policy data */
++	/* scale the val up by 2 so the range is 224 - 256 */
++	sched_set_itmt_power_ratio(256 - val * 2, cpu);
++
+ 	return count;
+ }
+ 
+diff --git a/arch/x86/kernel/itmt.c b/arch/x86/kernel/itmt.c
+index 57027bfed25f..596fd7fb7847 100644
+--- a/arch/x86/kernel/itmt.c
++++ b/arch/x86/kernel/itmt.c
+@@ -26,6 +26,7 @@
+ 
+ static DEFINE_MUTEX(itmt_update_mutex);
+ DEFINE_PER_CPU_READ_MOSTLY(int, sched_core_priority);
++DEFINE_PER_CPU_READ_MOSTLY(int, sched_power_ratio);
+ 
+ /* Boolean to track if system has ITMT capabilities */
+ static bool __read_mostly sched_itmt_capable;
+@@ -144,7 +145,12 @@ void sched_clear_itmt_support(void)
+ 
+ int arch_asym_cpu_priority(int cpu)
+ {
+-	return per_cpu(sched_core_priority, cpu);
++	int power_ratio = per_cpu(sched_power_ratio, cpu);
++
++	/* a power ratio of 0 (uninitialized) is assumed to be maximum */
++	if (power_ratio == 0)
++		power_ratio = 256 - 2 * 6;
++	return per_cpu(sched_core_priority, cpu) * power_ratio / 256;
+ }
+ 
+ /**
+@@ -165,3 +171,24 @@ void sched_set_itmt_core_prio(int prio, int core_cpu)
+ {
+ 	per_cpu(sched_core_priority, cpu) = prio;
+ }
++
++/**
++ * sched_set_itmt_power_ratio() - Set CPU priority based on ITMT
++ * @power_ratio:	The power scaling ratio [1..256] for the core
++ * @core_cpu:		The cpu number associated with the core
++ *
++ * Set a scaling to the cpu performance based on long term power
++ * settings (like EPB).
++ *
++ * Note this is for the policy not for the actual dynamic frequency;
++ * the frequency will increase itself as workloads run on a core.
++ */
++
++void sched_set_itmt_power_ratio(int power_ratio, int core_cpu)
++{
++	int cpu;
++
++	for_each_cpu(cpu, topology_sibling_cpumask(core_cpu)) {
++		per_cpu(sched_power_ratio, cpu) = power_ratio;
++	}
++}
+-- 
+https://clearlinux.org
+
+# Patch0130: 0130-itmt2-ADL-fixes.patch
+
+Subject: [PATCH] itmt2 ADL fixes
+
+On systems with overclocking enabled, CPPC Highest Performance can be
+hard coded to 0xff. In this case even if we have cores with different
+highest performance, ITMT can't be enabled as the current implementation
+depends on CPPC Highest Performance.
+
+On such systems we can use MSR_HWP_CAPABILITIES maximum performance field
+when CPPC.Highest Performance is 0xff.
+
+Due to legacy reasons, we can't solely depend on MSR_HWP_CAPABILITIES as
+in some older systems CPPC Highest Performance is the only way to identify
+different performing cores.
+
+Signed-off-by: Srinivas Pandruvada <srinivas.pandruvada@xxxxxxxxxx>
+---
+ drivers/cpufreq/intel_pstate.c | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/drivers/cpufreq/intel_pstate.c b/drivers/cpufreq/intel_pstate.c
+index bc7f7e6759bd..ee33ad7f6f28 100644
+--- a/drivers/cpufreq/intel_pstate.c
++++ b/drivers/cpufreq/intel_pstate.c
+@@ -382,6 +382,13 @@ static void intel_pstate_set_itmt_prio(int cpu)
+ 	 * update them at any time after it has been called.
+ 	 */
+ 	sched_set_itmt_core_prio(cppc_perf.highest_perf, cpu);
++	/*
++	 * On some systems with overclocking enabled, CPPC.highest_perf is hardcoded to 0xff.
++	 * In this case we can't use CPPC.highest_perf to enable ITMT.
++	 * In this case we can look at MSR_HWP_CAPABILITIES bits [8:0] to decide.
++	 */
++	if (cppc_perf.highest_perf == 0xff)
++		cppc_perf.highest_perf = HWP_HIGHEST_PERF(READ_ONCE(all_cpu_data[cpu]->hwp_cap_cached));
+ 
+ 	if (max_highest_perf <= min_highest_perf) {
+ 		if (cppc_perf.highest_perf > max_highest_perf)
+-- 
+https://clearlinux.org
+
+# Patch0131: 0131-add-a-per-cpu-minimum-high-watermark-an-tune-batch-s.patch
+
+Subject: [PATCH] add a per cpu minimum high watermark an tune batch size
+
+make sure there's at least 1024 per cpu pages... a reasonably small
+amount for todays system
+---
+ mm/page_alloc.c | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index e6f211dcf82e..0ea48434ac7d 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -5625,11 +5625,11 @@ static int zone_batchsize(struct zone *zone)
+ 
+ 	/*
+ 	 * The number of pages to batch allocate is either ~0.1%
+-	 * of the zone or 1MB, whichever is smaller. The batch
++	 * of the zone or 4MB, whichever is smaller. The batch
+ 	 * size is striking a balance between allocation latency
+ 	 * and zone lock contention.
+ 	 */
+-	batch = min(zone_managed_pages(zone) >> 10, SZ_1M / PAGE_SIZE);
++	batch = min(zone_managed_pages(zone) >> 10, 4 * SZ_1M / PAGE_SIZE);
+ 	batch /= 4;		/* We effectively *= 4 below */
+ 	if (batch < 1)
+ 		batch = 1;
+-- 
+https://clearlinux.org
+
+# Patch0135: 0135-initcall-only-print-non-zero-initcall-debug-to-speed.patch
+
+Subject: [PATCH] initcall: only print non-zero initcall debug to speed up boot
+
+Printing initcall timings that successfully return after 0 usecs
+provides not much useful information and takes a small amount of time
+to do so. Disable the initcall timings for these specific cases. On
+an Alderlake i9-12900 this reduces kernel boot time by 0.67% (timed
+up to the invocation of systemd starting) based on 10 boot measurements.
+
+Signed-off-by: Colin Ian King <colin.king@xxxxxxxxxx>
+---
+ init/main.c | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/init/main.c b/init/main.c
+index aa21add5f7c5..715d57f58895 100644
+--- a/init/main.c
++++ b/init/main.c
+@@ -1211,10 +1211,13 @@ static __init_or_module void
+ trace_initcall_finish_cb(void *data, initcall_t fn, int ret)
+ {
+ 	ktime_t rettime, *calltime = data;
++	long long delta;
+ 
+ 	rettime = ktime_get();
+-	printk(KERN_DEBUG "initcall %pS returned %d after %lld usecs\n",
+-		 fn, ret, (unsigned long long)ktime_us_delta(rettime, *calltime));
++	delta = ktime_us_delta(rettime, *calltime);
++	if (ret || delta)
++		printk(KERN_DEBUG "initcall %pS returned %d after %lld usecs\n",
++			fn, ret, (unsigned long long)ktime_us_delta(rettime, *calltime));
+ }
+ 
+ static __init_or_module void
+-- 
+2.39.1
+
+# Patch0137: libsgrowdown.patch
+
+Place libraries right below the binary for PIE binaries, this helps code locality
+(and thus performance).
+
+--- linux-5.18.2/fs/binfmt_elf.c~	2022-06-06 06:49:00.000000000 +0000
++++ linux-5.18.2/fs/binfmt_elf.c	2022-08-10 13:53:04.878633166 +0000
+@@ -1286,6 +1286,8 @@
+ 	mm = current->mm;
+ 	mm->end_code = end_code;
+ 	mm->start_code = start_code;
++	if (start_code >= ELF_ET_DYN_BASE)
++		mm->mmap_base = start_code;
+ 	mm->start_data = start_data;
+ 	mm->end_data = end_data;
+ 	mm->start_stack = bprm->p;
+
+# Patch0141: epp-retune.patch
+
+--- linux-6.1/arch/x86/include/asm/msr-index.h~	2022-12-11 22:15:18.000000000 +0000
++++ linux-6.1/arch/x86/include/asm/msr-index.h	2022-12-16 01:31:32.266119875 +0000
+@@ -555,7 +555,7 @@
+ #define HWP_MAX_PERF(x)			((x & 0xff) << 8)
+ #define HWP_DESIRED_PERF(x)		((x & 0xff) << 16)
+ #define HWP_ENERGY_PERF_PREFERENCE(x)	(((u64)x & 0xff) << 24)
+-#define HWP_EPP_PERFORMANCE		0x00
++#define HWP_EPP_PERFORMANCE		0x01
+ #define HWP_EPP_BALANCE_PERFORMANCE	0x80
+ #define HWP_EPP_BALANCE_POWERSAVE	0xC0
+ #define HWP_EPP_POWERSAVE		0xFF
+
+# Patch0148: 0002-sched-core-add-some-branch-hints-based-on-gcov-analy.patch
+
+Subject: [PATCH] sched/core: add some branch hints based on gcov analysis
+
+Signed-off-by: Colin Ian King <colin.king@xxxxxxxxxx>
+---
+ kernel/sched/core.c | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/kernel/sched/core.c b/kernel/sched/core.c
+index f730b6fe94a7..ee0ec4ab7d1c 100644
+--- a/kernel/sched/core.c
++++ b/kernel/sched/core.c
+@@ -602,7 +602,7 @@ void raw_spin_rq_lock_nested(struct rq *rq, int subclass)
+ 
+ 	/* Matches synchronize_rcu() in __sched_core_enable() */
+ 	preempt_disable();
+-	if (sched_core_disabled()) {
++	if (likely(sched_core_disabled())) {
+ 		raw_spin_lock_nested(&rq->__lock, subclass);
+ 		/* preempt_count *MUST* be > 1 */
+ 		preempt_enable_no_resched();
+@@ -816,7 +816,7 @@ void update_rq_clock(struct rq *rq)
+ 	scx_rq_clock_update(rq, clock);
+ 
+ 	delta = clock - rq->clock;
+-	if (delta < 0)
++	if (unlikely(delta < 0))
+ 		return;
+ 	rq->clock += delta;
+ 
+@@ -6128,7 +6128,7 @@ pick_next_task(struct rq *rq, struct task_struct *prev, struct rq_flags *rf)
+ 	struct rq *rq_i;
+ 	bool need_sync;
+ 
+-	if (!sched_core_enabled(rq))
++	if (likely(!sched_core_enabled(rq)))
+ 		return __pick_next_task(rq, prev, rf);
+ 
+ 	cpu = cpu_of(rq);
+@@ -7307,7 +7307,7 @@ SYSCALL_DEFINE0(sched_yield)
+ #if !defined(CONFIG_PREEMPTION) || defined(CONFIG_PREEMPT_DYNAMIC)
+ int __sched __cond_resched(void)
+ {
+-	if (should_resched(0) && !irqs_disabled()) {
++	if (unlikely(should_resched(0)) && !irqs_disabled()) {
+ 		preempt_schedule_common();
+ 		return 1;
+ 	}
+-- 
+2.39.1
+
+# Patch0157: scale-net-alloc.patch
+
+diff --git a/include/net/sock.h b/include/net/sock.h
+index 4e787285fc66..3e045f6eb6ee 100644
+--- a/include/net/sock.h
++++ b/include/net/sock.h
+@@ -1599,10 +1599,17 @@ static inline void sk_mem_charge(struct sock *sk, int size)
+ 
+ static inline void sk_mem_uncharge(struct sock *sk, int size)
+ {
++	int reclaimable, reclaim_threshold;
++
++	reclaim_threshold = 64 * 1024;
+ 	if (!sk_has_account(sk))
+ 		return;
+ 	sk_forward_alloc_add(sk, size);
+-	sk_mem_reclaim(sk);
++	reclaimable = sk->sk_forward_alloc - sk_unused_reserved_mem(sk);
++	if (reclaimable > reclaim_threshold) {
++		reclaimable -= reclaim_threshold;
++		__sk_mem_reclaim(sk, reclaimable);
++	}
+ }
+ 
+ #if IS_ENABLED(CONFIG_PROVE_LOCKING) && IS_ENABLED(CONFIG_MODULES)
+
+# Patch0158: 0158-clocksource-only-perform-extended-clocksource-checks.patch
+
+Subject: [PATCH] clocksource: only perform extended clocksource checks for AMD
+ systems
+
+Signed-off-by: Colin Ian King <colin.king@xxxxxxxxxx>
+---
+ drivers/clocksource/acpi_pm.c | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/clocksource/acpi_pm.c b/drivers/clocksource/acpi_pm.c
+index 82338773602c..d84f0e29452e 100644
+--- a/drivers/clocksource/acpi_pm.c
++++ b/drivers/clocksource/acpi_pm.c
+@@ -208,13 +208,16 @@ static int verify_pmtmr_rate(void)
+ static int __init init_acpi_pm_clocksource(void)
+ {
+ 	u64 value1, value2;
+-	unsigned int i, j = 0;
++	unsigned int i, j = 0, checks = 1;
+ 
+ 	if (!pmtmr_ioport)
+ 		return -ENODEV;
+ 
++	if (boot_cpu_data.x86_vendor == X86_VENDOR_AMD)
++		checks = ACPI_PM_MONOTONICITY_CHECKS;
++
+ 	/* "verify" this timing source: */
+-	for (j = 0; j < ACPI_PM_MONOTONICITY_CHECKS; j++) {
++	for (j = 0; j < checks; j++) {
+ 		udelay(100 * j);
+ 		value1 = clocksource_acpi_pm.read(&clocksource_acpi_pm);
+ 		for (i = 0; i < ACPI_PM_READ_CHECKS; i++) {
+-- 
+2.40.1
+
+# Patch0165: slack.patch
+
+--- linux-6.5.1/init/init_task.c~	2023-09-02 07:13:30.000000000 +0000
++++ linux-6.5.1/init/init_task.c	2023-10-30 15:12:13.920976572 +0000
+@@ -140,7 +140,7 @@
+ 	.journal_info	= NULL,
+ 	INIT_CPU_TIMERS(init_task)
+ 	.pi_lock	= __RAW_SPIN_LOCK_UNLOCKED(init_task.pi_lock),
+-	.timer_slack_ns = 50000, /* 50 usec default slack */
++	.timer_slack_ns = 50, /* 50 nsec default slack */
+ 	.thread_pid	= &init_struct_pid,
+ 	.thread_node	= LIST_HEAD_INIT(init_signals.thread_head),
+ #ifdef CONFIG_AUDIT
+
+# Patch0167: 0167-net-sock-increase-default-number-of-_SK_MEM_PACKETS-.patch
+
+Subject: [PATCH] net: sock: increase default number of _SK_MEM_PACKETS to 1024
+
+scale these by a factor of 4 to improve socket performance
+
+Signed-off-by: Colin Ian King <colin.i.king@xxxxxxxxxx>
+---
+ include/net/sock.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/include/net/sock.h b/include/net/sock.h
+index 54ca8dcbfb43..9adc51e8085b 100644
+--- a/include/net/sock.h
++++ b/include/net/sock.h
+@@ -2927,7 +2927,7 @@ void sk_get_meminfo(const struct sock *sk, u32 *meminfo);
+  * platforms.  This makes socket queueing behavior and performance
+  * not depend upon such differences.
+  */
+-#define _SK_MEM_PACKETS		256
++#define _SK_MEM_PACKETS		1024
+ #define _SK_MEM_OVERHEAD	SKB_TRUESIZE(256)
+ #define SK_WMEM_MAX		(_SK_MEM_OVERHEAD * _SK_MEM_PACKETS)
+ #define SK_RMEM_MAX		(_SK_MEM_OVERHEAD * _SK_MEM_PACKETS)
+-- 
+2.44.0
+

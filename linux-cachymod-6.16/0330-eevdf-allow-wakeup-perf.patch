@@ -1,0 +1,95 @@
+
+sched/fair: allow smoothing and wakeup performance with pseudo-EEVDF
+
+Signed-off-by: Mario Roy <...>
+
+
+diff -uarp a/kernel/sched/bore.c b/kernel/sched/bore.c
+--- a/kernel/sched/bore.c
++++ b/kernel/sched/bore.c
+@@ -12,7 +12,7 @@ u8   __read_mostly sched_bore
+ u8   __read_mostly sched_burst_inherit_type     = 2;
+ u8   __read_mostly sched_burst_smoothness       = 1;
+ u8   __read_mostly sched_burst_penalty_offset   = 24;
+-uint __read_mostly sched_burst_penalty_scale    = 1536;
++uint __read_mostly sched_burst_penalty_scale    = 1280;
+ uint __read_mostly sched_burst_cache_lifetime   = 75000000;
+ static int __maybe_unused maxval_prio    =   39;
+ static int __maybe_unused maxval_6_bits  =   63;
+diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -725,9 +725,9 @@ static void update_entity_lag(struct cfs
+ 
+ 	vlag = avg_vruntime(cfs_rq) - se->vruntime;
+ 	limit = calc_delta_fair(max_t(u64, 2*se->slice, TICK_NSEC), se);
+-#ifdef CONFIG_SCHED_BORE
+-	limit >>= !!sched_bore;
+-#endif /* CONFIG_SCHED_BORE */
++#ifdef CONFIG_CACHY
++	limit >>= 1;
++#endif
+ 
+ 	se->vlag = clamp(vlag, -limit, limit);
+ }
+@@ -5343,17 +5343,17 @@ place_entity(struct cfs_rq *cfs_rq, stru
+ 		goto vslice_found;
+ #endif /* !CONFIG_SCHED_BORE */
+ 	vslice = calc_delta_fair(se->slice, se);
+-#ifdef CONFIG_SCHED_BORE
+-	if (likely(sched_bore))
+-		vslice >>= !!(flags & (ENQUEUE_INITIAL | ENQUEUE_WAKEUP));
+-	else
+-#endif /* CONFIG_SCHED_BORE */
++
+ 	/*
+ 	 * When joining the competition; the existing tasks will be,
+ 	 * on average, halfway through their slice, as such start tasks
+ 	 * off with half a slice to ease into the competition.
+ 	 */
++#ifdef CONFIG_CACHY
++	if (sched_feat(PLACE_DEADLINE_INITIAL) && (flags & (ENQUEUE_INITIAL | ENQUEUE_WAKEUP)))
++#else
+ 	if (sched_feat(PLACE_DEADLINE_INITIAL) && (flags & ENQUEUE_INITIAL))
++#endif
+ 		vslice /= 2;
+ 
+ #ifdef CONFIG_SCHED_BORE
+@@ -5533,10 +5533,10 @@ dequeue_entity(struct cfs_rq *cfs_rq, st
+ 		if (sched_feat(DELAY_DEQUEUE) && delay &&
+ 		    !entity_eligible(cfs_rq, se)) {
+ 			update_load_avg(cfs_rq, se, 0);
+-#ifdef CONFIG_SCHED_BORE
+-			if (sched_feat(DELAY_ZERO) && likely(sched_bore))
++#ifdef CONFIG_CACHY
++			if (sched_feat(DELAY_ZERO))
+ 				update_entity_lag(cfs_rq, se);
+-#endif /* CONFIG_SCHED_BORE */
++#endif
+ 			set_delayed(se);
+ 			return false;
+ 		}
+@@ -6961,16 +6961,12 @@ requeue_delayed_entity(struct sched_enti
+ 	WARN_ON_ONCE(!se->on_rq);
+ 
+ 	if (sched_feat(DELAY_ZERO)) {
+-#ifdef CONFIG_SCHED_BORE
+-		if (likely(sched_bore))
+-			flags |= ENQUEUE_WAKEUP;
+-		else {
+-#endif /* CONFIG_SCHED_BORE */
++#ifdef CONFIG_CACHY
++		flags |= ENQUEUE_WAKEUP;
++#else
+ 		flags = 0;
+ 		update_entity_lag(cfs_rq, se);
++#endif
+-#ifdef CONFIG_SCHED_BORE
+-		}
+-#endif /* CONFIG_SCHED_BORE */
+ 		if (se->vlag > 0) {
+ 			cfs_rq->nr_queued--;
+ 			if (se != cfs_rq->curr)
+-- 
+2.40.2
+

@@ -1,0 +1,24 @@
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Thumbnails
+._*
+
+*.bak
+*.log
+*.old
+*.out
+*.swp
+*.tmp
+
+0001-linux*-bore-*.patch*
+1[0-9][0-9][0-9]-*.patch*
+
+config-*
+custom.sh
+linux-6*
+tg_boom
+topo_boom
+v6*
+
