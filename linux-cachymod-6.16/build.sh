@@ -8,7 +8,7 @@ set -e
 # Build options. Unless selections given, answer "yes/y/1", "no/n/0" or "".
 ###############################################################################
 
-# Custom kernel suffix. Default "auto"
+# Custom kernel suffix. Default "auto" {gcc,clang,lto}
 # Set to blank value for no kernel suffix
 : "${_kernel_suffix:=auto}"
 
@@ -76,6 +76,17 @@ set -e
 # { generic, generic_v1, generic_v2, generic_v3, generic_v4, native, zen4 }
 : "${_processor_opt:=}"
 
+# Select build type { full, thin, clang, gcc }
+# full:  Build the kernel with clang full-LTO, suffix "-lto"
+#        Uses 1 thread for linking, slow and uses more memory (>16GB),
+#        theoretically with the highest performance gains
+# thin:  Build the kernel with clang thin-LTO, suffix "-lto"
+#        Uses multiple threads, faster and lesser memory consumption,
+#        possibly lower runtime performance than full
+# clang: Build kernel with clang, suffix "-clang"
+# gcc:   Build kernel with gcc, suffix "-gcc"
+: "${_buildtype:=thin}"
+
 # Add extra sources here: opt-in for the USB pollrate patch
 # Refer to https://github.com/GloriousEggroll/Linux-Pollrate-Patch
 # E.g. "${_extra_patch_or_url1:=1010-usb-pollrate.patch}"
@@ -106,7 +117,7 @@ export _extra_patch_or_url0
 export _kernel_suffix _prevent_avx2 _runtrim_script _enable_sched_ext
 export _localmodcfg _localmodcfg_path _makenconfig _makegconfig _makexconfig
 export _hugepage _HZ_ticks _ticktype _preempt _processor_opt
-export _build_debug _include_bore
+export _buildtype _build_debug _include_bore
 
 # Build kernel lazy and lazy-headers packages
 time nice -n 15 makepkg -scf --cleanbuild --skipinteg || exit 1
