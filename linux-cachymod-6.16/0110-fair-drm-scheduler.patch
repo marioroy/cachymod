@@ -3411,7 +3411,7 @@ index b0cf7d2143c8e2..c5be8a2c893dc2 100644
  			 */
  			vruntime = -us_to_ktime(rq_prio - prio);
 +		} else {
-+			static const int shuffle[2] = { -1, 1 };
++			static const int shuffle[2] = { -10, 10 };
 +			static bool r = 0;
 +
 +			/*

@@ -9853,7 +9853,7 @@ index f6d317e1674d..5856aa83a2ad 100644
                          active
                            Use intel_pstate driver to bypass the scaling
                            governors layer of cpufreq and provides it own
-@@ -4732,6 +4735,15 @@
+@@ -4733,6 +4736,15 @@
  		nomsi		[MSI] If the PCI_MSI kernel config parameter is
  				enabled, this kernel boot option can be used to
  				disable the use of MSI interrupts system-wide.

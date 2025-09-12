@@ -98,14 +98,14 @@ fi
 
 _pkgsuffix=cachymod
 _major=6.16
-_minor=6
+_minor=7
 pkgver=${_major}.${_minor}
 _stable=${_major}.${_minor}
 #_stable=${_major}
 
 _srcname=linux-${_stable}
 pkgdesc='CachyMod Linux Kernel with other patches and improvements'
-pkgrel=2
+pkgrel=1
 _kernver="$pkgver-$pkgrel"
 _kernuname="${pkgver}-${_pkgsuffix}"
 arch=('x86_64')
@@ -423,7 +423,7 @@ build() {
     [[ -z "$ncpu" || "$ncpu" = "MAKEFLAGS"* ]] && ncpu=$(nproc)
 
     make "${BUILD_FLAGS[@]}" -j"$ncpu" all 2>&1 | \
-       grep -Ev '^  (AS|AR|CC|LD|BT|CE|CO|GE|HO|IN|IP|MK|OB|PA|PE|PO|RE|ST|TA|TE|UN|UP|VD|WR|X32)|: unexpected end of section'
+       grep -Ev '^  (AS|AR|CC|LD|BT|CE|CO|GE|HO|IN|IP|MK|OB|PA|PE|PO|RE|ST|TA|TE|UN|UP|VD|WR|X32)|: unexpected end of section|: unreachable instruction| missing __noreturn in '
     make -C tools/bpf/bpftool vmlinux.h feature-clang-bpf-co-re=1 | \
        grep -Ev '^  (AS|AR|CC|LD|BT|CE|CO|GE|HO|IN|IP|MK|OB|PA|PE|PO|RE|ST|TA|TE|UN|UP|VD|WR|X32)'
 }
