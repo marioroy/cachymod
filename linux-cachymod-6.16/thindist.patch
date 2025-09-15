@@ -709,3 +709,22 @@ index 7274dfc65af60..90710b87a3877 100644
 -- 
 2.49.0.1143.g0be31eac6b-goog
 
+Fix malformed $(patsubst ...) invocation in scripts/Makefile.build
+https://discord.com/channels/862292009423470592/871363526541852692/1416799527750340830
+Thank you, @ms178
+
+diff -uarp a/scripts/Makefile.build b/scripts/Makefile.build
+--- a/scripts/Makefile.build
++++ b/scripts/Makefile.build
+@@ -442,7 +442,7 @@ targets += $(filter-out $(subdir-builtin
+ targets += $(filter-out $(subdir-modorder), $(real-obj-m))
+ targets += $(lib-y) $(always-y)
+ ifeq ($(builtin_suffix),.a_thinlto_native)
+-native_targets = $(patsubst,%.o,%.o_thinlto_native,$(targets))
++native_targets := $(patsubst %.o,%.o_thinlto_native,$(targets))
+ targets += $(native_targets)
+ endif
+ 
+-- 
+2.40.2
+
