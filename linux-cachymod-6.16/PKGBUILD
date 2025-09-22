@@ -98,14 +98,14 @@ fi
 
 _pkgsuffix=cachymod
 _major=6.16
-_minor=7
+_minor=8
 pkgver=${_major}.${_minor}
 _stable=${_major}.${_minor}
 #_stable=${_major}
 
 _srcname=linux-${_stable}
 pkgdesc='CachyMod Linux Kernel with other patches and improvements'
-pkgrel=2
+pkgrel=1
 _kernver="$pkgver-$pkgrel"
 _kernuname="${pkgver}-${_pkgsuffix}"
 arch=('x86_64')
@@ -143,6 +143,7 @@ if [[ "$_include_bore" =~ ^(yes|y|1)$ ]]; then
 else
     source+=("0410-eevdf-improve-smoothness.patch")
     source+=("0420-eevdf-improve-wakeup.patch")
+    source+=("0430-prefer-full-idle-smt-cores.patch")
 fi
 
 if [[ -s "custom.sh" ]]; then

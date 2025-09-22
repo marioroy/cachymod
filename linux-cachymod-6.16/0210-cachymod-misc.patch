@@ -559,14 +559,13 @@ index 6cc05d36e3594..64b240b51f1aa 100644
  				   false);
  
  		if (ret == 0)
-@@ -399,18 +399,6 @@ static int psp_v11_0_mode1_reset(struct psp_context *psp)
+@@ -393,17 +393,6 @@ static int psp_v11_0_mode1_reset(struct psp_context *psp)
  
  	msleep(500);
  
 -	offset = SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_33);
 -
--	ret = psp_wait_for(psp, offset, MBOX_TOS_RESP_FLAG, MBOX_TOS_RESP_MASK,
--			   false);
+-	ret = psp_wait_for(psp, offset, 0x80000000, 0x80000000, false);
 -
 -	if (ret) {
 -		DRM_INFO("psp mode 1 reset failed!\n");
@@ -578,7 +577,7 @@ index 6cc05d36e3594..64b240b51f1aa 100644
  	return 0;
  }
  
-@@ -666,7 +654,8 @@ static const struct psp_funcs psp_v11_0_funcs = {
+@@ -659,7 +648,8 @@ static const struct psp_funcs psp_v11_0_funcs = {
  	.ring_get_wptr = psp_v11_0_ring_get_wptr,
  	.ring_set_wptr = psp_v11_0_ring_set_wptr,
  	.load_usbc_pd_fw = psp_v11_0_load_usbc_pd_fw,
