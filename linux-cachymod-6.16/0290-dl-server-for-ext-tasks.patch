@@ -683,7 +683,7 @@ index f6a55cb823d8..1f68f9e69d03 100644
  }
  
  static void wakeup_preempt_scx(struct rq *rq, struct task_struct *p,int wake_flags) {}
-@@ -7318,8 +7344,8 @@ __bpf_kfunc u32 scx_bpf_cpuperf_cur(s32 cpu)
+@@ -7314,8 +7340,8 @@ __bpf_kfunc u32 scx_bpf_cpuperf_cur(s32 cpu)
   * relative scale between 0 and %SCX_CPUPERF_ONE. This determines how the
   * schedutil cpufreq governor chooses the target frequency.
   *
@@ -694,7 +694,7 @@ index f6a55cb823d8..1f68f9e69d03 100644
   * use. Consult hardware and cpufreq documentation for more information. The
   * current performance level can be monitored using scx_bpf_cpuperf_cur().
   */
-@@ -7611,6 +7637,38 @@ BTF_ID_FLAGS(func, scx_bpf_now)
+@@ -7607,6 +7633,38 @@ BTF_ID_FLAGS(func, scx_bpf_now)
  BTF_ID_FLAGS(func, scx_bpf_events, KF_TRUSTED_ARGS)
  BTF_KFUNCS_END(scx_kfunc_ids_any)
  
@@ -2196,6 +2196,8 @@ correctly returns idle CPUs.
 Fixes: 06efc9fe0b8de ("sched_ext: idle: Handle migration-disabled tasks in idle selection")
 Cc: stable@xxxxxxxxxx # v6.16+
 Signed-off-by: Andrea Righi <arighi@xxxxxxxxxx>
+Acked-by: Changwoo Min <changwoo@xxxxxxxxxx>
+Signed-off-by: Tejun Heo <tj@xxxxxxxxxx>
 ---
  kernel/sched/ext_idle.c | 28 +++++++++++++++++++++++++++-
  1 file changed, 27 insertions(+), 1 deletion(-)

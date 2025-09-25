@@ -24,10 +24,6 @@ set -e
 # To deselect ~ 1,500 kernel options
 : "${_runtrim_script:=no}"
 
-# Enable sched_ext (SCX) scheduler
-# This option is ignored for real-time preemption
-: "${_enable_sched_ext:=yes}"
-
 # Compile ONLY used modules to VASTLY reduce the number of modules built
 # and the build time. Refer to the wiki page for more information.
 # https://wiki.archlinux.org/index.php/Modprobed-db
@@ -69,7 +65,6 @@ set -e
 # Select "full" for low-latency desktop, matching the CachyOS kernel preemption.
 # Select "lazy" for low-latency desktop, matching the CachyOS RT kernel preemption.
 # Select "rt" for real-time preemption, running time-sensitive instruments.
-# The _enable_sched_ext build option is ignored for real-time preemption.
 : "${_preempt:=full}"
 
 # Select CPU compiler optimization
@@ -114,8 +109,8 @@ export _extra_patch_or_url4 _extra_patch_or_url5 _extra_patch_or_url6
 export _extra_patch_or_url7 _extra_patch_or_url8 _extra_patch_or_url9
 export _extra_patch_or_url0
 
-export _kernel_suffix _prevent_avx2 _runtrim_script _enable_sched_ext
-export _localmodcfg _localmodcfg_path _makenconfig _makegconfig _makexconfig
+export _localmodcfg _kernel_suffix _prevent_avx2 _runtrim_script
+export _localmodcfg_path _makenconfig _makegconfig _makexconfig
 export _hugepage _HZ_ticks _ticktype _preempt _processor_opt
 export _buildtype _build_debug _include_bore
 

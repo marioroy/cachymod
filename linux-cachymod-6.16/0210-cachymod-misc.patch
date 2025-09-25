@@ -417,6 +417,90 @@ index ba17620b8352..e1e9a65bd64b 100644
 -- 
 2.43.0
 
+x86/mm: Simplify redundant overlap calculation
+https://lore.kernel.org/all/20240123163623.1342917-1-dave.hansen@linux.intel.com/
+
+There have been a couple of reports that the two sides of the
+overlaps() calculation are redundant.  I spent way too much time
+looking at this, but I became convinced that they are redundant
+when a little test program of mine produced identical disassembly
+for both versions of the check.
+
+Remove the second condition.  It is exactly the same as the first.
+
+Fixes: 91ee8f5c1f50 ("x86/mm/cpa: Allow range check for static protections")
+Reported-by: David Binderman <dcb314@xxxxxxxxxx>
+Cc: Andy Lutomirski <luto@xxxxxxxxxx>
+Cc: Peter Zijlstra <peterz@xxxxxxxxxx>
+Cc: Thomas Gleixner <tglx@xxxxxxxxxx>
+Cc: Ingo Molnar <mingo@xxxxxxxxxx>
+Cc: Borislav Petkov <bp@xxxxxxxxxx>
+Cc: x86@xxxxxxxxxx
+---
+ arch/x86/mm/pat/set_memory.c | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/arch/x86/mm/pat/set_memory.c b/arch/x86/mm/pat/set_memory.c
+index e9b448d1b1b70..fdc00516c0b54 100644
+--- a/arch/x86/mm/pat/set_memory.c
++++ b/arch/x86/mm/pat/set_memory.c
+@@ -484,8 +484,7 @@ static void cpa_flush(struct cpa_data *data, int cache)
+ static bool overlaps(unsigned long r1_start, unsigned long r1_end,
+ 		     unsigned long r2_start, unsigned long r2_end)
+ {
+-	return (r1_start <= r2_end && r1_end >= r2_start) ||
+-		(r2_start <= r1_end && r2_end >= r1_start);
++	return (r1_start <= r2_end && r1_end >= r2_start);
+ }
+ 
+ #ifdef CONFIG_PCI_BIOS
+--
+2.34.1
+
+sched/fair: Prevent from cpufreq not being updated when delayed-task is iowait
+https://lore.kernel.org/all/20250226114301.4900-1-xuewen.yan@unisoc.com/
+
+Because the sched-delayed task maybe in io-wait state,
+so we should place the requeue_delayed_entity() after the
+cpufreq_update_util(), to prevent not boosting iowait cpufreq
+before return.
+
+Signed-off-by: Xuewen Yan <xuewen.yan@xxxxxxxxxx>
+---
+ kernel/sched/fair.c | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
+index 2d6d5582c3e9..040674734128 100644
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -6957,11 +6957,6 @@ enqueue_task_fair(struct rq *rq, struct task_struct *p, int flags)
+ 	if (!p->se.sched_delayed || (flags & ENQUEUE_DELAYED))
+ 		util_est_enqueue(&rq->cfs, p);
+ 
+-	if (flags & ENQUEUE_DELAYED) {
+-		requeue_delayed_entity(se);
+-		return;
+-	}
+-
+ 	/*
+ 	 * If in_iowait is set, the code below may not trigger any cpufreq
+ 	 * utilization updates, so do it here explicitly with the IOWAIT flag
+@@ -6970,6 +6965,11 @@ enqueue_task_fair(struct rq *rq, struct task_struct *p, int flags)
+ 	if (p->in_iowait)
+ 		cpufreq_update_util(rq, SCHED_CPUFREQ_IOWAIT);
+ 
++	if (flags & ENQUEUE_DELAYED) {
++		requeue_delayed_entity(se);
++		return;
++	}
++
+ 	if (task_new && se->sched_delayed)
+ 		h_nr_runnable = 0;
+ 
+-- 
+2.25.1
+
 sched/fair: Only increment deadline once on yield
 https://lore.kernel.org/all/20250401123622.584018-1-sieberf@amazon.com/
 
@@ -589,4 +673,23 @@ index 6cc05d36e3594..64b240b51f1aa 100644
  void psp_v11_0_set_psp_funcs(struct psp_context *psp)
 -- 
 GitLab
+
+bpf: Mark kfuncs as __noclone
+https://lore.kernel.org/all/20250924081426.156934-1-arighi@nvidia.com/
+
+diff --git a/include/linux/btf.h b/include/linux/btf.h
+index 9eda6b113f9b4..f06976ffb63f9 100644
+--- a/include/linux/btf.h
++++ b/include/linux/btf.h
+@@ -86,7 +86,7 @@
+  * as to avoid issues such as the compiler inlining or eliding either a static
+  * kfunc, or a global kfunc in an LTO build.
+  */
+-#define __bpf_kfunc __used __retain noinline
++#define __bpf_kfunc __used __retain __noclone noinline
+ 
+ #define __bpf_kfunc_start_defs()					       \
+ 	__diag_push();							       \
+-- 
+2.51.0
 
