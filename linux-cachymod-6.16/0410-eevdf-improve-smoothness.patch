@@ -54,6 +54,19 @@ diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
  
  	se->vlag = clamp(vlag, -limit, limit);
  }
+@@ -952,7 +955,12 @@ static struct sched_entity *pick_eevdf(s
+ 	if (curr && (!curr->on_rq || !entity_eligible(cfs_rq, curr)))
+ 		curr = NULL;
+ 
++#ifdef CONFIG_CACHY
++	if (sched_feat(RUN_TO_PARITY) && curr && protect_slice(curr) &&
++		(!entity_is_task(curr) || cfs_rq->nr_queued <= 3))
++#else
+ 	if (sched_feat(RUN_TO_PARITY) && curr && protect_slice(curr))
++#endif
+ 		return curr;
+ 
+ 	/* Pick the leftmost entity if it's eligible */
 -- 
 2.40.2
 

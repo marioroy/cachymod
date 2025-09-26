@@ -9,7 +9,7 @@ sched/fair: improve wakeup performance, as done in BORE
 diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -5317,7 +5317,11 @@ place_entity(struct cfs_rq *cfs_rq, stru
+@@ -5322,7 +5322,11 @@ place_entity(struct cfs_rq *cfs_rq, stru
  	 * on average, halfway through their slice, as such start tasks
  	 * off with half a slice to ease into the competition.
  	 */
@@ -21,7 +21,7 @@ diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
  		vslice /= 2;
  
  	/*
-@@ -5330,7 +5334,7 @@ static void check_enqueue_throttle(struc
+@@ -5335,7 +5339,7 @@ static void check_enqueue_throttle(struc
  static inline int cfs_rq_throttled(struct cfs_rq *cfs_rq);
  
  static void
@@ -30,7 +30,7 @@ diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
  
  static void
  enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int flags)
-@@ -5494,6 +5498,10 @@ dequeue_entity(struct cfs_rq *cfs_rq, st
+@@ -5499,6 +5503,10 @@ dequeue_entity(struct cfs_rq *cfs_rq, st
  		if (sched_feat(DELAY_DEQUEUE) && delay &&
  		    !entity_eligible(cfs_rq, se)) {
  			update_load_avg(cfs_rq, se, 0);
@@ -41,7 +41,7 @@ diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
  			set_delayed(se);
  			return false;
  		}
-@@ -6905,7 +6913,7 @@ static int sched_idle_cpu(int cpu)
+@@ -6910,7 +6918,7 @@ static int sched_idle_cpu(int cpu)
  #endif
  
  static void
@@ -50,7 +50,7 @@ diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
  {
  	struct cfs_rq *cfs_rq = cfs_rq_of(se);
  
-@@ -6918,13 +6926,18 @@ requeue_delayed_entity(struct sched_enti
+@@ -6923,13 +6931,18 @@ requeue_delayed_entity(struct sched_enti
  	WARN_ON_ONCE(!se->on_rq);
  
  	if (sched_feat(DELAY_ZERO)) {
@@ -70,7 +70,7 @@ diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
  			if (se != cfs_rq->curr)
  				__enqueue_entity(cfs_rq, se);
  			cfs_rq->nr_queued++;
-@@ -6969,7 +6982,7 @@ enqueue_task_fair(struct rq *rq, struct
+@@ -6974,7 +6987,7 @@ enqueue_task_fair(struct rq *rq, struct
  		cpufreq_update_util(rq, SCHED_CPUFREQ_IOWAIT);
  
  	if (flags & ENQUEUE_DELAYED) {
@@ -79,7 +79,7 @@ diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
  		return;
  	}
  
-@@ -6979,7 +6992,7 @@ enqueue_task_fair(struct rq *rq, struct
+@@ -6984,7 +6997,7 @@ enqueue_task_fair(struct rq *rq, struct
  	for_each_sched_entity(se) {
  		if (se->on_rq) {
  			if (se->sched_delayed)
