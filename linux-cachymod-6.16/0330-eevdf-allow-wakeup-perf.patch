@@ -1,8 +1,11 @@
 
-sched/fair: allow smoothing and wakeup performance with pseudo-EEVDF
+Few updates for improving the EEVDF-BORE desktop experience
+Plus drop BORE 6.x features that decrease performance or cause jitters
 
 Signed-off-by: Mario Roy <...>
 
+
+sched/fair: allow smoothing and wakeup performance with pseudo-EEVDF
 
 diff -uarp a/kernel/sched/bore.c b/kernel/sched/bore.c
 --- a/kernel/sched/bore.c
@@ -55,43 +58,10 @@ diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
  		vslice /= 2;
  
  #ifdef CONFIG_SCHED_BORE
-@@ -5533,10 +5533,10 @@ dequeue_entity(struct cfs_rq *cfs_rq, st
- 		if (sched_feat(DELAY_DEQUEUE) && delay &&
- 		    !entity_eligible(cfs_rq, se)) {
- 			update_load_avg(cfs_rq, se, 0);
--#ifdef CONFIG_SCHED_BORE
--			if (sched_feat(DELAY_ZERO) && likely(sched_bore))
-+#ifdef CONFIG_CACHY
-+			if (sched_feat(DELAY_ZERO))
- 				update_entity_lag(cfs_rq, se);
--#endif /* CONFIG_SCHED_BORE */
-+#endif
- 			set_delayed(se);
- 			return false;
- 		}
-@@ -6961,16 +6961,12 @@ requeue_delayed_entity(struct sched_enti
- 	WARN_ON_ONCE(!se->on_rq);
- 
- 	if (sched_feat(DELAY_ZERO)) {
--#ifdef CONFIG_SCHED_BORE
--		if (likely(sched_bore))
--			flags |= ENQUEUE_WAKEUP;
--		else {
--#endif /* CONFIG_SCHED_BORE */
-+#ifdef CONFIG_CACHY
-+		flags |= ENQUEUE_WAKEUP;
-+#else
- 		flags = 0;
- 		update_entity_lag(cfs_rq, se);
-+#endif
--#ifdef CONFIG_SCHED_BORE
--		}
--#endif /* CONFIG_SCHED_BORE */
- 		if (se->vlag > 0) {
- 			cfs_rq->nr_queued--;
- 			if (se != cfs_rq->curr)
 -- 
 2.40.2
+
+Restore BORE 5.9.6-like performance
 
 sched/fair: Drop BORE futex boost optimization
 sched/fair: Drop BORE goto vslice_found logic
@@ -215,6 +185,85 @@ diff -uarp a/kernel/sched/features.h b/kernel/sched/features.h
  /*
   * Allow wakeup of tasks with a shorter slice to cancel RUN_TO_PARITY for
   * current.
+-- 
+2.40.2
+
+sched/fair: Drop BORE DELAY_ZERO optimization to mitigate jitters
+
+diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -5356,7 +5356,7 @@ static void check_enqueue_throttle(struc
+ static inline int cfs_rq_throttled(struct cfs_rq *cfs_rq);
+ 
+ static void
+-requeue_delayed_entity(struct sched_entity *se, int flags);
++requeue_delayed_entity(struct sched_entity *se);
+ 
+ static void
+ enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int flags)
+@@ -5520,10 +5520,6 @@ dequeue_entity(struct cfs_rq *cfs_rq, st
+ 		if (sched_feat(DELAY_DEQUEUE) && delay &&
+ 		    !entity_eligible(cfs_rq, se)) {
+ 			update_load_avg(cfs_rq, se, 0);
+-#ifdef CONFIG_SCHED_BORE
+-			if (sched_feat(DELAY_ZERO) && likely(sched_bore))
+-				update_entity_lag(cfs_rq, se);
+-#endif /* CONFIG_SCHED_BORE */
+ 			set_delayed(se);
+ 			return false;
+ 		}
+@@ -6935,7 +6931,7 @@ static int sched_idle_cpu(int cpu)
+ #endif
+ 
+ static void
+-requeue_delayed_entity(struct sched_entity *se, int flags)
++requeue_delayed_entity(struct sched_entity *se)
+ {
+ 	struct cfs_rq *cfs_rq = cfs_rq_of(se);
+ 
+@@ -6948,22 +6944,13 @@ requeue_delayed_entity(struct sched_enti
+ 	WARN_ON_ONCE(!se->on_rq);
+ 
+ 	if (sched_feat(DELAY_ZERO)) {
+-#ifdef CONFIG_SCHED_BORE
+-		if (likely(sched_bore))
+-			flags |= ENQUEUE_WAKEUP;
+-		else {
+-#endif /* CONFIG_SCHED_BORE */
+-		flags = 0;
+ 		update_entity_lag(cfs_rq, se);
+-#ifdef CONFIG_SCHED_BORE
+-		}
+-#endif /* CONFIG_SCHED_BORE */
+ 		if (se->vlag > 0) {
+ 			cfs_rq->nr_queued--;
+ 			if (se != cfs_rq->curr)
+ 				__dequeue_entity(cfs_rq, se);
+ 			se->vlag = 0;
+-			place_entity(cfs_rq, se, flags);
++			place_entity(cfs_rq, se, 0);
+ 			if (se != cfs_rq->curr)
+ 				__enqueue_entity(cfs_rq, se);
+ 			cfs_rq->nr_queued++;
+@@ -7000,7 +6987,7 @@ enqueue_task_fair(struct rq *rq, struct
+ 		util_est_enqueue(&rq->cfs, p);
+ 
+ 	if (flags & ENQUEUE_DELAYED) {
+-		requeue_delayed_entity(se, flags);
++		requeue_delayed_entity(se);
+ 		return;
+ 	}
+ 
+@@ -7018,7 +7005,7 @@ enqueue_task_fair(struct rq *rq, struct
+ 	for_each_sched_entity(se) {
+ 		if (se->on_rq) {
+ 			if (se->sched_delayed)
+-				requeue_delayed_entity(se, flags);
++				requeue_delayed_entity(se);
+ 			break;
+ 		}
+ 		cfs_rq = cfs_rq_of(se);
 -- 
 2.40.2
 

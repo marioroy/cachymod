@@ -657,7 +657,7 @@ index 81c6df746d..5b325a5a60 100644
  	struct load_weight lw;
  
  	if (task_has_idle_policy(p)) {
-@@ -8525,6 +8533,10 @@ void __init sched_init(void)
+@@ -8537,6 +8545,10 @@ void __init sched_init(void)
  	BUG_ON(!sched_class_above(&ext_sched_class, &idle_sched_class));
  #endif
  
@@ -1005,8 +1005,8 @@ index 7a14da5396..077875ca0c 100644
  			if (se != cfs_rq->curr)
  				__enqueue_entity(cfs_rq, se);
  			cfs_rq->nr_queued++;
-@@ -6953,7 +7021,7 @@ enqueue_task_fair(struct rq *rq, struct task_struct *p, int flags)
- 		cpufreq_update_util(rq, SCHED_CPUFREQ_IOWAIT);
+@@ -6945,7 +7013,7 @@ enqueue_task_fair(struct rq *rq, struct task_struct *p, int flags)
+ 		util_est_enqueue(&rq->cfs, p);
  
  	if (flags & ENQUEUE_DELAYED) {
 -		requeue_delayed_entity(se);
@@ -1230,7 +1230,7 @@ diff --git a/kernel/sched/sched.h b/kernel/sched/sched.h
 index 83e3aa9171..fc84b09669 100644
 --- a/kernel/sched/sched.h
 +++ b/kernel/sched/sched.h
-@@ -2125,7 +2125,11 @@ extern int group_balance_cpu(struct sched_group *sg);
+@@ -2126,7 +2126,11 @@ extern int group_balance_cpu(struct sched_group *sg);
  extern void update_sched_domain_debugfs(void);
  extern void dirty_sched_domain_sysctl(int cpu);
  
@@ -1242,7 +1242,7 @@ index 83e3aa9171..fc84b09669 100644
  
  static inline const struct cpumask *task_user_cpus(struct task_struct *p)
  {
-@@ -2833,7 +2837,12 @@ extern void wakeup_preempt(struct rq *rq, struct task_struct *p, int flags);
+@@ -2837,7 +2841,12 @@ extern void wakeup_preempt(struct rq *rq, struct task_struct *p, int flags);
  extern __read_mostly unsigned int sysctl_sched_nr_migrate;
  extern __read_mostly unsigned int sysctl_sched_migration_cost;
  

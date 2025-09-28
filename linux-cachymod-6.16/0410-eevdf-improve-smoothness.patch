@@ -39,7 +39,7 @@ diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
 -- 
 2.40.2
 
-sched/fair: improve smoothness, as done in BORE
+sched/fair: improve smoothness
 
 diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
 --- a/kernel/sched/fair.c
@@ -67,6 +67,26 @@ diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
  		return curr;
  
  	/* Pick the leftmost entity if it's eligible */
+-- 
+2.40.2
+
+sched/fair: improve wakeup performance
+
+diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -5322,7 +5322,11 @@ place_entity(struct cfs_rq *cfs_rq, stru
+ 	 * on average, halfway through their slice, as such start tasks
+ 	 * off with half a slice to ease into the competition.
+ 	 */
++#ifdef CONFIG_CACHY
++	if (sched_feat(PLACE_DEADLINE_INITIAL) && (flags & (ENQUEUE_INITIAL | ENQUEUE_WAKEUP)))
++#else
+ 	if (sched_feat(PLACE_DEADLINE_INITIAL) && (flags & ENQUEUE_INITIAL))
++#endif
+ 		vslice /= 2;
+ 
+ 	/*
 -- 
 2.40.2
 

@@ -236,7 +236,7 @@ diff --git a/kernel/sched/core.c b/kernel/sched/core.c
 index be00629f0ba4..f3a26d13b926 100644
 --- a/kernel/sched/core.c
 +++ b/kernel/sched/core.c
-@@ -6050,7 +6050,7 @@ __pick_next_task(struct rq *rq, struct task_struct *prev, struct rq_flags *rf)
+@@ -6062,7 +6062,7 @@ __pick_next_task(struct rq *rq, struct task_struct *prev, struct rq_flags *rf)
  
  		/* Assume the next prioritized class is idle_sched_class */
  		if (!p) {
@@ -245,7 +245,7 @@ index be00629f0ba4..f3a26d13b926 100644
  			put_prev_set_next_task(rq, prev, p);
  		}
  
-@@ -6062,11 +6062,11 @@ __pick_next_task(struct rq *rq, struct task_struct *prev, struct rq_flags *rf)
+@@ -6074,11 +6074,11 @@ __pick_next_task(struct rq *rq, struct task_struct *prev, struct rq_flags *rf)
  
  	for_each_active_class(class) {
  		if (class->pick_next_task) {
@@ -259,7 +259,7 @@ index be00629f0ba4..f3a26d13b926 100644
  			if (p) {
  				put_prev_set_next_task(rq, prev, p);
  				return p;
-@@ -6096,7 +6096,7 @@ static inline bool cookie_match(struct task_struct *a, struct task_struct *b)
+@@ -6108,7 +6108,7 @@ static inline bool cookie_match(struct task_struct *a, struct task_struct *b)
  	return a->core_cookie == b->core_cookie;
  }
  
@@ -268,7 +268,7 @@ index be00629f0ba4..f3a26d13b926 100644
  {
  	const struct sched_class *class;
  	struct task_struct *p;
-@@ -6104,7 +6104,7 @@ static inline struct task_struct *pick_task(struct rq *rq)
+@@ -6116,7 +6116,7 @@ static inline struct task_struct *pick_task(struct rq *rq)
  	rq->dl_server = NULL;
  
  	for_each_active_class(class) {
@@ -277,7 +277,7 @@ index be00629f0ba4..f3a26d13b926 100644
  		if (p)
  			return p;
  	}
-@@ -6204,7 +6204,7 @@ pick_next_task(struct rq *rq, struct task_struct *prev, struct rq_flags *rf)
+@@ -6216,7 +6216,7 @@ pick_next_task(struct rq *rq, struct task_struct *prev, struct rq_flags *rf)
  	 * and there are no cookied tasks running on siblings.
  	 */
  	if (!need_sync) {
@@ -286,7 +286,7 @@ index be00629f0ba4..f3a26d13b926 100644
  		if (!next->core_cookie) {
  			rq->core_pick = NULL;
  			rq->core_dl_server = NULL;
-@@ -6235,7 +6235,7 @@ pick_next_task(struct rq *rq, struct task_struct *prev, struct rq_flags *rf)
+@@ -6247,7 +6247,7 @@ pick_next_task(struct rq *rq, struct task_struct *prev, struct rq_flags *rf)
  		if (i != cpu && (rq_i != rq->core || !core_clock_updated))
  			update_rq_clock(rq_i);
  
@@ -295,7 +295,7 @@ index be00629f0ba4..f3a26d13b926 100644
  		rq_i->core_dl_server = rq_i->dl_server;
  
  		if (!max || prio_less(max, p, fi_before))
-@@ -6257,7 +6257,7 @@ pick_next_task(struct rq *rq, struct task_struct *prev, struct rq_flags *rf)
+@@ -6269,7 +6269,7 @@ pick_next_task(struct rq *rq, struct task_struct *prev, struct rq_flags *rf)
  			if (cookie)
  				p = sched_core_find(rq_i, cookie);
  			if (!p)
@@ -427,7 +427,7 @@ diff --git a/kernel/sched/sched.h b/kernel/sched/sched.h
 index be9745d104f7..0175946568a2 100644
 --- a/kernel/sched/sched.h
 +++ b/kernel/sched/sched.h
-@@ -2402,7 +2402,7 @@ struct sched_class {
+@@ -2406,7 +2406,7 @@ struct sched_class {
  	void (*wakeup_preempt)(struct rq *rq, struct task_struct *p, int flags);
  
  	int (*balance)(struct rq *rq, struct task_struct *prev, struct rq_flags *rf);
@@ -436,7 +436,7 @@ index be9745d104f7..0175946568a2 100644
  	/*
  	 * Optional! When implemented pick_next_task() should be equivalent to:
  	 *
-@@ -2412,7 +2412,8 @@ struct sched_class {
+@@ -2416,7 +2416,8 @@ struct sched_class {
  	 *       set_next_task_first(next);
  	 *   }
  	 */
@@ -446,7 +446,7 @@ index be9745d104f7..0175946568a2 100644
  
  	void (*put_prev_task)(struct rq *rq, struct task_struct *p, struct task_struct *next);
  	void (*set_next_task)(struct rq *rq, struct task_struct *p, bool first);
-@@ -2574,8 +2575,9 @@ static inline bool sched_fair_runnable(struct rq *rq)
+@@ -2578,8 +2579,9 @@ static inline bool sched_fair_runnable(struct rq *rq)
  	return rq->cfs.nr_queued > 0;
  }
  
@@ -602,7 +602,7 @@ diff --git a/kernel/sched/core.c b/kernel/sched/core.c
 index f3a26d13b926..ce5b51faf9d5 100644
 --- a/kernel/sched/core.c
 +++ b/kernel/sched/core.c
-@@ -8652,6 +8652,9 @@ void __init sched_init(void)
+@@ -8664,6 +8664,9 @@ void __init sched_init(void)
  		hrtick_rq_init(rq);
  		atomic_set(&rq->nr_iowait, 0);
  		fair_server_init(rq);
@@ -745,7 +745,7 @@ index 2c73d538f34e..51ac373554de 100644
  extern void __dl_server_attach_root(struct sched_dl_entity *dl_se, struct rq *rq);
  extern int dl_server_apply_params(struct sched_dl_entity *dl_se,
  		    u64 runtime, u64 period, bool init);
-@@ -1138,6 +1139,7 @@ struct rq {
+@@ -1139,6 +1140,7 @@ struct rq {
  #endif
  
  	struct sched_dl_entity	fair_server;

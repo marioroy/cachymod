@@ -105,7 +105,7 @@ _stable=${_major}.${_minor}
 
 _srcname=linux-${_stable}
 pkgdesc='CachyMod Linux Kernel with other patches and improvements'
-pkgrel=2
+pkgrel=3
 _kernver="$pkgver-$pkgrel"
 _kernuname="${pkgver}-${_pkgsuffix}"
 arch=('x86_64')
@@ -142,7 +142,6 @@ if [[ "$_include_bore" =~ ^(yes|y|1)$ ]]; then
     source+=("0330-eevdf-allow-wakeup-perf.patch")
 else
     source+=("0410-eevdf-improve-smoothness.patch")
-    source+=("0420-eevdf-improve-wakeup.patch")
     source+=("0430-prefer-full-idle-smt-cores.patch")
 fi
 
