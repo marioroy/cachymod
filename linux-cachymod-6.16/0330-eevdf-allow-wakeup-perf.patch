@@ -188,7 +188,7 @@ diff -uarp a/kernel/sched/features.h b/kernel/sched/features.h
 -- 
 2.40.2
 
-sched/fair: Drop BORE DELAY_ZERO optimization to mitigate jitters
+sched/fair: Drop BORE ENQUEUE_WAKEUP at requeue to mitigate jitters
 
 diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
 --- a/kernel/sched/fair.c
