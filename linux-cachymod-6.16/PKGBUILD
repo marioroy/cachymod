@@ -139,7 +139,7 @@ fi
 if [[ "$_include_bore" =~ ^(yes|y|1)$ ]]; then
     source+=("0310-sched-fair-remove-cachy-mods.patch")
     source+=("0320-linux6.16.y-bore.patch")
-    source+=("0330-eevdf-allow-wakeup-perf.patch")
+    source+=("0330-eevdf-allow-smoothing.patch")
 else
     source+=("0410-eevdf-improve-smoothness.patch")
     source+=("0430-prefer-full-idle-smt-cores.patch")
