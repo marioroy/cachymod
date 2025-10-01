@@ -75,39 +75,6 @@ diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
  
  	se->vlag = clamp(vlag, -limit, limit);
  }
-@@ -948,7 +951,12 @@ static struct sched_entity *pick_eevdf(s
- 	if (curr && (!curr->on_rq || !entity_eligible(cfs_rq, curr)))
- 		curr = NULL;
- 
-+#ifdef CONFIG_CACHY
-+	if (sched_feat(RUN_TO_PARITY) && curr && protect_slice(curr) &&
-+		(!entity_is_task(curr) || cfs_rq->nr_queued <= 3))
-+#else
- 	if (sched_feat(RUN_TO_PARITY) && curr && protect_slice(curr))
-+#endif
- 		return curr;
- 
- 	/* Pick the leftmost entity if it's eligible */
--- 
-2.40.2
-
-sched/fair: improve wakeup performance
-
-diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
---- a/kernel/sched/fair.c
-+++ b/kernel/sched/fair.c
-@@ -5318,7 +5318,11 @@ place_entity(struct cfs_rq *cfs_rq, stru
- 	 * on average, halfway through their slice, as such start tasks
- 	 * off with half a slice to ease into the competition.
- 	 */
-+#ifdef CONFIG_CACHY
-+	if (sched_feat(PLACE_DEADLINE_INITIAL) && (flags & (ENQUEUE_INITIAL | ENQUEUE_WAKEUP)))
-+#else
- 	if (sched_feat(PLACE_DEADLINE_INITIAL) && (flags & ENQUEUE_INITIAL))
-+#endif
- 		vslice /= 2;
- 
- 	/*
 -- 
 2.40.2
 
