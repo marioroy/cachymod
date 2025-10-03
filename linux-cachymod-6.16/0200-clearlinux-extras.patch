@@ -22,7 +22,6 @@
 # Patch0148: 0002-sched-core-add-some-branch-hints-based-on-gcov-analy.patch
 # Patch0157: scale-net-alloc.patch
 # Patch0158: 0158-clocksource-only-perform-extended-clocksource-checks.patch
-# Patch0165: slack.patch
 # Patch0167: 0167-net-sock-increase-default-number-of-_SK_MEM_PACKETS-.patch
 ##
 
@@ -353,7 +352,7 @@ diff --git a/arch/x86/include/asm/topology.h b/arch/x86/include/asm/topology.h
 index 2f0b6be8eaab..c31f81e2ea05 100644
 --- a/arch/x86/include/asm/topology.h
 +++ b/arch/x86/include/asm/topology.h
-@@ -255,6 +255,7 @@ extern unsigned int __read_mostly sysctl_sched_itmt_enabled;
+@@ -265,6 +265,7 @@ extern unsigned int __read_mostly sysctl_sched_itmt_enabled;
  
  /* Interface to set priority of a cpu */
  void sched_set_itmt_core_prio(int prio, int core_cpu);
@@ -685,20 +684,6 @@ index 82338773602c..d84f0e29452e 100644
  		for (i = 0; i < ACPI_PM_READ_CHECKS; i++) {
 -- 
 2.40.1
-
-# Patch0165: slack.patch
-
---- linux-6.5.1/init/init_task.c~	2023-09-02 07:13:30.000000000 +0000
-+++ linux-6.5.1/init/init_task.c	2023-10-30 15:12:13.920976572 +0000
-@@ -140,7 +140,7 @@
- 	.journal_info	= NULL,
- 	INIT_CPU_TIMERS(init_task)
- 	.pi_lock	= __RAW_SPIN_LOCK_UNLOCKED(init_task.pi_lock),
--	.timer_slack_ns = 50000, /* 50 usec default slack */
-+	.timer_slack_ns = 50, /* 50 nsec default slack */
- 	.thread_pid	= &init_struct_pid,
- 	.thread_node	= LIST_HEAD_INIT(init_signals.thread_head),
- #ifdef CONFIG_AUDIT
 
 # Patch0167: 0167-net-sock-increase-default-number-of-_SK_MEM_PACKETS-.patch
 

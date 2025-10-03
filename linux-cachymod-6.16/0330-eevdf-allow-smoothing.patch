@@ -3,18 +3,6 @@ sched/fair: allow smoothing with pseudo-EEVDF
 
 Signed-off-by: Mario Roy <...>
 
-diff -uarp a/kernel/sched/bore.c b/kernel/sched/bore.c
---- a/kernel/sched/bore.c
-+++ b/kernel/sched/bore.c
-@@ -12,7 +12,7 @@ u8   __read_mostly sched_bore
- u8   __read_mostly sched_burst_inherit_type     = 2;
- u8   __read_mostly sched_burst_smoothness       = 1;
- u8   __read_mostly sched_burst_penalty_offset   = 24;
--uint __read_mostly sched_burst_penalty_scale    = 1536;
-+uint __read_mostly sched_burst_penalty_scale    = 1280;
- uint __read_mostly sched_burst_cache_lifetime   = 75000000;
- static int __maybe_unused maxval_prio    =   39;
- static int __maybe_unused maxval_6_bits  =   63;
 diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
@@ -24,7 +12,7 @@ diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
  	limit = calc_delta_fair(max_t(u64, 2*se->slice, TICK_NSEC), se);
 -#ifdef CONFIG_SCHED_BORE
 -	limit >>= !!sched_bore;
--#endif /* CONFIG_SCHED_BORE */
+-#endif // CONFIG_SCHED_BORE
 +#ifdef CONFIG_CACHY
 +	limit >>= 1;
 +#endif
