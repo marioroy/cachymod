@@ -129,7 +129,7 @@ source=(
     "0110-fair-drm-scheduler.patch"
     "0200-clearlinux-extras.patch"
     "0210-cachymod-misc.patch"
-    "0290-dl-server-for-ext-tasks.patch"
+    "0250-dl-server-for-ext-tasks.patch"
 )
 
 if [[ "$_prevent_avx2" =~ ^(yes|y|1)$ ]]; then
