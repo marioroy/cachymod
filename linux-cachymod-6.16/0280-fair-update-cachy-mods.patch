@@ -1,3 +1,6 @@
+
+Revert Cachy mods, update base_slice
+
 diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
@@ -9,8 +12,10 @@ diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
 -unsigned int sysctl_sched_base_slice			= 350000ULL;
 -static unsigned int normalized_sysctl_sched_base_slice	= 350000ULL;
 -#else
- unsigned int sysctl_sched_base_slice			= 700000ULL;
- static unsigned int normalized_sysctl_sched_base_slice	= 700000ULL;
+-unsigned int sysctl_sched_base_slice			= 700000ULL;
+-static unsigned int normalized_sysctl_sched_base_slice	= 700000ULL;
++unsigned int sysctl_sched_base_slice			= 500000ULL;
++static unsigned int normalized_sysctl_sched_base_slice	= 500000ULL;
 -#endif /* CONFIG_CACHY */
  
 -#ifdef CONFIG_CACHY
@@ -34,3 +39,6 @@ diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
  
  #ifdef CONFIG_NUMA_BALANCING
  /* Restrict the NUMA promotion throughput (MB/s) for each target node. */
+-- 
+2.40.2
+

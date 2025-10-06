@@ -22,7 +22,6 @@
 # Patch0148: 0002-sched-core-add-some-branch-hints-based-on-gcov-analy.patch
 # Patch0157: scale-net-alloc.patch
 # Patch0158: 0158-clocksource-only-perform-extended-clocksource-checks.patch
-# Patch0167: 0167-net-sock-increase-default-number-of-_SK_MEM_PACKETS-.patch
 ##
 
 # Allow disabling the LDT (local descriptor table).
@@ -684,31 +683,4 @@ index 82338773602c..d84f0e29452e 100644
  		for (i = 0; i < ACPI_PM_READ_CHECKS; i++) {
 -- 
 2.40.1
-
-# Patch0167: 0167-net-sock-increase-default-number-of-_SK_MEM_PACKETS-.patch
-
-Subject: [PATCH] net: sock: increase default number of _SK_MEM_PACKETS to 1024
-
-scale these by a factor of 4 to improve socket performance
-
-Signed-off-by: Colin Ian King <colin.i.king@xxxxxxxxxx>
----
- include/net/sock.h | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-diff --git a/include/net/sock.h b/include/net/sock.h
-index 54ca8dcbfb43..9adc51e8085b 100644
---- a/include/net/sock.h
-+++ b/include/net/sock.h
-@@ -2935,7 +2935,7 @@ void sk_get_meminfo(const struct sock *sk, u32 *meminfo);
-  * platforms.  This makes socket queueing behavior and performance
-  * not depend upon such differences.
-  */
--#define _SK_MEM_PACKETS		256
-+#define _SK_MEM_PACKETS		1024
- #define _SK_MEM_OVERHEAD	SKB_TRUESIZE(256)
- #define SK_WMEM_MAX		(_SK_MEM_OVERHEAD * _SK_MEM_PACKETS)
- #define SK_RMEM_MAX		(_SK_MEM_OVERHEAD * _SK_MEM_PACKETS)
--- 
-2.44.0
 

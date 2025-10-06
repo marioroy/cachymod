@@ -5,13 +5,10 @@
 ### BUILD OPTIONS
 # Set these variables to ANYTHING that is not null or choose proper variable to enable them
 
-# Custom kernel suffix. Default "auto" {gcc,clang,lto}
+# Custom kernel suffix
+# Specify string or set to "auto" for automatic suffix {gcc,clang,lto}
 # Set to blank value for no kernel suffix
-: "${_kernel_suffix:=auto}"
-
-# Include BORE patch
-# The kernel will have "eevdf" or "bore" suffix unless specified above
-: "${_include_bore:=yes}"
+: "${_kernel_suffix:=}"
 
 # Prevent AVX2 floating-point instructions. (Clear and XanMod default)
 # The default is no, matching CachyOS preference.
@@ -77,28 +74,48 @@
 # Build a debug package with non-stripped vmlinux
 : "${_build_debug:=no}"
 
+# Enable AUTOFDO_CLANG for the first compilation,
+#  to create a kernel, which can be used for profiling
+# Workflow:
+#  https://cachyos.org/blog/2411-kernel-autofdo/
+#  https://docs.kernel.org/dev-tools/autofdo.html
+# Steps:
+# 1. Compile Kernel with _build_debug=yes and _autofdo=yes
+# 2. Boot the kernel in QEMU or on your system, see Workload
+# 3. Profile the kernel and convert the profile, see Generating...
+# 4. Put the profile into the source dir
+# 5. Build kernel again with _autofdo_profile_name specified
+: "${_autofdo:=yes}"
+
+# Name for the AutoFDO profile
+: "${_autofdo_profile_name:=cachymod.afdo}"
+
 
 # ATTENTION: Do not modify after this line
 
-[[ "$_include_bore" =~ ^(yes|y|1)$ ]] \
-    && buildtag="bore" || buildtag="eevdf"
+if [[ "$_buildtype" =~ ^(gcc|clang)$ ]]; then
+    _autofdo="no"
+    _autofdo_profile_name=""
+fi
 
 [[ "$_buildtype" =~ ^(thin|full)$ ]] \
     && buildtype="lto" || buildtype="$_buildtype"
 
 if [ "$_kernel_suffix" = "auto" ]; then
-    kernel_suffix="${buildtag}-${buildtype}"
+    kernel_suffix="$buildtype"
 elif [ -n "$_kernel_suffix" ]; then
-    kernel_suffix="${buildtag}-${_kernel_suffix}"
+    kernel_suffix="$_kernel_suffix"
 else
-    kernel_suffix="${buildtag}"
+    kernel_suffix=""
 fi
 
-[ "$_preempt" = "rt" ] && kernel_suffix="${kernel_suffix}-rt"
+if [ "$_preempt" = "rt" ]; then
+    kernel_suffix="${kernel_suffix:+$kernel_suffix-}rt"
+fi
 
 _pkgsuffix=cachymod
 _major=6.16
-_minor=10
+_minor=11
 pkgver=${_major}.${_minor}
 _stable=${_major}.${_minor}
 #_stable=${_major}
@@ -130,19 +147,11 @@ source=(
     "0200-clearlinux-extras.patch"
     "0210-cachymod-misc.patch"
     "0250-dl-server-for-ext-tasks.patch"
+    "0280-fair-update-cachy-mods.patch"
 )
 
 if [[ "$_prevent_avx2" =~ ^(yes|y|1)$ ]]; then
     source+=("0300-x86-prevent-avx2-vector.patch")
-fi
-
-if [[ "$_include_bore" =~ ^(yes|y|1)$ ]]; then
-    source+=("0310-sched-fair-remove-cachy-mods.patch")
-    source+=("0320-linux6.16.y-bore.patch")
-    source+=("0325-linux6.16.y-bore-update.patch")
-    source+=("0330-eevdf-allow-smoothing.patch")
-else
-    source+=("0410-eevdf-improve-smoothness.patch")
 fi
 
 if [[ -s "custom.sh" ]]; then
@@ -181,8 +190,19 @@ fi
 
 _die() { error "$@" ; exit 1; }
 
+# Use generated AutoFDO Profile
+if [[ "$_autofdo" =~ ^(yes|y|1)$ && -n "$_autofdo_profile_name" ]]; then
+    if [ -e "$_autofdo_profile_name" ]; then
+        source+=("$_autofdo_profile_name")
+    else
+        _die "Failed to find file ${_autofdo_profile_name}"
+    fi
+fi
+
 pkgbase="linux-$_pkgsuffix"
-pkgbase="${pkgbase}-${kernel_suffix}"
+if [ -n "$kernel_suffix" ]; then
+    pkgbase="${pkgbase}-${kernel_suffix}"
+fi
 
 export KBUILD_BUILD_HOST=cachyos
 export KBUILD_BUILD_USER="$pkgbase"
@@ -235,9 +255,6 @@ prepare() {
     ### Selecting CachyOS config
     echo "Enabling CachyOS config..."
     scripts/config -e CACHY
-
-    ### Silently enable the BORE CPU scheduler if patch added separately
-    scripts/config -e SCHED_BORE
 
     ### Select build type
     [ -z "$_buildtype" ] && _die "The value is empty. Choose the correct one again."
@@ -346,6 +363,15 @@ prepare() {
     esac
 
     echo "Selecting '$_hugepage' TRANSPARENT_HUGEPAGE config..."
+
+    # Enable Clang AutoFDO
+    if [[ "$_autofdo" =~ ^(yes|y|1)$ ]]; then
+        scripts/config -e AUTOFDO_CLANG
+    fi
+    if [[ "$_autofdo" =~ ^(yes|y|1)$ && -n "$_autofdo_profile_name" ]]; then
+        echo "AutoFDO profile has been found..."
+        BUILD_FLAGS+=(CLANG_AUTOFDO_PROFILE="${srcdir}/${_autofdo_profile_name}")
+    fi
 
     echo "Enabling USER_NS_UNPRIVILEGED"
     scripts/config -e USER_NS

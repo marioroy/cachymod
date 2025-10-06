@@ -29,13 +29,9 @@ Change the build type { lto, clang, gcc }, accordingly.
 ```bash
 bash build.sh
 
-# BORE full/lazy or RT preemption
-sudo pacman -U linux-cachymod-bore-lto-{6,h}*.zst
-sudo pacman -U linux-cachymod-bore-lto-rt*.zst
-
-# EEVDF full/lazy or RT preemption
-sudo pacman -U linux-cachymod-eevdf-lto-{6,h}*.zst
-sudo pacman -U linux-cachymod-eevdf-lto-rt*.zst
+# full/lazy or RT preemption
+sudo pacman -U linux-cachymod-lto-{6,h}*.zst
+sudo pacman -U linux-cachymod-lto-rt*.zst
 ```
 
 Removal is via pacman as well.
@@ -45,24 +41,21 @@ Copy the file name and append "-headers" for the 2nd
 package name.
 
 ```text
-# BORE full/lazy or RT preemption
+# full/lazy or RT preemption
 sudo pacman -Rsn \
-  linux-cachymod-bore-lto \
-  linux-cachymod-bore-lto-headers
+  linux-cachymod-lto \
+  linux-cachymod-lto-headers
 
 sudo pacman -Rsn \
-  linux-cachymod-bore-lto-rt \
-  linux-cachymod-bore-lto-rt-headers
-
-# EEVDF full/lazy or RT preemption
-sudo pacman -Rsn \
-  linux-cachymod-eevdf-lto \
-  linux-cachymod-eevdf-lto-headers
-
-sudo pacman -Rsn \
-  linux-cachymod-eevdf-lto-rt \
-  linux-cachymod-eevdf-lto-rt-headers
+  linux-cachymod-lto-rt \
+  linux-cachymod-lto-rt-headers
 ```
+
+## Improving Interactive Performance
+
+If you're running CPU-intensive background tasks or make jobs, refer to
+[linux-cgroup-always](https://github.com/marioroy/linux-cgroup-always)
+for Ghostty-like `linux-cgroup = always` feature with your terminal emulator.
 
 ## Developer Notes
 
@@ -95,26 +88,25 @@ Optionally, append kernel installation steps at the end of the script.
 while [ -e "/var/lib/pacman/db.lck" ]; do sleep 1; done
 
 echo "Installing the kernel..."
-[[ "$_include_bore" =~ ^(yes|y|1)$ ]] \
-    && buildtag="bore" || buildtag="eevdf"
-
 [[ "$_buildtype" =~ ^(thin|full)$ ]] \
     && buildtype="lto" || buildtype="$_buildtype"
 
 if [ "$_kernel_suffix" = "auto" ]; then
-    kernel_suffix="${buildtag}-${buildtype}"
+    kernel_suffix="$buildtype"
 elif [ -n "$_kernel_suffix" ]; then
-    kernel_suffix="${buildtag}-${_kernel_suffix}"
+    kernel_suffix="$_kernel_suffix"
 else
-    kernel_suffix="${buildtag}"
+    kernel_suffix=""
 fi
 
-[ "$_preempt" = "rt" ] && kernel_suffix="${kernel_suffix}-rt"
+if [ "$_preempt" = "rt" ]; then
+    kernel_suffix="${kernel_suffix:+$kernel_suffix-}rt"
+fi
 
-if [[ "$_build_debug" =~ ^(yes|y|1)$ ]]; then
-    sudo pacman -U --noconfirm linux-cachymod-${kernel_suffix}-{6,d,h}*
+if [ -n "$kernel_suffix" ]; then
+    sudo pacman -U --noconfirm linux-cachymod-${kernel_suffix}-[6dh]*
 else
-    sudo pacman -U --noconfirm linux-cachymod-${kernel_suffix}-{6,h}*
+    sudo pacman -U --noconfirm linux-cachymod-[6dh]*
 fi
 
 sync

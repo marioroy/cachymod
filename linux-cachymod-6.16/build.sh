@@ -8,13 +8,10 @@ set -e
 # Build options. Unless selections given, answer "yes/y/1", "no/n/0" or "".
 ###############################################################################
 
-# Custom kernel suffix. Default "auto" {gcc,clang,lto}
+# Custom kernel suffix
+# Specify string or set to "auto" for automatic suffix {gcc,clang,lto}
 # Set to blank value for no kernel suffix
-: "${_kernel_suffix:=auto}"
-
-# Include BORE patch
-# The kernel will have "eevdf" or "bore" suffix unless specified above
-: "${_include_bore:=yes}"
+: "${_kernel_suffix:=}"
 
 # Prevent AVX2 floating-point instructions. (Clear and XanMod default)
 # The default is no, matching CachyOS preference.
@@ -82,6 +79,10 @@ set -e
 # gcc:   Build kernel with gcc, suffix "-gcc"
 : "${_buildtype:=thin}"
 
+# Build kernel with the AutoFDO profile?
+# Ignored for clang and gcc build types
+: "${_autofdo:=yes}"
+
 # Add extra sources here: opt-in for the USB pollrate patch
 # Refer to https://github.com/GloriousEggroll/Linux-Pollrate-Patch
 # E.g. "${_extra_patch_or_url1:=1010-usb-pollrate.patch}"
@@ -112,7 +113,7 @@ export _extra_patch_or_url0
 export _localmodcfg _kernel_suffix _prevent_avx2 _runtrim_script
 export _localmodcfg_path _makenconfig _makegconfig _makexconfig
 export _hugepage _HZ_ticks _ticktype _preempt _processor_opt
-export _buildtype _build_debug _include_bore
+export _buildtype _build_debug _autofdo
 
 # Build kernel lazy and lazy-headers packages
 time nice -n 15 makepkg -scf --cleanbuild --skipinteg || exit 1
