@@ -14,12 +14,11 @@ set -e
 : "${_kernel_suffix:=}"
 
 # Prevent AVX2 floating-point instructions. (Clear and XanMod default)
-# The default is no, matching CachyOS preference.
-: "${_prevent_avx2:=no}"
+: "${_prevent_avx2:=yes}"
 
 # Run the "trim.sh" script to trim the kernel
-# To deselect ~ 1,500 kernel options
-: "${_runtrim_script:=no}"
+# Deselects ~ 1,500 kernel options
+: "${_runtrim_script:=yes}"
 
 # Compile ONLY used modules to VASTLY reduce the number of modules built
 # and the build time. Refer to the wiki page for more information.
