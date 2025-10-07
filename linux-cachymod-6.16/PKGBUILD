@@ -147,15 +147,8 @@ source=(
     "0210-cachymod-misc.patch"
     "0250-dl-server-for-ext-tasks.patch"
     "0280-fair-update-cachy-mods.patch"
+    "0300-x86-prevent-avx2-vector.patch"
 )
-
-if [[ "$_prevent_avx2" =~ ^(yes|y|1)$ ]]; then
-    source+=("0300-x86-prevent-avx2-vector.patch")
-fi
-
-if [[ -s "custom.sh" ]]; then
-    source+=("custom.sh")
-fi
 
 # LLVM makedepends
 if [[ "$buildtype" =~ (lto|clang) ]]; then
@@ -175,6 +168,17 @@ else
     BUILD_FLAGS=( CC=gcc )
 fi
 
+_die() { error "$@" ; exit 1; }
+
+# Use generated AutoFDO Profile
+if [[ "$_autofdo" =~ ^(yes|y|1)$ && -n "$_autofdo_profile_name" ]]; then
+    if [ -e "$_autofdo_profile_name" ]; then
+        source+=("$_autofdo_profile_name")
+    else
+        _die "Failed to find file ${_autofdo_profile_name}"
+    fi
+fi
+
 # Append extra sources in build.sh
 [ -n "$_extra_patch_or_url0" ] && source+=("$_extra_patch_or_url0")
 [ -n "$_extra_patch_or_url1" ] && source+=("$_extra_patch_or_url1")
@@ -187,15 +191,8 @@ fi
 [ -n "$_extra_patch_or_url8" ] && source+=("$_extra_patch_or_url8")
 [ -n "$_extra_patch_or_url9" ] && source+=("$_extra_patch_or_url9")
 
-_die() { error "$@" ; exit 1; }
-
-# Use generated AutoFDO Profile
-if [[ "$_autofdo" =~ ^(yes|y|1)$ && -n "$_autofdo_profile_name" ]]; then
-    if [ -e "$_autofdo_profile_name" ]; then
-        source+=("$_autofdo_profile_name")
-    else
-        _die "Failed to find file ${_autofdo_profile_name}"
-    fi
+if [[ -s "custom.sh" ]]; then
+    source+=("custom.sh")
 fi
 
 pkgbase="linux-$_pkgsuffix"
@@ -220,6 +217,9 @@ prepare() {
         src="${src##*/}"
         src="${src%.zst}"
         [[ $src = *.patch ]] || continue
+        if [[ $src = *-prevent-avx2* ]]; then
+            [[ "$_prevent_avx2" =~ ^(yes|y|1)$ ]] || continue
+        fi
         echo "Applying patch $src..."
         patch -Np1 < "../$src"
     done
