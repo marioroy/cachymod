@@ -43,6 +43,9 @@ set -e
 # Transparent Hugepages { always, madvise }
 : "${_hugepage:=always}"
 
+# Enable TCP_CONG_BBR3
+: "${_tcp_bbr3:=no}"
+
 # Running tick rate { 1000, 800, 750, 600, 500 }
 # Select 1000 if your machine has less than or equal to 16 CPUs.
 # Select 800 if you want a balance between latency and performance,
@@ -112,7 +115,7 @@ export _extra_patch_or_url0
 export _localmodcfg _kernel_suffix _prevent_avx2 _runtrim_script
 export _localmodcfg_path _makenconfig _makegconfig _makexconfig
 export _hugepage _HZ_ticks _ticktype _preempt _processor_opt
-export _buildtype _build_debug _autofdo
+export _buildtype _build_debug _autofdo _tcp_bbr3
 
 # Build kernel lazy and lazy-headers packages
 time nice -n 15 makepkg -scf --cleanbuild --skipinteg || exit 1

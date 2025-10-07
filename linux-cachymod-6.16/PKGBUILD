@@ -43,6 +43,9 @@
 # Path to the list of used modules
 : "${_localmodcfg_path:=$HOME/.config/modprobed.db}"
 
+# Enable TCP_CONG_BBR3
+: "${_tcp_bbr3:=no}"
+
 # Running with a 1000HZ, 800Hz, 750Hz, 600Hz, or 500Hz tick rate
 : "${_HZ_ticks:=1000}"
 
@@ -339,18 +342,19 @@ prepare() {
         scripts/config -d CC_OPTIMIZE_FOR_PERFORMANCE -e CC_OPTIMIZE_FOR_PERFORMANCE_O3
     fi
 
-    ##
-    # Use cubic as the default TCP congestion control
-    # https://github.com/CachyOS/linux-cachyos/pull/356
-    #
-    # echo "Disabling TCP_CONG_CUBIC..."
-    # scripts/config -m TCP_CONG_CUBIC -d DEFAULT_CUBIC -e TCP_CONG_BBR -e DEFAULT_BBR \
-    #     --set-str DEFAULT_TCP_CONG bbr
-    #
-      echo "Enabling TCP_CONG_CUBIC..."
-      scripts/config -m TCP_CONG_BBR -d DEFAULT_BBR -e TCP_CONG_CUBIC -e DEFAULT_CUBIC \
-          --set-str DEFAULT_TCP_CONG cubic
-    ##
+    ### Enable bbr3
+    if [[ "$_tcp_bbr3" =~ ^(yes|y|1)$ ]]; then
+        echo "Disabling TCP_CONG_CUBIC..."
+        scripts/config -m TCP_CONG_CUBIC \
+            -d DEFAULT_CUBIC \
+            -e TCP_CONG_BBR \
+            -e DEFAULT_BBR \
+            --set-str DEFAULT_TCP_CONG bbr \
+            -m NET_SCH_FQ_CODEL \
+            -e NET_SCH_FQ \
+            -d CONFIG_DEFAULT_FQ_CODEL \
+            -e CONFIG_DEFAULT_FQ
+    fi
 
     ### Select THP
     [ -z "$_hugepage" ] && _die "The value is empty. Choose the correct one again."
