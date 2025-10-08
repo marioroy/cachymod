@@ -22,3 +22,31 @@ diff -uarp a/Makefile b/Makefile
 -- 
 2.40.2
 
+Ensure the do_nanosleep function is not inlined
+
+  "bpfland-next is setting a kprobe on do_nanosleep to detect tasks
+  that are calling sleep explicititly and it keeps those on the same
+  CPU, if the kprobe fails, nothing bad happens, but it's a small
+  optimization"  -- arighi, CachyOS sched-ext discord
+
+  $ sudo grep do_nanosleep /proc/kallsyms
+  0000000000000000 t __pfx_do_nanosleep
+  0000000000000000 t do_nanosleep
+
+Signed-off-by: Mario Roy <...>
+
+diff -uarp a/kernel/time/hrtimer.c b/kernel/time/hrtimer.c
+--- a/kernel/time/hrtimer.c
++++ b/kernel/time/hrtimer.c
+@@ -2088,7 +2088,7 @@ int nanosleep_copyout(struct restart_blo
+ 	return -ERESTART_RESTARTBLOCK;
+ }
+ 
+-static int __sched do_nanosleep(struct hrtimer_sleeper *t, enum hrtimer_mode mode)
++static noinline int __sched do_nanosleep(struct hrtimer_sleeper *t, enum hrtimer_mode mode)
+ {
+ 	struct restart_block *restart;
+ 
+-- 
+2.40.2
+

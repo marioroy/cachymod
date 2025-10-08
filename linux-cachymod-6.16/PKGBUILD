@@ -451,9 +451,13 @@ build() {
     local ncpu=$(grep "^MAKEFLAGS=" "/etc/makepkg.conf" | sed "s/^.*-j\([0-9]*\).*/\1/")
     [[ -z "$ncpu" || "$ncpu" = "MAKEFLAGS"* ]] && ncpu=$(nproc)
 
+    ### Use grep to filter/silence harmless warnings
     make "${BUILD_FLAGS[@]}" -j"$ncpu" all 2>&1 | \
-       grep -Ev '^  (AS|AR|CC|LD|BT|CE|CO|GE|HO|IN|IP|MK|OB|PA|PE|PO|RE|ST|TA|TE|UN|UP|VD|WR|X32)|: unexpected end of section|: unreachable instruction| missing __noreturn in '
-    make -C tools/bpf/bpftool vmlinux.h feature-clang-bpf-co-re=1 | \
+       grep -Ev '^  (AS|AR|CC|LD|BT|CE|CO|GE|HO|IN|IP|MK|OB|PA|PE|PO|RE|ST|TA|TE|UN|UP|VD|WR|X32)|: unexpected end of section|: unreachable instruction| missing __noreturn in | no .sframe will be created'
+
+    ### In the case compiling with a later LLVM release, use the
+    ### system toolchain for auto-detecting system features
+    env PATH="/usr/bin:$PATH" make -C tools/bpf/bpftool vmlinux.h feature-clang-bpf-co-re=1 | \
        grep -Ev '^  (AS|AR|CC|LD|BT|CE|CO|GE|HO|IN|IP|MK|OB|PA|PE|PO|RE|ST|TA|TE|UN|UP|VD|WR|X32)'
 }
 
@@ -619,11 +623,11 @@ b2sums=('d4a690b8e0c5c53df16e5c911c7079dbfb8cba76ffc1f95e10d80455a59e9d0e9d51c8e
         'be0be4daed29fa02b38c2a92d44611db38e58888e25784432f95a8fc4d17e0d3e2f40c2d0b4f6c9ea7f471a423c6925f839cc237c32f376e1481a9be354de79e'
         '2fd0930475452aeb1d4ca2a46341afc7b860bdb86d9c0961be771120dd04803afdd6d50fb733e67a587ec410e3d31cdd327a6142eaa19621a1eb3b42a7154516'
         '764e6b9c5d3b7b6d6a252ff6d6fbbc1b7c7690307b3dc291ab7b984fa7bbbe6082a7a1c489e55ace75e9c288576ccee7fe9f3ef3756af7b34c1422e749e8ab48'
-        'd53f527557b45895b020543bc530527ec98511c7db4f56eaab64d4ce16d2bf3faf5412650fdaa513965354dd7c6e81e94e5d7f3c26d3f206a54d3a4edbe554d9'
+        '8382b2d9cee6274dd9fdb8127cd857925de5ebb702b806a445f6f90676f4509faf73462eeb544c38b7ff0a01c7fdd0a497ca1b2364dcf87c0c49b80b23b516f8'
         '24f599d5efd2a375b3d184618a70ef716c6f55550f503c9e4de98b6de8546ac6ad7e807016f32a6464d4e54b9256921a2b53996b2940a9b79fbda817342b8f5a'
         'b63b83812fccc293a35e75782a58baf4a16afac31c74c5dd80e17c5d6d0832849e7acf47770cb2964def0b313fcf23ae21852f839b51c124be43084981727f18'
         '36b41b06f930926efee55d9160ff73579d1147f997f89e24438bba1a6687b16a1b7a64920de67ff8993e162e904348345e23a19c4ad3b6431c512d7a00dcae48'
         '33c70b59e828825904e520e1bee345dd707200c5a5bd79260a6a5d90b4ec52846c91547129cab7fef10e49b424a82910da98c2dec355d3a2a93ef13f322741fd'
-        '3df044dadd8cbcb8922a02cf6dd96bab02c5913c5e0ddfd2ad95ef2a339268c7ff1f84ef38e711ccbd502bb7401edb9b1c4bde9ebb82b6d508806703f411bbf0'
+        'de2b885964a53429321afe5df6808b01bfae5f4a0eac926e245849d8875d071c0630774a9bae0d77735371cf27ee281bdea800a671b699ce49a72468663a4d20'
         '119beeae8a6bf5320c1c5c213555750adfceb5b8133f3c6fb94dc990221816a9021a2264a3cf7cec6316196ffe61923c3d1acb91797a4ad9737d518ce26129af'
         'c8169e90937306488be77503f053e795ab41ba090f99ab0e78f152463be049845cac0ffceee31aa1914b77554989e2d637264852e5905d1d6c8bd22c8af6ca2e')
