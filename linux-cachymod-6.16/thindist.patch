@@ -64,7 +64,7 @@ diff -uNarp a/.gitignore b/.gitignore
 diff -uNarp a/Makefile b/Makefile
 --- a/Makefile
 +++ b/Makefile
-@@ -1008,10 +1008,10 @@ export CC_FLAGS_SCS
+@@ -1014,10 +1014,10 @@ export CC_FLAGS_SCS
  endif
  
  ifdef CONFIG_LTO_CLANG
@@ -78,7 +78,7 @@ diff -uNarp a/Makefile b/Makefile
  endif
  CC_FLAGS_LTO	+= -fvisibility=hidden
  
-@@ -1578,7 +1578,6 @@ endif # CONFIG_MODULES
+@@ -1584,7 +1584,6 @@ endif # CONFIG_MODULES
  CLEAN_FILES += vmlinux.symvers modules-only.symvers \
  	       modules.builtin modules.builtin.modinfo modules.nsdeps \
  	       modules.builtin.ranges vmlinux.o.map vmlinux.unstripped \
@@ -86,7 +86,7 @@ diff -uNarp a/Makefile b/Makefile
  	       compile_commands.json rust/test \
  	       rust-project.json .vmlinux.objs .vmlinux.export.c \
                 .builtin-dtbs-list .builtin-dtb.S
-@@ -2020,7 +2019,7 @@ clean: $(clean-dirs)
+@@ -2026,7 +2025,7 @@ clean: $(clean-dirs)
  	$(call cmd,rmfiles)
  	@find . $(RCS_FIND_IGNORE) \
  		\( -name '*.[aios]' -o -name '*.rsi' -o -name '*.ko' -o -name '.*.cmd' \
@@ -360,7 +360,7 @@ index a9edd03036537..8fbff2ab87ebd 100644
  
  config-build	:=
  mixed-build	:=
-@@ -1008,10 +1009,10 @@ export CC_FLAGS_SCS
+@@ -1014,10 +1015,10 @@ export CC_FLAGS_SCS
  endif
  
  ifdef CONFIG_LTO_CLANG
@@ -374,7 +374,7 @@ index a9edd03036537..8fbff2ab87ebd 100644
  endif
  CC_FLAGS_LTO	+= -fvisibility=hidden
  
-@@ -1221,8 +1222,34 @@ vmlinux.a: $(KBUILD_VMLINUX_OBJS) scripts/head-object-list.txt FORCE
+@@ -1227,8 +1228,34 @@ vmlinux.a: $(KBUILD_VMLINUX_OBJS) scripts/head-object-list.txt FORCE
  	@:
  
  PHONY += vmlinux_o
@@ -409,7 +409,7 @@ index a9edd03036537..8fbff2ab87ebd 100644
  
  vmlinux.o modules.builtin.modinfo modules.builtin: vmlinux_o
  	@:
-@@ -1580,7 +1607,8 @@ CLEAN_FILES += vmlinux.symvers modules-only.symvers \
+@@ -1586,7 +1613,8 @@ CLEAN_FILES += vmlinux.symvers modules-only.symvers \
  	       modules.builtin.ranges vmlinux.o.map vmlinux.unstripped \
  	       compile_commands.json rust/test \
  	       rust-project.json .vmlinux.objs .vmlinux.export.c \
@@ -419,7 +419,7 @@ index a9edd03036537..8fbff2ab87ebd 100644
  
  # Directories & files removed with 'make mrproper'
  MRPROPER_FILES += include/config include/generated          \
-@@ -2031,6 +2059,8 @@ clean: $(clean-dirs)
+@@ -2037,6 +2065,8 @@ clean: $(clean-dirs)
  		-o -name '*.symtypes' -o -name 'modules.order' \
  		-o -name '*.c.[012]*.*' \
  		-o -name '*.ll' \
