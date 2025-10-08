@@ -51,6 +51,12 @@ sudo pacman -Rsn \
   linux-cachymod-lto-rt-headers
 ```
 
+Remove orphaned systemd-boot entries in `/boot/loader/entries/`.
+
+```text
+sudo sdboot-manage remove
+```
+
 ## Improving Interactive Performance
 
 If you're running CPU-intensive background tasks or make jobs, refer to
