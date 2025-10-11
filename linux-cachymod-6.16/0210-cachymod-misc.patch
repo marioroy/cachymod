@@ -249,6 +249,40 @@ index 03d58b2d4fa3..8750a35120d0 100644
 -- 
 2.47.2
 
+# 0002-ZEN-dm-crypt-Disable-workqueues-for-crypto-ops.patch
+
+Subject: [PATCH 2/2] ZEN: dm-crypt: Disable workqueues for crypto ops
+
+Queueing in dm-crypt for crypto operations reduces performance on modern
+systems.  As discussed in an article from Cloudflare, they discovered
+that queuing was introduced because the crypto subsystem used to be
+synchronous.  Since it's now asynchronous, we get double queueing when
+using the subsystem through dm-crypt.  This is obviously undesirable and
+reduces throughput and increases latency.
+
+Fixes: https://github.com/zen-kernel/zen-kernel/issues/282
+Signed-off-by: Alexandre Frade <kernel@xxxxxxxxxx>
+---
+ drivers/md/dm-crypt.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/drivers/md/dm-crypt.c b/drivers/md/dm-crypt.c
+index 9dfdb63220d7..1ef66e377c46 100644
+--- a/drivers/md/dm-crypt.c
++++ b/drivers/md/dm-crypt.c
+@@ -3305,6 +3305,9 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
+ 			goto bad;
+ 	}
+ 
++	set_bit(DM_CRYPT_NO_READ_WORKQUEUE, &cc->flags);
++	set_bit(DM_CRYPT_NO_WRITE_WORKQUEUE, &cc->flags);
++
+ 	ret = crypt_ctr_cipher(ti, argv[0], argv[1]);
+ 	if (ret < 0)
+ 		goto bad;
+-- 
+2.47.2
+
 Curated patches from SUNLIGHT Linux
 https://github.com/sunlightlinux/linux-sunlight/commits/6.16
 
@@ -1306,4 +1340,177 @@ index 9eda6b113f9b4..f06976ffb63f9 100644
  	__diag_push();							       \
 -- 
 2.51.0
+
+ZEN: mm: Stop kswapd early when nothing's waiting for it to free pages
+https://github.com/torvalds/linux/commit/def0b563099bd1c8a6c359334d8f0d0b43935388
+
+Contains:
+  - mm: Stop kswapd early when nothing's waiting for it to free pages
+
+    Keeping kswapd running when all the failed allocations that invoked it
+    are satisfied incurs a high overhead due to unnecessary page eviction
+    and writeback, as well as spurious VM pressure events to various
+    registered shrinkers. When kswapd doesn't need to work to make an
+    allocation succeed anymore, stop it prematurely to save resources.
+
+    Signed-off-by: Sultan Alsawaf <sultan@xxxxxxxxxx>
+
+  - mm: Don't stop kswapd on a per-node basis when there are no waiters
+
+    The page allocator wakes all kswapds in an allocation context's allowed
+    nodemask in the slow path, so it doesn't make sense to have the kswapd-
+    waiter count per each NUMA node. Instead, it should be a global counter
+    to stop all kswapds when there are no failed allocation requests.
+
+    Signed-off-by: Sultan Alsawaf <sultan@xxxxxxxxxx>
+
+  - mm: Increment kswapd_waiters for throttled direct reclaimers
+
+    Throttled direct reclaimers will wake up kswapd and wait for kswapd to
+    satisfy their page allocation request, even when the failed allocation
+    lacks the __GFP_KSWAPD_RECLAIM flag in its gfp mask. As a result, kswapd
+    may think that there are no waiters and thus exit prematurely, causing
+    throttled direct reclaimers lacking __GFP_KSWAPD_RECLAIM to stall on
+    waiting for kswapd to wake them up. Incrementing the kswapd_waiters
+    counter when such direct reclaimers become throttled fixes the problem.
+
+    Signed-off-by: Sultan Alsawaf <sultan@xxxxxxxxxx>
+---
+ mm/internal.h   |  1 +
+ mm/page_alloc.c | 17 ++++++++++++++---
+ mm/vmscan.c     | 19 +++++++++++++------
+ 3 files changed, 28 insertions(+), 9 deletions(-)
+
+diff --git a/mm/internal.h b/mm/internal.h
+index 45b725c3dc030c..fa0ded5bc5da68 100644
+--- a/mm/internal.h
++++ b/mm/internal.h
+@@ -791,6 +791,7 @@ void post_alloc_hook(struct page *page, unsigned int order, gfp_t gfp_flags);
+ extern bool free_pages_prepare(struct page *page, unsigned int order);
+ 
+ extern int user_min_free_kbytes;
++extern atomic_long_t kswapd_waiters;
+ 
+ struct page *__alloc_frozen_pages_noprof(gfp_t, unsigned int order, int nid,
+ 		nodemask_t *);
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 0dd4e419989a60..ea6d869c3b98b4 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -91,6 +91,8 @@ typedef int __bitwise fpi_t;
+ /* Free the page without taking locks. Rely on trylock only. */
+ #define FPI_TRYLOCK		((__force fpi_t)BIT(2))
+ 
++atomic_long_t kswapd_waiters = ATOMIC_LONG_INIT(0);
++
+ /* prevent >1 _updater_ of zone percpu pageset ->high and ->batch fields */
+ static DEFINE_MUTEX(pcp_batch_high_lock);
+ #define MIN_PERCPU_PAGELIST_HIGH_FRACTION (8)
+@@ -4425,6 +4427,7 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+ 	unsigned int cpuset_mems_cookie;
+ 	unsigned int zonelist_iter_cookie;
+ 	int reserve_flags;
++	bool woke_kswapd = false;
+ 
+ 	if (unlikely(nofail)) {
+ 		/*
+@@ -4484,8 +4487,13 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+ 			goto nopage;
+ 	}
+ 
+-	if (alloc_flags & ALLOC_KSWAPD)
++	if (alloc_flags & ALLOC_KSWAPD) {
++		if (!woke_kswapd) {
++			atomic_long_inc(&kswapd_waiters);
++			woke_kswapd = true;
++		}
+ 		wake_all_kswapds(order, gfp_mask, ac);
++	}
+ 
+ 	/*
+ 	 * The adjusted alloc_flags might result in immediate success, so try
+@@ -4700,9 +4708,12 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+ 		goto retry;
+ 	}
+ fail:
+-	warn_alloc(gfp_mask, ac->nodemask,
+-			"page allocation failure: order:%u", order);
+ got_pg:
++	if (woke_kswapd)
++		atomic_long_dec(&kswapd_waiters);
++	if (!page)
++		warn_alloc(gfp_mask, ac->nodemask,
++				"page allocation failure: order:%u", order);
+ 	return page;
+ }
+ 
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 674999999cd067..24569fe41c4ff6 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -6622,7 +6622,7 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
+ 	return 0;
+ }
+ 
+-static bool allow_direct_reclaim(pg_data_t *pgdat)
++static bool allow_direct_reclaim(pg_data_t *pgdat, bool using_kswapd)
+ {
+ 	struct zone *zone;
+ 	unsigned long pfmemalloc_reserve = 0;
+@@ -6647,6 +6647,10 @@ static bool allow_direct_reclaim(pg_data_t *pgdat)
+ 
+ 	wmark_ok = free_pages > pfmemalloc_reserve / 2;
+ 
++	/* The throttled direct reclaimer is now a kswapd waiter */
++	if (unlikely(!using_kswapd && !wmark_ok))
++		atomic_long_inc(&kswapd_waiters);
++
+ 	/* kswapd must be awake if processes are being throttled */
+ 	if (!wmark_ok && waitqueue_active(&pgdat->kswapd_wait)) {
+ 		if (READ_ONCE(pgdat->kswapd_highest_zoneidx) > ZONE_NORMAL)
+@@ -6712,7 +6716,7 @@ static bool throttle_direct_reclaim(gfp_t gfp_mask, struct zonelist *zonelist,
+ 
+ 		/* Throttle based on the first usable node */
+ 		pgdat = zone->zone_pgdat;
+-		if (allow_direct_reclaim(pgdat))
++		if (allow_direct_reclaim(pgdat, gfp_mask & __GFP_KSWAPD_RECLAIM))
+ 			goto out;
+ 		break;
+ 	}
+@@ -6734,11 +6738,14 @@ static bool throttle_direct_reclaim(gfp_t gfp_mask, struct zonelist *zonelist,
+ 	 */
+ 	if (!(gfp_mask & __GFP_FS))
+ 		wait_event_interruptible_timeout(pgdat->pfmemalloc_wait,
+-			allow_direct_reclaim(pgdat), HZ);
++			allow_direct_reclaim(pgdat, true), HZ);
+ 	else
+ 		/* Throttle until kswapd wakes the process */
+ 		wait_event_killable(zone->zone_pgdat->pfmemalloc_wait,
+-			allow_direct_reclaim(pgdat));
++			allow_direct_reclaim(pgdat, true));
++
++	if (unlikely(!(gfp_mask & __GFP_KSWAPD_RECLAIM)))
++		atomic_long_dec(&kswapd_waiters);
+ 
+ 	if (fatal_signal_pending(current))
+ 		return true;
+@@ -7259,14 +7266,14 @@ static int balance_pgdat(pg_data_t *pgdat, int order, int highest_zoneidx)
+ 		 * able to safely make forward progress. Wake them
+ 		 */
+ 		if (waitqueue_active(&pgdat->pfmemalloc_wait) &&
+-				allow_direct_reclaim(pgdat))
++				allow_direct_reclaim(pgdat, true))
+ 			wake_up_all(&pgdat->pfmemalloc_wait);
+ 
+ 		/* Check if kswapd should be suspending */
+ 		__fs_reclaim_release(_THIS_IP_);
+ 		ret = kthread_freezable_should_stop(&was_frozen);
+ 		__fs_reclaim_acquire(_THIS_IP_);
+-		if (was_frozen || ret)
++		if (was_frozen || ret || !atomic_long_read(&kswapd_waiters))
+ 			break;
+ 
+ 		/*
+-- 
+2.42.0
 

@@ -274,12 +274,6 @@ if [[ $(uname -m) = *"x86"* ]]; then
     ### Disable support for latency based cgroup IO protection.
     scripts/config -d BLK_CGROUP_IOLATENCY
 
-    ### Disable support for cost model based cgroup IO controller.
-    scripts/config -d BLK_CGROUP_IOCOST
-
-    ### Disable cgroup I/O controller for assigning an I/O priority class.
-    scripts/config -d BLK_CGROUP_IOPRIO
-
     ### Disable netfilter "control group" match support.
     scripts/config -d NETFILTER_XT_MATCH_CGROUP
 

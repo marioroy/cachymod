@@ -124,7 +124,7 @@ _stable=${_major}.${_minor}
 
 _srcname=linux-${_stable}
 pkgdesc='CachyMod Linux Kernel with other patches and improvements'
-pkgrel=3
+pkgrel=4
 _kernver="$pkgver-$pkgrel"
 _kernuname="${pkgver}-${_pkgsuffix}"
 arch=('x86_64')
@@ -194,8 +194,10 @@ fi
 [ -n "$_extra_patch_or_url8" ] && source+=("$_extra_patch_or_url8")
 [ -n "$_extra_patch_or_url9" ] && source+=("$_extra_patch_or_url9")
 
-if [[ -s "custom.sh" ]]; then
-    source+=("custom.sh")
+if [ -s "custom.sh" ]; then
+    custom_script="$(pwd)/custom.sh"
+else
+    custom_script=""
 fi
 
 pkgbase="linux-$_pkgsuffix"
@@ -392,9 +394,9 @@ prepare() {
     fi
 
     ### Optionally run the custom.sh script for custom tuning
-    if [[ -s "${srcdir}"/custom.sh ]]; then
+    if [ -n "$custom_script" ]; then
         echo "Custom kernel tuning. Running custom.sh script..."
-        bash "${srcdir}"/custom.sh
+        bash "$custom_script"
     fi
 
     ### Optionally load needed modules for the make localmodconfig
@@ -614,7 +616,7 @@ done
 
 b2sums=('d4a690b8e0c5c53df16e5c911c7079dbfb8cba76ffc1f95e10d80455a59e9d0e9d51c8e529d2985346ee25477a22f6145dbd552dbcf28ee43ef96a8db816a040'
         '1616fafdce2708ef4a2a19b92b5dcd874cfaa9d8558b306632ade813e306057885b360faa71a4a9820aca19c0470f5d612d2f5740b18bb3e71e858cc0e4f8772'
-        'ba1496bcedf6ff1219c8370cf706b0a832b58a2f80d820778db4c4ecb23893084d048eaeb3c2f3a4b726926a335d172479a20115aa2b67609d36c59de85a711e'
+        '43f10764ba04537e219451bb030cac9fdaef92c7d36bfb51c9bf1838ae8a8e6b6f202803b2c33ecfde56444107fa883ae1c10b9abce451cc5bd67b3d55542899'
         'd0b5a7a0bf638c93cc763c45164a38a55223c6349f92997e0136717fca41fb57891b73d8e599381940cd6d783a2a75088b3204b4d8fb86e2a108101b21625224'
         'aed9f5fef17f4e7cd6bc45469dce9f210fb228edd31f483b98de797897ebff67702a784c34e018123f344c03665775293f9551ddc17a1bcfd437e3fa450d20ee'
         '52b28c591fe4070306b98f67020e097f0ea186bb7f017a33499e983af35348eab1f2be28a2dfbb3c4f1a9b04d552d0cd9f1d8e00812ca111450fcb5b1f2e6f28'
@@ -623,7 +625,7 @@ b2sums=('d4a690b8e0c5c53df16e5c911c7079dbfb8cba76ffc1f95e10d80455a59e9d0e9d51c8e
         'be0be4daed29fa02b38c2a92d44611db38e58888e25784432f95a8fc4d17e0d3e2f40c2d0b4f6c9ea7f471a423c6925f839cc237c32f376e1481a9be354de79e'
         '2fd0930475452aeb1d4ca2a46341afc7b860bdb86d9c0961be771120dd04803afdd6d50fb733e67a587ec410e3d31cdd327a6142eaa19621a1eb3b42a7154516'
         '764e6b9c5d3b7b6d6a252ff6d6fbbc1b7c7690307b3dc291ab7b984fa7bbbe6082a7a1c489e55ace75e9c288576ccee7fe9f3ef3756af7b34c1422e749e8ab48'
-        '8382b2d9cee6274dd9fdb8127cd857925de5ebb702b806a445f6f90676f4509faf73462eeb544c38b7ff0a01c7fdd0a497ca1b2364dcf87c0c49b80b23b516f8'
+        '50e1325016e831ebbde45ecd6a855864d45289c8d9b8dbcad7f3e5cc62176fb2fba405a13b295f5e4e864de11145f5e0986a34eac7161f9edccbac035da3dc7e'
         '24f599d5efd2a375b3d184618a70ef716c6f55550f503c9e4de98b6de8546ac6ad7e807016f32a6464d4e54b9256921a2b53996b2940a9b79fbda817342b8f5a'
         'b63b83812fccc293a35e75782a58baf4a16afac31c74c5dd80e17c5d6d0832849e7acf47770cb2964def0b313fcf23ae21852f839b51c124be43084981727f18'
         '36b41b06f930926efee55d9160ff73579d1147f997f89e24438bba1a6687b16a1b7a64920de67ff8993e162e904348345e23a19c4ad3b6431c512d7a00dcae48'
