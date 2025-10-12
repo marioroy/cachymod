@@ -35,6 +35,9 @@ set -e
 : "${_localmodcfg:=no}"
 : "${_localmodcfg_path:=$HOME/.config/modprobed.db}"
 
+# Include the modules in minimal-modprobed.db (use with _localmodcfg)
+: "${_localmodcfg_minimal:=no}"
+
 # Tweak kernel options prior to a build via nconfig, gconfig or xconfig
 : "${_makenconfig:=no}"
 : "${_makegconfig:=no}"
@@ -114,9 +117,9 @@ export _extra_patch_or_url0
 
 export _localmodcfg _kernel_suffix _prevent_avx2 _runtrim_script
 export _localmodcfg_path _makenconfig _makegconfig _makexconfig
-export _hugepage _HZ_ticks _ticktype _preempt _processor_opt
-export _buildtype _build_debug _autofdo _tcp_bbr3
+export _localmodcfg_minimal _hugepage _HZ_ticks _ticktype _preempt
+export _buildtype _build_debug _autofdo _processor_opt _tcp_bbr3
 
-# Build kernel lazy and lazy-headers packages
+# Build kernel and headers packages
 time nice -n 15 ionice -n 1 makepkg -scf --cleanbuild --skipinteg || exit 1
 

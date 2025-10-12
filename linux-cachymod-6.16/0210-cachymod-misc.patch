@@ -1201,7 +1201,7 @@ Bluetooth adapters of many Acer laptops don't work without it
 diff -uarp a/drivers/bluetooth/btusb.c b/drivers/bluetooth/btusb.c
 --- a/drivers/bluetooth/btusb.c
 +++ b/drivers/bluetooth/btusb.c
-@@ -570,6 +570,8 @@ static const struct usb_device_id quirks
+@@ -572,6 +572,8 @@ static const struct usb_device_id quirks
  						     BTUSB_WIDEBAND_SPEECH },
  	{ USB_DEVICE(0x13d3, 0x3591), .driver_info = BTUSB_REALTEK |
  						     BTUSB_WIDEBAND_SPEECH },

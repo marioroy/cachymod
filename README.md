@@ -53,8 +53,19 @@ sudo pacman -Rsn \
 
 Remove orphaned systemd-boot entries in `/boot/loader/entries/`.
 
+Typically, one can use `sdboot-manage` to remove the orphaned boot
+entry. The command is unsafe if your kernel lacks a suffix string,
+because `sdboot-manage` wipes other kernels matching the kernel
+name to be removed.
+
 ```text
 sudo sdboot-manage remove
+```
+
+If the kernel has no suffix, remove the boot configuration manually.
+
+```text
+sudo rm /boot/loader/entries/linux-cachymod.conf
 ```
 
 ## Improving Interactive Performance

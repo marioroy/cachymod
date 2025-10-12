@@ -43,6 +43,9 @@
 # Path to the list of used modules
 : "${_localmodcfg_path:=$HOME/.config/modprobed.db}"
 
+# Include the modules in minimal-modprobed.db (use with _localmodcfg)
+: "${_localmodcfg_minimal:=no}"
+
 # Enable TCP_CONG_BBR3
 : "${_tcp_bbr3:=no}"
 
@@ -117,14 +120,14 @@ fi
 
 _pkgsuffix=cachymod
 _major=6.16
-_minor=11
+_minor=12
 pkgver=${_major}.${_minor}
 _stable=${_major}.${_minor}
 #_stable=${_major}
 
 _srcname=linux-${_stable}
 pkgdesc='CachyMod Linux Kernel with other patches and improvements'
-pkgrel=4
+pkgrel=1
 _kernver="$pkgver-$pkgrel"
 _kernuname="${pkgver}-${_pkgsuffix}"
 arch=('x86_64')
@@ -140,6 +143,7 @@ source=(
     "config"
     "config.sh"
     "trim.sh"
+    "minimal-modprobed.db"
     "0001-dl-server-prerequisite.patch"
     "0001-rt.patch"
     "0001-cachyos-base-all.patch"
@@ -400,31 +404,37 @@ prepare() {
     fi
 
     ### Optionally load needed modules for the make localmodconfig
-    # See https://aur.archlinux.org/packages/modprobed-db
+    ### https://aur.archlinux.org/packages/modprobed-db
+    ### https://github.com/Frogging-Family/linux-tkg (minimal-modprobed.db)
     if [[ "$_localmodcfg" =~ ^(yes|y|1)$ ]]; then
-        if [ -e "$_localmodcfg_path" ]; then
-            echo "Running Steven Rostedt's make localmodconfig now"
-            ( cat "$_localmodcfg_path"
-              # Include RAM disk, exfat, ntsync, ttm, and modules for Docker
-              for module in \
-                  brd bridge exfat drm_ttm_helper llc irqbypass nf_conntrack \
-                  nf_conntrack_netlink nf_defrag_ipv4 nf_defrag_ipv6 \
-                  nf_nat nf_tables nft_chain_nat nft_compat ntsync \
-                  overlay stp ttm veth xfrm_algo xfrm_user xt_addrtype \
-                  xt_conntrack xt_MASQUERADE xt_nat xt_tcpudp \
-              ;do echo "$module"; done
-            ) | sort -u > "/tmp/modprobed.db.$$"
-            make "${BUILD_FLAGS[@]}" LSMOD="/tmp/modprobed.db.$$" localmodconfig
-            rm -f "/tmp/modprobed.db.$$"
-        else
-            _die "No modprobed.db data found"
-        fi
+        echo "Running Steven Rostedt's make localmodconfig now"
+        [ -e "$_localmodcfg_path" ] || _die "No modprobed.db data found"
+
+        [[ "$_localmodcfg_minimal" =~ ^(yes|y|1)$ ]] && \
+           echo "Including the modules in minimal-modprobed.db"
+
+        ( cat "$_localmodcfg_path"
+           [[ "$_localmodcfg_minimal" =~ ^(yes|y|1)$ ]] && \
+              cat "${srcdir}"/minimal-modprobed.db
+           # Include RAM disk, exfat, ntsync, ttm, and modules for Docker
+           for module in \
+              brd bridge exfat drm_ttm_helper llc irqbypass nf_conntrack \
+              nf_conntrack_netlink nf_defrag_ipv4 nf_defrag_ipv6 \
+              nf_nat nf_tables nft_chain_nat nft_compat ntsync \
+              overlay stp ttm veth xfrm_algo xfrm_user xt_addrtype \
+              xt_conntrack xt_MASQUERADE xt_nat xt_tcpudp \
+           ;do echo "$module"; done
+        ) | sort -u > "/tmp/modprobed.db.$$"
+
+        make "${BUILD_FLAGS[@]}" LSMOD="/tmp/modprobed.db.$$" localmodconfig 2>&1 | \
+           grep -Ev 'but nothing in the|current config selects it|did not have configs'
+
+        rm -f "/tmp/modprobed.db.$$"
     fi
 
     ### Rewrite configuration
     echo "Rewrite configuration..."
-    make "${BUILD_FLAGS[@]}" -j3 prepare | \
-       grep -Ev '^  (AS|AR|CC|LD|BT|CE|CO|GE|HO|IN|IP|MK|OB|PA|PE|PO|RE|ST|TA|TE|UN|UP|VD|WR|X32)'
+    make "${BUILD_FLAGS[@]}" -j3 prepare
     yes "" | make "${BUILD_FLAGS[@]}" config >/dev/null
 
     ### Prepared version
@@ -614,10 +624,11 @@ for _p in "${pkgname[@]}"; do
     }"
 done
 
-b2sums=('d4a690b8e0c5c53df16e5c911c7079dbfb8cba76ffc1f95e10d80455a59e9d0e9d51c8e529d2985346ee25477a22f6145dbd552dbcf28ee43ef96a8db816a040'
-        '1616fafdce2708ef4a2a19b92b5dcd874cfaa9d8558b306632ade813e306057885b360faa71a4a9820aca19c0470f5d612d2f5740b18bb3e71e858cc0e4f8772'
+b2sums=('86d30cc03b13e13291c4f5e2da1087c5e6e4ef75513b26f89a1e2a4ed63c4d25fdb406b887ba1222a446f62b16fe2cccf7f4fa98778d5741e069b03a0d88d1fd'
+        '305848d14ea0689811c325be823d0bea6abeaf7586f2b629018aed5ac00b42f7222ccfb642b8c0ec07cfbe23492ef9bcac982cedd00311c77ae25f17af772628'
         '43f10764ba04537e219451bb030cac9fdaef92c7d36bfb51c9bf1838ae8a8e6b6f202803b2c33ecfde56444107fa883ae1c10b9abce451cc5bd67b3d55542899'
         'd0b5a7a0bf638c93cc763c45164a38a55223c6349f92997e0136717fca41fb57891b73d8e599381940cd6d783a2a75088b3204b4d8fb86e2a108101b21625224'
+        'aba53143ab07c080e0429ac7dd3f564a994882aef63f314abb09dcc90df0cd2657066b791d298c7449f810cc2f8310102c58238623c69f867b5a6aa42afa931f'
         'aed9f5fef17f4e7cd6bc45469dce9f210fb228edd31f483b98de797897ebff67702a784c34e018123f344c03665775293f9551ddc17a1bcfd437e3fa450d20ee'
         '52b28c591fe4070306b98f67020e097f0ea186bb7f017a33499e983af35348eab1f2be28a2dfbb3c4f1a9b04d552d0cd9f1d8e00812ca111450fcb5b1f2e6f28'
         '28edd4a776efa9292391ace92a0878062245f64d9fb3c9688f48348c7a8e6a477f9be7e61df592ec18c5a85e713e5b37adc08fa42f989fc60f9aefc02ef02e4e'
@@ -625,11 +636,11 @@ b2sums=('d4a690b8e0c5c53df16e5c911c7079dbfb8cba76ffc1f95e10d80455a59e9d0e9d51c8e
         'be0be4daed29fa02b38c2a92d44611db38e58888e25784432f95a8fc4d17e0d3e2f40c2d0b4f6c9ea7f471a423c6925f839cc237c32f376e1481a9be354de79e'
         '2fd0930475452aeb1d4ca2a46341afc7b860bdb86d9c0961be771120dd04803afdd6d50fb733e67a587ec410e3d31cdd327a6142eaa19621a1eb3b42a7154516'
         '764e6b9c5d3b7b6d6a252ff6d6fbbc1b7c7690307b3dc291ab7b984fa7bbbe6082a7a1c489e55ace75e9c288576ccee7fe9f3ef3756af7b34c1422e749e8ab48'
-        '50e1325016e831ebbde45ecd6a855864d45289c8d9b8dbcad7f3e5cc62176fb2fba405a13b295f5e4e864de11145f5e0986a34eac7161f9edccbac035da3dc7e'
+        '597d7df4d9d13aac5cce5af888637c0055d2ded860f947856c9e6f0496c8937eb61e3cc3e665932841921a3dc3d693ef540f66c5c2f3fad74842175056728707'
         '24f599d5efd2a375b3d184618a70ef716c6f55550f503c9e4de98b6de8546ac6ad7e807016f32a6464d4e54b9256921a2b53996b2940a9b79fbda817342b8f5a'
         'b63b83812fccc293a35e75782a58baf4a16afac31c74c5dd80e17c5d6d0832849e7acf47770cb2964def0b313fcf23ae21852f839b51c124be43084981727f18'
         '36b41b06f930926efee55d9160ff73579d1147f997f89e24438bba1a6687b16a1b7a64920de67ff8993e162e904348345e23a19c4ad3b6431c512d7a00dcae48'
         '33c70b59e828825904e520e1bee345dd707200c5a5bd79260a6a5d90b4ec52846c91547129cab7fef10e49b424a82910da98c2dec355d3a2a93ef13f322741fd'
         'de2b885964a53429321afe5df6808b01bfae5f4a0eac926e245849d8875d071c0630774a9bae0d77735371cf27ee281bdea800a671b699ce49a72468663a4d20'
         '119beeae8a6bf5320c1c5c213555750adfceb5b8133f3c6fb94dc990221816a9021a2264a3cf7cec6316196ffe61923c3d1acb91797a4ad9737d518ce26129af'
-        'c8169e90937306488be77503f053e795ab41ba090f99ab0e78f152463be049845cac0ffceee31aa1914b77554989e2d637264852e5905d1d6c8bd22c8af6ca2e')
+        '9496bcf15df84922bb140c20c8a7389c63d28a8c5979154dcc556308caffe0f98049f4074c33cc9dfe524a082d13b8a2b871f54adb428ef39ab410490aafa69c')
