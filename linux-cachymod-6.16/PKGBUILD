@@ -426,9 +426,7 @@ prepare() {
            ;do echo "$module"; done
         ) | sort -u > "/tmp/modprobed.db.$$"
 
-        make "${BUILD_FLAGS[@]}" LSMOD="/tmp/modprobed.db.$$" localmodconfig 2>&1 | \
-           grep -Ev 'but nothing in the|current config selects it|did not have configs'
-
+        make "${BUILD_FLAGS[@]}" LSMOD="/tmp/modprobed.db.$$" localmodconfig
         rm -f "/tmp/modprobed.db.$$"
     fi
 
