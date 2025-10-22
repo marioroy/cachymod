@@ -18,54 +18,62 @@ sudo pacman -Sy nvidia-open-dkms
 sudo pacman -Sy nvidia-dkms
 ```
 
-## Building and Installation
+## Building
 
-Copy the `linux-cachymod-6.16` folder to a work area and change
+Copy the `linux-cachymod-6.17` folder to a work area and change
 directory. Optionally, adjust the build options in `build.sh`.
-Select `_preempt=rt` for the realtime kernel.
-
-Change the build type { lto, clang, gcc }, accordingly.
+If building multiple CachyMod variants, the `env` command can
+be used to specify the values uniquely.
 
 ```bash
 bash build.sh
 
-# full/lazy or RT preemption
-sudo pacman -U linux-cachymod-lto-{6,h}*.zst
-sudo pacman -U linux-cachymod-lto-rt*.zst
+env _cpusched=eevdf _kernel_suffix= bash build.sh
+env _cpusched=bore _kernel_suffix=bore bash build.sh
+env _cpusched=bmq _kernel_suffix=bmq bash build.sh
+env _cpusched=rt _kernel_suffix=rt bash build.sh
+
+# with kernel tag
+env _cpusched=eevdf _kernel_suffix=617 bash build.sh
+env _cpusched=bore _kernel_suffix=617-bore bash build.sh
+env _cpusched=bmq _kernel_suffix=617-bmq bash build.sh
+env _cpusched=rt _kernel_suffix=617-rt bash build.sh
 ```
+
+## Installation
+
+The `d` in `[6dh]` will include the `dbg` package if built.
+
+```bash
+sudo pacman -U linux-cachymod-[6dh]*.zst
+sudo pacman -U linux-cachymod-bore-[6dh]*.zst
+sudo pacman -U linux-cachymod-bmq-[6dh]*.zst
+sudo pacman -U linux-cachymod-rt-[6dh]*.zst
+
+# with kernel tag
+sudo pacman -U linux-cachymod-617-[6dh]*.zst
+sudo pacman -U linux-cachymod-617-bore-[6dh]*.zst
+sudo pacman -U linux-cachymod-617-bmq-[6dh]*.zst
+sudo pacman -U linux-cachymod-617-rt-[6dh]*.zst
+```
+
+## Uninstall
 
 Removal is via pacman as well.
 
 Tip: `ls /usr/src` for the list of kernels on the system.
-Copy the file name and append "-headers" for the 2nd
-package name.
+Copy the folder name and append "-headers" for the 2nd
+package name. Include 3rd package "-dbg" if you selected
+`_build_debug` and installed on the system.
 
 ```text
-# full/lazy or RT preemption
 sudo pacman -Rsn \
-  linux-cachymod-lto \
-  linux-cachymod-lto-headers
+  linux-cachymod linux-cachymod-headers
 
+# include debug package
 sudo pacman -Rsn \
-  linux-cachymod-lto-rt \
-  linux-cachymod-lto-rt-headers
-```
-
-Remove orphaned systemd-boot entries in `/boot/loader/entries/`.
-
-Typically, one can use `sdboot-manage` to remove the orphaned boot
-entry. The command is unsafe if your kernel lacks a suffix string,
-because `sdboot-manage` wipes other kernels matching the kernel
-name to be removed.
-
-```text
-sudo sdboot-manage remove
-```
-
-If the kernel has no suffix, remove the boot configuration manually.
-
-```text
-sudo rm /boot/loader/entries/linux-cachymod.conf
+  linux-cachymod linux-cachymod-headers \
+  linux-cachymod-dbg
 ```
 
 ## Improving Interactive Performance
@@ -73,6 +81,8 @@ sudo rm /boot/loader/entries/linux-cachymod.conf
 If you're running CPU-intensive background tasks or make jobs, refer to
 [linux-cgroup-always](https://github.com/marioroy/linux-cgroup-always)
 for Ghostty-like `linux-cgroup = always` feature with your terminal emulator.
+
+This can be used with EEVDF and BORE.
 
 ## Developer Notes
 
@@ -114,10 +124,6 @@ elif [ -n "$_kernel_suffix" ]; then
     kernel_suffix="$_kernel_suffix"
 else
     kernel_suffix=""
-fi
-
-if [ "$_preempt" = "rt" ]; then
-    kernel_suffix="${kernel_suffix:+$kernel_suffix-}rt"
 fi
 
 if [ -n "$kernel_suffix" ]; then

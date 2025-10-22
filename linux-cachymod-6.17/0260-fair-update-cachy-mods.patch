@@ -26,7 +26,7 @@ diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
  
  static int __init setup_sched_thermal_decay_shift(char *str)
  {
-@@ -133,12 +124,8 @@ int __weak arch_asym_cpu_priority(int cp
+@@ -131,12 +122,8 @@ int __weak arch_asym_cpu_priority(int cp
   *
   * (default: 5 msec, units: microseconds)
   */

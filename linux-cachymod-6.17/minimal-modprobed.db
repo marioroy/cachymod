@@ -97,7 +97,11 @@ coretemp
 cp210x
 cpufreq_ondemand
 crc16
+crc32_generic
+crc32c_generic
 crc64
+crc64_rocksoft
+crc64_rocksoft_generic
 crc8
 crc_itu_t
 cryptd
@@ -332,7 +336,6 @@ msdos
 msr
 mt20xx
 mt76
-mt7601u
 mt76_connac_lib
 mt76_usb
 mt76x02_lib
@@ -411,6 +414,7 @@ nvme_keyring
 nvmem_rave_sp_eeprom
 nvram
 overlay
+p8022
 parport
 parport_pc
 pata_acpi
@@ -493,6 +497,7 @@ serio_raw
 ses
 sg
 sha1_ssse3
+sha256_ssse3
 sha512_ssse3
 snd
 snd_ac97_codec

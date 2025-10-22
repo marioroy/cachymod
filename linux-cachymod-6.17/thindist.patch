@@ -16,7 +16,7 @@ Signed-off-by: Mario Roy <...>
 diff -uNarp a/arch/Kconfig b/arch/Kconfig
 --- a/arch/Kconfig
 +++ b/arch/Kconfig
-@@ -810,25 +810,6 @@ config LTO_CLANG_THIN
+@@ -826,25 +826,6 @@ config LTO_CLANG_THIN
  	    https://clang.llvm.org/docs/ThinLTO.html
  
  	  If unsure, say Y.
@@ -64,7 +64,7 @@ diff -uNarp a/.gitignore b/.gitignore
 diff -uNarp a/Makefile b/Makefile
 --- a/Makefile
 +++ b/Makefile
-@@ -1014,10 +1014,10 @@ export CC_FLAGS_SCS
+@@ -1021,10 +1021,10 @@ export CC_FLAGS_SCS
  endif
  
  ifdef CONFIG_LTO_CLANG
@@ -78,7 +78,7 @@ diff -uNarp a/Makefile b/Makefile
  endif
  CC_FLAGS_LTO	+= -fvisibility=hidden
  
-@@ -1584,7 +1584,6 @@ endif # CONFIG_MODULES
+@@ -1592,7 +1592,6 @@ endif # CONFIG_MODULES
  CLEAN_FILES += vmlinux.symvers modules-only.symvers \
  	       modules.builtin modules.builtin.modinfo modules.nsdeps \
  	       modules.builtin.ranges vmlinux.o.map vmlinux.unstripped \
@@ -86,7 +86,7 @@ diff -uNarp a/Makefile b/Makefile
  	       compile_commands.json rust/test \
  	       rust-project.json .vmlinux.objs .vmlinux.export.c \
                 .builtin-dtbs-list .builtin-dtb.S
-@@ -2026,7 +2025,7 @@ clean: $(clean-dirs)
+@@ -2034,7 +2033,7 @@ clean: $(clean-dirs)
  	$(call cmd,rmfiles)
  	@find . $(RCS_FIND_IGNORE) \
  		\( -name '*.[aios]' -o -name '*.rsi' -o -name '*.ko' -o -name '.*.cmd' \
@@ -334,7 +334,7 @@ diff --git a/MAINTAINERS b/MAINTAINERS
 index d48dd6726fe6b..f54090f364c93 100644
 --- a/MAINTAINERS
 +++ b/MAINTAINERS
-@@ -5881,6 +5881,11 @@ F:	scripts/Makefile.clang
+@@ -5979,6 +5979,11 @@ F:	scripts/Makefile.clang
  F:	scripts/clang-tools/
  K:	\b(?i:clang|llvm)\b
  
@@ -360,7 +360,7 @@ index a9edd03036537..8fbff2ab87ebd 100644
  
  config-build	:=
  mixed-build	:=
-@@ -1014,10 +1015,10 @@ export CC_FLAGS_SCS
+@@ -1021,10 +1022,10 @@ export CC_FLAGS_SCS
  endif
  
  ifdef CONFIG_LTO_CLANG
@@ -374,7 +374,7 @@ index a9edd03036537..8fbff2ab87ebd 100644
  endif
  CC_FLAGS_LTO	+= -fvisibility=hidden
  
-@@ -1227,8 +1228,34 @@ vmlinux.a: $(KBUILD_VMLINUX_OBJS) scripts/head-object-list.txt FORCE
+@@ -1235,8 +1236,34 @@ vmlinux.a: $(KBUILD_VMLINUX_OBJS) scripts/head-object-list.txt FORCE
  	@:
  
  PHONY += vmlinux_o
@@ -409,7 +409,7 @@ index a9edd03036537..8fbff2ab87ebd 100644
  
  vmlinux.o modules.builtin.modinfo modules.builtin: vmlinux_o
  	@:
-@@ -1586,7 +1613,8 @@ CLEAN_FILES += vmlinux.symvers modules-only.symvers \
+@@ -1594,7 +1621,8 @@ CLEAN_FILES += vmlinux.symvers modules-only.symvers \
  	       modules.builtin.ranges vmlinux.o.map vmlinux.unstripped \
  	       compile_commands.json rust/test \
  	       rust-project.json .vmlinux.objs .vmlinux.export.c \
@@ -419,7 +419,7 @@ index a9edd03036537..8fbff2ab87ebd 100644
  
  # Directories & files removed with 'make mrproper'
  MRPROPER_FILES += include/config include/generated          \
-@@ -2037,6 +2065,8 @@ clean: $(clean-dirs)
+@@ -2045,6 +2073,8 @@ clean: $(clean-dirs)
  		-o -name '*.symtypes' -o -name 'modules.order' \
  		-o -name '*.c.[012]*.*' \
  		-o -name '*.ll' \
@@ -432,7 +432,7 @@ diff --git a/arch/Kconfig b/arch/Kconfig
 index b0adb665041f1..30dccda07c671 100644
 --- a/arch/Kconfig
 +++ b/arch/Kconfig
-@@ -810,6 +810,25 @@ config LTO_CLANG_THIN
+@@ -826,6 +826,25 @@ config LTO_CLANG_THIN
  	    https://clang.llvm.org/docs/ThinLTO.html
  
  	  If unsure, say Y.
@@ -504,7 +504,7 @@ index 13dcd86e74ca8..338e1aec0eaa3 100644
  endif
  
  targets-for-modules := $(foreach x, o mod, \
-@@ -431,6 +441,10 @@ $(obj)/%.o: $(obj)/%.S FORCE
+@@ -432,6 +442,10 @@ $(obj)/%.o: $(obj)/%.S FORCE
  targets += $(filter-out $(subdir-builtin), $(real-obj-y))
  targets += $(filter-out $(subdir-modorder), $(real-obj-m))
  targets += $(lib-y) $(always-y)
@@ -515,7 +515,7 @@ index 13dcd86e74ca8..338e1aec0eaa3 100644
  
  # Linker scripts preprocessor (.lds.S -> .lds)
  # ---------------------------------------------------------------------------
-@@ -441,6 +455,24 @@ quiet_cmd_cpp_lds_S = LDS     $@
+@@ -442,6 +456,24 @@ quiet_cmd_cpp_lds_S = LDS     $@
  $(obj)/%.lds: $(src)/%.lds.S FORCE
  	$(call if_changed_dep,cpp_lds_S)
  
@@ -540,7 +540,7 @@ index 13dcd86e74ca8..338e1aec0eaa3 100644
  # ASN.1 grammar
  # ---------------------------------------------------------------------------
  quiet_cmd_asn1_compiler = ASN.1   $(basename $@).[ch]
-@@ -454,7 +486,7 @@ $(obj)/%.asn1.c $(obj)/%.asn1.h: $(src)/%.asn1 $(objtree)/scripts/asn1_compiler
+@@ -455,7 +487,7 @@ $(obj)/%.asn1.c $(obj)/%.asn1.h: $(src)/%.asn1 $(objtree)/scripts/asn1_compiler
  # ---------------------------------------------------------------------------
  
  # To build objects in subdirs, we need to descend into the directories
@@ -549,7 +549,7 @@ index 13dcd86e74ca8..338e1aec0eaa3 100644
  $(subdir-modorder): $(obj)/%/modules.order: $(obj)/% ;
  
  #
-@@ -471,6 +503,12 @@ quiet_cmd_ar_builtin = AR      $@
+@@ -472,6 +504,12 @@ quiet_cmd_ar_builtin = AR      $@
  $(obj)/built-in.a: $(real-obj-y) FORCE
  	$(call if_changed,ar_builtin)
  
@@ -562,7 +562,7 @@ index 13dcd86e74ca8..338e1aec0eaa3 100644
  # This is a list of build artifacts from the current Makefile and its
  # sub-directories. The timestamp should be updated when any of the member files.
  
-@@ -488,6 +526,14 @@ $(obj)/modules.order: $(obj-m) FORCE
+@@ -489,6 +527,14 @@ $(obj)/modules.order: $(obj-m) FORCE
  $(obj)/lib.a: $(lib-y) FORCE
  	$(call if_changed,ar)
  
@@ -577,7 +577,7 @@ index 13dcd86e74ca8..338e1aec0eaa3 100644
  quiet_cmd_ld_multi_m = LD [M]  $@
        cmd_ld_multi_m = $(LD) $(ld_flags) -r -o $@ @$< $(cmd_objtool)
  
-@@ -553,7 +599,8 @@ $(single-subdir-goals): $(single-subdirs)
+@@ -554,7 +600,8 @@ $(single-subdir-goals): $(single-subdirs)
  PHONY += $(subdir-ym)
  $(subdir-ym):
  	$(Q)$(MAKE) $(build)=$@ \
@@ -716,7 +716,7 @@ Thank you, @ms178
 diff -uarp a/scripts/Makefile.build b/scripts/Makefile.build
 --- a/scripts/Makefile.build
 +++ b/scripts/Makefile.build
-@@ -442,7 +442,7 @@ targets += $(filter-out $(subdir-builtin
+@@ -443,7 +443,7 @@ targets += $(filter-out $(subdir-builtin
  targets += $(filter-out $(subdir-modorder), $(real-obj-m))
  targets += $(lib-y) $(always-y)
  ifeq ($(builtin_suffix),.a_thinlto_native)

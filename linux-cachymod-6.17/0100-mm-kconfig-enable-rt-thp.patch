@@ -13,7 +13,7 @@ diff -uar a/mm/Kconfig b/mm/Kconfig
 diff -uar a/init/Kconfig b/init/Kconfig
 --- a/init/Kconfig
 +++ b/init/Kconfig
-@@ -943,7 +943,7 @@
+@@ -969,7 +969,7 @@
  	bool "Memory placement aware NUMA scheduler"
  	depends on ARCH_SUPPORTS_NUMA_BALANCING
  	depends on !ARCH_WANT_NUMA_VARIABLE_LOCALITY

@@ -29,7 +29,7 @@
 diff -uar a/arch/x86/Kconfig b/arch/x86/Kconfig
 --- a/arch/x86/Kconfig
 +++ b/arch/x86/Kconfig
-@@ -1236,7 +1236,7 @@
+@@ -1233,7 +1233,7 @@
  	default X86_LEGACY_VM86
  
  config X86_16BIT
@@ -38,7 +38,7 @@ diff -uar a/arch/x86/Kconfig b/arch/x86/Kconfig
  	default y
  	depends on MODIFY_LDT_SYSCALL
  	help
-@@ -2306,7 +2306,7 @@
+@@ -2303,7 +2303,7 @@
  	  be set to 'N' under normal conditions.
  
  config MODIFY_LDT_SYSCALL
@@ -53,7 +53,7 @@ diff -uar a/arch/x86/Kconfig b/arch/x86/Kconfig
 diff -uar a/init/Kconfig b/init/Kconfig
 --- a/init/Kconfig
 +++ b/init/Kconfig
-@@ -1622,7 +1622,7 @@
+@@ -1655,7 +1655,7 @@
  	  Only use this if you really know what you are doing.
  
  config UID16
@@ -157,7 +157,7 @@ diff --git a/net/ipv4/tcp.c b/net/ipv4/tcp.c
 index 28ff2a820f7c..c4f240da8d70 100644
 --- a/net/ipv4/tcp.c
 +++ b/net/ipv4/tcp.c
-@@ -5234,8 +5234,8 @@ void __init tcp_init(void)
+@@ -5239,8 +5239,8 @@ void __init tcp_init(void)
  	tcp_init_mem();
  	/* Set per-socket limits to no more than 1/128 the pressure threshold */
  	limit = nr_free_buffer_pages() << (PAGE_SHIFT - 7);
@@ -386,7 +386,7 @@ index 57027bfed25f..596fd7fb7847 100644
  
  /* Boolean to track if system has ITMT capabilities */
  static bool __read_mostly sched_itmt_capable;
-@@ -144,7 +145,12 @@ void sched_clear_itmt_support(void)
+@@ -167,7 +168,12 @@ void sched_clear_itmt_support(void)
  
  int arch_asym_cpu_priority(int cpu)
  {
@@ -400,7 +400,7 @@ index 57027bfed25f..596fd7fb7847 100644
  }
  
  /**
-@@ -165,3 +171,24 @@ void sched_set_itmt_core_prio(int prio, int core_cpu)
+@@ -188,3 +194,24 @@ void sched_set_itmt_core_prio(int prio, int core_cpu)
  {
  	per_cpu(sched_core_priority, cpu) = prio;
  }
@@ -484,7 +484,7 @@ diff --git a/mm/page_alloc.c b/mm/page_alloc.c
 index e6f211dcf82e..0ea48434ac7d 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -5625,11 +5625,11 @@ static int zone_batchsize(struct zone *zone)
+@@ -5814,11 +5814,11 @@ static int zone_batchsize(struct zone *zone)
  
  	/*
  	 * The number of pages to batch allocate is either ~0.1%
@@ -520,7 +520,7 @@ diff --git a/init/main.c b/init/main.c
 index aa21add5f7c5..715d57f58895 100644
 --- a/init/main.c
 +++ b/init/main.c
-@@ -1211,10 +1211,13 @@ static __init_or_module void
+@@ -1218,10 +1218,13 @@ static __init_or_module void
  trace_initcall_finish_cb(void *data, initcall_t fn, int ret)
  {
  	ktime_t rettime, *calltime = data;
@@ -583,7 +583,7 @@ diff --git a/kernel/sched/core.c b/kernel/sched/core.c
 index f730b6fe94a7..ee0ec4ab7d1c 100644
 --- a/kernel/sched/core.c
 +++ b/kernel/sched/core.c
-@@ -602,7 +602,7 @@ void raw_spin_rq_lock_nested(struct rq *rq, int subclass)
+@@ -632,7 +632,7 @@ void raw_spin_rq_lock_nested(struct rq *rq, int subclass)
  
  	/* Matches synchronize_rcu() in __sched_core_enable() */
  	preempt_disable();
@@ -592,7 +592,7 @@ index f730b6fe94a7..ee0ec4ab7d1c 100644
  		raw_spin_lock_nested(&rq->__lock, subclass);
  		/* preempt_count *MUST* be > 1 */
  		preempt_enable_no_resched();
-@@ -816,7 +816,7 @@ void update_rq_clock(struct rq *rq)
+@@ -844,7 +844,7 @@ void update_rq_clock(struct rq *rq)
  	scx_rq_clock_update(rq, clock);
  
  	delta = clock - rq->clock;
@@ -601,7 +601,7 @@ index f730b6fe94a7..ee0ec4ab7d1c 100644
  		return;
  	rq->clock += delta;
  
-@@ -6128,7 +6128,7 @@ pick_next_task(struct rq *rq, struct task_struct *prev, struct rq_flags *rf)
+@@ -6082,7 +6082,7 @@ pick_next_task(struct rq *rq, struct task_struct *prev, struct rq_flags *rf)
  	struct rq *rq_i;
  	bool need_sync;
  
@@ -610,7 +610,7 @@ index f730b6fe94a7..ee0ec4ab7d1c 100644
  		return __pick_next_task(rq, prev, rf);
  
  	cpu = cpu_of(rq);
-@@ -7307,7 +7307,7 @@ SYSCALL_DEFINE0(sched_yield)
+@@ -7486,7 +7486,7 @@ SYSCALL_DEFINE0(sched_yield)
  #if !defined(CONFIG_PREEMPTION) || defined(CONFIG_PREEMPT_DYNAMIC)
  int __sched __cond_resched(void)
  {

@@ -5,9 +5,17 @@
 ### BUILD OPTIONS
 # Set these variables to ANYTHING that is not null or choose proper variable to enable them
 
-# Custom kernel suffix
-# Specify string or set to "auto" for automatic suffix {gcc,clang,lto}
-# Set to blank value for no kernel suffix
+# Select CPU scheduler { eevdf, bore, rt, bmq }
+# eevdf: EEVDF Scheduler (use with the linux-cgroup-always repo, optional)
+# bore:  EEVDF Scheduler with Burst-Oriented Response Enhancer
+# rt:    EEVDF Scheduler with real-time preemption enabled
+# bmq:   BitMap Queue Scheduler
+: "${_cpusched:=eevdf}"
+
+# Custom kernel suffix, specify uniquely if building multiple CachyMod kernels
+# E.g. { blank value, bmq, bore, rt } or { 617, 617-bmq, 617-bore, 617-rt }
+# Or set to "auto" for automatic suffix { gcc, clang, lto }
+# Or set to blank value for no kernel suffix
 : "${_kernel_suffix:=}"
 
 # Prevent AVX2 floating-point instructions. (Clear and XanMod default)
@@ -44,6 +52,7 @@
 : "${_localmodcfg_path:=$HOME/.config/modprobed.db}"
 
 # Include the modules in minimal-modprobed.db (use with _localmodcfg)
+# This is the diet db from Linux-tkg
 : "${_localmodcfg_minimal:=no}"
 
 # Enable TCP_CONG_BBR3
@@ -57,8 +66,11 @@
 # hardware, lower consistency. Idle (without rcu_nocb_cpu) may reduce stutters.
 : "${_ticktype:=full}"
 
-# Choose between rt (real-time), full (low-latency), lazy (prefer throughput),
-# or dynamic (runtime selectable none, voluntary, full, or lazy: default full)
+# Select preemption { dynamic, voluntary, full, lazy }
+# Select "dynamic" for runtime selectable none, voluntary, (full), or lazy.
+# Select "voluntary" for desktop, matching the Clear kernel preemption.
+# Select "full" for low-latency desktop, matching the CachyOS kernel preemption.
+# Select "lazy" for low-latency desktop, for slightly better throughput.
 : "${_preempt:=dynamic}"
 
 # Select CPU compiler optimization
@@ -114,13 +126,9 @@ else
     kernel_suffix=""
 fi
 
-if [ "$_preempt" = "rt" ]; then
-    kernel_suffix="${kernel_suffix:+$kernel_suffix-}rt"
-fi
-
 _pkgsuffix=cachymod
-_major=6.16
-_minor=12
+_major=6.17
+_minor=4
 pkgver=${_major}.${_minor}
 _stable=${_major}.${_minor}
 #_stable=${_major}
@@ -144,35 +152,41 @@ source=(
     "config.sh"
     "trim.sh"
     "minimal-modprobed.db"
-    "0001-dl-server-prerequisite.patch"
     "0001-rt.patch"
     "0001-cachyos-base-all.patch"
     "0002-kconfig-add-800Hz.patch"
     "0100-mm-kconfig-enable-rt-thp.patch"
     "0110-fair-drm-scheduler.patch"
+    "0120-mm-updates.patch"
+    "0130-mv-task_can_attach.patch"
+    "0140-rm-redundant-rculocks.patch"
+    "0150-io_uring-updates.patch"
     "0200-clearlinux-extras.patch"
     "0210-cachymod-misc.patch"
-    "0250-dl-server-for-ext-tasks.patch"
-    "0280-fair-update-cachy-mods.patch"
+    "0250-sched-ext-updates.patch"
+    "0260-fair-update-cachy-mods.patch"
+    "0270-tune-dt-interactivity.patch"
     "0300-x86-prevent-avx2-vector.patch"
+    "0310-linux6.17-bore.patch"
+    "0310-linux6.17-prjc.patch"
 )
 
 # LLVM makedepends
 if [[ "$buildtype" =~ (lto|clang) ]]; then
-    makedepends+=( clang llvm lld )
+    makedepends+=(clang llvm lld)
     source+=("dkms-clang.patch" "flags-clang.patch" "thindist.patch")
 
-    BUILD_FLAGS=( CC=clang LD=ld.lld LLVM_IAS=1 )
+    BUILD_FLAGS=(CC=clang LD=ld.lld LLVM_IAS=1)
     CLANG_BIN=$(which clang) ; CLANG_BIN="${CLANG_BIN%clang}"
-    [ "$CLANG_BIN" = "/usr/bin/" ] && BUILD_FLAGS+=( LLVM=1 )
+    [ "$CLANG_BIN" = "/usr/bin/" ] && BUILD_FLAGS+=(LLVM=1)
 
     if [[ "$CLANG_BIN" != "/usr/bin/" && -x "${CLANG_BIN}/llvm-strip" ]]; then
-        BUILD_FLAGS+=( LLVM="$CLANG_BIN" )
+        BUILD_FLAGS+=(LLVM="$CLANG_BIN")
     else
-        BUILD_FLAGS+=( LLVM=1 )
+        BUILD_FLAGS+=(LLVM=1)
     fi
 else
-    BUILD_FLAGS=( CC=gcc )
+    BUILD_FLAGS=(CC=gcc)
 fi
 
 _die() { error "$@" ; exit 1; }
@@ -229,6 +243,12 @@ prepare() {
         if [[ $src = *-prevent-avx2* ]]; then
             [[ "$_prevent_avx2" =~ ^(yes|y|1)$ ]] || continue
         fi
+        if [[ $src = *-bore* ]]; then
+            [[ "$_cpusched" = "bore" ]] || continue
+        fi
+        if [[ $src = *-prjc* ]]; then
+            [[ "$_cpusched" = "bmq" ]] || continue
+        fi
         echo "Applying patch $src..."
         patch -Np1 < "../$src"
     done
@@ -264,9 +284,17 @@ prepare() {
     echo "Enabling CachyOS config..."
     scripts/config -e CACHY
 
-    ### Select build type
-    [ -z "$_buildtype" ] && _die "The value is empty. Choose the correct one again."
+    ### Selecting the CPU scheduler
+    case "$_cpusched" in
+        eevdf|rt) ;;
+        bore) scripts/config -e SCHED_BORE --set-val MIN_BASE_SLICE_NS 1600000;;
+        bmq) scripts/config -e SCHED_ALT -e SCHED_BMQ;;
+        *) _die "The _cpusched value '$_cpusched' is invalid. Choose the correct one again.";;
+    esac
 
+    echo "Selecting '${_cpusched^^}' CPU scheduler..."
+
+    ### Select build type
     case "$_buildtype" in
         thin)
             scripts/config -e LTO -e LTO_CLANG -e ARCH_SUPPORTS_LTO_CLANG -e ARCH_SUPPORTS_LTO_CLANG_THIN -e HAS_LTO_CLANG -d LTO_NONE -d LTO_CLANG_FULL -d LTO_CLANG_THIN -e LTO_CLANG_THIN_DIST -e HAVE_GCC_PLUGINS
@@ -281,7 +309,7 @@ prepare() {
             scripts/config -e LTO_NONE
             ;;
         *)
-            _die "The value '$_buildtype' is invalid. Choose the correct one again."
+            _die "The _buildtype value '$_buildtype' is invalid. Choose the correct one again."
     esac
 
     if [ "$buildtype" = "lto" ]; then
@@ -291,20 +319,16 @@ prepare() {
     fi
 
     ### Select tick rate
-    [ -z "$_HZ_ticks" ] && _die "The value is empty. Choose the correct one again."
-
     case "$_HZ_ticks" in
         1000|800|750|600|500)
             scripts/config -d HZ_800 -d HZ_300 -e "HZ_${_HZ_ticks}" --set-val HZ "${_HZ_ticks}";;
         *)
-            _die "The value $_HZ_ticks is invalid. Choose the correct one again."
+            _die "The _HZ_ticks value '$_HZ_ticks' is invalid. Choose the correct one again."
     esac
 
     echo "Setting tick rate to ${_HZ_ticks} Hz..."
 
     ### Select tickless type
-    [ -z "$_ticktype" ] && _die "The value is empty. Choose the correct one again."
-
     case "$_ticktype" in
         full)
             scripts/config -d HZ_PERIODIC -d NO_HZ_IDLE -d CONTEXT_TRACKING_FORCE -e NO_HZ_FULL_NODEF -e NO_HZ_FULL -e NO_HZ -e NO_HZ_COMMON -e CONTEXT_TRACKING
@@ -314,31 +338,34 @@ prepare() {
             scripts/config -d RCU_NOCB_CPU -d TICK_CPU_ACCOUNTING -e VIRT_CPU_ACCOUNTING_GEN
             ;;
         *)
-            _die "The value '$_ticktype' is invalid. Choose the correct one again."
+            _die "The _ticktype value '$_ticktype' is invalid. Choose the correct one again."
     esac
 
     echo "Selecting '$_ticktype' tickless type..."
 
     ### Select preempt type
-    [ -z "$_preempt" ] && _die "The value is empty. Choose the correct one again."
-
     case "$_preempt" in
-        rt)
-            scripts/config -d PREEMPT_NONE -d PREEMPT_VOLUNTARY -e PREEMPT -d PREEMPT_LAZY -d PREEMPT_DYNAMIC -e PREEMPT_RT
-            scripts/config -e DRM_MGAG200_DISABLE_WRITECOMBINE;;
         dynamic)
-            scripts/config -d PREEMPT_NONE -d PREEMPT_VOLUNTARY -e PREEMPT -d PREEMPT_LAZY -e PREEMPT_DYNAMIC -d PREEMPT_RT;;
+            scripts/config -d PREEMPT_NONE -d PREEMPT_VOLUNTARY -e PREEMPT -d PREEMPT_LAZY -e PREEMPT_DYNAMIC;;
         lazy)
-            scripts/config -d PREEMPT_NONE -d PREEMPT_VOLUNTARY -d PREEMPT -e PREEMPT_LAZY -d PREEMPT_DYNAMIC -d PREEMPT_RT;;
+            scripts/config -d PREEMPT_NONE -d PREEMPT_VOLUNTARY -d PREEMPT -e PREEMPT_LAZY -d PREEMPT_DYNAMIC;;
         full)
-            scripts/config -d PREEMPT_NONE -d PREEMPT_VOLUNTARY -e PREEMPT -d PREEMPT_LAZY -d PREEMPT_DYNAMIC -d PREEMPT_RT;;
+            scripts/config -d PREEMPT_NONE -d PREEMPT_VOLUNTARY -e PREEMPT -d PREEMPT_LAZY -d PREEMPT_DYNAMIC;;
         voluntary)
-            scripts/config -d PREEMPT_NONE -e PREEMPT_VOLUNTARY -d PREEMPT -d PREEMPT_LAZY -d PREEMPT_DYNAMIC -d PREEMPT_RT;;
+            scripts/config -d PREEMPT_NONE -e PREEMPT_VOLUNTARY -d PREEMPT -d PREEMPT_LAZY -d PREEMPT_DYNAMIC;;
         *)
-            _die "The value '$_preempt' is invalid. Choose the correct one again."
+            _die "The _preempt value '$_preempt' is invalid. Choose the correct one again."
     esac
 
     echo "Selecting '$_preempt' preempt type..."
+
+    if [ "$_cpusched" = "rt" ]; then
+        echo "Enabling real-time preemption, as well..."
+        scripts/config -e PREEMPT_RT
+        scripts/config -e DRM_MGAG200_DISABLE_WRITECOMBINE
+    else
+        scripts/config -d PREEMPT_RT
+    fi
 
     if [ "$_buildtype" = "gcc" ]; then
         echo "Enabling KBUILD_CFLAGS -O2..."
@@ -363,12 +390,10 @@ prepare() {
     fi
 
     ### Select THP
-    [ -z "$_hugepage" ] && _die "The value is empty. Choose the correct one again."
-
     case "$_hugepage" in
         always) scripts/config -d TRANSPARENT_HUGEPAGE_MADVISE -e TRANSPARENT_HUGEPAGE_ALWAYS;;
         madvise) scripts/config -d TRANSPARENT_HUGEPAGE_ALWAYS -e TRANSPARENT_HUGEPAGE_MADVISE;;
-        *) _die "The value '$_hugepage' is invalid. Choose the correct one again.";;
+        *) _die "The _hugepage value '$_hugepage' is invalid. Choose the correct one again.";;
     esac
 
     echo "Selecting '$_hugepage' TRANSPARENT_HUGEPAGE config..."
@@ -378,7 +403,7 @@ prepare() {
         scripts/config -e AUTOFDO_CLANG
     fi
     if [[ "$_autofdo" =~ ^(yes|y|1)$ && -n "$_autofdo_profile_name" ]]; then
-        echo "AutoFDO profile has been found..."
+        echo "The AutoFDO profile has been found..."
         BUILD_FLAGS+=(CLANG_AUTOFDO_PROFILE="${srcdir}/${_autofdo_profile_name}")
     fi
 
@@ -479,6 +504,7 @@ _package() {
                 'modprobed-db: Keeps track of EVERY kernel module that has ever been probed - useful for those of us who make localmodconfig'
                 'scx-scheds: to use sched-ext schedulers')
     provides=(VIRTUALBOX-GUEST-MODULES WIREGUARD-MODULE KSMBD-MODULE V4L2LOOPBACK-MODULE NTSYNC-MODULE VHBA-MODULE ADIOS-MODULE)
+    install="install"
 
     cd "$_srcname"
 
@@ -622,23 +648,29 @@ for _p in "${pkgname[@]}"; do
     }"
 done
 
-b2sums=('86d30cc03b13e13291c4f5e2da1087c5e6e4ef75513b26f89a1e2a4ed63c4d25fdb406b887ba1222a446f62b16fe2cccf7f4fa98778d5741e069b03a0d88d1fd'
-        '305848d14ea0689811c325be823d0bea6abeaf7586f2b629018aed5ac00b42f7222ccfb642b8c0ec07cfbe23492ef9bcac982cedd00311c77ae25f17af772628'
-        '43f10764ba04537e219451bb030cac9fdaef92c7d36bfb51c9bf1838ae8a8e6b6f202803b2c33ecfde56444107fa883ae1c10b9abce451cc5bd67b3d55542899'
+b2sums=('4999251820375def8ab39ea74fd62f08ca190a048b1cc431ec5dbe048d7f61f5af2d0b6264636d240f32bae64def9249287b6ebd31bf89ca047a75d193b5198d'
+        '9f20fff7e27f68fed87e2a0fd3092d9f0f2775017fcdbba29936583237dc53ac56cc7194eb61acd861a701f0a41414e733ec92041a4575ea22645724b01f87c8'
+        'c17968ec4ccd7fc4f89cc6ad1a42e0dbd09e4adc5cdb26ca3ad6a0468a12b737f95209312456d5bae6a7e8c212d3edc5193c7ff1e371a8f8c968dd30a2eb61f0'
         'd0b5a7a0bf638c93cc763c45164a38a55223c6349f92997e0136717fca41fb57891b73d8e599381940cd6d783a2a75088b3204b4d8fb86e2a108101b21625224'
-        'aba53143ab07c080e0429ac7dd3f564a994882aef63f314abb09dcc90df0cd2657066b791d298c7449f810cc2f8310102c58238623c69f867b5a6aa42afa931f'
-        'aed9f5fef17f4e7cd6bc45469dce9f210fb228edd31f483b98de797897ebff67702a784c34e018123f344c03665775293f9551ddc17a1bcfd437e3fa450d20ee'
-        '52b28c591fe4070306b98f67020e097f0ea186bb7f017a33499e983af35348eab1f2be28a2dfbb3c4f1a9b04d552d0cd9f1d8e00812ca111450fcb5b1f2e6f28'
-        '28edd4a776efa9292391ace92a0878062245f64d9fb3c9688f48348c7a8e6a477f9be7e61df592ec18c5a85e713e5b37adc08fa42f989fc60f9aefc02ef02e4e'
+        'ff4735c5924bb8c8fb30d12c955eaf6f2d37ee11830b708d321e1ee4d6f24334833e023ccba22091307070dc33ae202cec46948d56aea155c488b975952377b4'
+        '06fbaecb19f5d9931b37bb20bcf30af6adbea42adecda38359987e5739c4526f7ff230611403d1f7eb6d428dad50e7fddabc5c0617c60081b0fd2b91d95f5c4c'
+        '2ba3fd8e0b7816eeff0b56a71deea99ca35ab3a8e6c6f96a5c40c04951c45d7078bf25a169d9a1724769c3679ea8e8ec40967fe2242fcf9763ff3ca0c6b04546'
         '2853e6975cb9ea481918a85d63945cb50b421d7bb60dc1d511a42fe0a3bc06244bd16293f2674504f1ba6e6f3a15f3f19fcfac2a0ea06df9775d5f3f0afec171'
-        'be0be4daed29fa02b38c2a92d44611db38e58888e25784432f95a8fc4d17e0d3e2f40c2d0b4f6c9ea7f471a423c6925f839cc237c32f376e1481a9be354de79e'
-        '2fd0930475452aeb1d4ca2a46341afc7b860bdb86d9c0961be771120dd04803afdd6d50fb733e67a587ec410e3d31cdd327a6142eaa19621a1eb3b42a7154516'
-        '764e6b9c5d3b7b6d6a252ff6d6fbbc1b7c7690307b3dc291ab7b984fa7bbbe6082a7a1c489e55ace75e9c288576ccee7fe9f3ef3756af7b34c1422e749e8ab48'
-        '597d7df4d9d13aac5cce5af888637c0055d2ded860f947856c9e6f0496c8937eb61e3cc3e665932841921a3dc3d693ef540f66c5c2f3fad74842175056728707'
-        '24f599d5efd2a375b3d184618a70ef716c6f55550f503c9e4de98b6de8546ac6ad7e807016f32a6464d4e54b9256921a2b53996b2940a9b79fbda817342b8f5a'
-        'b63b83812fccc293a35e75782a58baf4a16afac31c74c5dd80e17c5d6d0832849e7acf47770cb2964def0b313fcf23ae21852f839b51c124be43084981727f18'
+        '71528aa514bc60558e7580d7d4f82ea81e5e8a74b0f0031d81181ad2775b31e7e3316969b2ae914a5967c07d6ec9cf8ddcd40955ce36903deb46f0b4a29440a6'
+        'd5cf981b0fffe603b8f898db14daad3eac12813ea0f83448fb87e05370df51c5014beab768076e6853e2db9357ac40b5e233ed4a62bfb9d63a51da53247d7075'
+        '376c8595fac69e67a77314c9398f3d60306755d49f46eaff2e42cadce50771c78e3391f472f5fa37b4c40a4f9a40b5eb7a4af3b8b14f63f5ab4b283f7a9dbeb2'
+        '7e4811198e1e890a5f56b9ee41e953230731b365bac6688142901919c55a1565ad45de48fc89a32792ed896a172493aad2b078f8d0015e6dc09a57c755c80286'
+        'df28322109f7d77470e8d2fcb6f9d80eace66457b1abd5bb10a25d0e29650d4bd6fac020fdbdc76c3e1b8b91d492e2fe70a5d954d77786ae5171b1b6e568cf4e'
+        '52b35a87bbadd8f19dcb05e68ac18be9e5d04d40ec6f5c2e687fa918083200a25f6673bb2d5d34179f2f9d3fc9a390a3a50f670379309e57c584310fa457afdd'
+        'd4a951537391e91998185b3732bae5333416477b3abaedd2121926295afdc201815525adc41382c90246212837a6e5886baf5c725d1e79479a841cc7a7b3c150'
+        'c343132501ee751da6407a7722b7d4e59d2ea8b5b5a554a9b16aa3f3ab281d061fac1248154fbd536153d56ea053e49119180c5aa0d0ba71ef6f9062d1c2c119'
+        'afe334fe99ae6a37ab330dc59165262ed4ea645ce88bbf37265ef2d34b5c4f6a2df79c8b58e04e18b3dfa20aedbc1facdc8a15742ebede7352b3d24bfa4f7eb4'
+        '4788c71bb9e5886a0f2a484eae44eaa2ca8038f45b51323a013cd5a38f45c00e6ca2af3b4afdc09d4fb378030be93c54f2413246306add494e4eb7c63abdd68e'
+        'a69fcdc0fa5d708318e574db7f629e0da71a69a1a7051f934367e6852c5beb99fb70e38053503efddd802794afa52ce7eac4c599826d03b4ab0e4d10490ccabb'
         '36b41b06f930926efee55d9160ff73579d1147f997f89e24438bba1a6687b16a1b7a64920de67ff8993e162e904348345e23a19c4ad3b6431c512d7a00dcae48'
+        '8400c49113290f4a5a2fca65adbbbe4a728edcdf49238a31ad765db92de97c280ebe08d4d398498ba3add59b969224be26660f3759f796cbc638e55fd69fab3d'
+        'ddcb28bd32ef17cc9455f61af10e02f3c515d919fe4e8039cd7d7f9b5fce9551b1ad113b59edbafeb21b18c5c2512144a4fc0f564d7fd2f99b844aba0f288e54'
         '33c70b59e828825904e520e1bee345dd707200c5a5bd79260a6a5d90b4ec52846c91547129cab7fef10e49b424a82910da98c2dec355d3a2a93ef13f322741fd'
-        'de2b885964a53429321afe5df6808b01bfae5f4a0eac926e245849d8875d071c0630774a9bae0d77735371cf27ee281bdea800a671b699ce49a72468663a4d20'
-        '119beeae8a6bf5320c1c5c213555750adfceb5b8133f3c6fb94dc990221816a9021a2264a3cf7cec6316196ffe61923c3d1acb91797a4ad9737d518ce26129af'
-        '9496bcf15df84922bb140c20c8a7389c63d28a8c5979154dcc556308caffe0f98049f4074c33cc9dfe524a082d13b8a2b871f54adb428ef39ab410490aafa69c')
+        '4b91b59799588016f89c840e12dfdeeec033f206e3d2b89b40886289a5dc5be3661250578347bc451e1e369d56a64ac24e87630bd8f6c17a0b2a2b85412fed9f'
+        '1cdac88541ddf5c0571412a19e1770178ee52867d0f6beb6d00d51edfa13edee5f2840583faf945d6c8c387477f99ac1b40153fcd62e02f6fb7af772992f8737'
+        '8183e667f30688764ee8013291efa7d03c32f783cf294d74bd1b367aa2c17ec745e72d4403d4111dc0bf03973c734a5b4b0c73c477587cce422ef3bdc417a77e')

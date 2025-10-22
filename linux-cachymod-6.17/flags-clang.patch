@@ -2,7 +2,7 @@
 diff -uarp a/Makefile b/Makefile
 --- a/Makefile
 +++ b/Makefile
-@@ -880,6 +880,16 @@ KBUILD_CFLAGS += $(call cc-option,-fmodu
+@@ -887,6 +887,16 @@ KBUILD_CFLAGS += $(call cc-option,-fmodu
  KBUILD_RUSTFLAGS += -Cdebug-assertions=$(if $(CONFIG_RUST_DEBUG_ASSERTIONS),y,n)
  KBUILD_RUSTFLAGS += -Coverflow-checks=$(if $(CONFIG_RUST_OVERFLOW_CHECKS),y,n)
  
@@ -11,9 +11,9 @@ diff -uarp a/Makefile b/Makefile
 +		   -mllvm=-enable-pipeliner \
 +		   -mllvm=-inline-threshold=1000 \
 +		   -mllvm=-unroll-threshold=50
-+endif
 +ifdef CONFIG_LTO_CLANG
 +KBUILD_LDFLAGS	+= --lto-O3 --lto-CGO3 --thinlto-jobs=6
++endif
 +endif
 +
  # Tell gcc to never replace conditional load with a non-conditional one

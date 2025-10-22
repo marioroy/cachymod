@@ -8,9 +8,17 @@ set -e
 # Build options. Unless selections given, answer "yes/y/1", "no/n/0" or "".
 ###############################################################################
 
-# Custom kernel suffix
-# Specify string or set to "auto" for automatic suffix {gcc,clang,lto}
-# Set to blank value for no kernel suffix
+# Select CPU scheduler { eevdf, bore, rt, bmq }
+# eevdf: EEVDF Scheduler (use with the linux-cgroup-always repo, optional)
+# bore:  EEVDF Scheduler with Burst-Oriented Response Enhancer
+# rt:    EEVDF Scheduler with real-time preemption enabled
+# bmq:   BitMap Queue Scheduler
+: "${_cpusched:=eevdf}"
+
+# Custom kernel suffix, specify uniquely if building multiple CachyMod kernels
+# E.g. { blank value, bmq, bore, rt } or { 617, 617-bmq, 617-bore, 617-rt }
+# Or set to "auto" for automatic suffix { gcc, clang, lto }
+# Or set to blank value for no kernel suffix
 : "${_kernel_suffix:=}"
 
 # Prevent AVX2 floating-point instructions. (Clear and XanMod default)
@@ -36,6 +44,7 @@ set -e
 : "${_localmodcfg_path:=$HOME/.config/modprobed.db}"
 
 # Include the modules in minimal-modprobed.db (use with _localmodcfg)
+# This is the diet db from Linux-tkg
 : "${_localmodcfg_minimal:=no}"
 
 # Tweak kernel options prior to a build via nconfig, gconfig or xconfig
@@ -61,12 +70,11 @@ set -e
 # hardware, lower consistency. Idle (without rcu_nocb_cpu) may reduce stutters.
 : "${_ticktype:=full}"
 
-# Select preemption { dynamic, voluntary, full, lazy, rt }
+# Select preemption { dynamic, voluntary, full, lazy }
 # Select "dynamic" for runtime selectable none, voluntary, (full), or lazy.
 # Select "voluntary" for desktop, matching the Clear kernel preemption.
 # Select "full" for low-latency desktop, matching the CachyOS kernel preemption.
-# Select "lazy" for low-latency desktop, matching the CachyOS RT kernel preemption.
-# Select "rt" for real-time preemption, running time-sensitive instruments.
+# Select "lazy" for low-latency desktop, for slightly better throughput.
 : "${_preempt:=full}"
 
 # Select CPU compiler optimization
@@ -89,8 +97,8 @@ set -e
 : "${_autofdo:=yes}"
 
 # Add extra sources here: opt-in for the USB pollrate patch
-# Refer to https://github.com/GloriousEggroll/Linux-Pollrate-Patch
 # E.g. "${_extra_patch_or_url1:=1010-usb-pollrate.patch}"
+# Refer to https://github.com/GloriousEggroll/Linux-Pollrate-Patch
 # The 1???-*.patch files are ignored by git
 : "${_extra_patch_or_url0:=}"
 : "${_extra_patch_or_url1:=}"
@@ -119,6 +127,7 @@ export _localmodcfg _kernel_suffix _prevent_avx2 _runtrim_script
 export _localmodcfg_path _makenconfig _makegconfig _makexconfig
 export _localmodcfg_minimal _hugepage _HZ_ticks _ticktype _preempt
 export _buildtype _build_debug _autofdo _processor_opt _tcp_bbr3
+export _cpusched
 
 # Build kernel and headers packages
 time nice -n 15 ionice -n 1 makepkg -scf --cleanbuild --skipinteg || exit 1

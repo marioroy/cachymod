@@ -53,7 +53,7 @@ diff -uarp a/Makefile b/Makefile
  KBUILD_USERCFLAGS  := $(KBUILD_USERHOSTCFLAGS) $(USERCFLAGS)
  KBUILD_USERLDFLAGS := $(USERLDFLAGS)
  
-@@ -577,7 +577,7 @@ LINUXINCLUDE    := \
+@@ -584,7 +584,7 @@ LINUXINCLUDE    := \
  KBUILD_AFLAGS   := -D__ASSEMBLY__ -fno-PIE
  
  KBUILD_CFLAGS :=
@@ -100,24 +100,14 @@ Subject: [PATCH 08/20] XANMOD: block/mq-deadline: Increase write priority to
 
 Signed-off-by: Alexandre Frade <kernel@xxxxxxxxxx>
 ---
- block/mq-deadline.c | 7 +++++--
- 1 file changed, 5 insertions(+), 2 deletions(-)
+ block/mq-deadline.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/block/mq-deadline.c b/block/mq-deadline.c
-index 2edf1cac06d5..f3e38471d140 100644
+index b9b7cdf1d3c9..eb2007d3d5d9 100644
 --- a/block/mq-deadline.c
 +++ b/block/mq-deadline.c
-@@ -4,6 +4,9 @@
-  *  for the blk-mq scheduling framework
-  *
-  *  Copyright (C) 2016 Jens Axboe <axboe@kernel.dk>
-+ *
-+ *  Tunes for responsiveness by Alexandre Frade
-+ *  (C) 2022 Alexandre Frade <kernel@xanmod.org>
-  */
- #include <linux/kernel.h>
- #include <linux/fs.h>
-@@ -28,13 +31,13 @@
+@@ -28,7 +28,7 @@
   * See Documentation/block/deadline-iosched.rst
   */
  static const int read_expire = HZ / 2;  /* max time before a read is submitted. */
@@ -126,13 +116,6 @@ index 2edf1cac06d5..f3e38471d140 100644
  /*
   * Time after which to dispatch lower priority requests even if higher
   * priority requests are pending.
-  */
- static const int prio_aging_expire = 10 * HZ;
--static const int writes_starved = 2;    /* max times reads can starve a write */
-+static const int writes_starved = 1;    /* max times reads can starve a write */
- static const int fifo_batch = 16;       /* # of sequential requests treated as one
- 				     by the above parameters. For throughput. */
- 
 -- 
 2.47.2
 
@@ -147,10 +130,10 @@ Signed-off-by: Alexandre Frade <kernel@xxxxxxxxxx>
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/block/mq-deadline.c b/block/mq-deadline.c
-index f3e38471d140..79e0e54542c7 100644
+index eb2007d3d5d9..4463f6736cf6 100644
 --- a/block/mq-deadline.c
 +++ b/block/mq-deadline.c
-@@ -604,7 +604,7 @@ static int dd_init_sched(struct request_queue *q, struct elevator_type *e)
+@@ -591,7 +591,7 @@ static int dd_init_sched(struct request_queue *q, struct elevator_queue *eq)
  	dd->fifo_expire[DD_READ] = read_expire;
  	dd->fifo_expire[DD_WRITE] = write_expire;
  	dd->writes_starved = writes_starved;
@@ -173,10 +156,10 @@ Signed-off-by: Alexandre Frade <kernel@xxxxxxxxxx>
  1 file changed, 2 insertions(+), 1 deletion(-)
 
 diff --git a/include/linux/blkdev.h b/include/linux/blkdev.h
-index 181a0deadc9e..56031f7aa114 100644
+index fe1797bbec42..96deb7a7a8fc 100644
 --- a/include/linux/blkdev.h
 +++ b/include/linux/blkdev.h
-@@ -656,7 +656,8 @@ enum {
+@@ -660,7 +660,8 @@ enum {
  	QUEUE_FLAG_MAX
  };
  
@@ -200,10 +183,10 @@ Signed-off-by: Alexandre Frade <kernel@xxxxxxxxxx>
  1 file changed, 2 insertions(+), 8 deletions(-)
 
 diff --git a/block/blk-wbt.c b/block/blk-wbt.c
-index a50d4cd55f41..d5a3943960a8 100644
+index eb8037bae0bd..fe2d29903ae2 100644
 --- a/block/blk-wbt.c
 +++ b/block/blk-wbt.c
-@@ -730,14 +730,8 @@ EXPORT_SYMBOL_GPL(wbt_enable_default);
+@@ -731,14 +731,8 @@ EXPORT_SYMBOL_GPL(wbt_enable_default);
  
  u64 wbt_default_latency_nsec(struct request_queue *q)
  {
@@ -234,7 +217,7 @@ Signed-off-by: Alexandre Frade <kernel@xxxxxxxxxx>
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/fs/dcache.c b/fs/dcache.c
-index 03d58b2d4fa3..8750a35120d0 100644
+index 60046ae23d51..1d1b67910b29 100644
 --- a/fs/dcache.c
 +++ b/fs/dcache.c
 @@ -73,7 +73,7 @@
@@ -248,8 +231,6 @@ index 03d58b2d4fa3..8750a35120d0 100644
  unsigned long vfs_pressure_ratio(unsigned long val)
 -- 
 2.47.2
-
-# 0002-ZEN-dm-crypt-Disable-workqueues-for-crypto-ops.patch
 
 Subject: [PATCH 2/2] ZEN: dm-crypt: Disable workqueues for crypto ops
 
@@ -267,7 +248,7 @@ Signed-off-by: Alexandre Frade <kernel@xxxxxxxxxx>
  1 file changed, 3 insertions(+)
 
 diff --git a/drivers/md/dm-crypt.c b/drivers/md/dm-crypt.c
-index 9dfdb63220d7..1ef66e377c46 100644
+index 5ef43231fe77..c6f9815830e1 100644
 --- a/drivers/md/dm-crypt.c
 +++ b/drivers/md/dm-crypt.c
 @@ -3305,6 +3305,9 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
@@ -284,10 +265,10 @@ index 9dfdb63220d7..1ef66e377c46 100644
 2.47.2
 
 Curated patches from SUNLIGHT Linux
-https://github.com/sunlightlinux/linux-sunlight/commits/6.16
+https://github.com/sunlightlinux/linux-sunlight/commits/6.17
 
 SUNLIGHT: x86/tsc: Use rdtsc_ordered() when RDTSCP or LFENCE_RDTSC are supported
-https://github.com/sunlightlinux/linux-sunlight/commit/4c0acd375c
+https://github.com/sunlightlinux/linux-sunlight/commit/1966f2297775
 
 On AMD processors the TSC has been reported drifting on and off for
 various platforms. This has been root caused to becaused by out of order
@@ -317,7 +298,7 @@ diff --git a/arch/x86/include/asm/tsc.h b/arch/x86/include/asm/tsc.h
 2.43.0
 
 SUNLIGHT: Change default value for wq_cpu_intensive_thresh_us
-https://github.com/sunlightlinux/linux-sunlight/commit/d236e01e2d
+https://github.com/sunlightlinux/linux-sunlight/commit/3e7ec6c34073
 
 Description:
  - 10ms -> 30ms (edit: change to 20ms)
@@ -363,7 +344,7 @@ diff --git a/kernel/workqueue.c b/kernel/workqueue.c
 
 SUNLIGHT: sched/core: Further optimize sched_move_task by avoiding
   lock acquisition when autogroup is enabled
-https://github.com/sunlightlinux/linux-sunlight/commit/f134ad8af8
+https://github.com/sunlightlinux/linux-sunlight/commit/05a5c9633543
 
 Description:
  - Some sched_move_task calls are useless because task_struct->sched_task_group
@@ -392,7 +373,7 @@ diff --git a/kernel/sched/core.c b/kernel/sched/core.c
 index 2e61c9707bea..fa7b0d1e8be6 100644
 --- a/kernel/sched/core.c
 +++ b/kernel/sched/core.c
-@@ -9051,7 +9051,7 @@ void sched_release_group(struct task_group *tg)
+@@ -9187,7 +9187,7 @@ void sched_release_group(struct task_group *tg)
  	spin_unlock_irqrestore(&task_group_lock, flags);
  }
  
@@ -401,7 +382,7 @@ index 2e61c9707bea..fa7b0d1e8be6 100644
  {
  	struct task_group *tg;
  
-@@ -9063,8 +9063,13 @@ static void sched_change_group(struct task_struct *tsk)
+@@ -9199,8 +9199,13 @@ static void sched_change_group(struct task_struct *tsk)
  	tg = container_of(task_css_check(tsk, cpu_cgrp_id, true),
  			  struct task_group, css);
  	tg = autogroup_task_group(tsk, tg);
@@ -416,7 +397,7 @@ index 2e61c9707bea..fa7b0d1e8be6 100644
  #ifdef CONFIG_FAIR_GROUP_SCHED
  	if (tsk->sched_class->task_change_group)
  		tsk->sched_class->task_change_group(tsk);
-@@ -9073,6 +9078,18 @@ static void sched_change_group(struct task_struct *tsk)
+@@ -9209,6 +9214,18 @@ static void sched_change_group(struct task_struct *tsk)
  		set_task_rq(tsk, task_cpu(tsk));
  }
  
@@ -435,7 +416,7 @@ index 2e61c9707bea..fa7b0d1e8be6 100644
  /*
   * Change task's runqueue when it moves between groups.
   *
-@@ -9082,10 +9099,14 @@ static void sched_change_group(struct task_struct *tsk)
+@@ -9218,10 +9235,14 @@ static void sched_change_group(struct task_struct *tsk)
   */
  void sched_move_task(struct task_struct *tsk, bool for_autogroup)
  {
@@ -450,7 +431,7 @@ index 2e61c9707bea..fa7b0d1e8be6 100644
  	CLASS(task_rq_lock, rq_guard)(tsk);
  	rq = rq_guard.rq;
  
-@@ -9099,7 +9120,7 @@ void sched_move_task(struct task_struct *tsk, bool for_autogroup)
+@@ -9235,7 +9256,7 @@ void sched_move_task(struct task_struct *tsk, bool for_autogroup)
  	if (running)
  		put_prev_task(rq, tsk);
  
@@ -463,7 +444,7 @@ index 2e61c9707bea..fa7b0d1e8be6 100644
 2.43.0
 
 SUNLIGHT: sched: Add comprehensive micro-optimizations for scheduler performance
-https://github.com/sunlightlinux/linux-sunlight/commit/5d7202ae71
+https://github.com/sunlightlinux/linux-sunlight/commit/c755f440829c
 
 Description:
  - Implement cache-line alignment and prefetch optimizations for critical
@@ -484,10 +465,10 @@ Signed-off-by: Ionut Nechita <ionut_n2001@xxxxxxxxxx>
  2 files changed, 48 insertions(+), 18 deletions(-)
 
 diff --git a/kernel/sched/core.c b/kernel/sched/core.c
-index e1e9a65bd64b..f585830c2c52 100644
+index fa7b0d1e8be6..4489a5673efa 100644
 --- a/kernel/sched/core.c
 +++ b/kernel/sched/core.c
-@@ -9080,13 +9080,22 @@ static void sched_change_group(struct task_struct *tsk, struct task_group *group
+@@ -9216,13 +9216,22 @@ static void sched_change_group(struct task_struct *tsk, struct task_group *group
  
  static struct task_group *sched_needs_group_change(struct task_struct *tsk)
  {
@@ -512,7 +493,7 @@ index e1e9a65bd64b..f585830c2c52 100644
  	return new_group;
  }
  
-@@ -9107,16 +9116,29 @@ void sched_move_task(struct task_struct *tsk, bool for_autogroup)
+@@ -9243,16 +9252,29 @@ void sched_move_task(struct task_struct *tsk, bool for_autogroup)
  	if (!(new_group = sched_needs_group_change(tsk)))
  		return;
  
@@ -543,7 +524,7 @@ index e1e9a65bd64b..f585830c2c52 100644
  	if (running)
  		put_prev_task(rq, tsk);
  
-@@ -9124,8 +9146,12 @@ void sched_move_task(struct task_struct *tsk, bool for_autogroup)
+@@ -9260,8 +9282,12 @@ void sched_move_task(struct task_struct *tsk, bool for_autogroup)
  	if (!for_autogroup)
  		scx_cgroup_move_task(tsk);
  
@@ -558,10 +539,10 @@ index e1e9a65bd64b..f585830c2c52 100644
  		set_next_task(rq, tsk);
  		/*
 diff --git a/kernel/sched/sched.h b/kernel/sched/sched.h
-index 02fcdce61627..a01f1c235647 100644
+index c2bebc6f1035..a702b076497c 100644
 --- a/kernel/sched/sched.h
 +++ b/kernel/sched/sched.h
-@@ -644,13 +644,13 @@ struct balance_callback {
+@@ -673,13 +673,13 @@ struct balance_callback {
  
  /* CFS-related fields in a runqueue */
  struct cfs_rq {
@@ -577,7 +558,7 @@ index 02fcdce61627..a01f1c235647 100644
  	u64			avg_load;
  
  	u64			min_vruntime;
-@@ -794,8 +794,8 @@ static inline int rt_bandwidth_enabled(void)
+@@ -821,8 +821,8 @@ static inline int rt_bandwidth_enabled(void)
  
  /* Real-Time classes' related field in a runqueue: */
  struct rt_rq {
@@ -586,9 +567,9 @@ index 02fcdce61627..a01f1c235647 100644
 +	struct rt_prio_array	active ____cacheline_aligned;
 +	unsigned int		rt_nr_running ____cacheline_aligned;
  	unsigned int		rr_nr_running;
- #if defined CONFIG_SMP || defined CONFIG_RT_GROUP_SCHED
  	struct {
-@@ -1099,9 +1099,10 @@ DECLARE_STATIC_KEY_FALSE(sched_uclamp_used);
+ 		int		curr; /* highest queued rt task prio */
+@@ -1115,9 +1115,10 @@ DECLARE_STATIC_KEY_FALSE(sched_uclamp_used);
   */
  struct rq {
  	/* runqueue lock: */
@@ -601,7 +582,7 @@ index 02fcdce61627..a01f1c235647 100644
  #ifdef CONFIG_NUMA_BALANCING
  	unsigned int		nr_numa_running;
  	unsigned int		nr_preferred_running;
-@@ -1129,9 +1130,9 @@ struct rq {
+@@ -1141,9 +1142,9 @@ struct rq {
  #define UCLAMP_FLAG_IDLE 0x01
  #endif
  
@@ -614,15 +595,16 @@ index 02fcdce61627..a01f1c235647 100644
  #ifdef CONFIG_SCHED_CLASS_EXT
  	struct scx_rq		scx;
  #endif
-@@ -1155,17 +1156,17 @@ struct rq {
+@@ -1171,7 +1172,7 @@ struct rq {
  	union {
  		struct task_struct __rcu *donor; /* Scheduler context */
  		struct task_struct __rcu *curr;  /* Execution context */
 -	};
 +	} ____cacheline_aligned;
+ #endif
  	struct sched_dl_entity	*dl_server;
  	struct task_struct	*idle;
- 	struct task_struct	*stop;
+@@ -1179,10 +1180,10 @@ struct rq {
  	unsigned long		next_balance;
  	struct mm_struct	*prev_mm;
  
@@ -635,7 +617,7 @@ index 02fcdce61627..a01f1c235647 100644
  	u64			clock_pelt;
  	unsigned long		lost_idle_time;
  	u64			clock_pelt_idle;
-@@ -2276,7 +2277,8 @@ static inline int task_current(struct rq *rq, struct task_struct *p)
+@@ -2281,7 +2282,8 @@ static inline int task_current(struct rq *rq, struct task_struct *p)
   */
  static inline int task_current_donor(struct rq *rq, struct task_struct *p)
  {
@@ -644,8 +626,8 @@ index 02fcdce61627..a01f1c235647 100644
 +	return likely(rq->donor == p);
  }
  
- static inline int task_on_cpu(struct rq *rq, struct task_struct *p)
-@@ -2290,7 +2292,9 @@ static inline int task_on_cpu(struct rq *rq, struct task_struct *p)
+ static inline bool task_is_blocked(struct task_struct *p)
+@@ -2299,7 +2301,9 @@ static inline int task_on_cpu(struct rq *rq, struct task_struct *p)
  
  static inline int task_on_rq_queued(struct task_struct *p)
  {
@@ -660,7 +642,7 @@ index 02fcdce61627..a01f1c235647 100644
 2.43.0
 
 SUNLIGHT: x86/irq: Add comprehensive ultra-low latency optimizations
-https://github.com/sunlightlinux/linux-sunlight/commit/efb542a398
+https://github.com/sunlightlinux/linux-sunlight/commit/d0777e64b8f6
 
 Description:
  - Implement extensive IRQ handling micro-optimizations for ultra-low latency
@@ -933,7 +915,7 @@ index ca78dce39361..ed7859d1a6d8 100644
 2.43.0
 
 SUNLIGHT: timer: Implement ultra-low latency timer subsystem optimizations
-https://github.com/sunlightlinux/linux-sunlight/commit/389aa31c37
+https://github.com/sunlightlinux/linux-sunlight/commit/3a12486d47fa
 
 Description:
  - Implement comprehensive ULL optimizations for the timer subsystem:
@@ -978,7 +960,7 @@ diff --git a/kernel/sched/core.c b/kernel/sched/core.c
 index f585830c2c52..144cd8758c6b 100644
 --- a/kernel/sched/core.c
 +++ b/kernel/sched/core.c
-@@ -5341,6 +5341,14 @@ static __always_inline struct rq *
+@@ -5301,6 +5301,14 @@ static __always_inline struct rq *
  context_switch(struct rq *rq, struct task_struct *prev,
  	       struct task_struct *next, struct rq_flags *rf)
  {
@@ -993,7 +975,7 @@ index f585830c2c52..144cd8758c6b 100644
  	prepare_task_switch(rq, prev, next);
  
  	/*
-@@ -5360,7 +5368,7 @@ context_switch(struct rq *rq, struct task_struct *prev,
+@@ -5320,7 +5328,7 @@ context_switch(struct rq *rq, struct task_struct *prev,
  	 * switch_mm_cid() needs to be updated if the barriers provided
  	 * by context_switch() are modified.
  	 */
@@ -1002,7 +984,7 @@ index f585830c2c52..144cd8758c6b 100644
  		enter_lazy_tlb(prev->active_mm, next);
  
  		next->active_mm = prev->active_mm;
-@@ -5369,6 +5377,10 @@ context_switch(struct rq *rq, struct task_struct *prev,
+@@ -5329,6 +5337,10 @@ context_switch(struct rq *rq, struct task_struct *prev,
  		else
  			prev->active_mm = NULL;
  	} else {                                        // to user
@@ -1013,7 +995,7 @@ index f585830c2c52..144cd8758c6b 100644
  		membarrier_switch_mm(rq, prev->active_mm, next->mm);
  		/*
  		 * sys_membarrier() requires an smp_mb() between setting
-@@ -5381,7 +5393,7 @@ context_switch(struct rq *rq, struct task_struct *prev,
+@@ -5341,7 +5353,7 @@ context_switch(struct rq *rq, struct task_struct *prev,
  		switch_mm_irqs_off(prev->active_mm, next->mm, next);
  		lru_gen_use_mm(next->mm);
  
@@ -1168,6 +1150,130 @@ index 0f8e28abbd7f..778d61257645 100644
 -- 
 2.43.0
 
+sched/deadline: Avoid dl_server boosting with expired deadline
+https://lore.kernel.org/all/20251007122904.31611-1-gmonaco@redhat.com/
+
+Recent changes to the deadline server leave it running when the system
+is idle. If the system is idle for longer than the dl_server period and
+the first scheduling occurs after a fair task wakes up, the algorithm
+picks the server as the earliest deadline (in the past) and that boosts
+the fair task that just woke up while:
+ * the deadline is in the past
+ * the server consumed all its runtime (in background)
+ * there is no starvation (idle for about a period)
+
+Prevent the server from boosting a task when the deadline is in the
+past. Instead, replenish a new period and start the server as deferred.
+
+Fixes: 4ae8d9aa9f9d ("sched/deadline: Fix dl_server getting stuck")
+To: Juri Lelli <juri.lelli@xxxxxxxxxx>
+Cc: Clark Williams <williams@xxxxxxxxxx>
+Signed-off-by: Gabriele Monaco <gmonaco@xxxxxxxxxx>
+
+diff --git a/kernel/sched/deadline.c b/kernel/sched/deadline.c
+index 72c1f72463c7..b3e3d506a18d 100644
+--- a/kernel/sched/deadline.c
++++ b/kernel/sched/deadline.c
+@@ -2371,6 +2371,17 @@ static struct task_struct *__pick_task_dl(struct rq *rq)
+ 			dl_server_stop(dl_se);
+ 			goto again;
+ 		}
++		/*
++		 * If the CPU was idle for long enough time and wakes up
++		 * because of a fair task, the dl_server may run after its
++		 * period elapsed. Replenish a new period as deferred, since we
++		 * are clearly not handling starvation here.
++		 */
++		if (dl_time_before(dl_se->deadline, rq_clock(rq))) {
++			dl_se->dl_defer_running = 0;
++			replenish_dl_new_period(dl_se, rq);
++			goto again;
++		}
+ 		rq->dl_server = dl_se;
+ 	} else {
+ 		p = dl_task_of(dl_se);
+-- 
+2.51.0
+
+Fix "sched/core: Tweak wait_task_inactive() to force dequeue sched_delayed tasks"
+https://lore.kernel.org/all/20250925133310.1843863-1-matt@readmodwrite.com/
+https://lore.kernel.org/all/105ae6f1-f629-4fe7-9644-4242c3bed035@amd.com/
+
+From Matt Fleming:
+  If we dequeue a task (task B) that was sched delayed then that task is
+  definitely no longer on the rq and not tracked in the rbtree.
+  Unfortunately, task_on_rq_queued(B) will still return true because
+  dequeue_task() doesn't update p->on_rq.
+
+From John Stultz:
+  There are two spots where we might exit dequeue_entities()
+  early when cfs_rq_throttled(rq), so maybe that's what's catching us
+  here?
+
+From K Prateek Nayak:
+  That could very likely be it.
+
+  Matt, if possible can you try the patch attached below to check if the
+  bailout for throttled hierarchy is indeed the root cause. Thanks in
+  advance.
+
+From Matt Fleming:
+  I've been running our reproducer with this patch for the last few
+  hours without any issues, so the fix looks good to me.
+
+Tested-by: Matt Fleming <mfleming@xxxxxxxxxx>
+
+diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
+index 8ce56a8d507f..f0a4d9d7424d 100644
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -6982,6 +6982,7 @@ static int dequeue_entities(struct rq *rq, struct sched_entity *se, int flags)
+ 	int h_nr_runnable = 0;
+ 	struct cfs_rq *cfs_rq;
+ 	u64 slice = 0;
++	int ret = 0; /* XXX: Do we care if ret is 0 vs 1 since we only check ret < 0? */
+ 
+ 	if (entity_is_task(se)) {
+ 		p = task_of(se);
+@@ -7011,7 +7012,7 @@ static int dequeue_entities(struct rq *rq, struct sched_entity *se, int flags)
+ 
+ 		/* end evaluation on encountering a throttled cfs_rq */
+ 		if (cfs_rq_throttled(cfs_rq))
+-			return 0;
++			goto out;
+ 
+ 		/* Don't dequeue parent if it has other entities besides us */
+ 		if (cfs_rq->load.weight) {
+@@ -7052,7 +7053,7 @@ static int dequeue_entities(struct rq *rq, struct sched_entity *se, int flags)
+ 
+ 		/* end evaluation on encountering a throttled cfs_rq */
+ 		if (cfs_rq_throttled(cfs_rq))
+-			return 0;
++			goto out;
+ 	}
+ 
+ 	sub_nr_running(rq, h_nr_queued);
+@@ -7061,6 +7062,8 @@ static int dequeue_entities(struct rq *rq, struct sched_entity *se, int flags)
+ 	if (unlikely(!was_sched_idle && sched_idle_rq(rq)))
+ 		rq->next_balance = jiffies;
+ 
++	ret = 1;
++out:
+ 	if (p && task_delayed) {
+ 		WARN_ON_ONCE(!task_sleep);
+ 		WARN_ON_ONCE(p->on_rq != 1);
+@@ -7076,7 +7079,7 @@ static int dequeue_entities(struct rq *rq, struct sched_entity *se, int flags)
+ 		__block_task(rq, p);
+ 	}
+ 
+-	return 1;
++	return ret;
+ }
+ 
+ /*
+-- 
+2.50.1
+
 sched/fair: do not scan twice in detach_tasks()
 https://lore.kernel.org/all/20250722102600.25976-1-shijie@os.amperecomputing.com/
 
@@ -1175,7 +1281,7 @@ diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
 index 7cc9d50e3e11..9c1f21d59b5c 100644
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -11813,12 +11813,15 @@ static int sched_balance_rq(int this_cpu, struct rq *this_rq,
+@@ -11712,12 +11712,15 @@ static int sched_balance_rq(int this_cpu, struct rq *this_rq,
  		 * still unbalanced. ld_moved simply stays zero, so it is
  		 * correctly treated as an imbalance.
  		 */
@@ -1201,15 +1307,15 @@ Bluetooth adapters of many Acer laptops don't work without it
 diff -uarp a/drivers/bluetooth/btusb.c b/drivers/bluetooth/btusb.c
 --- a/drivers/bluetooth/btusb.c
 +++ b/drivers/bluetooth/btusb.c
-@@ -572,6 +572,8 @@ static const struct usb_device_id quirks
+@@ -574,6 +574,8 @@ static const struct usb_device_id quirks
  						     BTUSB_WIDEBAND_SPEECH },
  	{ USB_DEVICE(0x13d3, 0x3591), .driver_info = BTUSB_REALTEK |
  						     BTUSB_WIDEBAND_SPEECH },
 +	{ USB_DEVICE(0x13d3, 0x3601), .driver_info = BTUSB_REALTEK |
 +						     BTUSB_WIDEBAND_SPEECH },
- 	{ USB_DEVICE(0x0489, 0xe123), .driver_info = BTUSB_REALTEK |
+ 	{ USB_DEVICE(0x13d3, 0x3618), .driver_info = BTUSB_REALTEK |
  						     BTUSB_WIDEBAND_SPEECH },
- 	{ USB_DEVICE(0x0489, 0xe125), .driver_info = BTUSB_REALTEK |
+ 	{ USB_DEVICE(0x0489, 0xe123), .driver_info = BTUSB_REALTEK |
 -- 
 2.40.2
 
@@ -1256,91 +1362,6 @@ index 2c2dc559e0f8de..48d6b137e8f6ae 100644
 -- 
 2.40.2
 
-Subject: [PATCH] drm/amdgpu: Wait for bootloader after PSPv11 reset
-https://gitlab.freedesktop.org/drm/amd/-/issues/4531
-
-Some PSPv11 SOCs take a longer time for PSP based mode-1 reset. Instead
-of checking for C2PMSG_33 status, add the callback wait_for_bootloader.
-Wait for bootloader to be back to steady state is already part of the
-generic mode-1 reset flow. Increase the retry count for bootloader wait
-and also fix the mask to prevent fake pass.
-
-Signed-off-by: Lijo Lazar <lijo.lazar@xxxxxxxxxx>
-Reviewed-by: Alex Deucher <alexander.deucher@xxxxxxxxxx>
----
- drivers/gpu/drm/amd/amdgpu/psp_v11_0.c | 19 ++++---------------
- 1 file changed, 4 insertions(+), 15 deletions(-)
-
-diff --git a/drivers/gpu/drm/amd/amdgpu/psp_v11_0.c b/drivers/gpu/drm/amd/amdgpu/psp_v11_0.c
-index 6cc05d36e3594..64b240b51f1aa 100644
---- a/drivers/gpu/drm/amd/amdgpu/psp_v11_0.c
-+++ b/drivers/gpu/drm/amd/amdgpu/psp_v11_0.c
-@@ -149,13 +149,13 @@ static int psp_v11_0_wait_for_bootloader(struct psp_context *psp)
- 	int ret;
- 	int retry_loop;
- 
--	for (retry_loop = 0; retry_loop < 10; retry_loop++) {
-+	for (retry_loop = 0; retry_loop < 20; retry_loop++) {
- 		/* Wait for bootloader to signify that is
- 		    ready having bit 31 of C2PMSG_35 set to 1 */
- 		ret = psp_wait_for(psp,
- 				   SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_35),
- 				   0x80000000,
--				   0x80000000,
-+				   0x8000FFFF,
- 				   false);
- 
- 		if (ret == 0)
-@@ -393,17 +393,6 @@ static int psp_v11_0_mode1_reset(struct psp_context *psp)
- 
- 	msleep(500);
- 
--	offset = SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_33);
--
--	ret = psp_wait_for(psp, offset, 0x80000000, 0x80000000, false);
--
--	if (ret) {
--		DRM_INFO("psp mode 1 reset failed!\n");
--		return -EINVAL;
--	}
--
--	DRM_INFO("psp mode1 reset succeed \n");
--
- 	return 0;
- }
- 
-@@ -659,7 +648,8 @@ static const struct psp_funcs psp_v11_0_funcs = {
- 	.ring_get_wptr = psp_v11_0_ring_get_wptr,
- 	.ring_set_wptr = psp_v11_0_ring_set_wptr,
- 	.load_usbc_pd_fw = psp_v11_0_load_usbc_pd_fw,
--	.read_usbc_pd_fw = psp_v11_0_read_usbc_pd_fw
-+	.read_usbc_pd_fw = psp_v11_0_read_usbc_pd_fw,
-+	.wait_for_bootloader = psp_v11_0_wait_for_bootloader
- };
- 
- void psp_v11_0_set_psp_funcs(struct psp_context *psp)
--- 
-GitLab
-
-bpf: Mark kfuncs as __noclone
-https://lore.kernel.org/all/20250924081426.156934-1-arighi@nvidia.com/
-
-diff --git a/include/linux/btf.h b/include/linux/btf.h
-index 9eda6b113f9b4..f06976ffb63f9 100644
---- a/include/linux/btf.h
-+++ b/include/linux/btf.h
-@@ -86,7 +86,7 @@
-  * as to avoid issues such as the compiler inlining or eliding either a static
-  * kfunc, or a global kfunc in an LTO build.
-  */
--#define __bpf_kfunc __used __retain noinline
-+#define __bpf_kfunc __used __retain __noclone noinline
- 
- #define __bpf_kfunc_start_defs()					       \
- 	__diag_push();							       \
--- 
-2.51.0
-
 ZEN: mm: Stop kswapd early when nothing's waiting for it to free pages
 https://github.com/torvalds/linux/commit/def0b563099bd1c8a6c359334d8f0d0b43935388
 
@@ -1385,7 +1406,7 @@ diff --git a/mm/internal.h b/mm/internal.h
 index 45b725c3dc030c..fa0ded5bc5da68 100644
 --- a/mm/internal.h
 +++ b/mm/internal.h
-@@ -791,6 +791,7 @@ void post_alloc_hook(struct page *page, unsigned int order, gfp_t gfp_flags);
+@@ -822,6 +822,7 @@ void post_alloc_hook(struct page *page, unsigned int order, gfp_t gfp_flags);
  extern bool free_pages_prepare(struct page *page, unsigned int order);
  
  extern int user_min_free_kbytes;
@@ -1406,7 +1427,7 @@ index 0dd4e419989a60..ea6d869c3b98b4 100644
  /* prevent >1 _updater_ of zone percpu pageset ->high and ->batch fields */
  static DEFINE_MUTEX(pcp_batch_high_lock);
  #define MIN_PERCPU_PAGELIST_HIGH_FRACTION (8)
-@@ -4425,6 +4427,7 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+@@ -4614,6 +4616,7 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
  	unsigned int cpuset_mems_cookie;
  	unsigned int zonelist_iter_cookie;
  	int reserve_flags;
@@ -1414,7 +1435,7 @@ index 0dd4e419989a60..ea6d869c3b98b4 100644
  
  	if (unlikely(nofail)) {
  		/*
-@@ -4484,8 +4487,13 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+@@ -4673,8 +4676,13 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
  			goto nopage;
  	}
  
@@ -1429,7 +1450,7 @@ index 0dd4e419989a60..ea6d869c3b98b4 100644
  
  	/*
  	 * The adjusted alloc_flags might result in immediate success, so try
-@@ -4700,9 +4708,12 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+@@ -4889,9 +4897,12 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
  		goto retry;
  	}
  fail:
@@ -1448,7 +1469,7 @@ diff --git a/mm/vmscan.c b/mm/vmscan.c
 index 674999999cd067..24569fe41c4ff6 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
-@@ -6622,7 +6622,7 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
+@@ -6632,7 +6632,7 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
  	return 0;
  }
  
@@ -1457,7 +1478,7 @@ index 674999999cd067..24569fe41c4ff6 100644
  {
  	struct zone *zone;
  	unsigned long pfmemalloc_reserve = 0;
-@@ -6647,6 +6647,10 @@ static bool allow_direct_reclaim(pg_data_t *pgdat)
+@@ -6657,6 +6657,10 @@ static bool allow_direct_reclaim(pg_data_t *pgdat)
  
  	wmark_ok = free_pages > pfmemalloc_reserve / 2;
  
@@ -1468,7 +1489,7 @@ index 674999999cd067..24569fe41c4ff6 100644
  	/* kswapd must be awake if processes are being throttled */
  	if (!wmark_ok && waitqueue_active(&pgdat->kswapd_wait)) {
  		if (READ_ONCE(pgdat->kswapd_highest_zoneidx) > ZONE_NORMAL)
-@@ -6712,7 +6716,7 @@ static bool throttle_direct_reclaim(gfp_t gfp_mask, struct zonelist *zonelist,
+@@ -6722,7 +6726,7 @@ static bool throttle_direct_reclaim(gfp_t gfp_mask, struct zonelist *zonelist,
  
  		/* Throttle based on the first usable node */
  		pgdat = zone->zone_pgdat;
@@ -1477,7 +1498,7 @@ index 674999999cd067..24569fe41c4ff6 100644
  			goto out;
  		break;
  	}
-@@ -6734,11 +6738,14 @@ static bool throttle_direct_reclaim(gfp_t gfp_mask, struct zonelist *zonelist,
+@@ -6744,11 +6748,14 @@ static bool throttle_direct_reclaim(gfp_t gfp_mask, struct zonelist *zonelist,
  	 */
  	if (!(gfp_mask & __GFP_FS))
  		wait_event_interruptible_timeout(pgdat->pfmemalloc_wait,
@@ -1494,7 +1515,7 @@ index 674999999cd067..24569fe41c4ff6 100644
  
  	if (fatal_signal_pending(current))
  		return true;
-@@ -7259,14 +7266,14 @@ static int balance_pgdat(pg_data_t *pgdat, int order, int highest_zoneidx)
+@@ -7278,14 +7285,14 @@ static int balance_pgdat(pg_data_t *pgdat, int order, int highest_zoneidx)
  		 * able to safely make forward progress. Wake them
  		 */
  		if (waitqueue_active(&pgdat->pfmemalloc_wait) &&
@@ -1512,5 +1533,350 @@ index 674999999cd067..24569fe41c4ff6 100644
  
  		/*
 -- 
-2.42.0
+2.40.2
+
+Subject: [PATCH] HID: magicmouse: fix regression breaking support for Magic
+ Trackpad 1
+
+The case HID_ANY_ID and default are technically the same, but the first
+one was assigning no report to the Magic Trackpad 1, while the second
+one assigns the correct report. Since the first case is matched first,
+the Magic Trackpad 1 was not being assigned any report, breaking
+support for it.
+
+Signed-off-by: Aditya Garg <gargaditya08@xxxxxxxxxx>
+---
+ drivers/hid/hid-magicmouse.c | 15 ++++++---------
+ 1 file changed, 6 insertions(+), 9 deletions(-)
+
+diff --git a/drivers/hid/hid-magicmouse.c b/drivers/hid/hid-magicmouse.c
+index b40f41168..4bf49d7ca 100644
+--- a/drivers/hid/hid-magicmouse.c
++++ b/drivers/hid/hid-magicmouse.c
+@@ -1589,7 +1589,7 @@ static int magicmouse_probe(struct hid_device *hdev,
+ 		report = hid_register_report(hdev, HID_INPUT_REPORT,
+ 			TRACKPAD2_USB_REPORT_ID, 0);
+ 		break;
+-	case HID_ANY_ID:
++	default:
+ 		switch (id->bus) {
+ 		case BUS_HOST:
+ 			report = hid_register_report(hdev, HID_INPUT_REPORT, MTP_REPORT_ID, 0);
+@@ -1597,15 +1597,12 @@ static int magicmouse_probe(struct hid_device *hdev,
+ 		case BUS_SPI:
+ 			report = hid_register_report(hdev, HID_INPUT_REPORT, SPI_REPORT_ID, 0);
+ 			break;
+-		default:
+-			break;
++		default: /* USB_DEVICE_ID_APPLE_MAGICTRACKPAD */
++			report = hid_register_report(hdev, HID_INPUT_REPORT,
++				TRACKPAD_REPORT_ID, 0);
++			report = hid_register_report(hdev, HID_INPUT_REPORT,
++				DOUBLE_REPORT_ID, 0);
+ 		}
+-		break;
+-	default: /* USB_DEVICE_ID_APPLE_MAGICTRACKPAD */
+-		report = hid_register_report(hdev, HID_INPUT_REPORT,
+-			TRACKPAD_REPORT_ID, 0);
+-		report = hid_register_report(hdev, HID_INPUT_REPORT,
+-			DOUBLE_REPORT_ID, 0);
+ 	}
+ 
+ 	if (!report) {
+-- 
+2.50.1
+
+Subject: [PATCH] x86,retpoline: Optimize patch_retpoline()
+https://lore.kernel.org/all/175757609204.709179.6413279343921603547.tip-bot2@tip-bot2/
+
+Currently the very common retpoline: "CS CALL __x86_indirect_thunk_r11"
+is transformed into "CALL *R11; NOP3" for eIBRS/BHI_NO parts.
+
+Similarly, paranoid fineibt has: "CALL *R11; NOP".
+
+Recognise that CS stuffing can avoid the extra NOP. However, due to
+prefix decode penalties, make sure to not emit too many CS prefixes.
+Notably: "CS CALL __x86_indirect_thunk_rax" must not become "CS CS CS
+CS CALL *RAX". Prefix decode penalties are typically many more cycles
+than decoding an extra NOP.
+
+Additionally, if the retpoline is a tail-call, the "JMP *%\reg" should
+be followed by INT3 for straight-line-speculation mitigation, since
+emit_indirect() now has a length argument, move this into
+emit_indirect() such that other users (paranoid-fineibt) also do this.
+
+Signed-off-by: Peter Zijlstra (Intel) <peterz@xxxxxxxxxx>
+Link: https://lkml.kernel.org/r/20250902104627.GM4068168@noisy.programming.kicks-ass.net
+---
+ arch/x86/kernel/alternative.c | 42 ++++++++++++++++++++++-------------
+ 1 file changed, 26 insertions(+), 16 deletions(-)
+
+diff --git a/arch/x86/kernel/alternative.c b/arch/x86/kernel/alternative.c
+index 7bde68247b5fc5..18584a30a75e9f 100644
+--- a/arch/x86/kernel/alternative.c
++++ b/arch/x86/kernel/alternative.c
+@@ -713,20 +713,33 @@ static inline bool is_jcc32(struct insn *insn)
+ #if defined(CONFIG_MITIGATION_RETPOLINE) && defined(CONFIG_OBJTOOL)
+ 
+ /*
+- * CALL/JMP *%\reg
++ * [CS]{,3} CALL/JMP *%\reg [INT3]*
+  */
+-static int emit_indirect(int op, int reg, u8 *bytes)
++static int emit_indirect(int op, int reg, u8 *bytes, int len)
+ {
++	int cs = 0, bp = 0;
+ 	int i = 0;
+ 	u8 modrm;
+ 
++	/*
++	 * Set @len to the excess bytes after writing the instruction.
++	 */
++	len -= 2 + (reg >= 8);
++	WARN_ON_ONCE(len < 0);
++
+ 	switch (op) {
+ 	case CALL_INSN_OPCODE:
+ 		modrm = 0x10; /* Reg = 2; CALL r/m */
++		/*
++		 * Additional NOP is better than prefix decode penalty.
++		 */
++		if (len <= 3)
++			cs = len;
+ 		break;
+ 
+ 	case JMP32_INSN_OPCODE:
+ 		modrm = 0x20; /* Reg = 4; JMP r/m */
++		bp = len;
+ 		break;
+ 
+ 	default:
+@@ -734,6 +747,9 @@ static int emit_indirect(int op, int reg, u8 *bytes)
+ 		return -1;
+ 	}
+ 
++	while (cs--)
++		bytes[i++] = 0x2e; /* CS-prefix */
++
+ 	if (reg >= 8) {
+ 		bytes[i++] = 0x41; /* REX.B prefix */
+ 		reg -= 8;
+@@ -745,6 +761,9 @@ static int emit_indirect(int op, int reg, u8 *bytes)
+ 	bytes[i++] = 0xff; /* opcode */
+ 	bytes[i++] = modrm;
+ 
++	while (bp--)
++		bytes[i++] = 0xcc; /* INT3 */
++
+ 	return i;
+ }
+ 
+@@ -918,20 +937,11 @@ static int patch_retpoline(void *addr, struct insn *insn, u8 *bytes)
+ 		return emit_its_trampoline(addr, insn, reg, bytes);
+ #endif
+ 
+-	ret = emit_indirect(op, reg, bytes + i);
++	ret = emit_indirect(op, reg, bytes + i, insn->length - i);
+ 	if (ret < 0)
+ 		return ret;
+ 	i += ret;
+ 
+-	/*
+-	 * The compiler is supposed to EMIT an INT3 after every unconditional
+-	 * JMP instruction due to AMD BTC. However, if the compiler is too old
+-	 * or MITIGATION_SLS isn't enabled, we still need an INT3 after
+-	 * indirect JMPs even on Intel.
+-	 */
+-	if (op == JMP32_INSN_OPCODE && i < insn->length)
+-		bytes[i++] = INT3_INSN_OPCODE;
+-
+ 	for (; i < insn->length;)
+ 		bytes[i++] = BYTES_NOP1;
+ 
+@@ -1407,8 +1417,7 @@ asm(	".pushsection .rodata				\n"
+ 	"	lea	-0x10(%r11), %r11		\n"
+ 	"	jne	fineibt_paranoid_start+0xd	\n"
+ 	"fineibt_paranoid_ind:				\n"
+-	"	call	*%r11				\n"
+-	"	nop					\n"
++	"	cs call	*%r11				\n"
+ 	"fineibt_paranoid_end:				\n"
+ 	".popsection					\n"
+ );
+@@ -1696,8 +1705,9 @@ static int cfi_rewrite_callers(s32 *start, s32 *end)
+ 			emit_paranoid_trampoline(addr + fineibt_caller_size,
+ 						 &insn, 11, bytes + fineibt_caller_size);
+ 		} else {
+-			ret = emit_indirect(op, 11, bytes + fineibt_paranoid_ind);
+-			if (WARN_ON_ONCE(ret != 3))
++			int len = fineibt_paranoid_size - fineibt_paranoid_ind;
++			ret = emit_indirect(op, 11, bytes + fineibt_paranoid_ind, len);
++			if (WARN_ON_ONCE(ret != len))
+ 				continue;
+ 		}
+ 
+-- 
+2.50.1
+
+Subject: [PATCH] x86/mm: Change cpa_flush() to call flush_kernel_range()
+ directly
+https://lore.kernel.org/all/175588460052.1420.3714146338769865045.tip-bot2@tip-bot2/
+
+The function cpa_flush() calls __flush_tlb_one_kernel() and
+flush_tlb_all().
+
+Replacing that with a call to flush_tlb_kernel_range() allows
+cpa_flush() to make use of INVLPGB or RAR without any additional
+changes.
+
+Initialize invlpgb_count_max to 1, since flush_tlb_kernel_range()
+can now be called before invlpgb_count_max has been initialized
+to the value read from CPUID.
+
+[riel: remove now unused __cpa_flush_tlb]
+
+Signed-off-by: Yu-cheng Yu <yu-cheng.yu@xxxxxxxxxx>
+Signed-off-by: Rik van Riel <riel@xxxxxxxxxx>
+Signed-off-by: Dave Hansen <dave.hansen@xxxxxxxxxx>
+Acked-by: Dave Hansen <dave.hansen@xxxxxxxxxx>
+Link: https://lore.kernel.org/all/20250606171112.4013261-4-riel%40surriel.com
+---
+ arch/x86/mm/pat/set_memory.c | 20 +++++++-------------
+ 1 file changed, 7 insertions(+), 13 deletions(-)
+
+diff --git a/arch/x86/mm/pat/set_memory.c b/arch/x86/mm/pat/set_memory.c
+index 8834c76f91c9e2..d2d54b8c4dbb04 100644
+--- a/arch/x86/mm/pat/set_memory.c
++++ b/arch/x86/mm/pat/set_memory.c
+@@ -399,15 +399,6 @@ static void cpa_flush_all(unsigned long cache)
+ 	on_each_cpu(__cpa_flush_all, (void *) cache, 1);
+ }
+ 
+-static void __cpa_flush_tlb(void *data)
+-{
+-	struct cpa_data *cpa = data;
+-	unsigned int i;
+-
+-	for (i = 0; i < cpa->numpages; i++)
+-		flush_tlb_one_kernel(fix_addr(__cpa_addr(cpa, i)));
+-}
+-
+ static int collapse_large_pages(unsigned long addr, struct list_head *pgtables);
+ 
+ static void cpa_collapse_large_pages(struct cpa_data *cpa)
+@@ -444,6 +435,7 @@ static void cpa_collapse_large_pages(struct cpa_data *cpa)
+ 
+ static void cpa_flush(struct cpa_data *cpa, int cache)
+ {
++	unsigned long start, end;
+ 	unsigned int i;
+ 
+ 	BUG_ON(irqs_disabled() && !early_boot_irqs_disabled);
+@@ -453,10 +445,12 @@ static void cpa_flush(struct cpa_data *cpa, int cache)
+ 		goto collapse_large_pages;
+ 	}
+ 
+-	if (cpa->force_flush_all || cpa->numpages > tlb_single_page_flush_ceiling)
+-		flush_tlb_all();
+-	else
+-		on_each_cpu(__cpa_flush_tlb, cpa, 1);
++	start = fix_addr(__cpa_addr(cpa, 0));
++	end =   fix_addr(__cpa_addr(cpa, cpa->numpages));
++	if (cpa->force_flush_all)
++		end = TLB_FLUSH_ALL;
++
++	flush_tlb_kernel_range(start, end);
+ 
+ 	if (!cache)
+ 		goto collapse_large_pages;
+-- 
+2.50.1
+
+Subject: [PATCH] perf/x86/amd/uncore: use kcalloc() instead of multiplication
+https://lore.kernel.org/all/455fb1db8ab0811d2336e0ec198c728a0c703be9.1757744812.git.joeypabalinas@gmail.com/
+
+Dynamic size calculations should not be performed in allocator
+function arguments due to overflow risk.
+
+Use kcalloc() instead of multiplication in the first argument
+of kzalloc().
+
+Signed-off-by: Joey Pabalinas <joeypabalinas@xxxxxxxxxx>
+Reviewed-by: Dapeng Mi <dapeng1.mi@xxxxxxxxxx>
+---
+ arch/x86/events/amd/uncore.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/arch/x86/events/amd/uncore.c b/arch/x86/events/amd/uncore.c
+index e8b6af199c738eb00b..d08e3054461f2ca07a 100644
+--- a/arch/x86/events/amd/uncore.c
++++ b/arch/x86/events/amd/uncore.c
+@@ -1036,11 +1036,11 @@ int amd_uncore_umc_ctx_init(struct amd_uncore *uncore, unsigned int cpu)
+ 		group_num_pmus[gid] = hweight32(info.split.aux_data);
+ 		group_num_pmcs[gid] = info.split.num_pmcs;
+ 		uncore->num_pmus += group_num_pmus[gid];
+ 	}
+ 
+-	uncore->pmus = kzalloc(sizeof(*uncore->pmus) * uncore->num_pmus,
++	uncore->pmus = kcalloc(uncore->num_pmus, sizeof(*uncore->pmus),
+ 			       GFP_KERNEL);
+ 	if (!uncore->pmus) {
+ 		uncore->num_pmus = 0;
+ 		goto done;
+ 	}
+-- 
+2.50.1
+
+Subject: Bug: Performance regression in 1013af4f585f:
+  mm/hugetlb: fix huge_pmd_unshare() vs GUP-fast race
+https://lore.kernel.org/all/4d3878531c76479d9f8ca9789dc6485d@amazon.de/#t
+
+Revert mm/hugetlb: fix huge_pmd_unshare() vs GUP-fast race
+
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index 7ba020d489d456..8746ed2fec135b 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -7606,13 +7606,6 @@ int huge_pmd_unshare(struct mm_struct *mm, struct vm_area_struct *vma,
+ 		return 0;
+ 
+ 	pud_clear(pud);
+-	/*
+-	 * Once our caller drops the rmap lock, some other process might be
+-	 * using this page table as a normal, non-hugetlb page table.
+-	 * Wait for pending gup_fast() in other threads to finish before letting
+-	 * that happen.
+-	 */
+-	tlb_remove_table_sync_one();
+ 	ptdesc_pmd_pts_dec(virt_to_ptdesc(ptep));
+ 	mm_dec_nr_pmds(mm);
+ 	return 1;
+-- 
+2.50.1
+
+Subject: mm: mprotect: always skip dma pinned folio in prot_numa_skip()
+https://lore.kernel.org/all/20251015123516.2703660-2-wangkefeng.wang@huawei.com/
+
+diff --git a/mm/mprotect.c b/mm/mprotect.c
+index 113b48985834..bb59a42809b8 100644
+--- a/mm/mprotect.c
++++ b/mm/mprotect.c
+@@ -136,9 +136,12 @@ static bool prot_numa_skip(struct vm_area_struct *vma, unsigned long addr,
+ 	if (folio_is_zone_device(folio) || folio_test_ksm(folio))
+ 		goto skip;
+ 
+-	/* Also skip shared copy-on-write pages */
+-	if (is_cow_mapping(vma->vm_flags) &&
+-	    (folio_maybe_dma_pinned(folio) || folio_maybe_mapped_shared(folio)))
++	/* Also skip shared copy-on-write folios */
++	if (is_cow_mapping(vma->vm_flags) && folio_maybe_mapped_shared(folio))
++		goto skip;
++
++	/* Folios are pinned and can't be migrated */
++	if (folio_maybe_dma_pinned(folio))
+ 		goto skip;
+ 
+ 	/*
+-- 
+2.27.0
 
