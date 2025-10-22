@@ -1053,7 +1053,7 @@ index 8ce56a8d50..507e1c1ef8 100644
  	if (dequeue_entities(rq, &p->se, flags) < 0)
  		return false;
  
-@@ -8757,7 +8839,13 @@ static void check_preempt_wakeup_fair(struct rq *rq, struct task_struct *p, int
+@@ -8728,7 +8810,13 @@ static void check_preempt_wakeup_fair(struct rq *rq, struct task_struct *p, int
  	if (__pick_eevdf(cfs_rq, !do_preempt_short) == pse)
  		goto preempt;
  
@@ -1067,7 +1067,7 @@ index 8ce56a8d50..507e1c1ef8 100644
  		update_protect_slice(cfs_rq, se);
  
  	return;
-@@ -8931,16 +9019,25 @@ static void yield_task_fair(struct rq *rq)
+@@ -8902,16 +8990,25 @@ static void yield_task_fair(struct rq *rq)
  	/*
  	 * Are we the only task in the tree?
  	 */
@@ -1093,7 +1093,7 @@ index 8ce56a8d50..507e1c1ef8 100644
  	/*
  	 * Tell update_rq_clock() that we've just updated,
  	 * so we don't do microscopic update in schedule()
-@@ -13191,6 +13288,9 @@ static void switched_to_fair(struct rq *rq, struct task_struct *p)
+@@ -13162,6 +13259,9 @@ static void switched_to_fair(struct rq *rq, struct task_struct *p)
  	WARN_ON_ONCE(p->se.sched_delayed);
  
  	attach_task_cfs_rq(p);
@@ -1110,7 +1110,7 @@ index 3c12d9f933..abadc5ca74 100644
 @@ -18,6 +18,9 @@ SCHED_FEAT(PLACE_REL_DEADLINE, true)
   * 0-lag point or until is has exhausted it's slice.
   */
- SCHED_FEAT(RUN_TO_PARITY, false)
+ SCHED_FEAT(RUN_TO_PARITY, true)
 +#ifdef CONFIG_SCHED_BORE
 +SCHED_FEAT(RUN_TO_PARITY_BORE, false)
 +#endif /* CONFIG_SCHED_BORE */

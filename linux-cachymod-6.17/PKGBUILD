@@ -135,7 +135,7 @@ _stable=${_major}.${_minor}
 
 _srcname=linux-${_stable}
 pkgdesc='CachyMod Linux Kernel with other patches and improvements'
-pkgrel=1
+pkgrel=2
 _kernver="$pkgver-$pkgrel"
 _kernuname="${pkgver}-${_pkgsuffix}"
 arch=('x86_64')
@@ -165,7 +165,6 @@ source=(
     "0210-cachymod-misc.patch"
     "0250-sched-ext-updates.patch"
     "0260-fair-update-cachy-mods.patch"
-    "0270-tune-dt-interactivity.patch"
     "0300-x86-prevent-avx2-vector.patch"
     "0310-linux6.17-bore.patch"
     "0310-linux6.17-prjc.patch"
@@ -666,9 +665,8 @@ b2sums=('4999251820375def8ab39ea74fd62f08ca190a048b1cc431ec5dbe048d7f61f5af2d0b6
         'c343132501ee751da6407a7722b7d4e59d2ea8b5b5a554a9b16aa3f3ab281d061fac1248154fbd536153d56ea053e49119180c5aa0d0ba71ef6f9062d1c2c119'
         'afe334fe99ae6a37ab330dc59165262ed4ea645ce88bbf37265ef2d34b5c4f6a2df79c8b58e04e18b3dfa20aedbc1facdc8a15742ebede7352b3d24bfa4f7eb4'
         '4788c71bb9e5886a0f2a484eae44eaa2ca8038f45b51323a013cd5a38f45c00e6ca2af3b4afdc09d4fb378030be93c54f2413246306add494e4eb7c63abdd68e'
-        'a69fcdc0fa5d708318e574db7f629e0da71a69a1a7051f934367e6852c5beb99fb70e38053503efddd802794afa52ce7eac4c599826d03b4ab0e4d10490ccabb'
         '36b41b06f930926efee55d9160ff73579d1147f997f89e24438bba1a6687b16a1b7a64920de67ff8993e162e904348345e23a19c4ad3b6431c512d7a00dcae48'
-        '8400c49113290f4a5a2fca65adbbbe4a728edcdf49238a31ad765db92de97c280ebe08d4d398498ba3add59b969224be26660f3759f796cbc638e55fd69fab3d'
+        '70e072b8636aab83a8bf6af759bfd14d96e40f144886f05a8b086bd4fde848f523726e6c919f79d4a6a07b9622a9b455da95fb083b4d036615661c2a85d8b171'
         'ddcb28bd32ef17cc9455f61af10e02f3c515d919fe4e8039cd7d7f9b5fce9551b1ad113b59edbafeb21b18c5c2512144a4fc0f564d7fd2f99b844aba0f288e54'
         '33c70b59e828825904e520e1bee345dd707200c5a5bd79260a6a5d90b4ec52846c91547129cab7fef10e49b424a82910da98c2dec355d3a2a93ef13f322741fd'
         '4b91b59799588016f89c840e12dfdeeec033f206e3d2b89b40886289a5dc5be3661250578347bc451e1e369d56a64ac24e87630bd8f6c17a0b2a2b85412fed9f'
