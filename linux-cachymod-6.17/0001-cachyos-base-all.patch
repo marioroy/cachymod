@@ -9568,7 +9568,7 @@ index caf11920a878..61e45fbd3e5f 100644
  	return min_t(u32, tso_segs, sk->sk_gso_max_segs);
  }
  
-@@ -2771,6 +2797,7 @@ static bool tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle,
+@@ -2782,6 +2808,7 @@ static bool tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle,
  			skb_set_delivery_time(skb, tp->tcp_wstamp_ns, SKB_CLOCK_MONOTONIC);
  			list_move_tail(&skb->tcp_tsorted_anchor, &tp->tsorted_sent_queue);
  			tcp_init_tso_segs(skb, mss_now);
@@ -9576,7 +9576,7 @@ index caf11920a878..61e45fbd3e5f 100644
  			goto repair; /* Skip network transmission */
  		}
  
-@@ -2983,6 +3010,7 @@ void tcp_send_loss_probe(struct sock *sk)
+@@ -2994,6 +3021,7 @@ void tcp_send_loss_probe(struct sock *sk)
  	if (WARN_ON(!skb || !tcp_skb_pcount(skb)))
  		goto rearm_timer;
  
@@ -12766,7 +12766,7 @@ diff --git a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c b/drivers/gpu/drm
 index 58c4e57abc9e..bf86fedc55cc 100644
 --- a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c
 +++ b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c
-@@ -4672,7 +4672,7 @@ static int amdgpu_dm_mode_config_init(struct amdgpu_device *adev)
+@@ -4669,7 +4669,7 @@ static int amdgpu_dm_mode_config_init(struct amdgpu_device *adev)
  		return r;
  	}
  
@@ -19758,75 +19758,54 @@ index 452374d63c24..08f80d7c5df0 100644
 -- 
 2.51.1
 
-From df1b7cc45e820a9ecd4ba945e4c4c4a628276cab Mon Sep 17 00:00:00 2001
-From: Inochi Amaoto <inochiama@gmail.com>
-Date: Tue, 14 Oct 2025 09:46:07 +0800
-Subject: [PATCH] PCI: vmd: override irq_startup()/irq_shutdown() in
- vmd_init_dev_msi_info()
+From 8ec5061a5e6caf2ab41418307861b2da331d617b Mon Sep 17 00:00:00 2001
+From: Matthew Schwartz <matthew.schwartz@linux.dev>
+Date: Mon, 20 Oct 2025 16:09:34 -0700
+Subject: [PATCH] drm/amd/display: Don't program BLNDGAM_MEM_PWR_FORCE when CM
+ low-power is disabled on DCN30
 
-Since commit 54f45a30c0d0 ("PCI/MSI: Add startup/shutdown for per
-device domains") set callback irq_startup() and irq_shutdown() of
-the struct pci_msi[x]_template, __irq_startup() will always invokes
-irq_startup() callback instead of irq_enable() callback overridden
-in vmd_init_dev_msi_info(). This will not start the irq correctly.
+Before commit 33056a97ae5e ("drm/amd/display: Remove double checks for
+`debug.enable_mem_low_power.bits.cm`"), dpp3_program_blnd_lut(NULL)
+checked the low-power debug flag before calling
+dpp3_power_on_blnd_lut(false).
 
-Also override irq_startup()/irq_shutdown() in vmd_init_dev_msi_info(),
-so the irq_startup() can invoke the real logic.
+After commit 33056a97ae5e ("drm/amd/display: Remove double checks for
+`debug.enable_mem_low_power.bits.cm`"), dpp3_program_blnd_lut(NULL)
+unconditionally calls dpp3_power_on_blnd_lut(false). The BLNDGAM power
+helper writes BLNDGAM_MEM_PWR_FORCE when CM low-power is disabled, causing
+immediate SRAM power toggles instead of deferring at vupdate. This can
+disrupt atomic color/LUT sequencing during transitions between
+direct scanout and composition within gamescope's DRM backend on
+Steam Deck OLED.
 
-Fixes: 54f45a30c0d0 ("PCI/MSI: Add startup/shutdown for per device domains")
-Reported-by: Kenneth Crudup <kenny@panix.com>
-Closes: https://lore.kernel.org/all/8a923590-5b3a-406f-a324-7bd1cf894d8f@panix.com/
-Signed-off-by: Inochi Amaoto <inochiama@gmail.com>
-Tested-by: Kenneth R. Crudup <kenny@panix.com>
-Acked-by: Bjorn Helgaas <bhelgaas@google.com>
-Closes: https://lore.kernel.org/r/8a923590-5b3a-406f-a324-7bd1cf894d8f@panix.com/
-Closes: https://lore.kernel.org/r/4b392af8847cc19720ffcd53865f60ab3edc56b3.camel@sapience.com
-Closes: https://bugzilla.kernel.org/show_bug.cgi?id=220658
-Closes: https://lore.kernel.org/r/8d6887a5-60bc-423c-8f7a-87b4ab739f6a@hartkopp.net
-Signed-off-by: Bjorn Helgaas <bhelgaas@google.com>
-Link: https://patch.msgid.link/20251014014607.612586-1-inochiama@gmail.com
+To fix this, leave the BLNDGAM power state unchanged when low-power is
+disabled, matching dpp3_power_on_hdr3dlut and dpp3_power_on_shaper.
+
+Fixes: 33056a97ae5e ("drm/amd/display: Remove double checks for `debug.enable_mem_low_power.bits.cm`")
+Signed-off-by: Matthew Schwartz <matthew.schwartz@linux.dev>
+Reviewed-by: Harry Wentland <harry.wentland@amd.com>
+Reviewed-by: Mario Limonciello <mario.limonciello@amd.com>
 ---
- drivers/pci/controller/vmd.c | 13 +++++++++++++
- 1 file changed, 13 insertions(+)
+ drivers/gpu/drm/amd/display/dc/dpp/dcn30/dcn30_dpp.c | 3 ---
+ 1 file changed, 3 deletions(-)
 
-diff --git a/drivers/pci/controller/vmd.c b/drivers/pci/controller/vmd.c
-index 1bd5bf4a609793..b4b62b9ccc45a0 100644
---- a/drivers/pci/controller/vmd.c
-+++ b/drivers/pci/controller/vmd.c
-@@ -192,6 +192,12 @@ static void vmd_pci_msi_enable(struct irq_data *data)
- 	data->chip->irq_unmask(data);
+diff --git a/drivers/gpu/drm/amd/display/dc/dpp/dcn30/dcn30_dpp.c b/drivers/gpu/drm/amd/display/dc/dpp/dcn30/dcn30_dpp.c
+index 09be2a90cc79dc..4f569cd8a5d615 100644
+--- a/drivers/gpu/drm/amd/display/dc/dpp/dcn30/dcn30_dpp.c
++++ b/drivers/gpu/drm/amd/display/dc/dpp/dcn30/dcn30_dpp.c
+@@ -578,9 +578,6 @@ static void dpp3_power_on_blnd_lut(
+ 			dpp_base->ctx->dc->optimized_required = true;
+ 			dpp_base->deferred_reg_writes.bits.disable_blnd_lut = true;
+ 		}
+-	} else {
+-		REG_SET(CM_MEM_PWR_CTRL, 0,
+-				BLNDGAM_MEM_PWR_FORCE, power_on == true ? 0 : 1);
+ 	}
  }
  
-+static unsigned int vmd_pci_msi_startup(struct irq_data *data)
-+{
-+	vmd_pci_msi_enable(data);
-+	return 0;
-+}
-+
- static void vmd_irq_disable(struct irq_data *data)
- {
- 	struct vmd_irq *vmdirq = data->chip_data;
-@@ -210,6 +216,11 @@ static void vmd_pci_msi_disable(struct irq_data *data)
- 	vmd_irq_disable(data->parent_data);
- }
- 
-+static void vmd_pci_msi_shutdown(struct irq_data *data)
-+{
-+	vmd_pci_msi_disable(data);
-+}
-+
- static struct irq_chip vmd_msi_controller = {
- 	.name			= "VMD-MSI",
- 	.irq_compose_msi_msg	= vmd_compose_msi_msg,
-@@ -309,6 +320,8 @@ static bool vmd_init_dev_msi_info(struct device *dev, struct irq_domain *domain,
- 	if (!msi_lib_init_dev_msi_info(dev, domain, real_parent, info))
- 		return false;
- 
-+	info->chip->irq_startup		= vmd_pci_msi_startup;
-+	info->chip->irq_shutdown	= vmd_pci_msi_shutdown;
- 	info->chip->irq_enable		= vmd_pci_msi_enable;
- 	info->chip->irq_disable		= vmd_pci_msi_disable;
- 	return true;
+-- 
+2.51.1
+
 From 652fb7e98da8bcd0591ad53b5aea0272c9747ed1 Mon Sep 17 00:00:00 2001
 From: Peter Jung <admin@ptr1337.dev>
 Date: Wed, 15 Oct 2025 15:44:24 +0200

@@ -323,7 +323,7 @@ index ccba6fc3c3fed2..90a7a58e155cd3 100644
  	}
  #endif
  
-@@ -8801,6 +8809,9 @@ void __init sched_init(void)
+@@ -8803,6 +8811,9 @@ void __init sched_init(void)
  		hrtick_rq_init(rq);
  		atomic_set(&rq->nr_iowait, 0);
  		fair_server_init(rq);
@@ -333,7 +333,7 @@ index ccba6fc3c3fed2..90a7a58e155cd3 100644
  
  #ifdef CONFIG_SCHED_CORE
  		rq->core = rq;
-@@ -9402,8 +9413,6 @@ static void cpu_cgroup_attach(struct cgroup_taskset *tset)
+@@ -9404,8 +9415,6 @@ static void cpu_cgroup_attach(struct cgroup_taskset *tset)
  
  	cgroup_taskset_for_each(task, css, tset)
  		sched_move_task(task, false);
@@ -435,7 +435,7 @@ index 72c1f72463c758..6d47e674283307 100644
  void dl_server_start(struct sched_dl_entity *dl_se)
  {
  	struct rq *rq = dl_se->rq;
-@@ -1601,10 +1622,12 @@ void dl_server_stop(struct sched_dl_entity *dl_se)
+@@ -1604,10 +1625,12 @@ void dl_server_stop(struct sched_dl_entity *dl_se)
  }
  
  void dl_server_init(struct sched_dl_entity *dl_se, struct rq *rq,
@@ -449,7 +449,7 @@ index 72c1f72463c758..6d47e674283307 100644
  }
  
  void sched_init_dl_servers(void)
-@@ -1614,8 +1637,7 @@ void sched_init_dl_servers(void)
+@@ -1617,8 +1640,7 @@ void sched_init_dl_servers(void)
  	struct sched_dl_entity *dl_se;
  
  	for_each_online_cpu(cpu) {
@@ -459,7 +459,7 @@ index 72c1f72463c758..6d47e674283307 100644
  
  		rq = cpu_rq(cpu);
  
-@@ -1625,11 +1647,8 @@ void sched_init_dl_servers(void)
+@@ -1628,11 +1650,8 @@ void sched_init_dl_servers(void)
  
  		WARN_ON(dl_server(dl_se));
  
@@ -473,7 +473,7 @@ index 72c1f72463c758..6d47e674283307 100644
  	}
  }
  
-@@ -1665,7 +1684,12 @@ int dl_server_apply_params(struct sched_dl_entity *dl_se, u64 runtime, u64 perio
+@@ -1668,7 +1687,12 @@ int dl_server_apply_params(struct sched_dl_entity *dl_se, u64 runtime, u64 perio
  	cpus = dl_bw_cpus(cpu);
  	cap = dl_bw_capacity(cpu);
  
@@ -487,7 +487,7 @@ index 72c1f72463c758..6d47e674283307 100644
  		return -EBUSY;
  
  	if (init) {
-@@ -1678,6 +1702,12 @@ int dl_server_apply_params(struct sched_dl_entity *dl_se, u64 runtime, u64 perio
+@@ -1681,6 +1705,12 @@ int dl_server_apply_params(struct sched_dl_entity *dl_se, u64 runtime, u64 perio
  		dl_rq_change_utilization(rq, dl_se, new_bw);
  	}
  
@@ -500,7 +500,7 @@ index 72c1f72463c758..6d47e674283307 100644
  	dl_se->dl_runtime = runtime;
  	dl_se->dl_deadline = period;
  	dl_se->dl_period = period;
-@@ -1691,6 +1721,31 @@ int dl_server_apply_params(struct sched_dl_entity *dl_se, u64 runtime, u64 perio
+@@ -1694,6 +1724,31 @@ int dl_server_apply_params(struct sched_dl_entity *dl_se, u64 runtime, u64 perio
  	return retval;
  }
  
@@ -532,7 +532,7 @@ index 72c1f72463c758..6d47e674283307 100644
  /*
   * Update the current task's runtime statistics (provided it is still
   * a -deadline task and has not been removed from the dl_rq).
-@@ -2265,8 +2320,12 @@ static void check_preempt_equal_dl(struct rq *rq, struct task_struct *p)
+@@ -2268,8 +2323,12 @@ static void check_preempt_equal_dl(struct rq *rq, struct task_struct *p)
  	resched_curr(rq);
  }
  
@@ -545,7 +545,7 @@ index 72c1f72463c758..6d47e674283307 100644
  	if (!on_dl_rq(&p->dl) && need_pull_dl_task(rq, p)) {
  		/*
  		 * This is OK, because current is on_cpu, which avoids it being
-@@ -2279,6 +2338,9 @@ static int balance_dl(struct rq *rq, struct task_struct *p, struct rq_flags *rf)
+@@ -2282,6 +2341,9 @@ static int balance_dl(struct rq *rq, struct task_struct *p, struct rq_flags *rf)
  		rq_repin_lock(rq, rf);
  	}
  
@@ -555,7 +555,7 @@ index 72c1f72463c758..6d47e674283307 100644
  	return sched_stop_runnable(rq) || sched_dl_runnable(rq);
  }
  
-@@ -2958,9 +3020,17 @@ void dl_clear_root_domain(struct root_domain *rd)
+@@ -2961,9 +3023,17 @@ void dl_clear_root_domain(struct root_domain *rd)
  	 * them, we need to account for them here explicitly.
  	 */
  	for_each_cpu(i, rd->span) {
@@ -575,7 +575,7 @@ index 72c1f72463c758..6d47e674283307 100644
  			__dl_add(&rd->dl_bw, dl_se->dl_bw, dl_bw_cpus(i));
  	}
  }
-@@ -3394,6 +3464,9 @@ static void __dl_clear_params(struct sched_dl_entity *dl_se)
+@@ -3397,6 +3467,9 @@ static void __dl_clear_params(struct sched_dl_entity *dl_se)
  	dl_se->dl_non_contending	= 0;
  	dl_se->dl_overrun		= 0;
  	dl_se->dl_server		= 0;
@@ -585,7 +585,7 @@ index 72c1f72463c758..6d47e674283307 100644
  
  #ifdef CONFIG_RT_MUTEXES
  	dl_se->pi_se			= dl_se;
-@@ -3452,6 +3525,7 @@ static int dl_bw_manage(enum dl_bw_request req, int cpu, u64 dl_bw)
+@@ -3455,6 +3528,7 @@ static int dl_bw_manage(enum dl_bw_request req, int cpu, u64 dl_bw)
  	struct dl_bw *dl_b;
  	bool overflow = 0;
  	u64 fair_server_bw = 0;
@@ -593,7 +593,7 @@ index 72c1f72463c758..6d47e674283307 100644
  
  	rcu_read_lock_sched();
  	dl_b = dl_bw_of(cpu);
-@@ -3484,27 +3558,31 @@ static int dl_bw_manage(enum dl_bw_request req, int cpu, u64 dl_bw)
+@@ -3487,27 +3561,31 @@ static int dl_bw_manage(enum dl_bw_request req, int cpu, u64 dl_bw)
  		cap -= arch_scale_cpu_capacity(cpu);
  
  		/*
@@ -6836,3 +6836,106 @@ index 00000000000000..740c90a6ceab8f
 +	.cleanup = cleanup,
 +};
 +REGISTER_SCX_TEST(&total_bw)
+
+
+Subject: Fix DL server crash in inactive_timer callback
+https://lore.kernel.org/all/20251017093214.70029-12-arighi@nvidia.com/
+
+When sched_ext is rapidly disabled/enabled (the reload_loop selftest),
+the following crash is observed. This happens because the timer handler
+could not be cancelled and still fires even though the dl_server
+bandwidth may have been removed via dl_server_remove_params().
+hrtimer_try_to_cancel() does not guarantee timer cancellation. This
+results in a NULL pointer dereference as 'p' is bogus for a dl_se.
+
+This happens because the timer may be about to run, but its softirq has
+not executed yet. Because of that hrtimer_try_to_cancel() cannot prevent
+the timer from being canceled, however dl_server is still set to NULL by
+dl_server_apply_params(). When the timer handler eventually runs, it
+crashes.
+
+[   24.771835] BUG: kernel NULL pointer dereference, address: 000000000000006c
+[   24.772097] #PF: supervisor read access in kernel mode
+[   24.772248] #PF: error_code(0x0000) - not-present page
+[   24.772404] PGD 0 P4D 0
+[   24.772499] Oops: Oops: 0000 [#1] SMP PTI
+[   24.772614] CPU: 9 UID: 0 PID: 0 Comm: swapper/9 [..] #74 PREEMPT(voluntary)
+[   24.772932] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), [...]
+[   24.773149] Sched_ext: maximal (disabling)
+[   24.773944] RSP: 0018:ffffb162c0348ee0 EFLAGS: 00010046
+[   24.774100] RAX: 0000000000000000 RBX: 0000000000000000 RCX: ffff88d4412f1800
+[   24.774302] RDX: 0000000000000001 RSI: 0000000000000010 RDI: ffffffffac939240
+[   24.774498] RBP: ffff88d47e65b940 R08: 0000000000000010 R09: 00000008bad3370a
+[   24.774742] R10: 0000000000000000 R11: ffffffffa9f159d0 R12: ffff88d47e65b900
+[   24.774962] R13: ffff88d47e65b960 R14: ffff88d47e66a340 R15: ffff88d47e66aed0
+[   24.775182] FS:  0000000000000000(0000) GS:ffff88d4d1d56000(0000) knlGS:[...]
+[   24.775392] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+[   24.775579] CR2: 000000000000006c CR3: 0000000002bb0003 CR4: 0000000000770ef0
+[   24.775810] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+[   24.776023] DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
+[   24.776225] PKRU: 55555554
+[   24.776292] Call Trace:
+[   24.776373]  <IRQ>
+[   24.776453]  ? __pfx_inactive_task_timer+0x10/0x10
+[   24.776591]  __hrtimer_run_queues+0xf1/0x270
+[   24.776744]  hrtimer_interrupt+0xfa/0x220
+[   24.776847]  __sysvec_apic_timer_interrupt+0x4d/0x190
+[   24.776988]  sysvec_apic_timer_interrupt+0x69/0x80
+[   24.777132]  </IRQ>
+[   24.777194]  <TASK>
+[   24.777256]  asm_sysvec_apic_timer_interrupt+0x1a/0x20
+
+Fix by also checking the DL server's pick_task pointer which only exists
+for server tasks. This avoids dereferencing invalid task pointers when
+the timer fires after the DL server has been disabled.
+
+Co-developed-by: Andrea Righi <arighi@xxxxxxxxxx>
+Signed-off-by: Andrea Righi <arighi@xxxxxxxxxx>
+Signed-off-by: Joel Fernandes <joelagnelf@xxxxxxxxxx>
+---
+ kernel/sched/deadline.c | 15 ++++++++++++---
+ 1 file changed, 12 insertions(+), 3 deletions(-)
+
+diff --git a/kernel/sched/deadline.c b/kernel/sched/deadline.c
+index 16e229180bf46..7889e95d3309c 100644
+--- a/kernel/sched/deadline.c
++++ b/kernel/sched/deadline.c
+@@ -1783,7 +1783,16 @@ static enum hrtimer_restart inactive_task_timer(struct hrtimer *timer)
+ 	struct rq_flags rf;
+ 	struct rq *rq;
+ 
+-	if (!dl_server(dl_se)) {
++	/*
++	 * It is possible that after dl_server_apply_params(), the
++	 * dl_se->dl_server == NULL, but the inactive timer is still queued
++	 * and could not get canceled.
++	 *
++	 * Double check by looking at ->server_pick_tasks to make sure
++	 * we're dealing with a non-server entity. Otherwise p may be bogus
++	 * and we'll crash.
++	 */
++	if (!dl_server(dl_se) && !dl_se->server_pick_task) {
+ 		p = dl_task_of(dl_se);
+ 		rq = task_rq_lock(p, &rf);
+ 	} else {
+@@ -1794,7 +1803,7 @@ static enum hrtimer_restart inactive_task_timer(struct hrtimer *timer)
+ 	sched_clock_tick();
+ 	update_rq_clock(rq);
+ 
+-	if (dl_server(dl_se))
++	if (dl_server(dl_se) || dl_se->server_pick_task)
+ 		goto no_task;
+ 
+ 	if (!dl_task(p) || READ_ONCE(p->__state) == TASK_DEAD) {
+@@ -1822,7 +1831,7 @@ static enum hrtimer_restart inactive_task_timer(struct hrtimer *timer)
+ 	dl_se->dl_non_contending = 0;
+ unlock:
+ 
+-	if (!dl_server(dl_se)) {
++	if (!dl_server(dl_se) && !dl_se->server_pick_task) {
+ 		task_rq_unlock(rq, p, &rf);
+ 		put_task_struct(p);
+ 	} else {
+-- 
+2.51.0
+

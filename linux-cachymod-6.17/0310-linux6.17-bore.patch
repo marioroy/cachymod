@@ -657,7 +657,7 @@ index ccba6fc3c3..5bd3d55af4 100644
  	struct load_weight lw;
  
  	if (task_has_idle_policy(p)) {
-@@ -8686,6 +8694,10 @@ void __init sched_init(void)
+@@ -8688,6 +8696,10 @@ void __init sched_init(void)
  	BUG_ON(!sched_class_above(&ext_sched_class, &idle_sched_class));
  #endif
  

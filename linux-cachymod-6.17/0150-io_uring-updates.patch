@@ -4,69 +4,6 @@ https://lore.kernel.org/all/24ba2aad-762e-4fa1-bbf8-2956999a65c5@kernel.dk/
 https://git.kernel.org/pub/scm/linux/kernel/git/axboe/linux.git/commit/?h=io_uring-6.18
 
 
-Subject: Revert "io_uring/rw: drop -EOPNOTSUPP check in __io_complete_rw_common()"
-
-This reverts commit 90bfb28d5fa8127a113a140c9791ea0b40ab156a.
-
-Kevin reports that this commit causes an issue for him with LVM
-snapshots, most likely because of turning off NOWAIT support while a
-snapshot is being created. This makes -EOPNOTSUPP bubble back through
-the completion handler, where io_uring read/write handling should just
-retry it.
-
-Reinstate the previous check removed by the referenced commit.
-
-Cc: stable@vger.kernel.org
-Fixes: 90bfb28d5fa8 ("io_uring/rw: drop -EOPNOTSUPP check in __io_complete_rw_common()")
-Reported-by: Salvatore Bonaccorso <carnil@xxxxxxxxxx>
-Reported-by: Kevin Lumik <kevin@xxxxxxxxxx>
-Link: https://lore.kernel.org/io-uring/cceb723c-051b-4de2-9a4c-4aa82e1619ee@kernel.dk/
-Signed-off-by: Jens Axboe <axboe@xxxxxxxxxx>
-
-diff --git a/io_uring/rw.c b/io_uring/rw.c
-index 08882648d56995..a0f9d2021e3f3f 100644
---- a/io_uring/rw.c
-+++ b/io_uring/rw.c
-@@ -540,7 +540,7 @@ static void __io_complete_rw_common(struct io_kiocb *req, long res)
- {
- 	if (res == req->cqe.res)
- 		return;
--	if (res == -EAGAIN && io_rw_should_reissue(req)) {
-+	if ((res == -EOPNOTSUPP || res == -EAGAIN) && io_rw_should_reissue(req)) {
- 		req->flags |= REQ_F_REISSUE | REQ_F_BL_NO_RECYCLE;
- 	} else {
- 		req_set_fail(req);
--- 
-2.50.1
-
-Subject: io_uring: protect mem region deregistration
-
-io_create_region_mmap_safe() protects publishing of a region against
-concurrent mmap calls, however we should also protect against it when
-removing a region. There is a gap io_register_mem_region() where it
-safely publishes a region, but then copy_to_user goes wrong and it
-unsafely frees the region.
-
-Cc: stable@vger.kernel.org
-Fixes: 087f997870a94 ("io_uring/memmap: implement mmap for regions")
-Signed-off-by: Pavel Begunkov <asml.silence@xxxxxxxxxx>
-Signed-off-by: Jens Axboe <axboe@xxxxxxxxxx>
-
-diff --git a/io_uring/register.c b/io_uring/register.c
-index 43f04c47522c0d..58d43d624856dc 100644
---- a/io_uring/register.c
-+++ b/io_uring/register.c
-@@ -618,6 +618,7 @@ static int io_register_mem_region(struct io_ring_ctx *ctx, void __user *uarg)
- 	if (ret)
- 		return ret;
- 	if (copy_to_user(rd_uptr, &rd, sizeof(rd))) {
-+		guard(mutex)(&ctx->mmap_lock);
- 		io_free_region(ctx, &ctx->param_region);
- 		return -EFAULT;
- 	}
--- 
-2.50.1
-
 Subject: io_uring: fix unexpected placement on same size resizing
 
 There might be many reasons why a user is resizing a ring, e.g. moving
