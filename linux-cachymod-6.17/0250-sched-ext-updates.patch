@@ -323,7 +323,7 @@ index ccba6fc3c3fed2..90a7a58e155cd3 100644
  	}
  #endif
  
-@@ -8803,6 +8811,9 @@ void __init sched_init(void)
+@@ -8822,6 +8830,9 @@ void __init sched_init(void)
  		hrtick_rq_init(rq);
  		atomic_set(&rq->nr_iowait, 0);
  		fair_server_init(rq);
@@ -333,7 +333,7 @@ index ccba6fc3c3fed2..90a7a58e155cd3 100644
  
  #ifdef CONFIG_SCHED_CORE
  		rq->core = rq;
-@@ -9404,8 +9415,6 @@ static void cpu_cgroup_attach(struct cgroup_taskset *tset)
+@@ -9423,8 +9434,6 @@ static void cpu_cgroup_attach(struct cgroup_taskset *tset)
  
  	cgroup_taskset_for_each(task, css, tset)
  		sched_move_task(task, false);

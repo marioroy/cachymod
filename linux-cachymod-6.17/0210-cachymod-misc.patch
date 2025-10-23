@@ -314,7 +314,7 @@ Signed-off-by: Mario Roy <...>
 diff --git a/kernel/workqueue.c b/kernel/workqueue.c
 --- a/kernel/workqueue.c
 +++ b/kernel/workqueue.c
-@@ -7864,20 +7864,20 @@ static void __init wq_cpu_intensive_thresh_init(void)
+@@ -7870,20 +7870,20 @@ static void __init wq_cpu_intensive_thresh_init(void)
  		return;
  
  	/*
@@ -373,7 +373,7 @@ diff --git a/kernel/sched/core.c b/kernel/sched/core.c
 index 2e61c9707bea..fa7b0d1e8be6 100644
 --- a/kernel/sched/core.c
 +++ b/kernel/sched/core.c
-@@ -9189,7 +9189,7 @@ void sched_release_group(struct task_group *tg)
+@@ -9208,7 +9208,7 @@ void sched_release_group(struct task_group *tg)
  	spin_unlock_irqrestore(&task_group_lock, flags);
  }
  
@@ -382,7 +382,7 @@ index 2e61c9707bea..fa7b0d1e8be6 100644
  {
  	struct task_group *tg;
  
-@@ -9201,8 +9201,13 @@ static void sched_change_group(struct task_struct *tsk)
+@@ -9220,8 +9220,13 @@ static void sched_change_group(struct task_struct *tsk)
  	tg = container_of(task_css_check(tsk, cpu_cgrp_id, true),
  			  struct task_group, css);
  	tg = autogroup_task_group(tsk, tg);
@@ -397,7 +397,7 @@ index 2e61c9707bea..fa7b0d1e8be6 100644
  #ifdef CONFIG_FAIR_GROUP_SCHED
  	if (tsk->sched_class->task_change_group)
  		tsk->sched_class->task_change_group(tsk);
-@@ -9211,6 +9216,18 @@ static void sched_change_group(struct task_struct *tsk)
+@@ -9230,6 +9235,18 @@ static void sched_change_group(struct task_struct *tsk)
  		set_task_rq(tsk, task_cpu(tsk));
  }
  
@@ -416,7 +416,7 @@ index 2e61c9707bea..fa7b0d1e8be6 100644
  /*
   * Change task's runqueue when it moves between groups.
   *
-@@ -9220,10 +9237,14 @@ static void sched_change_group(struct task_struct *tsk)
+@@ -9239,10 +9256,14 @@ static void sched_change_group(struct task_struct *tsk)
   */
  void sched_move_task(struct task_struct *tsk, bool for_autogroup)
  {
@@ -431,7 +431,7 @@ index 2e61c9707bea..fa7b0d1e8be6 100644
  	CLASS(task_rq_lock, rq_guard)(tsk);
  	rq = rq_guard.rq;
  
-@@ -9237,7 +9258,7 @@ void sched_move_task(struct task_struct *tsk, bool for_autogroup)
+@@ -9256,7 +9277,7 @@ void sched_move_task(struct task_struct *tsk, bool for_autogroup)
  	if (running)
  		put_prev_task(rq, tsk);
  
@@ -468,7 +468,7 @@ diff --git a/kernel/sched/core.c b/kernel/sched/core.c
 index fa7b0d1e8be6..4489a5673efa 100644
 --- a/kernel/sched/core.c
 +++ b/kernel/sched/core.c
-@@ -9218,13 +9218,22 @@ static void sched_change_group(struct task_struct *tsk, struct task_group *group
+@@ -9237,13 +9237,22 @@ static void sched_change_group(struct task_struct *tsk, struct task_group *group
  
  static struct task_group *sched_needs_group_change(struct task_struct *tsk)
  {
@@ -493,7 +493,7 @@ index fa7b0d1e8be6..4489a5673efa 100644
  	return new_group;
  }
  
-@@ -9245,16 +9254,29 @@ void sched_move_task(struct task_struct *tsk, bool for_autogroup)
+@@ -9264,16 +9273,29 @@ void sched_move_task(struct task_struct *tsk, bool for_autogroup)
  	if (!(new_group = sched_needs_group_change(tsk)))
  		return;
  
@@ -524,7 +524,7 @@ index fa7b0d1e8be6..4489a5673efa 100644
  	if (running)
  		put_prev_task(rq, tsk);
  
-@@ -9262,8 +9284,12 @@ void sched_move_task(struct task_struct *tsk, bool for_autogroup)
+@@ -9281,8 +9303,12 @@ void sched_move_task(struct task_struct *tsk, bool for_autogroup)
  	if (!for_autogroup)
  		scx_cgroup_move_task(tsk);
  
