@@ -10700,7 +10700,7 @@ index cf2109b67..a800b6b50 100644
  #include <linux/sched/affinity.h>
  #include <linux/sched/autogroup.h>
  #include <linux/sched/cpufreq.h>
-@@ -3915,4 +3919,9 @@ void sched_enq_and_set_task(struct sched_enq_and_set_ctx *ctx);
+@@ -3911,4 +3915,9 @@ void sched_enq_and_set_task(struct sched_enq_and_set_ctx *ctx);
  
  #include "ext.h"
  
@@ -11449,18 +11449,18 @@ diff --git a/kernel/time/timer.c b/kernel/time/timer.c
 index 553fa469d..d7c90f6ff 100644
 --- a/kernel/time/timer.c
 +++ b/kernel/time/timer.c
-@@ -2481,7 +2481,11 @@ static void run_local_timers(void)
- 	}
- 
- 	if (unlikely(need_softirq))
+@@ -2453,7 +2453,11 @@ static void run_local_timers(void)
+ 		 */
+ 		if (time_after_eq(jiffies, READ_ONCE(base->next_expiry)) ||
+ 		    (i == BASE_DEF && tmigr_requires_handle_remote())) {
 +#ifdef CONFIG_SCHED_BMQ
-+		__raise_softirq_irqoff(TIMER_SOFTIRQ);
++			__raise_softirq_irqoff(TIMER_SOFTIRQ);
 +#else
- 		raise_timer_softirq(TIMER_SOFTIRQ);
+ 			raise_timer_softirq(TIMER_SOFTIRQ);
 +#endif
- }
- 
- /*
+ 			return;
+ 		}
+ 	}
 diff --git a/kernel/trace/trace_osnoise.c b/kernel/trace/trace_osnoise.c
 index dc734867f..9ce22f628 100644
 --- a/kernel/trace/trace_osnoise.c

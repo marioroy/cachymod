@@ -292,7 +292,7 @@ diff --git a/kernel/sched/core.c b/kernel/sched/core.c
 index ccba6fc3c3fed2..90a7a58e155cd3 100644
 --- a/kernel/sched/core.c
 +++ b/kernel/sched/core.c
-@@ -5961,15 +5961,23 @@ static void prev_balance(struct rq *rq, struct task_struct *prev,
+@@ -5949,15 +5949,23 @@ static void prev_balance(struct rq *rq, struct task_struct *prev,
  	const struct sched_class *class;
  
  #ifdef CONFIG_SCHED_CLASS_EXT
@@ -323,7 +323,7 @@ index ccba6fc3c3fed2..90a7a58e155cd3 100644
  	}
  #endif
  
-@@ -8822,6 +8830,9 @@ void __init sched_init(void)
+@@ -8810,6 +8818,9 @@ void __init sched_init(void)
  		hrtick_rq_init(rq);
  		atomic_set(&rq->nr_iowait, 0);
  		fair_server_init(rq);
@@ -333,7 +333,7 @@ index ccba6fc3c3fed2..90a7a58e155cd3 100644
  
  #ifdef CONFIG_SCHED_CORE
  		rq->core = rq;
-@@ -9423,8 +9434,6 @@ static void cpu_cgroup_attach(struct cgroup_taskset *tset)
+@@ -9385,8 +9396,6 @@ static void cpu_cgroup_attach(struct cgroup_taskset *tset)
  
  	cgroup_taskset_for_each(task, css, tset)
  		sched_move_task(task, false);
@@ -555,7 +555,7 @@ index 72c1f72463c758..6d47e674283307 100644
  	return sched_stop_runnable(rq) || sched_dl_runnable(rq);
  }
  
-@@ -2961,9 +3023,17 @@ void dl_clear_root_domain(struct root_domain *rd)
+@@ -2950,9 +3012,17 @@ void dl_clear_root_domain(struct root_domain *rd)
  	 * them, we need to account for them here explicitly.
  	 */
  	for_each_cpu(i, rd->span) {
@@ -575,7 +575,7 @@ index 72c1f72463c758..6d47e674283307 100644
  			__dl_add(&rd->dl_bw, dl_se->dl_bw, dl_bw_cpus(i));
  	}
  }
-@@ -3397,6 +3467,9 @@ static void __dl_clear_params(struct sched_dl_entity *dl_se)
+@@ -3386,6 +3456,9 @@ static void __dl_clear_params(struct sched_dl_entity *dl_se)
  	dl_se->dl_non_contending	= 0;
  	dl_se->dl_overrun		= 0;
  	dl_se->dl_server		= 0;
@@ -585,7 +585,7 @@ index 72c1f72463c758..6d47e674283307 100644
  
  #ifdef CONFIG_RT_MUTEXES
  	dl_se->pi_se			= dl_se;
-@@ -3455,6 +3528,7 @@ static int dl_bw_manage(enum dl_bw_request req, int cpu, u64 dl_bw)
+@@ -3444,6 +3517,7 @@ static int dl_bw_manage(enum dl_bw_request req, int cpu, u64 dl_bw)
  	struct dl_bw *dl_b;
  	bool overflow = 0;
  	u64 fair_server_bw = 0;
@@ -593,7 +593,7 @@ index 72c1f72463c758..6d47e674283307 100644
  
  	rcu_read_lock_sched();
  	dl_b = dl_bw_of(cpu);
-@@ -3487,27 +3561,31 @@ static int dl_bw_manage(enum dl_bw_request req, int cpu, u64 dl_bw)
+@@ -3476,27 +3550,31 @@ static int dl_bw_manage(enum dl_bw_request req, int cpu, u64 dl_bw)
  		cap -= arch_scale_cpu_capacity(cpu);
  
  		/*
@@ -5155,7 +5155,7 @@ index cf2109b67f9a36..dc496c559e3bcb 100644
  #ifdef CONFIG_CGROUP_SCHED
  
  extern struct list_head task_groups;
-@@ -1150,6 +1160,7 @@ struct rq {
+@@ -1149,6 +1159,7 @@ struct rq {
  #endif
  
  	struct sched_dl_entity	fair_server;
