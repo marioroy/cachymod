@@ -47,6 +47,9 @@ scripts/config -d MSDOS_FS -e FAT_FS -e VFAT_FS
 ### Set tree-based hierarchical RCU fanout value. (default 64)
 scripts/config --set-val RCU_FANOUT 32
 
+### Disable poison kernel stack before returning from syscalls
+scripts/config -d KSTACK_ERASE
+
 ### Disable tracers.
 scripts/config -d ATH5K_TRACER
 scripts/config -d DM_UEVENT
