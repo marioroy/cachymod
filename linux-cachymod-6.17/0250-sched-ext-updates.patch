@@ -6939,3 +6939,43 @@ index 16e229180bf46..7889e95d3309c 100644
 -- 
 2.51.0
 
+Subject: sched_ext: Fix scx_bpf_dsq_peek() with FIFO DSQs
+https://lore.kernel.org/all/20251024220102.1556384-1-arighi@nvidia.com/
+
+When removing a task from a FIFO DSQ, we must delete it from the list
+before updating dsq->first_task, otherwise the following lookup will
+just re-read the same task, leaving first_task pointing to removed
+entry.
+
+This issue only affects DSQs operating in FIFO mode, as priority DSQs
+correctly update the rbtree before re-evaluating the new first task.
+
+Remove the item from the list before refreshing the first task to
+guarantee the correct behavior in FIFO DSQs.
+
+Fixes: 44f5c8ec5b9ad ("sched_ext: Add lockless peek operation for DSQs")
+Signed-off-by: Andrea Righi <arighi@xxxxxxxxxx>
+---
+ kernel/sched/ext.c | 6 +++---
+ 1 file changed, 6 insertions(+), 1 deletions(-)
+
+diff -uarp a/kernel/sched/ext.c b/kernel/sched/ext.c
+--- a/kernel/sched/ext.c
++++ b/kernel/sched/ext.c
+@@ -1031,7 +1031,12 @@ static void task_unlink_from_dsq(struct
+ 	list_del_init(&p->scx.dsq_list.node);
+ 	dsq_mod_nr(dsq, -1);
+ 
+-	update_first_task(dsq);
++	if (!(dsq->id & SCX_DSQ_FLAG_BUILTIN) && dsq->first_task == p) {
++		struct task_struct *first_task;
++
++		first_task = nldsq_next_task(dsq, NULL, false);
++		rcu_assign_pointer(dsq->first_task, first_task);
++	}
+ }
+ 
+ static void dispatch_dequeue(struct rq *rq, struct task_struct *p)
+-- 
+2.51.1
+
