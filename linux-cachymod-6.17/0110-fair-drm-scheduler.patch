@@ -4731,3 +4731,27 @@ index 95a5c35456aaf4..7fb964b7a5425d 100644
  	unsigned int hang_limit;
  	long timeout;
 
+Subject: Remove unused function "drm_sched_run_free_queue_unlocked"
+
+Signed-off-by: Mario Roy <>
+
+diff -uarp a/drivers/gpu/drm/scheduler/sched_main.c b/drivers/gpu/drm/scheduler/sched_main.c
+--- a/drivers/gpu/drm/scheduler/sched_main.c
++++ b/drivers/gpu/drm/scheduler/sched_main.c
+@@ -158,13 +158,6 @@ static void drm_sched_run_free_queue(str
+ 		__drm_sched_run_free_queue(sched);
+ }
+ 
+-static void drm_sched_run_free_queue_unlocked(struct drm_gpu_scheduler *sched)
+-{
+-	spin_lock(&sched->job_list_lock);
+-	drm_sched_run_free_queue(sched);
+-	spin_unlock(&sched->job_list_lock);
+-}
+-
+ /**
+  * drm_sched_job_done - complete a job
+  * @s_job: pointer to the job which is done
+-- 
+2.51.1
+
