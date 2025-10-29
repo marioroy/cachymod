@@ -81,15 +81,12 @@ set -e
 # { generic, generic_v1, generic_v2, generic_v3, generic_v4, native, zen4 }
 : "${_processor_opt:=}"
 
-# Select build type { full, thin, clang, gcc }
-# full:  Build the kernel with clang full-LTO, suffix "-lto"
-#        Uses 1 thread for linking, slow and uses more memory (>16GB),
-#        theoretically with the highest performance gains
-# thin:  Build the kernel with clang thin-LTO, suffix "-lto"
+# Select build type { thin, clang, gcc }
+# thin:  Build the kernel with clang thin-LTO, auto suffix "-lto"
 #        Uses multiple threads, faster and lesser memory consumption,
 #        possibly lower runtime performance than full
-# clang: Build kernel with clang, suffix "-clang"
-# gcc:   Build kernel with gcc, suffix "-gcc"
+# clang: Build kernel with clang, auto suffix "-clang"
+# gcc:   Build kernel with gcc, auto suffix "-gcc"
 : "${_buildtype:=thin}"
 
 # Build kernel with the AutoFDO profile?

@@ -77,15 +77,12 @@
 # { generic, generic_v1, generic_v2, generic_v3, generic_v4, native, zen4 }
 : "${_processor_opt:=}"
 
-# Select build type { full, thin, clang, gcc }
-# full:  Build the kernel with clang full-LTO, suffix "-lto"
-#        Uses 1 thread for linking, slow and uses more memory (>16GB),
-#        theoretically with the highest performance gains
-# thin:  Build the kernel with clang thin-LTO, suffix "-lto"
+# Select build type { thin, clang, gcc }
+# thin:  Build the kernel with clang thin-LTO, auto suffix "-lto"
 #        Uses multiple threads, faster and lesser memory consumption,
 #        possibly lower runtime performance than full
-# clang: Build kernel with clang, suffix "-clang"
-# gcc:   Build kernel with gcc, suffix "-gcc"
+# clang: Build kernel with clang, auto suffix "-clang"
+# gcc:   Build kernel with gcc, auto suffix "-gcc"
 : "${_buildtype:=thin}"
 
 # Build a debug package with non-stripped vmlinux
@@ -115,7 +112,7 @@ if [[ "$_buildtype" =~ ^(gcc|clang)$ ]]; then
     _autofdo_profile_name=""
 fi
 
-[[ "$_buildtype" =~ ^(thin|full)$ ]] \
+[ "$_buildtype" = "thin" ] \
     && buildtype="lto" || buildtype="$_buildtype"
 
 if [ "$_kernel_suffix" = "auto" ]; then
@@ -128,14 +125,14 @@ fi
 
 _pkgsuffix=cachymod
 _major=6.17
-_minor=5
+_minor=6
 pkgver=${_major}.${_minor}
 _stable=${_major}.${_minor}
 #_stable=${_major}
 
 _srcname=linux-${_stable}
 pkgdesc='CachyMod Linux Kernel with other patches and improvements'
-pkgrel=5
+pkgrel=1
 _kernver="$pkgver-$pkgrel"
 _kernuname="${pkgver}-${_pkgsuffix}"
 arch=('x86_64')
@@ -159,6 +156,7 @@ source=(
     "0005-fixes.patch"
     "0100-kconfig-add-800Hz.patch"
     "0110-fair-drm-scheduler.patch"
+    "0140-rm-redundant-rculocks.patch"
     "0200-clearlinux-extras.patch"
     "0210-cachymod-misc.patch"
     "0250-sched-ext-updates.patch"
@@ -295,9 +293,6 @@ prepare() {
     case "$_buildtype" in
         thin)
             scripts/config -e LTO -e LTO_CLANG -e ARCH_SUPPORTS_LTO_CLANG -e ARCH_SUPPORTS_LTO_CLANG_THIN -e HAS_LTO_CLANG -d LTO_NONE -d LTO_CLANG_FULL -d LTO_CLANG_THIN -e LTO_CLANG_THIN_DIST -e HAVE_GCC_PLUGINS
-            ;;
-        full)
-            scripts/config -e LTO -e LTO_CLANG -e ARCH_SUPPORTS_LTO_CLANG -e ARCH_SUPPORTS_LTO_CLANG_THIN -e HAS_LTO_CLANG -d LTO_NONE -e LTO_CLANG_FULL -d LTO_CLANG_THIN -d LTO_CLANG_THIN_DIST -e HAVE_GCC_PLUGINS
             ;;
         clang)
             scripts/config -e LTO -e LTO_CLANG -e ARCH_SUPPORTS_LTO_CLANG -e ARCH_SUPPORTS_LTO_CLANG_THIN -e HAS_LTO_CLANG -e LTO_NONE -d LTO_CLANG_FULL -d LTO_CLANG_THIN -d LTO_CLANG_THIN_DIST -e HAVE_GCC_PLUGINS
@@ -439,11 +434,12 @@ prepare() {
            [[ "$_localmodcfg_minimal" =~ ^(yes|y|1)$ ]] && \
               cat "${srcdir}"/minimal-modprobed.db
            # Include RAM disk, exfat, ntsync, ttm, and modules for Docker
+           # Include tcp_bbr, tcp_dctcp, and tcp_htcp for bpftune
            for module in \
               brd bridge exfat drm_ttm_helper llc irqbypass nf_conntrack \
-              nf_conntrack_netlink nf_defrag_ipv4 nf_defrag_ipv6 \
-              nf_nat nf_tables nft_chain_nat nft_compat ntsync \
-              overlay stp ttm veth xfrm_algo xfrm_user xt_addrtype \
+              nf_conntrack_netlink nf_defrag_ipv4 nf_defrag_ipv6 nf_nat \
+              nf_tables nft_chain_nat nft_compat ntsync overlay stp tcp_bbr \
+              tcp_dctcp tcp_htcp ttm veth xfrm_algo xfrm_user xt_addrtype \
               xt_conntrack xt_MASQUERADE xt_nat xt_tcpudp \
            ;do echo "$module"; done
         ) | sort -u > "/tmp/modprobed.db.$$"
@@ -645,26 +641,27 @@ for _p in "${pkgname[@]}"; do
     }"
 done
 
-b2sums=('972f684c9b03535affc20e9c082b1ef7ebd1590f42024e524d60080e8badcc68bce73c56b3ed03df2bb016145708abc080943e1f51c7b9bce3ed9650cc4d9f06'
-        '715b66350eb032bedbcc56730721ca1ef7689943f90c9b3f7b0cf92e96cac4a2f1e30937e16fb726fbbcf25110a4760395ca8d761b8b20c21a67ee0d56619e21'
+b2sums=('00861fe396f5024c50aa62d0cb235281726061200aa32aa27ae7aeeda13928c5d92cab8a27687884ae7c317f0e682ea2c779ab0ce2ebec19dc0b1f4740e2d143'
+        '56fd11eb34f8b71b3094542c55d818517635257fb4db179515586b79e63165f0b5029bc315c287062c0ea5525c7aa2f2d3204cfd9c0fffd5e5302563a6c98b11'
         '6f663ce6533d4ba0237616fee68a1bfe56cd3cda520b526f92d817e546008b144de7ae6b399605dc3a33b7a4be97fd16fe0d707cd7c016ff45444f87c1d5c1b5'
         'd0b5a7a0bf638c93cc763c45164a38a55223c6349f92997e0136717fca41fb57891b73d8e599381940cd6d783a2a75088b3204b4d8fb86e2a108101b21625224'
-        'ff4735c5924bb8c8fb30d12c955eaf6f2d37ee11830b708d321e1ee4d6f24334833e023ccba22091307070dc33ae202cec46948d56aea155c488b975952377b4'
-        '06fbaecb19f5d9931b37bb20bcf30af6adbea42adecda38359987e5739c4526f7ff230611403d1f7eb6d428dad50e7fddabc5c0617c60081b0fd2b91d95f5c4c'
+        'fb920f9c99f41240248452e772ff539fa5c0a77f60128d2e2bf2666f4ff460b711fe9513c0840bf914122f76c9afc14a01237231abbd3238b5bec9b628cbab95'
+        'e5c22aff12f20d4cd35e29e80812a8030223a752d10b94f88f9be6477cd0e82b386625bc6ea857a632003083448a6080c4201b9a0b5de05b4090e16a60cbea8a'
         '204eb784a702af2a24eaf6f284b1fdf68a40d78cdde64a64a081ea5e19d61e256ad8e0645f53263d6a6ec33a42eb966a0e8d76d846e89c79be488b5f714ebf61'
         '4a446b68046913bcf30ce4364ad56c2ff99573f3eb75803ab7eaf7885008f09d0a7289131c8f947c81f4c39e8a28f4c5b9628519386e9cfc8070c65360b6b878'
         '918dfd7cb0638fb571fcb7594623947848b7ac2a7f374b6174340a9d8be9ecf6198f41247a8930afb37a69021f62228f607fccc323956fca7a12db7620be2966'
         '8336485f780a24e962a3f88341c6b1eba213f3c4d3048881cfec1258a6365b314d614d5976f8e1439f7b5df9f3c84309d6e09d96e67d08fde7fafbe028aad3dd'
         '2853e6975cb9ea481918a85d63945cb50b421d7bb60dc1d511a42fe0a3bc06244bd16293f2674504f1ba6e6f3a15f3f19fcfac2a0ea06df9775d5f3f0afec171'
-        'bfae3af74f7de5fc3343fa70233eb9edfccd8771595290d3a707bbed86c2c31729dfa4388370e2a6691f4dc33a248cdc4f184069e7dd3acdff0704b9ae92f6ae'
+        'e6080c95601e17bff9bb8d4bc3f55f80211391e86d7b278cbfef2f44261614141e7688805592ef50b5b9aa671f592d7c83684b2aeead8590c7681cfc219582d7'
+        'c89c5edb21d0c2663c4e5ed22740d3307ce3ef93ce6edd70bb7c5024d9ed5e8abae5da9e1c41a370662e8957b53149b07c7a0ed730693250c13f280bcefa3706'
         'd4a951537391e91998185b3732bae5333416477b3abaedd2121926295afdc201815525adc41382c90246212837a6e5886baf5c725d1e79479a841cc7a7b3c150'
-        '904932b0f5fdd0b6d01838bc7f3974cd6fab8850dbf9a2f8bd191b3d0b38a197eb184243f5df23f3089048439c1b33cd6b0b4b9c6de7c71c672cb0e0bc19402d'
+        '5f5d80c18679b37bf2d893414a76f6a52de81725c069ee2c9824ca48652911d5eb1febd4c220282b436dcb1a525281ffe0bac98a32a5080dec592743c0c12bd1'
         'e4d3a1a9af114f5a7eae642d479f954f6fd16fce2c48de20eee3873992e50948adb6846f6aacbdfc76bf82e5742e41601d1581d0e361b32623e1dedbd80294b0'
-        '4788c71bb9e5886a0f2a484eae44eaa2ca8038f45b51323a013cd5a38f45c00e6ca2af3b4afdc09d4fb378030be93c54f2413246306add494e4eb7c63abdd68e'
+        '46a0be391abb095b52abe73236cca35cdeed8641589922bf94b3de66e5ae8fddeab639b2d6cfe1ff7dc78cc986a374ebace98a6b8998fada1a482963535a4301'
         '36b41b06f930926efee55d9160ff73579d1147f997f89e24438bba1a6687b16a1b7a64920de67ff8993e162e904348345e23a19c4ad3b6431c512d7a00dcae48'
-        '8315094ba76edf89d8c03faa35a17147a9423af3e22b5945354b539512900c157eb4c1f2407e49a249df812ef7bb282cd40162df83b6cbdedc3fd8356d971f35'
-        'b1c0e2a7ef6f4bce9c075622b3c495540e67d1e36101b7612d6730d46cda97132b6b1427cc613e59c014ee348523dd81e4039e2f11b288a8ddb6f92a20029407'
+        '16c46121165982898ebf0c695704f499f5ea38f1eb3eaaee50b3b8c36d356a8b243cdce598c8d962567a2ab042231f3ba52e1d3b2ac7ad3afbfbf3e3291dbbdc'
+        '10663fe5a0f4e8c1885f69f2e73b8421e9de556ecd2fc229ca98d2271963effe3e05a911758cb06d43bb665925744b7f09df3c54a83eab87974b6da585aadd7e'
         '33c70b59e828825904e520e1bee345dd707200c5a5bd79260a6a5d90b4ec52846c91547129cab7fef10e49b424a82910da98c2dec355d3a2a93ef13f322741fd'
-        '4b91b59799588016f89c840e12dfdeeec033f206e3d2b89b40886289a5dc5be3661250578347bc451e1e369d56a64ac24e87630bd8f6c17a0b2a2b85412fed9f'
+        'ac5c49e67651d575e450ede2af8d0bf93d3d5b7ab79f33e5d75d4abf90785dd9f0490926b8b6ad36983fd6ade69def3f28cd349f8ea270ffb6c3abf8a261f1dc'
         '1cdac88541ddf5c0571412a19e1770178ee52867d0f6beb6d00d51edfa13edee5f2840583faf945d6c8c387477f99ac1b40153fcd62e02f6fb7af772992f8737'
-        '6d45cf51250ad64a11e9fdaccfe6f3f82516c931d28aa786de1bf34101e318fa75ff4a2b5b2d57ace71ff5520ef79a6cf8f2b713cc844eb3a1a6de2bd1de6ca5')
+        '6d6f6cb15fec1ea23ec3cfcffd81e96224d8c261e62c6f51c0146d7e270b8d31fa1905ea9fa92874d3565a0aa5f02cf2b1863102a6285b6276de5336f1c582c8')

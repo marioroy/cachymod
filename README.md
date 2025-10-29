@@ -115,7 +115,7 @@ Optionally, append kernel installation steps at the end of the script.
 while [ -e "/var/lib/pacman/db.lck" ]; do sleep 1; done
 
 echo "Installing the kernel..."
-[[ "$_buildtype" =~ ^(thin|full)$ ]] \
+[ "$_buildtype" = "thin" ] \
     && buildtype="lto" || buildtype="$_buildtype"
 
 if [ "$_kernel_suffix" = "auto" ]; then

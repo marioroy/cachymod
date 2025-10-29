@@ -97,11 +97,7 @@ coretemp
 cp210x
 cpufreq_ondemand
 crc16
-crc32_generic
-crc32c_generic
 crc64
-crc64_rocksoft
-crc64_rocksoft_generic
 crc8
 crc_itu_t
 cryptd
@@ -414,7 +410,6 @@ nvme_keyring
 nvmem_rave_sp_eeprom
 nvram
 overlay
-p8022
 parport
 parport_pc
 pata_acpi
@@ -424,7 +419,6 @@ pinctrl_alderlake
 pinctrl_amd
 pinctrl_geminilake
 pkcs8_key_parser
-pktcdvd
 platform_profile
 pmt_class
 pmt_telemetry
@@ -496,9 +490,6 @@ serio
 serio_raw
 ses
 sg
-sha1_ssse3
-sha256_ssse3
-sha512_ssse3
 snd
 snd_ac97_codec
 snd_acp3x_pdm_dma
@@ -512,7 +503,6 @@ snd_ctl_led
 snd_hda_codec
 snd_hda_codec_generic
 snd_hda_codec_hdmi
-snd_hda_codec_realtek
 snd_hda_core
 snd_hda_ext_core
 snd_hda_intel

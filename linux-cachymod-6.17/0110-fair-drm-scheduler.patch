@@ -4582,7 +4582,7 @@ diff --git a/drivers/gpu/drm/panthor/panthor_mmu.c b/drivers/gpu/drm/panthor/pan
 index 4140f697ba5af5..22530d7a918852 100644
 --- a/drivers/gpu/drm/panthor/panthor_mmu.c
 +++ b/drivers/gpu/drm/panthor/panthor_mmu.c
-@@ -2292,7 +2292,6 @@ panthor_vm_create(struct panthor_device *ptdev, bool for_mcu,
+@@ -2296,7 +2296,6 @@ panthor_vm_create(struct panthor_device *ptdev, bool for_mcu,
  	const struct drm_sched_init_args sched_args = {
  		.ops = &panthor_vm_bind_ops,
  		.submit_wq = ptdev->mmu->vm.wq,

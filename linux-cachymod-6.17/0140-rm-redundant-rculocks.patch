@@ -1,0 +1,361 @@
+
+rcu: Remove local_irq_save/restore() in rcu_preempt_deferred_qs_handler()
+https://lore.kernel.org/all/20250813133002.331879-1-qiang.zhang@linux.dev/
+
+Currently, the per-cpu rcu_data structure's->defer_qs_iw is initialized by
+IRQ_WORK_INIT_HARD(), this means the rcu_preempt_deferred_qs_handler()
+always be executed in the hardirq context of irq-disabled.
+This commit therefore remove local_irq_save/restore() operations in
+rcu_preempt_deferred_qs_handler() and add lockdep_assert_irqs_disabled()
+check, if someone mistakenly invokes this function in hardirq enabled
+context will splat.
+
+Signed-off-by: Zqiang <qiang.zhang@xxxxxxxxxx>
+
+diff --git a/kernel/rcu/tree_plugin.h b/kernel/rcu/tree_plugin.h
+index fc14adf15cbb..57e2ae51c0b2 100644
+--- a/kernel/rcu/tree_plugin.h
++++ b/kernel/rcu/tree_plugin.h
+@@ -626,11 +626,10 @@ notrace void rcu_preempt_deferred_qs(struct task_struct *t)
+  */
+ static void rcu_preempt_deferred_qs_handler(struct irq_work *iwp)
+ {
+-	unsigned long flags;
+ 	struct rcu_data *rdp;
+ 
++	lockdep_assert_irqs_disabled();
+ 	rdp = container_of(iwp, struct rcu_data, defer_qs_iw);
+-	local_irq_save(flags);
+ 
+ 	/*
+ 	 * If the IRQ work handler happens to run in the middle of RCU read-side
+@@ -647,8 +646,6 @@ static void rcu_preempt_deferred_qs_handler(struct irq_work *iwp)
+ 	 */
+ 	if (rcu_preempt_depth() > 0)
+ 		WRITE_ONCE(rdp->defer_qs_iw_pending, DEFER_QS_IDLE);
+-
+-	local_irq_restore(flags);
+ }
+ 
+ /*
+-- 
+2.48.1
+
+workqueue: Remove redundant rcu_read_lock/unlock() in workqueue_congested()
+https://lore.kernel.org/all/20250904113133.24487-1-qiang.zhang@linux.dev/
+
+The preempt_disable/enable() has already formed RCU read crtical
+section, this commit therefore remove rcu_read_lock/unlock() in
+workqueue_congested().
+
+Signed-off-by: Zqiang <qiang.zhang@xxxxxxxxxx>
+
+diff -uarp a/kernel/workqueue.c b/kernel/workqueue.c
+--- a/kernel/workqueue.c
++++ b/kernel/workqueue.c
+@@ -6078,7 +6078,6 @@ bool workqueue_congested(int cpu, struct
+ 	struct pool_workqueue *pwq;
+ 	bool ret;
+ 
+-	rcu_read_lock();
+ 	preempt_disable();
+ 
+ 	if (cpu == WORK_CPU_UNBOUND)
+@@ -6088,7 +6087,6 @@ bool workqueue_congested(int cpu, struct
+ 	ret = !list_empty(&pwq->inactive_works);
+ 
+ 	preempt_enable();
+-	rcu_read_unlock();
+ 
+ 	return ret;
+ }
+-- 
+2.50.1
+
+workqueue: Remove rcu_read_lock/unlock() in wq_watchdog_timer_fn()
+https://lore.kernel.org/all/20250904113133.24487-2-qiang.zhang@linux.dev/
+
+The wq_watchdog_timer_fn() is executed in the softirq context, this
+is already in the RCU read critical section, this commit therefore
+remove rcu_read_lock/unlock() in wq_watchdog_timer_fn().
+
+Signed-off-by: Zqiang <qiang.zhang@xxxxxxxxxx>
+
+diff -uarp a/kernel/workqueue.c b/kernel/workqueue.c
+--- a/kernel/workqueue.c
++++ b/kernel/workqueue.c
+@@ -7576,8 +7576,6 @@ static void wq_watchdog_timer_fn(struct
+ 	if (!thresh)
+ 		return;
+ 
+-	rcu_read_lock();
+-
+ 	for_each_pool(pool, pi) {
+ 		unsigned long pool_ts, touched, ts;
+ 
+@@ -7619,8 +7617,6 @@ static void wq_watchdog_timer_fn(struct
+ 
+ 	}
+ 
+-	rcu_read_unlock();
+-
+ 	if (lockup_detected)
+ 		show_all_workqueues();
+ 
+-- 
+2.50.1
+
+Remove redundant rcu_read_lock/unlock() in spin_lock
+https://lore.kernel.org/all/20250916044735.2316171-1-dolinux.peng@gmail.com/
+
+Since commit a8bb74acd8efe
+  ("rcu: Consolidate RCU-sched update-side function definitions")
+there is no difference between rcu_read_lock(), rcu_read_lock_bh() and
+rcu_read_lock_sched() in terms of RCU read section and the relevant grace
+period. That means that spin_lock(), which implies rcu_read_lock_sched(),
+also implies rcu_read_lock().
+
+There is no need no explicitly start a RCU read section if one has already
+been started implicitly by spin_lock().
+
+Simplify the code and remove the inner rcu_read_lock() invocation.
+
+pengdonglin (4):
+  ACPI: APEI: Remove redundant rcu_read_lock/unlock() in spin_lock
+  cgroup: Remove redundant rcu_read_lock/unlock() in spin_lock
+  cgroup/cpuset: Remove redundant rcu_read_lock/unlock() in spin_lock
+  wifi: mac80211: Remove redundant rcu_read_lock/unlock() in spin_lock
+
+Signed-off-by: pengdonglin <pengdonglin@xxxxxxxxxx>
+
+[PATCH v3 1/4] ACPI: APEI: Remove redundant rcu_read_lock/unlock() in spin_lock
+
+diff --git a/drivers/acpi/apei/ghes.c b/drivers/acpi/apei/ghes.c
+index a0d54993edb3..97ee19f2cae0 100644
+--- a/drivers/acpi/apei/ghes.c
++++ b/drivers/acpi/apei/ghes.c
+@@ -1207,12 +1207,10 @@ static int ghes_notify_hed(struct notifier_block *this, unsigned long event,
+ 	int ret = NOTIFY_DONE;
+ 
+ 	spin_lock_irqsave(&ghes_notify_lock_irq, flags);
+-	rcu_read_lock();
+ 	list_for_each_entry_rcu(ghes, &ghes_hed, list) {
+ 		if (!ghes_proc(ghes))
+ 			ret = NOTIFY_OK;
+ 	}
+-	rcu_read_unlock();
+ 	spin_unlock_irqrestore(&ghes_notify_lock_irq, flags);
+ 
+ 	return ret;
+-- 
+2.34.1
+
+[PATCH v3 2/4] cgroup: Remove redundant rcu_read_lock/unlock() in spin_lock
+
+diff --git a/kernel/cgroup/cgroup.c b/kernel/cgroup/cgroup.c
+index 312c6a8b55bb..db9e00a559df 100644
+--- a/kernel/cgroup/cgroup.c
++++ b/kernel/cgroup/cgroup.c
+@@ -2967,14 +2967,12 @@ int cgroup_attach_task(struct cgroup *dst_cgrp, struct task_struct *leader,
+ 
+ 	/* look up all src csets */
+ 	spin_lock_irq(&css_set_lock);
+-	rcu_read_lock();
+ 	task = leader;
+ 	do {
+ 		cgroup_migrate_add_src(task_css_set(task), dst_cgrp, &mgctx);
+ 		if (!threadgroup)
+ 			break;
+ 	} while_each_thread(leader, task);
+-	rcu_read_unlock();
+ 	spin_unlock_irq(&css_set_lock);
+ 
+ 	/* prepare dst csets and commit */
+diff --git a/kernel/cgroup/debug.c b/kernel/cgroup/debug.c
+index 80aa3f027ac3..81ea38dd6f9d 100644
+--- a/kernel/cgroup/debug.c
++++ b/kernel/cgroup/debug.c
+@@ -49,7 +49,6 @@ static int current_css_set_read(struct seq_file *seq, void *v)
+ 		return -ENODEV;
+ 
+ 	spin_lock_irq(&css_set_lock);
+-	rcu_read_lock();
+ 	cset = task_css_set(current);
+ 	refcnt = refcount_read(&cset->refcount);
+ 	seq_printf(seq, "css_set %pK %d", cset, refcnt);
+@@ -67,7 +66,6 @@ static int current_css_set_read(struct seq_file *seq, void *v)
+ 		seq_printf(seq, "%2d: %-4s\t- %p[%d]\n", ss->id, ss->name,
+ 			  css, css->id);
+ 	}
+-	rcu_read_unlock();
+ 	spin_unlock_irq(&css_set_lock);
+ 	cgroup_kn_unlock(of->kn);
+ 	return 0;
+@@ -95,7 +93,6 @@ static int current_css_set_cg_links_read(struct seq_file *seq, void *v)
+ 		return -ENOMEM;
+ 
+ 	spin_lock_irq(&css_set_lock);
+-	rcu_read_lock();
+ 	cset = task_css_set(current);
+ 	list_for_each_entry(link, &cset->cgrp_links, cgrp_link) {
+ 		struct cgroup *c = link->cgrp;
+@@ -104,7 +101,6 @@ static int current_css_set_cg_links_read(struct seq_file *seq, void *v)
+ 		seq_printf(seq, "Root %d group %s\n",
+ 			   c->root->hierarchy_id, name_buf);
+ 	}
+-	rcu_read_unlock();
+ 	spin_unlock_irq(&css_set_lock);
+ 	kfree(name_buf);
+ 	return 0;
+-- 
+2.34.1
+
+[PATCH v3 3/4] cgroup/cpuset: Remove redundant rcu_read_lock/unlock() in spin_lock
+
+diff --git a/kernel/cgroup/cpuset.c b/kernel/cgroup/cpuset.c
+index 27adb04df675..9b7e8e8e9411 100644
+--- a/kernel/cgroup/cpuset.c
++++ b/kernel/cgroup/cpuset.c
+@@ -4073,7 +4073,6 @@ void cpuset_cpus_allowed(struct task_struct *tsk, struct cpumask *pmask)
+ 	struct cpuset *cs;
+ 
+ 	spin_lock_irqsave(&callback_lock, flags);
+-	rcu_read_lock();
+ 
+ 	cs = task_cs(tsk);
+ 	if (cs != &top_cpuset)
+@@ -4095,7 +4094,6 @@ void cpuset_cpus_allowed(struct task_struct *tsk, struct cpumask *pmask)
+ 			cpumask_copy(pmask, possible_mask);
+ 	}
+ 
+-	rcu_read_unlock();
+ 	spin_unlock_irqrestore(&callback_lock, flags);
+ }
+ 
+@@ -4168,9 +4166,7 @@ nodemask_t cpuset_mems_allowed(struct task_struct *tsk)
+ 	unsigned long flags;
+ 
+ 	spin_lock_irqsave(&callback_lock, flags);
+-	rcu_read_lock();
+ 	guarantee_online_mems(task_cs(tsk), &mask);
+-	rcu_read_unlock();
+ 	spin_unlock_irqrestore(&callback_lock, flags);
+ 
+ 	return mask;
+@@ -4265,10 +4261,8 @@ bool cpuset_current_node_allowed(int node, gfp_t gfp_mask)
+ 	/* Not hardwall and node outside mems_allowed: scan up cpusets */
+ 	spin_lock_irqsave(&callback_lock, flags);
+ 
+-	rcu_read_lock();
+ 	cs = nearest_hardwall_ancestor(task_cs(current));
+ 	allowed = node_isset(node, cs->mems_allowed);
+-	rcu_read_unlock();
+ 
+ 	spin_unlock_irqrestore(&callback_lock, flags);
+ 	return allowed;
+-- 
+2.34.1
+
+[PATCH v3 4/4] wifi: mac80211: Remove redundant rcu_read_lock/unlock() in spin_lock
+
+diff --git a/net/mac80211/cfg.c b/net/mac80211/cfg.c
+index 2ed07fa121ab..4fe50d4c461d 100644
+--- a/net/mac80211/cfg.c
++++ b/net/mac80211/cfg.c
+@@ -4838,7 +4838,6 @@ static int ieee80211_get_txq_stats(struct wiphy *wiphy,
+ 	int ret = 0;
+ 
+ 	spin_lock_bh(&local->fq.lock);
+-	rcu_read_lock();
+ 
+ 	if (wdev) {
+ 		sdata = IEEE80211_WDEV_TO_SUB_IF(wdev);
+@@ -4864,7 +4863,6 @@ static int ieee80211_get_txq_stats(struct wiphy *wiphy,
+ 	}
+ 
+ out:
+-	rcu_read_unlock();
+ 	spin_unlock_bh(&local->fq.lock);
+ 
+ 	return ret;
+diff --git a/net/mac80211/debugfs.c b/net/mac80211/debugfs.c
+index e8b78ec682da..82099f4cedbe 100644
+--- a/net/mac80211/debugfs.c
++++ b/net/mac80211/debugfs.c
+@@ -82,7 +82,6 @@ static ssize_t aqm_read(struct file *file,
+ 	int len = 0;
+ 
+ 	spin_lock_bh(&local->fq.lock);
+-	rcu_read_lock();
+ 
+ 	len = scnprintf(buf, sizeof(buf),
+ 			"access name value\n"
+@@ -105,7 +104,6 @@ static ssize_t aqm_read(struct file *file,
+ 			fq->limit,
+ 			fq->quantum);
+ 
+-	rcu_read_unlock();
+ 	spin_unlock_bh(&local->fq.lock);
+ 
+ 	return simple_read_from_buffer(user_buf, count, ppos,
+diff --git a/net/mac80211/debugfs_netdev.c b/net/mac80211/debugfs_netdev.c
+index 1dac78271045..30a5a978a678 100644
+--- a/net/mac80211/debugfs_netdev.c
++++ b/net/mac80211/debugfs_netdev.c
+@@ -625,7 +625,6 @@ static ssize_t ieee80211_if_fmt_aqm(
+ 	txqi = to_txq_info(sdata->vif.txq);
+ 
+ 	spin_lock_bh(&local->fq.lock);
+-	rcu_read_lock();
+ 
+ 	len = scnprintf(buf,
+ 			buflen,
+@@ -642,7 +641,6 @@ static ssize_t ieee80211_if_fmt_aqm(
+ 			txqi->tin.tx_bytes,
+ 			txqi->tin.tx_packets);
+ 
+-	rcu_read_unlock();
+ 	spin_unlock_bh(&local->fq.lock);
+ 
+ 	return len;
+diff --git a/net/mac80211/debugfs_sta.c b/net/mac80211/debugfs_sta.c
+index 49061bd4151b..ef75255d47d5 100644
+--- a/net/mac80211/debugfs_sta.c
++++ b/net/mac80211/debugfs_sta.c
+@@ -148,7 +148,6 @@ static ssize_t sta_aqm_read(struct file *file, char __user *userbuf,
+ 		return -ENOMEM;
+ 
+ 	spin_lock_bh(&local->fq.lock);
+-	rcu_read_lock();
+ 
+ 	p += scnprintf(p,
+ 		       bufsz + buf - p,
+@@ -178,7 +177,6 @@ static ssize_t sta_aqm_read(struct file *file, char __user *userbuf,
+ 			       test_bit(IEEE80211_TXQ_DIRTY, &txqi->flags) ? " DIRTY" : "");
+ 	}
+ 
+-	rcu_read_unlock();
+ 	spin_unlock_bh(&local->fq.lock);
+ 
+ 	rv = simple_read_from_buffer(userbuf, count, ppos, buf, p - buf);
+diff --git a/net/mac80211/sta_info.c b/net/mac80211/sta_info.c
+index 8c550aab9bdc..663318a75d7f 100644
+--- a/net/mac80211/sta_info.c
++++ b/net/mac80211/sta_info.c
+@@ -2637,13 +2637,11 @@ static void sta_set_tidstats(struct sta_info *sta,
+ 
+ 	if (link_id < 0 && tid < IEEE80211_NUM_TIDS) {
+ 		spin_lock_bh(&local->fq.lock);
+-		rcu_read_lock();
+ 
+ 		tidstats->filled |= BIT(NL80211_TID_STATS_TXQ_STATS);
+ 		ieee80211_fill_txq_stats(&tidstats->txq_stats,
+ 					 to_txq_info(sta->sta.txq[tid]));
+ 
+-		rcu_read_unlock();
+ 		spin_unlock_bh(&local->fq.lock);
+ 	}
+ }
+-- 
+2.34.1
+

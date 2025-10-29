@@ -9,10 +9,10 @@ diff -uarp a/Makefile b/Makefile
 +ifdef CONFIG_CC_IS_CLANG
 +KBUILD_CFLAGS	+= -fmerge-all-constants \
 +		   -mllvm=-enable-pipeliner \
-+		   -mllvm=-inline-threshold=1000 \
++		   -mllvm=-inline-threshold=700 \
 +		   -mllvm=-unroll-threshold=50
 +ifdef CONFIG_LTO_CLANG
-+KBUILD_LDFLAGS	+= --lto-O3 --lto-CGO3 --thinlto-jobs=6
++KBUILD_LDFLAGS	+= --lto-O2 --lto-CGO2 --thinlto-jobs=6
 +endif
 +endif
 +
@@ -47,6 +47,25 @@ diff -uarp a/kernel/time/hrtimer.c b/kernel/time/hrtimer.c
  {
  	struct restart_block *restart;
  
+-- 
+2.40.2
+
+Ensure the setup_net function is not inlined, needed by bpftune
+
+Signed-off-by: Mario Roy <...>
+
+diff -uarp a/net/core/net_namespace.c b/net/core/net_namespace.c
+--- a/net/core/net_namespace.c
++++ b/net/core/net_namespace.c
+@@ -425,7 +425,7 @@ static __net_init void preinit_net(struc
+ /*
+  * setup_net runs the initializers for the network namespace object.
+  */
+-static __net_init int setup_net(struct net *net)
++static noinline __net_init int setup_net(struct net *net)
+ {
+ 	/* Must be called with pernet_ops_rwsem held */
+ 	const struct pernet_operations *ops;
 -- 
 2.40.2
 

@@ -314,7 +314,7 @@ Signed-off-by: Mario Roy <...>
 diff --git a/kernel/workqueue.c b/kernel/workqueue.c
 --- a/kernel/workqueue.c
 +++ b/kernel/workqueue.c
-@@ -7870,20 +7870,20 @@ static void __init wq_cpu_intensive_thresh_init(void)
+@@ -7864,20 +7864,20 @@ static void __init wq_cpu_intensive_thresh_init(void)
  		return;
  
  	/*
@@ -443,85 +443,62 @@ index 2e61c9707bea..fa7b0d1e8be6 100644
 -- 
 2.43.0
 
-Fix "sched/core: Tweak wait_task_inactive() to force dequeue sched_delayed tasks"
-https://lore.kernel.org/all/20250925133310.1843863-1-matt@readmodwrite.com/
-https://lore.kernel.org/all/105ae6f1-f629-4fe7-9644-4242c3bed035@amd.com/
-https://lore.kernel.org/all/20251023040359.39021-1-kprateek.nayak@amd.com/
+SUNLIGHT: drm/amd/display: Clean up stale page flip state on timeout
+https://github.com/sunlightlinux/linux-sunlight/commit/c65b5dae9488
 
-From Matt Fleming:
-  If we dequeue a task (task B) that was sched delayed then that task is
-  definitely no longer on the rq and not tracked in the rbtree.
-  Unfortunately, task_on_rq_queued(B) will still return true because
-  dequeue_task() doesn't update p->on_rq.
+Description:
+ - When a page flip times out waiting for hw_done or flip_done completion,
+   the event and pflip_status are left in a stale state. This causes
+   WARN_ON triggers in prepare_flip_isr on subsequent commits because the
+   hardware never signaled completion of the previous flip.
 
-From John Stultz:
-  There are two spots where we might exit dequeue_entities()
-  early when cfs_rq_throttled(rq), so maybe that's what's catching us
-  here?
+   Add cleanup logic to manually send the vblank event, release the vblank
+   reference, and reset pflip_status to AMDGPU_FLIP_NONE when a timeout
+   occurs. This prevents state corruption and eliminates spurious warnings
+   on future commits.
 
-From K Prateek Nayak:
-  That could very likely be it.
+Signed-off-by: Ionut Nechita <ionut_n2001@xxxxxxxxxxxx>
+---
+ .../gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c | 21 ++++++++++++++++++-
+ 1 file changed, 20 insertions(+), 1 deletion(-)
 
-  Matt, if possible can you try the patch attached below to check if the
-  bailout for throttled hierarchy is indeed the root cause. Thanks in
-  advance.
-
-From Matt Fleming:
-  I've been running our reproducer with this patch for the last few
-  hours without any issues, so the fix looks good to me.
-
-Tested-by: Matt Fleming <mfleming@xxxxxxxxxx>
-
-diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
-index 8ce56a8d507f..f0a4d9d7424d 100644
---- a/kernel/sched/fair.c
-+++ b/kernel/sched/fair.c
-@@ -6982,6 +6982,7 @@ static int dequeue_entities(struct rq *rq, struct sched_entity *se, int flags)
- 	int h_nr_runnable = 0;
- 	struct cfs_rq *cfs_rq;
- 	u64 slice = 0;
-+	int ret = 0;
+diff --git a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c
+index 163780030eb1..d0895c892e36 100644
+--- a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c
++++ b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c
+@@ -10685,10 +10685,29 @@ static int do_aquire_global_lock(struct drm_device *dev,
+ 			ret = wait_for_completion_interruptible_timeout(
+ 					&commit->flip_done, 10*HZ);
  
- 	if (entity_is_task(se)) {
- 		p = task_of(se);
-@@ -7011,7 +7012,7 @@ static int dequeue_entities(struct rq *rq, struct sched_entity *se, int flags)
+-		if (ret == 0)
++		if (ret == 0) {
++			struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
++			unsigned long flags;
++
+ 			drm_err(dev, "[CRTC:%d:%s] hw_done or flip_done timed out\n",
+ 				  crtc->base.id, crtc->name);
  
- 		/* end evaluation on encountering a throttled cfs_rq */
- 		if (cfs_rq_throttled(cfs_rq))
--			return 0;
-+			goto out;
- 
- 		/* Don't dequeue parent if it has other entities besides us */
- 		if (cfs_rq->load.weight) {
-@@ -7052,7 +7053,7 @@ static int dequeue_entities(struct rq *rq, struct sched_entity *se, int flags)
- 
- 		/* end evaluation on encountering a throttled cfs_rq */
- 		if (cfs_rq_throttled(cfs_rq))
--			return 0;
-+			goto out;
++			/*
++			 * Clean up stale event and pflip_status to prevent
++			 * WARN_ON in prepare_flip_isr on subsequent commits.
++			 * If the flip timed out, the hardware did not signal
++			 * completion, so we need to manually clean up the state.
++			 */
++			spin_lock_irqsave(&dev->event_lock, flags);
++			if (acrtc->event) {
++				drm_crtc_send_vblank_event(crtc, acrtc->event);
++				acrtc->event = NULL;
++				drm_crtc_vblank_put(crtc);
++			}
++			acrtc->pflip_status = AMDGPU_FLIP_NONE;
++			spin_unlock_irqrestore(&dev->event_lock, flags);
++		}
++
+ 		drm_crtc_commit_put(commit);
  	}
  
- 	sub_nr_running(rq, h_nr_queued);
-@@ -7061,6 +7062,8 @@ static int dequeue_entities(struct rq *rq, struct sched_entity *se, int flags)
- 	if (unlikely(!was_sched_idle && sched_idle_rq(rq)))
- 		rq->next_balance = jiffies;
- 
-+	ret = 1;
-+out:
- 	if (p && task_delayed) {
- 		WARN_ON_ONCE(!task_sleep);
- 		WARN_ON_ONCE(p->on_rq != 1);
-@@ -7076,7 +7079,7 @@ static int dequeue_entities(struct rq *rq, struct sched_entity *se, int flags)
- 		__block_task(rq, p);
- 	}
- 
--	return 1;
-+	return ret;
- }
- 
- /*
 -- 
-2.50.1
+2.43.0
 
 sched/fair: do not scan twice in detach_tasks()
 https://lore.kernel.org/all/20250722102600.25976-1-shijie@os.amperecomputing.com/

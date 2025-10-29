@@ -14,8 +14,8 @@ diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
 -#else
 -unsigned int sysctl_sched_base_slice			= 700000ULL;
 -static unsigned int normalized_sysctl_sched_base_slice	= 700000ULL;
-+unsigned int sysctl_sched_base_slice			= 500000ULL;
-+static unsigned int normalized_sysctl_sched_base_slice	= 500000ULL;
++unsigned int sysctl_sched_base_slice			= 625000ULL;
++static unsigned int normalized_sysctl_sched_base_slice	= 625000ULL;
 -#endif /* CONFIG_CACHY */
  
 -#ifdef CONFIG_CACHY
