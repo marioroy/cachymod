@@ -165,7 +165,7 @@ diff --git a/kernel/events/core.c b/kernel/events/core.c
 index 820127536e62b7..a8418836aa1a32 100644
 --- a/kernel/events/core.c
 +++ b/kernel/events/core.c
-@@ -11756,7 +11756,8 @@ static enum hrtimer_restart perf_swevent_hrtimer(struct hrtimer *hrtimer)
+@@ -11757,7 +11757,8 @@ static enum hrtimer_restart perf_swevent_hrtimer(struct hrtimer *hrtimer)
  
  	event = container_of(hrtimer, struct perf_event, hw.hrtimer);
  
@@ -175,7 +175,7 @@ index 820127536e62b7..a8418836aa1a32 100644
  		return HRTIMER_NORESTART;
  
  	event->pmu->read(event);
-@@ -11802,15 +11803,18 @@ static void perf_swevent_cancel_hrtimer(struct perf_event *event)
+@@ -11803,15 +11804,18 @@ static void perf_swevent_cancel_hrtimer(struct perf_event *event)
  	struct hw_perf_event *hwc = &event->hw;
  
  	/*
@@ -198,7 +198,7 @@ index 820127536e62b7..a8418836aa1a32 100644
  	}
  }
  
-@@ -11854,12 +11858,14 @@ static void cpu_clock_event_update(struct perf_event *event)
+@@ -11855,12 +11859,14 @@ static void cpu_clock_event_update(struct perf_event *event)
  
  static void cpu_clock_event_start(struct perf_event *event, int flags)
  {
@@ -213,7 +213,7 @@ index 820127536e62b7..a8418836aa1a32 100644
  	perf_swevent_cancel_hrtimer(event);
  	if (flags & PERF_EF_UPDATE)
  		cpu_clock_event_update(event);
-@@ -11933,12 +11939,14 @@ static void task_clock_event_update(struct perf_event *event, u64 now)
+@@ -11934,12 +11940,14 @@ static void task_clock_event_update(struct perf_event *event, u64 now)
  
  static void task_clock_event_start(struct perf_event *event, int flags)
  {
