@@ -70,7 +70,7 @@ Speed up compression
 diff -uarp a/scripts/Makefile.lib b/scripts/Makefile.lib
 --- a/scripts/Makefile.lib
 +++ b/scripts/Makefile.lib
-@@ -452,13 +452,13 @@ quiet_cmd_xzmisc = XZMISC  $@
+@@ -459,13 +459,13 @@ quiet_cmd_xzmisc = XZMISC  $@
  # be used because it would require zstd to allocate a 128 MB buffer.
  
  quiet_cmd_zstd = ZSTD    $@
@@ -443,63 +443,6 @@ index 2e61c9707bea..fa7b0d1e8be6 100644
 -- 
 2.43.0
 
-SUNLIGHT: drm/amd/display: Clean up stale page flip state on timeout
-https://github.com/sunlightlinux/linux-sunlight/commit/c65b5dae9488
-
-Description:
- - When a page flip times out waiting for hw_done or flip_done completion,
-   the event and pflip_status are left in a stale state. This causes
-   WARN_ON triggers in prepare_flip_isr on subsequent commits because the
-   hardware never signaled completion of the previous flip.
-
-   Add cleanup logic to manually send the vblank event, release the vblank
-   reference, and reset pflip_status to AMDGPU_FLIP_NONE when a timeout
-   occurs. This prevents state corruption and eliminates spurious warnings
-   on future commits.
-
-Signed-off-by: Ionut Nechita <ionut_n2001@xxxxxxxxxxxx>
----
- .../gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c | 21 ++++++++++++++++++-
- 1 file changed, 20 insertions(+), 1 deletion(-)
-
-diff --git a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c
-index 163780030eb1..d0895c892e36 100644
---- a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c
-+++ b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c
-@@ -10685,10 +10685,29 @@ static int do_aquire_global_lock(struct drm_device *dev,
- 			ret = wait_for_completion_interruptible_timeout(
- 					&commit->flip_done, 10*HZ);
- 
--		if (ret == 0)
-+		if (ret == 0) {
-+			struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
-+			unsigned long flags;
-+
- 			drm_err(dev, "[CRTC:%d:%s] hw_done or flip_done timed out\n",
- 				  crtc->base.id, crtc->name);
- 
-+			/*
-+			 * Clean up stale event and pflip_status to prevent
-+			 * WARN_ON in prepare_flip_isr on subsequent commits.
-+			 * If the flip timed out, the hardware did not signal
-+			 * completion, so we need to manually clean up the state.
-+			 */
-+			spin_lock_irqsave(&dev->event_lock, flags);
-+			if (acrtc->event) {
-+				drm_crtc_send_vblank_event(crtc, acrtc->event);
-+				acrtc->event = NULL;
-+				drm_crtc_vblank_put(crtc);
-+			}
-+			acrtc->pflip_status = AMDGPU_FLIP_NONE;
-+			spin_unlock_irqrestore(&dev->event_lock, flags);
-+		}
-+
- 		drm_crtc_commit_put(commit);
- 	}
- 
--- 
-2.43.0
-
 sched/fair: do not scan twice in detach_tasks()
 https://lore.kernel.org/all/20250722102600.25976-1-shijie@os.amperecomputing.com/
 
@@ -533,7 +476,7 @@ Bluetooth adapters of many Acer laptops don't work without it
 diff -uarp a/drivers/bluetooth/btusb.c b/drivers/bluetooth/btusb.c
 --- a/drivers/bluetooth/btusb.c
 +++ b/drivers/bluetooth/btusb.c
-@@ -574,6 +574,8 @@ static const struct usb_device_id quirks
+@@ -575,6 +575,8 @@ static const struct usb_device_id quirks
  						     BTUSB_WIDEBAND_SPEECH },
  	{ USB_DEVICE(0x13d3, 0x3591), .driver_info = BTUSB_REALTEK |
  						     BTUSB_WIDEBAND_SPEECH },

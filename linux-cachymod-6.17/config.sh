@@ -4,12 +4,6 @@
 ### Exit immediately on error.
 set -e
 
-### Disable memory hotplug not needed for desktop use.
-scripts/config -d MEMORY_HOTPLUG
-
-### Disable auxiliary POSIX clocks.
-scripts/config -d POSIX_AUX_CLOCKS
-
 ### Set the minimal base_slice_ns option for BORE.
 ### 1000Hz = 2.0ms, 800Hz = 2.5ms, 600Hz = 1.6(6)ms, 500Hz = 2.0ms.
 scripts/config --set-val MIN_BASE_SLICE_NS 1600000
@@ -47,8 +41,17 @@ scripts/config -d MSDOS_FS -e FAT_FS -e VFAT_FS
 ### Set tree-based hierarchical RCU fanout value. (default 64)
 scripts/config --set-val RCU_FANOUT 32
 
-### Disable poison kernel stack before returning from syscalls
+### Disable poison kernel stack before returning from syscalls.
 scripts/config -d KSTACK_ERASE
+
+### Disable memory hotplug not needed for desktop use.
+scripts/config -d MEMORY_HOTPLUG
+
+### Disable auxiliary POSIX clocks.
+scripts/config -d POSIX_AUX_CLOCKS
+
+### Disable AppArmor support.
+scripts/config -d SECURITY_APPARMOR
 
 ### Disable tracers.
 scripts/config -d ATH5K_TRACER
@@ -71,6 +74,7 @@ scripts/config -d TIMERLAT_TRACER
 scripts/config -d SYNTH_EVENTS
 scripts/config -d USER_EVENTS
 scripts/config -d HIST_TRIGGERS
+scripts/config -d TRACE_GPU_MEM
 
 ### Disable debug.
 scripts/config -d SLUB_DEBUG

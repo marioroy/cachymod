@@ -26,7 +26,7 @@ diff --git a/drivers/gpu/drm/scheduler/sched_entity.c b/drivers/gpu/drm/schedule
 index 3d06f72531ba24..2c1e31baff0fd6 100644
 --- a/drivers/gpu/drm/scheduler/sched_entity.c
 +++ b/drivers/gpu/drm/scheduler/sched_entity.c
-@@ -487,26 +487,7 @@ struct drm_sched_job *drm_sched_entity_pop_job(struct drm_sched_entity *entity)
+@@ -492,26 +492,7 @@ struct drm_sched_job *drm_sched_entity_pop_job(struct drm_sched_entity *entity)
  
  	spsc_queue_pop(&entity->job_queue);
  
@@ -54,7 +54,7 @@ index 3d06f72531ba24..2c1e31baff0fd6 100644
  
  	/* Jobs and entities might have different lifecycles. Since we're
  	 * removing the job from the entities queue, set the jobs entity pointer
-@@ -596,30 +577,10 @@ void drm_sched_entity_push_job(struct drm_sched_job *sched_job)
+@@ -602,30 +583,10 @@ void drm_sched_entity_push_job(struct drm_sched_job *sched_job)
  	/* first job wakes up scheduler */
  	if (first) {
  		struct drm_gpu_scheduler *sched;
@@ -2306,7 +2306,7 @@ index 2c1e31baff0fd6..5582c85755ed5c 100644
  	INIT_LIST_HEAD(&entity->list);
  	entity->rq = NULL;
  	entity->guilty = guilty;
-@@ -338,6 +375,7 @@ void drm_sched_entity_fini(struct drm_sched_entity *entity)
+@@ -343,6 +380,7 @@ void drm_sched_entity_fini(struct drm_sched_entity *entity)
  
  	dma_fence_put(rcu_dereference_check(entity->last_scheduled, true));
  	RCU_INIT_POINTER(entity->last_scheduled, NULL);
@@ -2575,16 +2575,16 @@ diff --git a/drivers/gpu/drm/scheduler/sched_entity.c b/drivers/gpu/drm/schedule
 index 5582c85755ed5c..ea29d68d0487aa 100644
 --- a/drivers/gpu/drm/scheduler/sched_entity.c
 +++ b/drivers/gpu/drm/scheduler/sched_entity.c
-@@ -107,6 +107,8 @@ int drm_sched_entity_init(struct drm_sched_entity *entity,
- 	entity->guilty = guilty;
+@@ -108,6 +108,8 @@ int drm_sched_entity_init(struct drm_sched_entity *entity,
  	entity->num_sched_list = num_sched_list;
  	entity->priority = priority;
+ 	entity->last_user = current->group_leader;
 +	entity->rq_priority = drm_sched_policy == DRM_SCHED_POLICY_FAIR ?
 +			      DRM_SCHED_PRIORITY_KERNEL : priority;
  	/*
  	 * It's perfectly valid to initialize an entity without having a valid
  	 * scheduler attached. It's just not valid to use the scheduler before it
-@@ -123,17 +125,23 @@ int drm_sched_entity_init(struct drm_sched_entity *entity,
+@@ -124,17 +126,23 @@ int drm_sched_entity_init(struct drm_sched_entity *entity,
  		 */
  		pr_warn("%s: called with uninitialized scheduler\n", __func__);
  	} else if (num_sched_list) {
@@ -2617,7 +2617,7 @@ index 5582c85755ed5c..ea29d68d0487aa 100644
  	}
  
  	init_completion(&entity->entity_idle);
-@@ -566,7 +574,7 @@ void drm_sched_entity_select_rq(struct drm_sched_entity *entity)
+@@ -571,7 +579,7 @@ void drm_sched_entity_select_rq(struct drm_sched_entity *entity)
  
  	spin_lock(&entity->lock);
  	sched = drm_sched_pick_best(entity->sched_list, entity->num_sched_list);
@@ -3287,16 +3287,16 @@ diff --git a/drivers/gpu/drm/scheduler/sched_entity.c b/drivers/gpu/drm/schedule
 index 4fefc7cb64d3df..7accdaba331940 100644
 --- a/drivers/gpu/drm/scheduler/sched_entity.c
 +++ b/drivers/gpu/drm/scheduler/sched_entity.c
-@@ -108,8 +108,6 @@ int drm_sched_entity_init(struct drm_sched_entity *entity,
- 	entity->guilty = guilty;
+@@ -109,8 +109,6 @@ int drm_sched_entity_init(struct drm_sched_entity *entity,
  	entity->num_sched_list = num_sched_list;
  	entity->priority = priority;
+ 	entity->last_user = current->group_leader;
 -	entity->rq_priority = drm_sched_policy == DRM_SCHED_POLICY_FAIR ?
 -			      DRM_SCHED_PRIORITY_KERNEL : priority;
  	/*
  	 * It's perfectly valid to initialize an entity without having a valid
  	 * scheduler attached. It's just not valid to use the scheduler before it
-@@ -119,30 +117,14 @@ int drm_sched_entity_init(struct drm_sched_entity *entity,
+@@ -120,30 +118,14 @@ int drm_sched_entity_init(struct drm_sched_entity *entity,
  	RCU_INIT_POINTER(entity->last_scheduled, NULL);
  	RB_CLEAR_NODE(&entity->rb_tree_node);
  
@@ -3329,7 +3329,7 @@ index 4fefc7cb64d3df..7accdaba331940 100644
  	}
  
  	init_completion(&entity->entity_idle);
-@@ -575,7 +557,7 @@ void drm_sched_entity_select_rq(struct drm_sched_entity *entity)
+@@ -580,7 +562,7 @@ void drm_sched_entity_select_rq(struct drm_sched_entity *entity)
  
  	spin_lock(&entity->lock);
  	sched = drm_sched_pick_best(entity->sched_list, entity->num_sched_list);
@@ -3338,7 +3338,7 @@ index 4fefc7cb64d3df..7accdaba331940 100644
  	if (rq != entity->rq) {
  		drm_sched_rq_remove_entity(entity->rq, entity);
  		entity->rq = rq;
-@@ -599,7 +581,6 @@ void drm_sched_entity_push_job(struct drm_sched_job *sched_job)
+@@ -605,7 +587,6 @@ void drm_sched_entity_push_job(struct drm_sched_job *sched_job)
  {
  	struct drm_sched_entity *entity = sched_job->entity;
  	bool first;
@@ -3346,7 +3346,7 @@ index 4fefc7cb64d3df..7accdaba331940 100644
  
  	trace_drm_sched_job_queue(sched_job, entity);
  
-@@ -616,16 +597,14 @@ void drm_sched_entity_push_job(struct drm_sched_job *sched_job)
+@@ -622,16 +603,14 @@ void drm_sched_entity_push_job(struct drm_sched_job *sched_job)
  	/*
  	 * After the sched_job is pushed into the entity queue, it may be
  	 * completed and freed up at any time. We can no longer access it.
@@ -4016,7 +4016,7 @@ diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu_xcp.c b/drivers/gpu/drm/amd/amdgp
 index c417f868922077..b316546c58e49f 100644
 --- a/drivers/gpu/drm/amd/amdgpu/amdgpu_xcp.c
 +++ b/drivers/gpu/drm/amd/amdgpu/amdgpu_xcp.c
-@@ -444,15 +444,15 @@ int amdgpu_xcp_open_device(struct amdgpu_device *adev,
+@@ -445,15 +445,15 @@ int amdgpu_xcp_open_device(struct amdgpu_device *adev,
  void amdgpu_xcp_release_sched(struct amdgpu_device *adev,
  				  struct amdgpu_ctx_entity *entity)
  {
@@ -4040,7 +4040,7 @@ diff --git a/drivers/gpu/drm/scheduler/sched_entity.c b/drivers/gpu/drm/schedule
 index 7accdaba331940..3789e28fff3c0c 100644
 --- a/drivers/gpu/drm/scheduler/sched_entity.c
 +++ b/drivers/gpu/drm/scheduler/sched_entity.c
-@@ -114,19 +114,12 @@ int drm_sched_entity_init(struct drm_sched_entity *entity,
+@@ -115,19 +115,12 @@ int drm_sched_entity_init(struct drm_sched_entity *entity,
  	 * is initialized itself.
  	 */
  	entity->sched_list = num_sched_list > 1 ? sched_list : NULL;
@@ -4064,7 +4064,7 @@ index 7accdaba331940..3789e28fff3c0c 100644
  	init_completion(&entity->entity_idle);
  
  	/* We start in an idle state. */
-@@ -312,7 +305,7 @@ long drm_sched_entity_flush(struct drm_sched_entity *entity, long timeout)
+@@ -317,7 +310,7 @@ long drm_sched_entity_flush(struct drm_sched_entity *entity, long timeout)
  	if (!entity->rq)
  		return 0;
  
@@ -4073,7 +4073,7 @@ index 7accdaba331940..3789e28fff3c0c 100644
  	/**
  	 * The client will not queue more IBs during this fini, consume existing
  	 * queued IBs or discard them on SIGKILL
-@@ -393,10 +386,12 @@ static void drm_sched_entity_wakeup(struct dma_fence *f,
+@@ -398,10 +391,12 @@ static void drm_sched_entity_wakeup(struct dma_fence *f,
  {
  	struct drm_sched_entity *entity =
  		container_of(cb, struct drm_sched_entity, cb);
@@ -4087,7 +4087,7 @@ index 7accdaba331940..3789e28fff3c0c 100644
  }
  
  /**
-@@ -423,7 +418,8 @@ EXPORT_SYMBOL(drm_sched_entity_set_priority);
+@@ -428,7 +423,8 @@ EXPORT_SYMBOL(drm_sched_entity_set_priority);
  static bool drm_sched_entity_add_dependency_cb(struct drm_sched_entity *entity,
  					       struct drm_sched_job *sched_job)
  {
@@ -4097,7 +4097,7 @@ index 7accdaba331940..3789e28fff3c0c 100644
  	struct dma_fence *fence = entity->dependency;
  	struct drm_sched_fence *s_fence;
  
-@@ -557,7 +553,7 @@ void drm_sched_entity_select_rq(struct drm_sched_entity *entity)
+@@ -562,7 +558,7 @@ void drm_sched_entity_select_rq(struct drm_sched_entity *entity)
  
  	spin_lock(&entity->lock);
  	sched = drm_sched_pick_best(entity->sched_list, entity->num_sched_list);
@@ -4106,7 +4106,7 @@ index 7accdaba331940..3789e28fff3c0c 100644
  	if (rq != entity->rq) {
  		drm_sched_rq_remove_entity(entity->rq, entity);
  		entity->rq = rq;
-@@ -580,6 +576,8 @@ void drm_sched_entity_select_rq(struct drm_sched_entity *entity)
+@@ -586,6 +582,8 @@ void drm_sched_entity_select_rq(struct drm_sched_entity *entity)
  void drm_sched_entity_push_job(struct drm_sched_job *sched_job)
  {
  	struct drm_sched_entity *entity = sched_job->entity;
@@ -4115,7 +4115,7 @@ index 7accdaba331940..3789e28fff3c0c 100644
  	bool first;
  
  	trace_drm_sched_job_queue(sched_job, entity);
-@@ -591,7 +589,7 @@ void drm_sched_entity_push_job(struct drm_sched_job *sched_job)
+@@ -597,7 +595,7 @@ void drm_sched_entity_push_job(struct drm_sched_job *sched_job)
  		xa_for_each(&sched_job->dependencies, index, entry)
  			trace_drm_sched_job_add_dep(sched_job, entry);
  	}
@@ -4124,7 +4124,7 @@ index 7accdaba331940..3789e28fff3c0c 100644
  	WRITE_ONCE(entity->last_user, current->group_leader);
  
  	/*
-@@ -602,8 +600,6 @@ void drm_sched_entity_push_job(struct drm_sched_job *sched_job)
+@@ -608,8 +606,6 @@ void drm_sched_entity_push_job(struct drm_sched_job *sched_job)
  
  	/* first job wakes up scheduler */
  	if (first) {
@@ -4361,7 +4361,7 @@ diff --git a/drivers/accel/amdxdna/aie2_ctx.c b/drivers/accel/amdxdna/aie2_ctx.c
 index 2cff5419bd2fac..ebf728be233ba6 100644
 --- a/drivers/accel/amdxdna/aie2_ctx.c
 +++ b/drivers/accel/amdxdna/aie2_ctx.c
-@@ -521,7 +521,6 @@ int aie2_hwctx_init(struct amdxdna_hwctx *hwctx)
+@@ -522,7 +522,6 @@ int aie2_hwctx_init(struct amdxdna_hwctx *hwctx)
  	struct amdxdna_dev *xdna = client->xdna;
  	const struct drm_sched_init_args args = {
  		.ops = &sched_ops,
@@ -4386,7 +4386,7 @@ diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu_device.c b/drivers/gpu/drm/amd/am
 index c8459337fcb898..3e14e2eefddbfa 100644
 --- a/drivers/gpu/drm/amd/amdgpu/amdgpu_device.c
 +++ b/drivers/gpu/drm/amd/amdgpu/amdgpu_device.c
-@@ -2974,7 +2974,6 @@ static int amdgpu_device_init_schedulers(struct amdgpu_device *adev)
+@@ -2978,7 +2978,6 @@ static int amdgpu_device_init_schedulers(struct amdgpu_device *adev)
  {
  	struct drm_sched_init_args args = {
  		.ops = &amdgpu_sched_ops,

@@ -2037,8 +2037,8 @@ index 088ceff38c8a47..227e5f72b333a7 100644
  BTF_ID_FLAGS(func, scx_bpf_dispatch_cancel)
  BTF_ID_FLAGS(func, scx_bpf_dsq_move_to_local)
 +BTF_ID_FLAGS(func, scx_bpf_dsq_peek, KF_RCU_PROTECTED | KF_RET_NULL)
- BTF_ID_FLAGS(func, scx_bpf_dsq_move_set_slice)
- BTF_ID_FLAGS(func, scx_bpf_dsq_move_set_vtime)
+ BTF_ID_FLAGS(func, scx_bpf_dsq_move_set_slice, KF_RCU)
+ BTF_ID_FLAGS(func, scx_bpf_dsq_move_set_vtime, KF_RCU)
  BTF_ID_FLAGS(func, scx_bpf_dsq_move, KF_RCU)
 @@ -5728,12 +5864,18 @@ __bpf_kfunc_start_defs();
   */

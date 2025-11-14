@@ -262,7 +262,7 @@ diff --git a/net/mac80211/cfg.c b/net/mac80211/cfg.c
 index 2ed07fa121ab..4fe50d4c461d 100644
 --- a/net/mac80211/cfg.c
 +++ b/net/mac80211/cfg.c
-@@ -4838,7 +4838,6 @@ static int ieee80211_get_txq_stats(struct wiphy *wiphy,
+@@ -4855,7 +4855,6 @@ static int ieee80211_get_txq_stats(struct wiphy *wiphy,
  	int ret = 0;
  
  	spin_lock_bh(&local->fq.lock);
@@ -270,7 +270,7 @@ index 2ed07fa121ab..4fe50d4c461d 100644
  
  	if (wdev) {
  		sdata = IEEE80211_WDEV_TO_SUB_IF(wdev);
-@@ -4864,7 +4863,6 @@ static int ieee80211_get_txq_stats(struct wiphy *wiphy,
+@@ -4881,7 +4880,6 @@ static int ieee80211_get_txq_stats(struct wiphy *wiphy,
  	}
  
  out:
