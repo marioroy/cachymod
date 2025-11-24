@@ -90,6 +90,32 @@ diff -uarp a/scripts/Makefile.lib b/scripts/Makefile.lib
 -- 
 2.30.1
 
+Curated patches from ZEN
+https://github.com/zen-kernel/zen-kernel
+
+ZEN: INTERACTIVE: Tune ondemand governor for interactivity
+
+diff --git a/drivers/cpufreq/cpufreq_ondemand.c b/drivers/cpufreq/cpufreq_ondemand.c
+index 0e65d37c923113..b403fe4790dafd 100644
+--- a/drivers/cpufreq/cpufreq_ondemand.c
++++ b/drivers/cpufreq/cpufreq_ondemand.c
+@@ -18,10 +18,10 @@
+ #include "cpufreq_ondemand.h"
+ 
+ /* On-demand governor macros */
+-#define DEF_FREQUENCY_UP_THRESHOLD		(80)
+-#define DEF_SAMPLING_DOWN_FACTOR		(1)
++#define DEF_FREQUENCY_UP_THRESHOLD		(55)
++#define DEF_SAMPLING_DOWN_FACTOR		(5)
+ #define MAX_SAMPLING_DOWN_FACTOR		(100000)
+-#define MICRO_FREQUENCY_UP_THRESHOLD		(95)
++#define MICRO_FREQUENCY_UP_THRESHOLD		(60)
+ #define MIN_FREQUENCY_UP_THRESHOLD		(1)
+ #define MAX_FREQUENCY_UP_THRESHOLD		(100)
+ 
+-- 
+2.30.1
+
 Curated patches from XanMod Linux
 https://gitlab.com/xanmod/linux-patches
 
@@ -440,6 +466,25 @@ index 2e61c9707bea..fa7b0d1e8be6 100644
  	if (!for_autogroup)
  		scx_cgroup_move_task(tsk);
  
+-- 
+2.43.0
+
+select_idle_sibling v.s. DELAYED_DEQUEUE
+https://lore.kernel.org/all/CABcWv99ui2moYy0=jU2UwCm==m=h_YjaJeoTQs+J+r3v7r0Bwg@mail.gmail.com/
+
+diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
+index 5b752324270b..d60a3f5ebeca 100644
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -7793,7 +7793,7 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target)
+ 	if (is_per_cpu_kthread(current) &&
+ 	    in_task() &&
+ 	    prev == smp_processor_id() &&
+-	    this_rq()->nr_running <= 1 &&
++	    this_rq()->nr_running - cfs_h_nr_delayed(this_rq()) <= 1 &&
+ 	    asym_fits_cpu(task_util, util_min, util_max, prev)) {
+ 		return prev;
+ 	}
 -- 
 2.43.0
 

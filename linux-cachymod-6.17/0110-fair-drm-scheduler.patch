@@ -4386,7 +4386,7 @@ diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu_device.c b/drivers/gpu/drm/amd/am
 index c8459337fcb898..3e14e2eefddbfa 100644
 --- a/drivers/gpu/drm/amd/amdgpu/amdgpu_device.c
 +++ b/drivers/gpu/drm/amd/amdgpu/amdgpu_device.c
-@@ -2978,7 +2978,6 @@ static int amdgpu_device_init_schedulers(struct amdgpu_device *adev)
+@@ -2985,7 +2985,6 @@ static int amdgpu_device_init_schedulers(struct amdgpu_device *adev)
  {
  	struct drm_sched_init_args args = {
  		.ops = &amdgpu_sched_ops,

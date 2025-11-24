@@ -56,6 +56,7 @@ scripts/config -d SECURITY_APPARMOR
 ### Disable tracers.
 scripts/config -d ATH5K_TRACER
 scripts/config -d DM_UEVENT
+scripts/config -d EPROBE_EVENTS
 scripts/config -d FUNCTION_PROFILER
 scripts/config -d FTRACE_RECORD_RECURSION
 scripts/config -d FTRACE_SORT_STARTUP_TEST

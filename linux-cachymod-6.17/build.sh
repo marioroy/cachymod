@@ -26,7 +26,8 @@ set -e
 
 # Run the "trim.sh" script to trim the kernel
 # Deselects ~ 1,500 kernel options
-: "${_runtrim_script:=yes}"
+# Note: this may not work for laptops
+: "${_runtrim_script:=no}"
 
 # Compile ONLY used modules to VASTLY reduce the number of modules built
 # and the build time. Refer to the wiki page for more information.
@@ -83,8 +84,7 @@ set -e
 
 # Select build type { thin, clang, gcc }
 # thin:  Build the kernel with clang thin-LTO, auto suffix "-lto"
-#        Uses multiple threads, faster and lesser memory consumption,
-#        possibly lower runtime performance than full
+#        Uses multiple threads, faster and lesser memory consumption
 # clang: Build kernel with clang, auto suffix "-clang"
 # gcc:   Build kernel with gcc, auto suffix "-gcc"
 : "${_buildtype:=thin}"

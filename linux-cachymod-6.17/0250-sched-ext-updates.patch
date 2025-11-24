@@ -244,7 +244,7 @@ diff --git a/kernel/bpf/verifier.c b/kernel/bpf/verifier.c
 index 9fb1f957a09374..7efea2f0931775 100644
 --- a/kernel/bpf/verifier.c
 +++ b/kernel/bpf/verifier.c
-@@ -13920,6 +13920,11 @@ static int check_kfunc_call(struct bpf_verifier_env *env, struct bpf_insn *insn,
+@@ -13922,6 +13922,11 @@ static int check_kfunc_call(struct bpf_verifier_env *env, struct bpf_insn *insn,
  		return -EACCES;
  	}
  
@@ -256,7 +256,7 @@ index 9fb1f957a09374..7efea2f0931775 100644
  	/* In case of release function, we get register number of refcounted
  	 * PTR_TO_BTF_ID in bpf_kfunc_arg_meta, do the release now.
  	 */
-@@ -14033,6 +14038,9 @@ static int check_kfunc_call(struct bpf_verifier_env *env, struct bpf_insn *insn,
+@@ -14035,6 +14040,9 @@ static int check_kfunc_call(struct bpf_verifier_env *env, struct bpf_insn *insn,
  			/* Ensures we don't access the memory after a release_reference() */
  			if (meta.ref_obj_id)
  				regs[BPF_REG_0].ref_obj_id = meta.ref_obj_id;
@@ -266,7 +266,7 @@ index 9fb1f957a09374..7efea2f0931775 100644
  		} else {
  			mark_reg_known_zero(env, regs, BPF_REG_0);
  			regs[BPF_REG_0].btf = desc_btf;
-@@ -14041,6 +14049,8 @@ static int check_kfunc_call(struct bpf_verifier_env *env, struct bpf_insn *insn,
+@@ -14043,6 +14051,8 @@ static int check_kfunc_call(struct bpf_verifier_env *env, struct bpf_insn *insn,
  
  			if (meta.func_id == special_kfunc_list[KF_bpf_get_kmem_cache])
  				regs[BPF_REG_0].type |= PTR_UNTRUSTED;
