@@ -469,25 +469,6 @@ index 2e61c9707bea..fa7b0d1e8be6 100644
 -- 
 2.43.0
 
-select_idle_sibling v.s. DELAYED_DEQUEUE
-https://lore.kernel.org/all/CABcWv99ui2moYy0=jU2UwCm==m=h_YjaJeoTQs+J+r3v7r0Bwg@mail.gmail.com/
-
-diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
-index 5b752324270b..d60a3f5ebeca 100644
---- a/kernel/sched/fair.c
-+++ b/kernel/sched/fair.c
-@@ -7793,7 +7793,7 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target)
- 	if (is_per_cpu_kthread(current) &&
- 	    in_task() &&
- 	    prev == smp_processor_id() &&
--	    this_rq()->nr_running <= 1 &&
-+	    this_rq()->nr_running - cfs_h_nr_delayed(this_rq()) <= 1 &&
- 	    asym_fits_cpu(task_util, util_min, util_max, prev)) {
- 		return prev;
- 	}
--- 
-2.43.0
-
 sched/fair: do not scan twice in detach_tasks()
 https://lore.kernel.org/all/20250722102600.25976-1-shijie@os.amperecomputing.com/
 
