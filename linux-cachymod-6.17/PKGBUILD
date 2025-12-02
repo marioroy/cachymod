@@ -173,9 +173,8 @@ if [[ "$buildtype" =~ (lto|clang) ]]; then
 
     BUILD_FLAGS=(CC=clang LD=ld.lld LLVM_IAS=1)
     CLANG_BIN=$(which clang) ; CLANG_BIN="${CLANG_BIN%clang}"
-    [ "$CLANG_BIN" = "/usr/bin/" ] && BUILD_FLAGS+=(LLVM=1)
 
-    if [[ "$CLANG_BIN" != "/usr/bin/" && -x "${CLANG_BIN}/llvm-strip" ]]; then
+    if [[ "$CLANG_BIN" != "/usr/bin/" && -x "${CLANG_BIN%/}/llvm-strip" ]]; then
         BUILD_FLAGS+=(LLVM="$CLANG_BIN")
     else
         BUILD_FLAGS+=(LLVM=1)
@@ -603,22 +602,27 @@ _package-headers() {
     find "$builddir" -type f -name '*.o' -printf 'Removing %P\n' -delete
 
     echo "Stripping build tools..."
-    local file
+    local file strip="/usr/bin/strip"
     while read -rd '' file; do
         case "$(file -Sib "$file")" in
             application/x-sharedlib\;*)      # Libraries (.so)
-                strip -v $STRIP_SHARED "$file" ;;
+                echo "$strip $STRIP_SHARED '${file#*build/}'"
+                $strip $STRIP_SHARED "$file" ;;
             application/x-archive\;*)        # Libraries (.a)
-                strip -v $STRIP_STATIC "$file" ;;
+                echo "$strip $STRIP_STATIC '${file#*build/}'"
+                $strip $STRIP_STATIC "$file" ;;
             application/x-executable\;*)     # Binaries
-                strip -v $STRIP_BINARIES "$file" ;;
+                echo "$strip $STRIP_BINARIES '${file#*build/}'"
+                $strip $STRIP_BINARIES "$file" ;;
             application/x-pie-executable\;*) # Relocatable binaries
-                strip -v $STRIP_SHARED "$file" ;;
+                echo "$strip $STRIP_SHARED '${file#*build/}'"
+                $strip $STRIP_SHARED "$file" ;;
         esac
     done < <(find "$builddir" -type f -perm -u+x ! -name vmlinux -print0)
 
     echo "Stripping vmlinux..."
-    strip -v $STRIP_STATIC "$builddir/vmlinux"
+    echo "$strip $STRIP_STATIC 'vmlinux'"
+    $strip $STRIP_STATIC "$builddir/vmlinux"
 
     echo "Adding symlink..."
     mkdir -p "$pkgdir/usr/src"
