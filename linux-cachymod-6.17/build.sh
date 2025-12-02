@@ -22,7 +22,7 @@ set -e
 : "${_kernel_suffix:=}"
 
 # Prevent AVX2 floating-point instructions. (Clear and XanMod default)
-: "${_prevent_avx2:=yes}"
+: "${_prevent_avx2:=no}"
 
 # Run the "trim.sh" script to trim the kernel
 # Deselects ~ 1,500 kernel options
@@ -57,14 +57,14 @@ set -e
 : "${_hugepage:=always}"
 
 # Enable TCP_CONG_BBR3
-: "${_tcp_bbr3:=no}"
+: "${_tcp_bbr3:=yes}"
 
 # Running tick rate { 1000, 800, 750, 600, 500 }
 # Select 1000 if your machine has less than or equal to 16 CPUs.
 # Select 800 if you want a balance between latency and performance,
 # with more focus on latency. Otherwise, the best value is a mystery.
-# If unsure, select 1000.
-: "${_HZ_ticks:=1000}"
+# If unsure, select 800 or 1000.
+: "${_HZ_ticks:=800}"
 
 # Select tickless type { full, idle }
 # Full tickless can give higher performances in various cases but, depending on
@@ -80,7 +80,7 @@ set -e
 
 # Select CPU compiler optimization
 # { generic, generic_v1, generic_v2, generic_v3, generic_v4, native, zen4 }
-: "${_processor_opt:=}"
+: "${_processor_opt:=native}"
 
 # Select build type { thin, clang, gcc }
 # thin:  Build the kernel with clang thin-LTO, auto suffix "-lto"
@@ -89,9 +89,9 @@ set -e
 # gcc:   Build kernel with gcc, auto suffix "-gcc"
 : "${_buildtype:=thin}"
 
-# Build kernel with the AutoFDO profile?
+# Opt-in to build kernel with the AutoFDO profile
 # Ignored for clang and gcc build types
-: "${_autofdo:=yes}"
+: "${_autofdo:=no}"
 
 # Add extra sources here: opt-in for the USB pollrate patch
 # E.g. "${_extra_patch_or_url1:=1010-usb-pollrate.patch}"
@@ -123,8 +123,8 @@ export _extra_patch_or_url0
 export _localmodcfg _kernel_suffix _prevent_avx2 _runtrim_script
 export _localmodcfg_path _makenconfig _makegconfig _makexconfig
 export _localmodcfg_minimal _hugepage _HZ_ticks _ticktype _preempt
-export _buildtype _build_debug _autofdo _processor_opt _tcp_bbr3
-export _cpusched
+export _buildtype _build_debug _cpusched _processor_opt _tcp_bbr3
+export _autofdo
 
 # Build kernel and headers packages
 time nice -n 15 ionice -n 1 makepkg -scf --cleanbuild --skipinteg || exit 1

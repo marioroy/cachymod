@@ -53,6 +53,43 @@ scripts/config -d POSIX_AUX_CLOCKS
 ### Disable AppArmor support.
 scripts/config -d SECURITY_APPARMOR
 
+### Disable boot config support.
+scripts/config -d BOOTTIME_TRACING -d BOOT_CONFIG
+
+### Disable powersave by default for wireless network.
+scripts/config -d CFG80211_DEFAULT_PS
+
+### Disable core dump support.
+scripts/config -d COREDUMP
+
+### Disable early printk.
+scripts/config -d EARLY_PRINTK
+
+### Disable hibernation (aka 'suspend to disk').
+scripts/config -d HIBERNATION
+
+### Disable kexec handover.
+scripts/config -d KEXEC_HANDOVER
+
+### Disable Kprobes, trap to kernel address and execute a callback function.
+scripts/config -d KPROBES
+
+### Disable pressure stall information tracking.
+scripts/config -d PSI
+
+### Disable check for low memory corruption.
+scripts/config -d X86_CHECK_BIOS_CORRUPTION
+
+### Disable legacy vsyscall, ioperm, and iopl emulation.
+scripts/config -d X86_VSYSCALL_EMULATION
+scripts/config -d X86_IOPL_IOPERM
+
+### Disable detect hung tasks.
+scripts/config -d DETECT_HUNG_TASK
+scripts/config -d HARDLOCKUP_DETECTOR
+scripts/config -d SOFTLOCKUP_DETECTOR_INTR_STORM
+scripts/config -d SOFTLOCKUP_DETECTOR
+
 ### Disable tracers.
 scripts/config -d ATH5K_TRACER
 scripts/config -d DM_UEVENT
@@ -92,7 +129,6 @@ scripts/config -d LEDS_TRIGGER_CPU
 scripts/config -d LEDS_TRIGGER_GPIO
 scripts/config -d GENERIC_IRQ_DEBUGFS
 scripts/config -d PRINTK_INDEX
-scripts/config -d SOFTLOCKUP_DETECTOR_INTR_STORM
 scripts/config -d GENERIC_IRQ_STAT_SNAPSHOT
 scripts/config -d 6LOWPAN_DEBUGFS
 scripts/config -d AF_RXRPC_DEBUG
@@ -122,10 +158,12 @@ scripts/config -d CMA_DEBUGFS
 scripts/config -d CROS_EC_DEBUGFS
 scripts/config -d CRYPTO_DEV_AMLOGIC_GXL_DEBUG
 scripts/config -d CRYPTO_DEV_CCP_DEBUGFS
+scripts/config -d DEBUG_BOOT_PARAMS
 scripts/config -d DEBUG_KMAP_LOCAL_FORCE_MAP
 scripts/config -d DEBUG_MEMORY_INIT
 scripts/config -d DEBUG_RODATA_TEST
 scripts/config -d DEBUG_RSEQ
+scripts/config -d DEBUG_SHIRQ
 scripts/config -d DEBUG_WX
 scripts/config -d DLM_DEBUG
 scripts/config -d DM_DEBUG_BLOCK_MANAGER_LOCKING
@@ -156,11 +194,13 @@ scripts/config -d IWLWIFI_DEBUG
 scripts/config -d JFS_DEBUG
 scripts/config -d LDM_DEBUG
 scripts/config -d LIBERTAS_THINFIRM_DEBUG
+scripts/config -d MAC80211_DEBUGFS
 scripts/config -d NETFS_DEBUG
 scripts/config -d NFS_DEBUG
 scripts/config -d NVME_TARGET_DEBUGFS
 scripts/config -d NVME_VERBOSE_ERRORS
 scripts/config -d OCFS2_DEBUG_FS
+scripts/config -d OVMF_DEBUG_LOG
 scripts/config -d PNP_DEBUG_MESSAGES
 scripts/config -d QUOTA_DEBUG
 scripts/config -d RTLWIFI_DEBUG
@@ -180,6 +220,7 @@ scripts/config -d VISL_DEBUGFS
 scripts/config -d WCN36XX_DEBUGFS
 scripts/config -d WWAN_DEBUGFS
 scripts/config -d XEN_DEBUG_FS
+scripts/config -d ZSMALLOC_STAT
 
 ### Apply various Clear Linux defaults.
 ### To skip, uncomment the exit line.
@@ -207,12 +248,6 @@ if [[ $(uname -m) = *"x86"* ]]; then
 
     ### Disable paravirtual steal time accounting.
     scripts/config -d PARAVIRT_TIME_ACCOUNTING
-
-    ### Disable pvpanic device support.
-    scripts/config -d PVPANIC
-
-    ### Require boot param to enable pressure stall information tracking.
-    scripts/config -e PSI_DEFAULT_DISABLED
 
     ### Disable khugepaged to put read-only file-backed pages in THP.
     scripts/config -d READ_ONLY_THP_FOR_FS

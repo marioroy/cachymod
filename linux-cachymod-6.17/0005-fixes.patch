@@ -38,7 +38,7 @@ diff --git a/drivers/gpu/drm/i915/display/intel_psr.c b/drivers/gpu/drm/i915/dis
 index 85e9aad7ec50..78eb59b3262b 100644
 --- a/drivers/gpu/drm/i915/display/intel_psr.c
 +++ b/drivers/gpu/drm/i915/display/intel_psr.c
-@@ -3365,6 +3365,7 @@ static void _psr_flush_handle(struct intel_dp *intel_dp)
+@@ -3379,6 +3379,7 @@ static void _psr_flush_handle(struct intel_dp *intel_dp)
  	struct intel_display *display = to_intel_display(intel_dp);
  
  	if (DISPLAY_VER(display) < 20 && intel_dp->psr.psr2_sel_fetch_enabled) {
@@ -46,7 +46,7 @@ index 85e9aad7ec50..78eb59b3262b 100644
  		if (intel_dp->psr.psr2_sel_fetch_cff_enabled) {
  			/* can we turn CFF off? */
  			if (intel_dp->psr.busy_frontbuffer_bits == 0)
-@@ -3383,12 +3384,19 @@ static void _psr_flush_handle(struct intel_dp *intel_dp)
+@@ -3397,12 +3398,19 @@ static void _psr_flush_handle(struct intel_dp *intel_dp)
  		intel_psr_configure_full_frame_update(intel_dp);
  
  		intel_psr_force_update(intel_dp);

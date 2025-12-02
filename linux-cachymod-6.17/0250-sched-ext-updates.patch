@@ -886,7 +886,7 @@ diff --git a/kernel/sched/ext.c b/kernel/sched/ext.c
 index 088ceff38c8a47..227e5f72b333a7 100644
 --- a/kernel/sched/ext.c
 +++ b/kernel/sched/ext.c
-@@ -136,7 +136,7 @@ static struct kset *scx_kset;
+@@ -147,7 +147,7 @@ static struct kset *scx_kset;
  #include <trace/events/sched_ext.h>
  
  static void process_ddsp_deferred_locals(struct rq *rq);
@@ -895,7 +895,7 @@ index 088ceff38c8a47..227e5f72b333a7 100644
  static void scx_vexit(struct scx_sched *sch, enum scx_exit_kind kind,
  		      s64 exit_code, const char *fmt, va_list args);
  
-@@ -151,24 +151,7 @@ static __printf(4, 5) void scx_exit(struct scx_sched *sch,
+@@ -162,24 +162,7 @@ static __printf(4, 5) void scx_exit(struct scx_sched *sch,
  	va_end(args);
  }
  
@@ -920,7 +920,7 @@ index 088ceff38c8a47..227e5f72b333a7 100644
  
  #define SCX_HAS_OP(sch, op)	test_bit(SCX_OP_IDX(op), (sch)->has_op)
  
-@@ -198,16 +181,15 @@ static bool u32_before(u32 a, u32 b)
+@@ -209,16 +192,15 @@ static bool u32_before(u32 a, u32 b)
  	return (s32)(a - b) < 0;
  }
  
@@ -940,7 +940,7 @@ index 088ceff38c8a47..227e5f72b333a7 100644
  }
  
  /*
-@@ -329,11 +311,11 @@ do {										\
+@@ -340,11 +322,11 @@ do {										\
  })
  
  /* @mask is constant, always inline to cull unnecessary branches */
@@ -955,7 +955,7 @@ index 088ceff38c8a47..227e5f72b333a7 100644
  		return false;
  	}
  
-@@ -346,13 +328,13 @@ static __always_inline bool scx_kf_allowed(u32 mask)
+@@ -357,13 +339,13 @@ static __always_inline bool scx_kf_allowed(u32 mask)
  	 */
  	if (unlikely(highest_bit(mask) == SCX_KF_CPU_RELEASE &&
  		     (current->scx.kf_mask & higher_bits(SCX_KF_CPU_RELEASE)))) {
@@ -971,7 +971,7 @@ index 088ceff38c8a47..227e5f72b333a7 100644
  		return false;
  	}
  
-@@ -360,15 +342,16 @@ static __always_inline bool scx_kf_allowed(u32 mask)
+@@ -371,15 +353,16 @@ static __always_inline bool scx_kf_allowed(u32 mask)
  }
  
  /* see SCX_CALL_OP_TASK() */
@@ -991,7 +991,7 @@ index 088ceff38c8a47..227e5f72b333a7 100644
  		return false;
  	}
  
-@@ -454,10 +437,11 @@ struct bpf_iter_scx_dsq {
+@@ -465,10 +448,11 @@ struct bpf_iter_scx_dsq {
   */
  struct scx_task_iter {
  	struct sched_ext_entity		cursor;
@@ -1004,7 +1004,7 @@ index 088ceff38c8a47..227e5f72b333a7 100644
  };
  
  /**
-@@ -485,15 +469,16 @@ static void scx_task_iter_start(struct scx_task_iter *iter)
+@@ -496,15 +480,16 @@ static void scx_task_iter_start(struct scx_task_iter *iter)
  
  	iter->cursor = (struct sched_ext_entity){ .flags = SCX_TASK_CURSOR };
  	list_add(&iter->cursor.tasks_node, &scx_tasks);
@@ -1025,7 +1025,7 @@ index 088ceff38c8a47..227e5f72b333a7 100644
  	}
  }
  
-@@ -503,24 +488,24 @@ static void __scx_task_iter_rq_unlock(struct scx_task_iter *iter)
+@@ -514,24 +499,24 @@ static void __scx_task_iter_rq_unlock(struct scx_task_iter *iter)
   *
   * If @iter is in the middle of a locked iteration, it may be locking the rq of
   * the task currently being visited in addition to scx_tasks_lock. Unlock both.
@@ -1061,7 +1061,7 @@ index 088ceff38c8a47..227e5f72b333a7 100644
  }
  
  /**
-@@ -533,6 +518,7 @@ static void scx_task_iter_relock(struct scx_task_iter *iter)
+@@ -544,6 +529,7 @@ static void scx_task_iter_relock(struct scx_task_iter *iter)
   */
  static void scx_task_iter_stop(struct scx_task_iter *iter)
  {
@@ -1069,7 +1069,7 @@ index 088ceff38c8a47..227e5f72b333a7 100644
  	list_del_init(&iter->cursor.tasks_node);
  	scx_task_iter_unlock(iter);
  }
-@@ -550,10 +536,12 @@ static struct task_struct *scx_task_iter_next(struct scx_task_iter *iter)
+@@ -561,10 +547,12 @@ static struct task_struct *scx_task_iter_next(struct scx_task_iter *iter)
  	struct list_head *cursor = &iter->cursor.tasks_node;
  	struct sched_ext_entity *pos;
  
@@ -1083,7 +1083,7 @@ index 088ceff38c8a47..227e5f72b333a7 100644
  	}
  
  	list_for_each_entry(pos, cursor, tasks_node) {
-@@ -616,7 +604,7 @@ static struct task_struct *scx_task_iter_next_locked(struct scx_task_iter *iter)
+@@ -627,7 +615,7 @@ static struct task_struct *scx_task_iter_next_locked(struct scx_task_iter *iter)
  		return NULL;
  
  	iter->rq = task_rq_lock(p, &iter->rf);
@@ -1092,7 +1092,7 @@ index 088ceff38c8a47..227e5f72b333a7 100644
  
  	return p;
  }
-@@ -732,23 +720,6 @@ static bool ops_cpu_valid(struct scx_sched *sch, s32 cpu, const char *where)
+@@ -743,23 +731,6 @@ static bool ops_cpu_valid(struct scx_sched *sch, s32 cpu, const char *where)
  }
  
  /**
@@ -1116,7 +1116,7 @@ index 088ceff38c8a47..227e5f72b333a7 100644
   * ops_sanitize_err - Sanitize a -errno value
   * @sch: scx_sched to error out on error
   * @ops_name: operation to blame on failure
-@@ -889,6 +860,9 @@ static void update_curr_scx(struct rq *rq)
+@@ -910,6 +881,9 @@ static void update_curr_scx(struct rq *rq)
  		if (!curr->scx.slice)
  			touch_core_sched(rq, curr);
  	}
@@ -1126,7 +1126,7 @@ index 088ceff38c8a47..227e5f72b333a7 100644
  }
  
  static bool scx_dsq_priq_less(struct rb_node *node_a,
-@@ -908,10 +882,23 @@ static void dsq_mod_nr(struct scx_dispatch_q *dsq, s32 delta)
+@@ -929,10 +903,23 @@ static void dsq_mod_nr(struct scx_dispatch_q *dsq, s32 delta)
  	WRITE_ONCE(dsq->nr, dsq->nr + delta);
  }
  
@@ -1152,7 +1152,7 @@ index 088ceff38c8a47..227e5f72b333a7 100644
  }
  
  static void dispatch_enqueue(struct scx_sched *sch, struct scx_dispatch_q *dsq,
-@@ -929,7 +916,7 @@ static void dispatch_enqueue(struct scx_sched *sch, struct scx_dispatch_q *dsq,
+@@ -950,7 +937,7 @@ static void dispatch_enqueue(struct scx_sched *sch, struct scx_dispatch_q *dsq,
  			scx_error(sch, "attempting to dispatch to a destroyed dsq");
  			/* fall back to the global dsq */
  			raw_spin_unlock(&dsq->lock);
@@ -1161,7 +1161,7 @@ index 088ceff38c8a47..227e5f72b333a7 100644
  			raw_spin_lock(&dsq->lock);
  		}
  	}
-@@ -976,6 +963,7 @@ static void dispatch_enqueue(struct scx_sched *sch, struct scx_dispatch_q *dsq,
+@@ -997,6 +984,7 @@ static void dispatch_enqueue(struct scx_sched *sch, struct scx_dispatch_q *dsq,
  		} else {
  			list_add(&p->scx.dsq_list.node, &dsq->list);
  		}
@@ -1169,7 +1169,7 @@ index 088ceff38c8a47..227e5f72b333a7 100644
  	} else {
  		/* a FIFO DSQ shouldn't be using PRIQ enqueuing */
  		if (unlikely(!RB_EMPTY_ROOT(&dsq->priq)))
-@@ -1042,6 +1030,8 @@ static void task_unlink_from_dsq(struct task_struct *p,
+@@ -1063,6 +1051,8 @@ static void task_unlink_from_dsq(struct task_struct *p,
  
  	list_del_init(&p->scx.dsq_list.node);
  	dsq_mod_nr(dsq, -1);
@@ -1178,7 +1178,7 @@ index 088ceff38c8a47..227e5f72b333a7 100644
  }
  
  static void dispatch_dequeue(struct rq *rq, struct task_struct *p)
-@@ -1108,26 +1098,27 @@ static struct scx_dispatch_q *find_dsq_for_dispatch(struct scx_sched *sch,
+@@ -1129,26 +1119,27 @@ static struct scx_dispatch_q *find_dsq_for_dispatch(struct scx_sched *sch,
  		s32 cpu = dsq_id & SCX_DSQ_LOCAL_CPU_MASK;
  
  		if (!ops_cpu_valid(sch, cpu, "in SCX_DSQ_LOCAL_ON dispatch verdict"))
@@ -1210,7 +1210,7 @@ index 088ceff38c8a47..227e5f72b333a7 100644
  				 struct task_struct *p, u64 dsq_id,
  				 u64 enq_flags)
  {
-@@ -1141,10 +1132,10 @@ static void mark_direct_dispatch(struct task_struct *ddsp_task,
+@@ -1162,10 +1153,10 @@ static void mark_direct_dispatch(struct task_struct *ddsp_task,
  	/* @p must match the task on the enqueue path */
  	if (unlikely(p != ddsp_task)) {
  		if (IS_ERR(ddsp_task))
@@ -1223,7 +1223,7 @@ index 088ceff38c8a47..227e5f72b333a7 100644
  				  ddsp_task->comm, ddsp_task->pid,
  				  p->comm, p->pid);
  		return;
-@@ -1299,15 +1290,15 @@ local:
+@@ -1320,15 +1311,15 @@ local:
  	 * higher priority it becomes from scx_prio_less()'s POV.
  	 */
  	touch_core_sched(rq, p);
@@ -1242,7 +1242,7 @@ index 088ceff38c8a47..227e5f72b333a7 100644
  }
  
  static bool task_runnable(const struct task_struct *p)
-@@ -1376,6 +1367,15 @@ static void enqueue_task_scx(struct rq *rq, struct task_struct *p, int enq_flags
+@@ -1397,6 +1388,15 @@ static void enqueue_task_scx(struct rq *rq, struct task_struct *p, int enq_flags
  	if (enq_flags & SCX_ENQ_WAKEUP)
  		touch_core_sched(rq, p);
  
@@ -1258,7 +1258,7 @@ index 088ceff38c8a47..227e5f72b333a7 100644
  	do_enqueue_task(rq, p, enq_flags, sticky_cpu);
  out:
  	rq->scx.flags &= ~SCX_RQ_IN_WAKEUP;
-@@ -1475,6 +1475,11 @@ static bool dequeue_task_scx(struct rq *rq, struct task_struct *p, int deq_flags
+@@ -1496,6 +1496,11 @@ static bool dequeue_task_scx(struct rq *rq, struct task_struct *p, int deq_flags
  	sub_nr_running(rq, 1);
  
  	dispatch_dequeue(rq, p);
@@ -1270,7 +1270,7 @@ index 088ceff38c8a47..227e5f72b333a7 100644
  	return true;
  }
  
-@@ -1617,8 +1622,7 @@ static bool task_can_run_on_remote_rq(struct scx_sched *sch,
+@@ -1638,8 +1643,7 @@ static bool task_can_run_on_remote_rq(struct scx_sched *sch,
  
  	if (!scx_rq_online(rq)) {
  		if (enforce)
@@ -1280,7 +1280,7 @@ index 088ceff38c8a47..227e5f72b333a7 100644
  		return false;
  	}
  
-@@ -1720,7 +1724,7 @@ static struct rq *move_task_between_dsqs(struct scx_sched *sch,
+@@ -1741,7 +1745,7 @@ static struct rq *move_task_between_dsqs(struct scx_sched *sch,
  		dst_rq = container_of(dst_dsq, struct rq, scx.local_dsq);
  		if (src_rq != dst_rq &&
  		    unlikely(!task_can_run_on_remote_rq(sch, p, dst_rq, true))) {
@@ -1289,7 +1289,7 @@ index 088ceff38c8a47..227e5f72b333a7 100644
  			dst_rq = src_rq;
  		}
  	} else {
-@@ -1876,7 +1880,7 @@ static void dispatch_to_local_dsq(struct scx_sched *sch, struct rq *rq,
+@@ -1897,7 +1901,7 @@ static void dispatch_to_local_dsq(struct scx_sched *sch, struct rq *rq,
  
  	if (src_rq != dst_rq &&
  	    unlikely(!task_can_run_on_remote_rq(sch, p, dst_rq, true))) {
@@ -1298,7 +1298,7 @@ index 088ceff38c8a47..227e5f72b333a7 100644
  				 enq_flags | SCX_ENQ_CLEAR_OPSS);
  		return;
  	}
-@@ -2121,10 +2125,10 @@ static int balance_one(struct rq *rq, struct task_struct *prev)
+@@ -2155,10 +2159,10 @@ static int balance_one(struct rq *rq, struct task_struct *prev)
  		 * balance(), we want to complete this scheduling cycle and then
  		 * start a new one. IOW, we want to call resched_curr() on the
  		 * next, most likely idle, task, not the current one. Use
@@ -1311,7 +1311,7 @@ index 088ceff38c8a47..227e5f72b333a7 100644
  			break;
  		}
  	} while (dspc->nr_tasks);
-@@ -2408,24 +2412,25 @@ static struct task_struct *pick_task_scx(struct rq *rq)
+@@ -2444,24 +2448,25 @@ static struct task_struct *pick_task_scx(struct rq *rq)
  	if (keep_prev) {
  		p = prev;
  		if (!p->scx.slice)
@@ -1341,7 +1341,7 @@ index 088ceff38c8a47..227e5f72b333a7 100644
  		}
  	}
  
-@@ -2514,7 +2519,7 @@ static int select_task_rq_scx(struct task_struct *p, int prev_cpu, int wake_flag
+@@ -2550,7 +2555,7 @@ static int select_task_rq_scx(struct task_struct *p, int prev_cpu, int wake_flag
  
  		cpu = scx_select_cpu_dfl(p, prev_cpu, wake_flags, NULL, 0);
  		if (cpu >= 0) {
@@ -1350,7 +1350,7 @@ index 088ceff38c8a47..227e5f72b333a7 100644
  			p->scx.ddsp_dsq_id = SCX_DSQ_LOCAL;
  		} else {
  			cpu = prev_cpu;
-@@ -2552,6 +2557,57 @@ static void set_cpus_allowed_scx(struct task_struct *p,
+@@ -2588,6 +2593,57 @@ static void set_cpus_allowed_scx(struct task_struct *p,
  				 p, (struct cpumask *)p->cpus_ptr);
  }
  
@@ -1408,7 +1408,7 @@ index 088ceff38c8a47..227e5f72b333a7 100644
  static void handle_hotplug(struct rq *rq, bool online)
  {
  	struct scx_sched *sch = scx_root;
-@@ -2567,9 +2623,20 @@ static void handle_hotplug(struct rq *rq, bool online)
+@@ -2603,9 +2659,20 @@ static void handle_hotplug(struct rq *rq, bool online)
  	if (unlikely(!sch))
  		return;
  
@@ -1430,7 +1430,7 @@ index 088ceff38c8a47..227e5f72b333a7 100644
  	if (online && SCX_HAS_OP(sch, cpu_online))
  		SCX_CALL_OP(sch, SCX_KF_UNLOCKED, cpu_online, NULL, cpu);
  	else if (!online && SCX_HAS_OP(sch, cpu_offline))
-@@ -3011,6 +3078,15 @@ static void switching_to_scx(struct rq *rq, struct task_struct *p)
+@@ -3047,6 +3114,15 @@ static void switching_to_scx(struct rq *rq, struct task_struct *p)
  static void switched_from_scx(struct rq *rq, struct task_struct *p)
  {
  	scx_disable_task(p);
@@ -1446,7 +1446,7 @@ index 088ceff38c8a47..227e5f72b333a7 100644
  }
  
  static void wakeup_preempt_scx(struct rq *rq, struct task_struct *p,int wake_flags) {}
-@@ -3050,7 +3126,7 @@ bool scx_can_stop_tick(struct rq *rq)
+@@ -3086,7 +3162,7 @@ bool scx_can_stop_tick(struct rq *rq)
  
  #ifdef CONFIG_EXT_GROUP_SCHED
  
@@ -1455,7 +1455,7 @@ index 088ceff38c8a47..227e5f72b333a7 100644
  static bool scx_cgroup_enabled;
  
  void scx_tg_init(struct task_group *tg)
-@@ -3067,8 +3143,6 @@ int scx_tg_online(struct task_group *tg)
+@@ -3103,8 +3179,6 @@ int scx_tg_online(struct task_group *tg)
  
  	WARN_ON_ONCE(tg->scx.flags & (SCX_TG_ONLINE | SCX_TG_INITED));
  
@@ -1464,7 +1464,7 @@ index 088ceff38c8a47..227e5f72b333a7 100644
  	if (scx_cgroup_enabled) {
  		if (SCX_HAS_OP(sch, cgroup_init)) {
  			struct scx_cgroup_init_args args =
-@@ -3088,7 +3162,6 @@ int scx_tg_online(struct task_group *tg)
+@@ -3124,7 +3198,6 @@ int scx_tg_online(struct task_group *tg)
  		tg->scx.flags |= SCX_TG_ONLINE;
  	}
  
@@ -1472,7 +1472,7 @@ index 088ceff38c8a47..227e5f72b333a7 100644
  	return ret;
  }
  
-@@ -3098,15 +3171,11 @@ void scx_tg_offline(struct task_group *tg)
+@@ -3134,15 +3207,11 @@ void scx_tg_offline(struct task_group *tg)
  
  	WARN_ON_ONCE(!(tg->scx.flags & SCX_TG_ONLINE));
  
@@ -1488,7 +1488,7 @@ index 088ceff38c8a47..227e5f72b333a7 100644
  }
  
  int scx_cgroup_can_attach(struct cgroup_taskset *tset)
-@@ -3116,9 +3185,6 @@ int scx_cgroup_can_attach(struct cgroup_taskset *tset)
+@@ -3152,9 +3221,6 @@ int scx_cgroup_can_attach(struct cgroup_taskset *tset)
  	struct task_struct *p;
  	int ret;
  
@@ -1498,7 +1498,7 @@ index 088ceff38c8a47..227e5f72b333a7 100644
  	if (!scx_cgroup_enabled)
  		return 0;
  
-@@ -3158,7 +3224,6 @@ err:
+@@ -3194,7 +3260,6 @@ err:
  		p->scx.cgrp_moving_from = NULL;
  	}
  
@@ -1506,7 +1506,7 @@ index 088ceff38c8a47..227e5f72b333a7 100644
  	return ops_sanitize_err(sch, "cgroup_prep_move", ret);
  }
  
-@@ -3181,11 +3246,6 @@ void scx_cgroup_move_task(struct task_struct *p)
+@@ -3217,11 +3282,6 @@ void scx_cgroup_move_task(struct task_struct *p)
  	p->scx.cgrp_moving_from = NULL;
  }
  
@@ -1518,7 +1518,7 @@ index 088ceff38c8a47..227e5f72b333a7 100644
  void scx_cgroup_cancel_attach(struct cgroup_taskset *tset)
  {
  	struct scx_sched *sch = scx_root;
-@@ -3193,7 +3253,7 @@ void scx_cgroup_cancel_attach(struct cgroup_taskset *tset)
+@@ -3229,7 +3289,7 @@ void scx_cgroup_cancel_attach(struct cgroup_taskset *tset)
  	struct task_struct *p;
  
  	if (!scx_cgroup_enabled)
@@ -1527,7 +1527,7 @@ index 088ceff38c8a47..227e5f72b333a7 100644
  
  	cgroup_taskset_for_each(p, css, tset) {
  		if (SCX_HAS_OP(sch, cgroup_cancel_move) &&
-@@ -3202,15 +3262,13 @@ void scx_cgroup_cancel_attach(struct cgroup_taskset *tset)
+@@ -3238,15 +3298,13 @@ void scx_cgroup_cancel_attach(struct cgroup_taskset *tset)
  				    p, p->scx.cgrp_moving_from, css->cgroup);
  		p->scx.cgrp_moving_from = NULL;
  	}
@@ -1544,7 +1544,7 @@ index 088ceff38c8a47..227e5f72b333a7 100644
  
  	if (scx_cgroup_enabled && SCX_HAS_OP(sch, cgroup_set_weight) &&
  	    tg->scx.weight != weight)
-@@ -3219,7 +3277,7 @@ void scx_group_set_weight(struct task_group *tg, unsigned long weight)
+@@ -3255,7 +3313,7 @@ void scx_group_set_weight(struct task_group *tg, unsigned long weight)
  
  	tg->scx.weight = weight;
  
@@ -1553,7 +1553,7 @@ index 088ceff38c8a47..227e5f72b333a7 100644
  }
  
  void scx_group_set_idle(struct task_group *tg, bool idle)
-@@ -3232,7 +3290,7 @@ void scx_group_set_bandwidth(struct task_group *tg,
+@@ -3268,7 +3326,7 @@ void scx_group_set_bandwidth(struct task_group *tg,
  {
  	struct scx_sched *sch = scx_root;
  
@@ -1562,7 +1562,7 @@ index 088ceff38c8a47..227e5f72b333a7 100644
  
  	if (scx_cgroup_enabled && SCX_HAS_OP(sch, cgroup_set_bandwidth) &&
  	    (tg->scx.bw_period_us != period_us ||
-@@ -3245,23 +3303,25 @@ void scx_group_set_bandwidth(struct task_group *tg,
+@@ -3281,23 +3339,25 @@ void scx_group_set_bandwidth(struct task_group *tg,
  	tg->scx.bw_quota_us = quota_us;
  	tg->scx.bw_burst_us = burst_us;
  
@@ -1593,7 +1593,7 @@ index 088ceff38c8a47..227e5f72b333a7 100644
  
  #endif	/* CONFIG_EXT_GROUP_SCHED */
  
-@@ -3377,15 +3437,12 @@ static void scx_cgroup_exit(struct scx_sched *sch)
+@@ -3413,15 +3473,12 @@ static void scx_cgroup_exit(struct scx_sched *sch)
  {
  	struct cgroup_subsys_state *css;
  
@@ -1610,7 +1610,7 @@ index 088ceff38c8a47..227e5f72b333a7 100644
  	css_for_each_descendant_post(css, &root_task_group.css) {
  		struct task_group *tg = css_tg(css);
  
-@@ -3396,17 +3453,9 @@ static void scx_cgroup_exit(struct scx_sched *sch)
+@@ -3432,17 +3489,9 @@ static void scx_cgroup_exit(struct scx_sched *sch)
  		if (!sch->ops.cgroup_exit)
  			continue;
  
@@ -1628,7 +1628,7 @@ index 088ceff38c8a47..227e5f72b333a7 100644
  }
  
  static int scx_cgroup_init(struct scx_sched *sch)
-@@ -3414,13 +3463,10 @@ static int scx_cgroup_init(struct scx_sched *sch)
+@@ -3450,13 +3499,10 @@ static int scx_cgroup_init(struct scx_sched *sch)
  	struct cgroup_subsys_state *css;
  	int ret;
  
@@ -1643,7 +1643,7 @@ index 088ceff38c8a47..227e5f72b333a7 100644
  	css_for_each_descendant_pre(css, &root_task_group.css) {
  		struct task_group *tg = css_tg(css);
  		struct scx_cgroup_init_args args = {
-@@ -3439,10 +3485,6 @@ static int scx_cgroup_init(struct scx_sched *sch)
+@@ -3475,10 +3521,6 @@ static int scx_cgroup_init(struct scx_sched *sch)
  			continue;
  		}
  
@@ -1654,7 +1654,7 @@ index 088ceff38c8a47..227e5f72b333a7 100644
  		ret = SCX_CALL_OP_RET(sch, SCX_KF_UNLOCKED, cgroup_init, NULL,
  				      css->cgroup, &args);
  		if (ret) {
-@@ -3451,11 +3493,7 @@ static int scx_cgroup_init(struct scx_sched *sch)
+@@ -3487,11 +3529,7 @@ static int scx_cgroup_init(struct scx_sched *sch)
  			return ret;
  		}
  		tg->scx.flags |= SCX_TG_INITED;
@@ -1666,7 +1666,7 @@ index 088ceff38c8a47..227e5f72b333a7 100644
  
  	WARN_ON_ONCE(scx_cgroup_enabled);
  	scx_cgroup_enabled = true;
-@@ -3639,9 +3677,22 @@ bool task_should_scx(int policy)
+@@ -3675,9 +3713,22 @@ bool task_should_scx(int policy)
  
  bool scx_allow_ttwu_queue(const struct task_struct *p)
  {
@@ -1692,7 +1692,7 @@ index 088ceff38c8a47..227e5f72b333a7 100644
  }
  
  /**
-@@ -3757,7 +3808,7 @@ static void scx_clear_softlockup(void)
+@@ -3793,7 +3844,7 @@ static void scx_clear_softlockup(void)
   *
   * - pick_next_task() suppresses zero slice warning.
   *
@@ -1701,7 +1701,7 @@ index 088ceff38c8a47..227e5f72b333a7 100644
   *   operations.
   *
   * - scx_prio_less() reverts to the default core_sched_at order.
-@@ -3911,6 +3962,7 @@ static void scx_disable_workfn(struct kthread_work *work)
+@@ -3968,6 +4019,7 @@ static void scx_disable_workfn(struct kthread_work *work)
  	struct scx_exit_info *ei = sch->exit_info;
  	struct scx_task_iter sti;
  	struct task_struct *p;
@@ -1709,7 +1709,7 @@ index 088ceff38c8a47..227e5f72b333a7 100644
  	int kind, cpu;
  
  	kind = atomic_read(&sch->exit_kind);
-@@ -3966,6 +4018,22 @@ static void scx_disable_workfn(struct kthread_work *work)
+@@ -4023,6 +4075,22 @@ static void scx_disable_workfn(struct kthread_work *work)
  
  	scx_init_task_enabled = false;
  
@@ -1732,7 +1732,7 @@ index 088ceff38c8a47..227e5f72b333a7 100644
  	scx_task_iter_start(&sti);
  	while ((p = scx_task_iter_next_locked(&sti))) {
  		const struct sched_class *old_class = p->sched_class;
-@@ -3989,15 +4057,6 @@ static void scx_disable_workfn(struct kthread_work *work)
+@@ -4046,15 +4114,6 @@ static void scx_disable_workfn(struct kthread_work *work)
  	scx_task_iter_stop(&sti);
  	percpu_up_write(&scx_fork_rwsem);
  
@@ -1748,7 +1748,7 @@ index 088ceff38c8a47..227e5f72b333a7 100644
  	/* no task is on scx, turn off all the switches and flush in-progress calls */
  	static_branch_disable(&__scx_enabled);
  	bitmap_zero(sch->has_op, SCX_OPI_END);
-@@ -4202,7 +4261,8 @@ static void scx_dump_task(struct seq_buf *s, struct scx_dump_ctx *dctx,
+@@ -4260,7 +4319,8 @@ static void scx_dump_task(struct seq_buf *s, struct scx_dump_ctx *dctx,
  		  p->scx.sticky_cpu, p->scx.holding_cpu, dsq_id_buf);
  	dump_line(s, "      dsq_vtime=%llu slice=%llu weight=%u",
  		  p->scx.dsq_vtime, p->scx.slice, p->scx.weight);
@@ -1758,7 +1758,7 @@ index 088ceff38c8a47..227e5f72b333a7 100644
  
  	if (SCX_HAS_OP(sch, dump_task)) {
  		ops_dump_init(s, "    ");
-@@ -4480,7 +4540,7 @@ err_free_sch:
+@@ -4568,7 +4628,7 @@ err_free_sch:
  	return ERR_PTR(ret);
  }
  
@@ -1767,7 +1767,7 @@ index 088ceff38c8a47..227e5f72b333a7 100644
  			      const struct sched_ext_ops *ops)
  {
  	unsigned long long global_hotplug_seq;
-@@ -4497,8 +4557,11 @@ static void check_hotplug_seq(struct scx_sched *sch,
+@@ -4585,8 +4645,11 @@ static void check_hotplug_seq(struct scx_sched *sch,
  				 SCX_ECODE_ACT_RESTART | SCX_ECODE_RSN_HOTPLUG,
  				 "expected hotplug seq %llu did not match actual %llu",
  				 ops->hotplug_seq, global_hotplug_seq);
@@ -1779,7 +1779,7 @@ index 088ceff38c8a47..227e5f72b333a7 100644
  }
  
  static int validate_ops(struct scx_sched *sch, const struct sched_ext_ops *ops)
-@@ -4589,13 +4652,18 @@ static int scx_enable(struct sched_ext_ops *ops, struct bpf_link *link)
+@@ -4681,13 +4744,18 @@ static int scx_enable(struct sched_ext_ops *ops, struct bpf_link *link)
  			scx_error(sch, "ops.init() failed (%d)", ret);
  			goto err_disable;
  		}
@@ -1799,7 +1799,7 @@ index 088ceff38c8a47..227e5f72b333a7 100644
  	scx_idle_update_selcpu_topology(ops);
  
  	cpus_read_unlock();
-@@ -4681,7 +4749,6 @@ static int scx_enable(struct sched_ext_ops *ops, struct bpf_link *link)
+@@ -4773,7 +4841,6 @@ static int scx_enable(struct sched_ext_ops *ops, struct bpf_link *link)
  		ret = scx_init_task(p, task_group(p), false);
  		if (ret) {
  			put_task_struct(p);
@@ -1807,7 +1807,7 @@ index 088ceff38c8a47..227e5f72b333a7 100644
  			scx_task_iter_stop(&sti);
  			scx_error(sch, "ops.init_task() failed (%d) for %s[%d]",
  				  ret, p->comm, p->pid);
-@@ -4691,7 +4758,6 @@ static int scx_enable(struct sched_ext_ops *ops, struct bpf_link *link)
+@@ -4783,7 +4850,6 @@ static int scx_enable(struct sched_ext_ops *ops, struct bpf_link *link)
  		scx_set_task_state(p, SCX_TASK_READY);
  
  		put_task_struct(p);
@@ -1815,7 +1815,7 @@ index 088ceff38c8a47..227e5f72b333a7 100644
  	}
  	scx_task_iter_stop(&sti);
  	scx_cgroup_unlock();
-@@ -4735,6 +4801,13 @@ static int scx_enable(struct sched_ext_ops *ops, struct bpf_link *link)
+@@ -4827,6 +4893,13 @@ static int scx_enable(struct sched_ext_ops *ops, struct bpf_link *link)
  		put_task_struct(p);
  	}
  	scx_task_iter_stop(&sti);
@@ -1829,7 +1829,7 @@ index 088ceff38c8a47..227e5f72b333a7 100644
  	percpu_up_write(&scx_fork_rwsem);
  
  	scx_bypass(false);
-@@ -5296,40 +5369,41 @@ void __init init_sched_ext_class(void)
+@@ -5393,40 +5466,41 @@ void __init init_sched_ext_class(void)
  /********************************************************************************
   * Helpers that can be called from the BPF scheduler.
   */
@@ -1879,7 +1879,7 @@ index 088ceff38c8a47..227e5f72b333a7 100644
  		return;
  	}
  
-@@ -5381,7 +5455,14 @@ __bpf_kfunc_start_defs();
+@@ -5478,7 +5552,14 @@ __bpf_kfunc_start_defs();
  __bpf_kfunc void scx_bpf_dsq_insert(struct task_struct *p, u64 dsq_id, u64 slice,
  				    u64 enq_flags)
  {
@@ -1895,7 +1895,7 @@ index 088ceff38c8a47..227e5f72b333a7 100644
  		return;
  
  	if (slice)
-@@ -5389,7 +5470,7 @@ __bpf_kfunc void scx_bpf_dsq_insert(struct task_struct *p, u64 dsq_id, u64 slice
+@@ -5486,7 +5567,7 @@ __bpf_kfunc void scx_bpf_dsq_insert(struct task_struct *p, u64 dsq_id, u64 slice
  	else
  		p->scx.slice = p->scx.slice ?: 1;
  
@@ -1904,7 +1904,7 @@ index 088ceff38c8a47..227e5f72b333a7 100644
  }
  
  /**
-@@ -5416,7 +5497,14 @@ __bpf_kfunc void scx_bpf_dsq_insert(struct task_struct *p, u64 dsq_id, u64 slice
+@@ -5513,7 +5594,14 @@ __bpf_kfunc void scx_bpf_dsq_insert(struct task_struct *p, u64 dsq_id, u64 slice
  __bpf_kfunc void scx_bpf_dsq_insert_vtime(struct task_struct *p, u64 dsq_id,
  					  u64 slice, u64 vtime, u64 enq_flags)
  {
@@ -1920,7 +1920,7 @@ index 088ceff38c8a47..227e5f72b333a7 100644
  		return;
  
  	if (slice)
-@@ -5426,7 +5514,7 @@ __bpf_kfunc void scx_bpf_dsq_insert_vtime(struct task_struct *p, u64 dsq_id,
+@@ -5523,7 +5611,7 @@ __bpf_kfunc void scx_bpf_dsq_insert_vtime(struct task_struct *p, u64 dsq_id,
  
  	p->scx.dsq_vtime = vtime;
  
@@ -1929,7 +1929,7 @@ index 088ceff38c8a47..227e5f72b333a7 100644
  }
  
  __bpf_kfunc_end_defs();
-@@ -5451,7 +5539,8 @@ static bool scx_dsq_move(struct bpf_iter_scx_dsq_kern *kit,
+@@ -5548,7 +5636,8 @@ static bool scx_dsq_move(struct bpf_iter_scx_dsq_kern *kit,
  	bool in_balance;
  	unsigned long flags;
  
@@ -1939,7 +1939,7 @@ index 088ceff38c8a47..227e5f72b333a7 100644
  		return false;
  
  	/*
-@@ -5536,7 +5625,15 @@ __bpf_kfunc_start_defs();
+@@ -5633,7 +5722,15 @@ __bpf_kfunc_start_defs();
   */
  __bpf_kfunc u32 scx_bpf_dispatch_nr_slots(void)
  {
@@ -1956,7 +1956,7 @@ index 088ceff38c8a47..227e5f72b333a7 100644
  		return 0;
  
  	return scx_dsp_max_batch - __this_cpu_read(scx_dsp_ctx->cursor);
-@@ -5551,14 +5648,21 @@ __bpf_kfunc u32 scx_bpf_dispatch_nr_slots(void)
+@@ -5648,14 +5745,21 @@ __bpf_kfunc u32 scx_bpf_dispatch_nr_slots(void)
  __bpf_kfunc void scx_bpf_dispatch_cancel(void)
  {
  	struct scx_dsp_ctx *dspc = this_cpu_ptr(scx_dsp_ctx);
@@ -1980,7 +1980,7 @@ index 088ceff38c8a47..227e5f72b333a7 100644
  }
  
  /**
-@@ -5577,11 +5681,17 @@ __bpf_kfunc void scx_bpf_dispatch_cancel(void)
+@@ -5674,11 +5778,17 @@ __bpf_kfunc void scx_bpf_dispatch_cancel(void)
   */
  __bpf_kfunc bool scx_bpf_dsq_move_to_local(u64 dsq_id)
  {
@@ -2000,7 +2000,7 @@ index 088ceff38c8a47..227e5f72b333a7 100644
  		return false;
  
  	flush_dispatch_buf(sch, dspc->rq);
-@@ -5606,6 +5716,31 @@ __bpf_kfunc bool scx_bpf_dsq_move_to_local(u64 dsq_id)
+@@ -5703,6 +5813,31 @@ __bpf_kfunc bool scx_bpf_dsq_move_to_local(u64 dsq_id)
  	}
  }
  
@@ -2032,7 +2032,7 @@ index 088ceff38c8a47..227e5f72b333a7 100644
  /**
   * scx_bpf_dsq_move_set_slice - Override slice when moving between DSQs
   * @it__iter: DSQ iterator in progress
-@@ -5706,6 +5841,7 @@ BTF_KFUNCS_START(scx_kfunc_ids_dispatch)
+@@ -5803,6 +5938,7 @@ BTF_KFUNCS_START(scx_kfunc_ids_dispatch)
  BTF_ID_FLAGS(func, scx_bpf_dispatch_nr_slots)
  BTF_ID_FLAGS(func, scx_bpf_dispatch_cancel)
  BTF_ID_FLAGS(func, scx_bpf_dsq_move_to_local)
@@ -2040,7 +2040,7 @@ index 088ceff38c8a47..227e5f72b333a7 100644
  BTF_ID_FLAGS(func, scx_bpf_dsq_move_set_slice, KF_RCU)
  BTF_ID_FLAGS(func, scx_bpf_dsq_move_set_vtime, KF_RCU)
  BTF_ID_FLAGS(func, scx_bpf_dsq_move, KF_RCU)
-@@ -5728,12 +5864,18 @@ __bpf_kfunc_start_defs();
+@@ -5825,12 +5961,18 @@ __bpf_kfunc_start_defs();
   */
  __bpf_kfunc u32 scx_bpf_reenqueue_local(void)
  {
@@ -2060,7 +2060,7 @@ index 088ceff38c8a47..227e5f72b333a7 100644
  		return 0;
  
  	rq = cpu_rq(smp_processor_id());
-@@ -5845,22 +5987,12 @@ static const struct btf_kfunc_id_set scx_kfunc_set_unlocked = {
+@@ -5942,22 +6084,12 @@ static const struct btf_kfunc_id_set scx_kfunc_set_unlocked = {
  
  __bpf_kfunc_start_defs();
  
@@ -2085,7 +2085,7 @@ index 088ceff38c8a47..227e5f72b333a7 100644
  		return;
  
  	local_irq_save(irq_flags);
-@@ -5884,7 +6016,7 @@ __bpf_kfunc void scx_bpf_kick_cpu(s32 cpu, u64 flags)
+@@ -5981,7 +6113,7 @@ __bpf_kfunc void scx_bpf_kick_cpu(s32 cpu, u64 flags)
  		struct rq *target_rq = cpu_rq(cpu);
  
  		if (unlikely(flags & (SCX_KICK_PREEMPT | SCX_KICK_WAIT)))
@@ -2094,7 +2094,7 @@ index 088ceff38c8a47..227e5f72b333a7 100644
  
  		if (raw_spin_rq_trylock(target_rq)) {
  			if (can_skip_idle_kick(target_rq)) {
-@@ -5909,6 +6041,26 @@ out:
+@@ -6006,6 +6138,26 @@ out:
  }
  
  /**
@@ -2121,7 +2121,7 @@ index 088ceff38c8a47..227e5f72b333a7 100644
   * scx_bpf_dsq_nr_queued - Return the number of queued tasks
   * @dsq_id: id of the DSQ
   *
-@@ -6088,28 +6240,29 @@ __bpf_kfunc void bpf_iter_scx_dsq_destroy(struct bpf_iter_scx_dsq *it)
+@@ -6185,28 +6337,29 @@ __bpf_kfunc void bpf_iter_scx_dsq_destroy(struct bpf_iter_scx_dsq *it)
  
  __bpf_kfunc_end_defs();
  
@@ -2156,7 +2156,7 @@ index 088ceff38c8a47..227e5f72b333a7 100644
  		return ret;
  	}
  
-@@ -6117,17 +6270,17 @@ static s32 __bstr_format(u64 *data_buf, char *line_buf, size_t line_size,
+@@ -6214,17 +6367,17 @@ static s32 __bstr_format(u64 *data_buf, char *line_buf, size_t line_size,
  			  bprintf_data.bin_args);
  	bpf_bprintf_cleanup(&bprintf_data);
  	if (ret < 0) {
@@ -2177,7 +2177,7 @@ index 088ceff38c8a47..227e5f72b333a7 100644
  			     fmt, data, data__sz);
  }
  
-@@ -6146,11 +6299,14 @@ __bpf_kfunc_start_defs();
+@@ -6243,11 +6396,14 @@ __bpf_kfunc_start_defs();
  __bpf_kfunc void scx_bpf_exit_bstr(s64 exit_code, char *fmt,
  				   unsigned long long *data, u32 data__sz)
  {
@@ -2194,7 +2194,7 @@ index 088ceff38c8a47..227e5f72b333a7 100644
  	raw_spin_unlock_irqrestore(&scx_exit_bstr_buf_lock, flags);
  }
  
-@@ -6166,11 +6322,14 @@ __bpf_kfunc void scx_bpf_exit_bstr(s64 exit_code, char *fmt,
+@@ -6263,11 +6419,14 @@ __bpf_kfunc void scx_bpf_exit_bstr(s64 exit_code, char *fmt,
  __bpf_kfunc void scx_bpf_error_bstr(char *fmt, unsigned long long *data,
  				    u32 data__sz)
  {
@@ -2211,7 +2211,7 @@ index 088ceff38c8a47..227e5f72b333a7 100644
  	raw_spin_unlock_irqrestore(&scx_exit_bstr_buf_lock, flags);
  }
  
-@@ -6189,17 +6348,24 @@ __bpf_kfunc void scx_bpf_error_bstr(char *fmt, unsigned long long *data,
+@@ -6286,17 +6445,24 @@ __bpf_kfunc void scx_bpf_error_bstr(char *fmt, unsigned long long *data,
  __bpf_kfunc void scx_bpf_dump_bstr(char *fmt, unsigned long long *data,
  				   u32 data__sz)
  {
@@ -2238,7 +2238,7 @@ index 088ceff38c8a47..227e5f72b333a7 100644
  			    sizeof(buf->line) - dd->cursor, fmt, data, data__sz);
  	if (ret < 0) {
  		dump_line(dd->s, "%s[!] (\"%s\", %p, %u) failed to format (%d)",
-@@ -6235,7 +6401,12 @@ __bpf_kfunc void scx_bpf_dump_bstr(char *fmt, unsigned long long *data,
+@@ -6332,7 +6498,12 @@ __bpf_kfunc void scx_bpf_dump_bstr(char *fmt, unsigned long long *data,
   */
  __bpf_kfunc u32 scx_bpf_cpuperf_cap(s32 cpu)
  {
@@ -2252,7 +2252,7 @@ index 088ceff38c8a47..227e5f72b333a7 100644
  		return arch_scale_cpu_capacity(cpu);
  	else
  		return SCX_CPUPERF_ONE;
-@@ -6257,7 +6428,12 @@ __bpf_kfunc u32 scx_bpf_cpuperf_cap(s32 cpu)
+@@ -6354,7 +6525,12 @@ __bpf_kfunc u32 scx_bpf_cpuperf_cap(s32 cpu)
   */
  __bpf_kfunc u32 scx_bpf_cpuperf_cur(s32 cpu)
  {
@@ -2266,7 +2266,7 @@ index 088ceff38c8a47..227e5f72b333a7 100644
  		return arch_scale_freq_capacity(cpu);
  	else
  		return SCX_CPUPERF_ONE;
-@@ -6272,19 +6448,27 @@ __bpf_kfunc u32 scx_bpf_cpuperf_cur(s32 cpu)
+@@ -6369,19 +6545,27 @@ __bpf_kfunc u32 scx_bpf_cpuperf_cur(s32 cpu)
   * relative scale between 0 and %SCX_CPUPERF_ONE. This determines how the
   * schedutil cpufreq governor chooses the target frequency.
   *
@@ -2298,7 +2298,7 @@ index 088ceff38c8a47..227e5f72b333a7 100644
  		struct rq *rq = cpu_rq(cpu), *locked_rq = scx_locked_rq();
  		struct rq_flags rf;
  
-@@ -6293,7 +6477,7 @@ __bpf_kfunc void scx_bpf_cpuperf_set(s32 cpu, u32 perf)
+@@ -6390,7 +6574,7 @@ __bpf_kfunc void scx_bpf_cpuperf_set(s32 cpu, u32 perf)
  		 * to the corresponding CPU to prevent ABBA deadlocks.
  		 */
  		if (locked_rq && rq != locked_rq) {
@@ -2307,7 +2307,7 @@ index 088ceff38c8a47..227e5f72b333a7 100644
  			return;
  		}
  
-@@ -6388,13 +6572,76 @@ __bpf_kfunc s32 scx_bpf_task_cpu(const struct task_struct *p)
+@@ -6485,13 +6669,76 @@ __bpf_kfunc s32 scx_bpf_task_cpu(const struct task_struct *p)
   */
  __bpf_kfunc struct rq *scx_bpf_cpu_rq(s32 cpu)
  {
@@ -2385,7 +2385,7 @@ index 088ceff38c8a47..227e5f72b333a7 100644
   * scx_bpf_task_cgroup - Return the sched cgroup of a task
   * @p: task of interest
   *
-@@ -6410,8 +6657,15 @@ __bpf_kfunc struct cgroup *scx_bpf_task_cgroup(struct task_struct *p)
+@@ -6507,8 +6754,15 @@ __bpf_kfunc struct cgroup *scx_bpf_task_cgroup(struct task_struct *p)
  {
  	struct task_group *tg = p->sched_task_group;
  	struct cgroup *cgrp = &cgrp_dfl_root.cgrp;
@@ -2402,7 +2402,7 @@ index 088ceff38c8a47..227e5f72b333a7 100644
  		goto out;
  
  	cgrp = tg_cgrp(tg);
-@@ -6558,6 +6812,8 @@ BTF_ID_FLAGS(func, scx_bpf_put_cpumask, KF_RELEASE)
+@@ -6655,6 +6909,8 @@ BTF_ID_FLAGS(func, scx_bpf_put_cpumask, KF_RELEASE)
  BTF_ID_FLAGS(func, scx_bpf_task_running, KF_RCU)
  BTF_ID_FLAGS(func, scx_bpf_task_cpu, KF_RCU)
  BTF_ID_FLAGS(func, scx_bpf_cpu_rq)
@@ -2411,7 +2411,7 @@ index 088ceff38c8a47..227e5f72b333a7 100644
  #ifdef CONFIG_CGROUP_SCHED
  BTF_ID_FLAGS(func, scx_bpf_task_cgroup, KF_RCU | KF_ACQUIRE)
  #endif
-@@ -6565,6 +6821,37 @@ BTF_ID_FLAGS(func, scx_bpf_now)
+@@ -6662,6 +6918,37 @@ BTF_ID_FLAGS(func, scx_bpf_now)
  BTF_ID_FLAGS(func, scx_bpf_events, KF_TRUSTED_ARGS)
  BTF_KFUNCS_END(scx_kfunc_ids_any)
  
@@ -2955,7 +2955,7 @@ index cf2109b67f9a36..dc496c559e3bcb 100644
  #ifdef CONFIG_CGROUP_SCHED
  
  extern struct list_head task_groups;
-@@ -1149,6 +1159,7 @@ struct rq {
+@@ -1150,6 +1160,7 @@ struct rq {
  #endif
  
  	struct sched_dl_entity	fair_server;
@@ -4725,7 +4725,7 @@ Signed-off-by: Andrea Righi <arighi@xxxxxxxxxx>
 diff -uarp a/kernel/sched/ext.c b/kernel/sched/ext.c
 --- a/kernel/sched/ext.c
 +++ b/kernel/sched/ext.c
-@@ -1031,7 +1031,12 @@ static void task_unlink_from_dsq(struct
+@@ -1052,7 +1052,12 @@ static void task_unlink_from_dsq(struct
  	list_del_init(&p->scx.dsq_list.node);
  	dsq_mod_nr(dsq, -1);
  

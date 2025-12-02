@@ -24,7 +24,7 @@
 # Patch0158: 0158-clocksource-only-perform-extended-clocksource-checks.patch
 ##
 
-# Allow disabling the LDT (local descriptor table).
+# Allow disabling knobs without enabling the EXPERT config.
 
 diff -uar a/arch/x86/Kconfig b/arch/x86/Kconfig
 --- a/arch/x86/Kconfig
@@ -38,6 +38,15 @@ diff -uar a/arch/x86/Kconfig b/arch/x86/Kconfig
  	default y
  	depends on MODIFY_LDT_SYSCALL
  	help
+@@ -1251,7 +1251,7 @@ config X86_ESPFIX64
+ 	depends on X86_16BIT && X86_64
+ 
+ config X86_VSYSCALL_EMULATION
+-	bool "Enable vsyscall emulation" if EXPERT
++	bool "Enable vsyscall emulation"
+ 	default y
+ 	depends on X86_64
+ 	help
 @@ -2303,7 +2303,7 @@
  	  be set to 'N' under normal conditions.
  
@@ -48,7 +57,31 @@ diff -uar a/arch/x86/Kconfig b/arch/x86/Kconfig
  	help
  	  Linux can allow user programs to install a per-process x86
 
-# Allow disabling legacy 16-bit UID syscall wrappers.
+diff -uar a/arch/x86/Kconfig.debug b/arch/x86/Kconfig.debug
+--- a/arch/x86/Kconfig.debug
++++ b/arch/x86/Kconfig.debug
+@@ -12,7 +12,7 @@
+ 	  see errors. Disable this if you want silent bootup.
+ 
+ config EARLY_PRINTK
+-	bool "Early printk" if EXPERT
++	bool "Early printk"
+ 	default y
+ 	help
+ 	  Write kernel log output directly into the VGA buffer or to a serial
+
+diff -uar a/fs/Kconfig.binfmt b/fs/Kconfig.binfmt
+--- a/fs/Kconfig.binfmt
++++ b/fs/Kconfig.binfmt
+@@ -169,7 +169,7 @@
+ 	  don't know what to answer at this point, say Y.
+ 
+ config COREDUMP
+-	bool "Enable core dump support" if EXPERT
++	bool "Enable core dump support"
+ 	default y
+ 	help
+ 	  This option enables support for performing core dumps. You almost
 
 diff -uar a/init/Kconfig b/init/Kconfig
 --- a/init/Kconfig
@@ -62,8 +95,6 @@ diff -uar a/init/Kconfig b/init/Kconfig
  	depends on HAVE_UID16 && MULTIUSER
  	default y
  	help
-
-# Disable more debug knobs.
 
 diff -uar a/lib/Kconfig.debug b/lib/Kconfig.debug
 --- a/lib/Kconfig.debug

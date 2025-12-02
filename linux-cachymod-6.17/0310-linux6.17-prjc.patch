@@ -10700,7 +10700,7 @@ index cf2109b67..a800b6b50 100644
  #include <linux/sched/affinity.h>
  #include <linux/sched/autogroup.h>
  #include <linux/sched/cpufreq.h>
-@@ -3909,4 +3913,9 @@ void sched_enq_and_set_task(struct sched_enq_and_set_ctx *ctx);
+@@ -3910,4 +3914,9 @@ void sched_enq_and_set_task(struct sched_enq_and_set_ctx *ctx);
  
  #include "ext.h"
  
@@ -11449,7 +11449,7 @@ diff --git a/kernel/time/timer.c b/kernel/time/timer.c
 index 553fa469d..d7c90f6ff 100644
 --- a/kernel/time/timer.c
 +++ b/kernel/time/timer.c
-@@ -2453,7 +2453,11 @@ static void run_local_timers(void)
+@@ -2454,7 +2454,11 @@ static void run_local_timers(void)
  		 */
  		if (time_after_eq(jiffies, READ_ONCE(base->next_expiry)) ||
  		    (i == BASE_DEF && tmigr_requires_handle_remote())) {
