@@ -125,7 +125,7 @@ fi
 
 _pkgsuffix=cachymod
 _major=6.17
-_minor=10
+_minor=11
 pkgver=${_major}.${_minor}
 _stable=${_major}.${_minor}
 #_stable=${_major}
@@ -441,8 +441,8 @@ prepare() {
               brd bridge exfat drm_ttm_helper llc irqbypass nf_conntrack \
               nf_conntrack_netlink nf_defrag_ipv4 nf_defrag_ipv6 nf_nat \
               nf_tables nft_chain_nat nft_compat ntsync overlay stp tcp_bbr \
-              tcp_dctcp tcp_htcp ttm veth xfrm_algo xfrm_user xt_addrtype \
-              xt_conntrack xt_MASQUERADE xt_nat xt_tcpudp \
+              tcp_dctcp tcp_htcp ttm tun veth xfrm_algo xfrm_user xt_addrtype \
+              xt_comment xt_conntrack xt_mark xt_MASQUERADE xt_nat xt_tcpudp \
            ;do echo "$module"; done
         ) | sort -u > "/tmp/modprobed.db.$$"
 
