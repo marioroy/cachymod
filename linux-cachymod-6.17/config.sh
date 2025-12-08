@@ -4,10 +4,6 @@
 ### Exit immediately on error.
 set -e
 
-### Set the minimal base_slice_ns option for BORE.
-### 1000Hz = 2.0ms, 800Hz = 2.5ms, 600Hz = 1.6(6)ms, 500Hz = 2.0ms.
-scripts/config --set-val MIN_BASE_SLICE_NS 1600000
-
 ### Decrease the kernel log buffer size (default 17).
 scripts/config --set-val LOG_BUF_SHIFT 16
 
@@ -319,9 +315,6 @@ if [[ $(uname -m) = *"x86"* ]]; then
 
     ### Disable support for latency based cgroup IO protection.
     scripts/config -d BLK_CGROUP_IOLATENCY
-
-    ### Disable netfilter "control group" match support.
-    scripts/config -d NETFILTER_XT_MATCH_CGROUP
 
     ### Apply Clear defaults for NR_CPUS and NODES_SHIFT.
     scripts/config -d CPUMASK_OFFSTACK -d MAXSMP

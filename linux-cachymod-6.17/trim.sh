@@ -28,7 +28,6 @@ scripts/config -d NET_IPGRE_BROADCAST
 scripts/config -d IP_PIMSM_V1
 scripts/config -d IP_PIMSM_V2
 scripts/config -d NET_FOU_IP_TUNNELS
-scripts/config -d INET_DIAG
 scripts/config -d TCP_AO
 scripts/config -d INET6_ESPINTCP
 scripts/config -d IPV6_SIT_6RD
@@ -51,10 +50,7 @@ scripts/config -d NETFILTER_NETLINK_GLUE_CT
 scripts/config -d TIPC_MEDIA_IB
 scripts/config -d ATM
 scripts/config -d L2TP_V3
-scripts/config -d VLAN_8021Q_GVRP
-scripts/config -d VLAN_8021Q_MVRP
 scripts/config -d LLC2
-scripts/config -d ATALK
 scripts/config -d PHONET
 scripts/config -d 6LOWPAN_DEBUGFS
 scripts/config -d IEEE802154_NL802154_EXPERIMENTAL
@@ -156,10 +152,6 @@ scripts/config -d MTD_SBC_GXX
 scripts/config -d MTD_PCI
 scripts/config -d MTD_PHRAM
 scripts/config -d MTD_MTDRAM
-scripts/config -d MTD_NAND_NANDSIM
-scripts/config -d MTD_NAND_ECC_SW_HAMMING_SMC
-scripts/config -d MTD_NAND_ECC_SW_BCH
-scripts/config -d MTD_NAND_ECC_MXIC
 scripts/config -d MTD_UBI_NVMEM
 scripts/config -d PNP_DEBUG_MESSAGES
 
@@ -184,7 +176,6 @@ scripts/config -d TI_ST
 
 scripts/config -d GENWQE
 scripts/config -d BCM_VK_TTY
-scripts/config -d PVPANIC
 scripts/config -d KEBA_CP500
 
 #
@@ -434,11 +425,6 @@ scripts/config -d NETDEVSIM
 scripts/config -d ISDN
 
 #
-# Input device support
-#
-scripts/config -d INPUT_LEDS
-
-#
 # Input Device Drivers
 #
 scripts/config -d KEYBOARD_ADC
@@ -599,8 +585,6 @@ scripts/config -d SPI_AXI_SPI_ENGINE
 scripts/config -d SPI_BUTTERFLY
 scripts/config -d SPI_DW_DMA
 scripts/config -d SPI_GPIO
-scripts/config -d SPI_INTEL_PCI
-scripts/config -d SPI_INTEL_PLATFORM
 scripts/config -d SPI_LM70_LLP
 scripts/config -d SPI_OC_TINY
 scripts/config -d SPI_SIFIVE
@@ -885,7 +869,6 @@ scripts/config -d MFD_WM831X_SPI
 scripts/config -d MFD_WM8350_I2C
 scripts/config -d MFD_WM8994
 scripts/config -d MFD_ATC260X_I2C
-scripts/config -d RAVE_SP_CORE
 
 scripts/config -d REGULATOR_FIXED_VOLTAGE
 scripts/config -d REGULATOR_VIRTUAL_CONSUMER
@@ -1167,7 +1150,6 @@ scripts/config -d SND_SOC_INTEL_SOF_CS42L42_MACH
 scripts/config -d SND_SOC_SOF_NOCODEC_SUPPORT
 scripts/config -d SND_SOC_SOF_STRICT_ABI_CHECKS
 scripts/config -d SND_SOC_SOF_DEBUG
-scripts/config -d SND_SOC_SOF_AMD_RENOIR
 
 scripts/config -d SND_SOC_XILINX_I2S
 scripts/config -d SND_SOC_XILINX_AUDIO_FORMATTER
@@ -1460,7 +1442,6 @@ scripts/config -d ACCESSIBILITY
 scripts/config -d INFINIBAND_IRDMA
 scripts/config -d INFINIBAND_MTHCA_DEBUG
 scripts/config -d INFINIBAND_RTRS_SERVER
-scripts/config -d EDAC_AMD64
 scripts/config -d EDAC_IGEN6
 scripts/config -d RTC_HCTOSYS
 scripts/config -d RTC_SYSTOHC
@@ -1524,7 +1505,6 @@ scripts/config -d ASYNC_TX_DMA
 scripts/config -d DMABUF_HEAPS
 scripts/config -d DMABUF_SYSFS_STATS
 
-scripts/config -d UIO_PDRV_GENIRQ
 scripts/config -d UIO_DMEM_GENIRQ
 scripts/config -d UIO_NETX
 scripts/config -d UIO_MF624
@@ -1570,8 +1550,6 @@ scripts/config -d CHROMEOS_PRIVACY_SCREEN
 scripts/config -d CZNIC_PLATFORMS
 scripts/config -d SURFACE_AGGREGATOR_REGISTRY
 scripts/config -d SURFACE_DTX
-scripts/config -d NVIDIA_WMI_EC_BACKLIGHT
-scripts/config -d GIGABYTE_WMI
 scripts/config -d ADV_SWBUTTON
 scripts/config -d DELL_WMI_PRIVACY
 scripts/config -d IBM_RTL
@@ -2011,12 +1989,10 @@ scripts/config -d MOST
 # File systems
 #
 scripts/config -d REISERFS_FS
-scripts/config -d JFS_FS
 scripts/config -d XFS_SUPPORT_ASCII_CI
 scripts/config -d XFS_ONLINE_SCRUB
 scripts/config -d GFS2_FS
 scripts/config -d OCFS2_FS
-scripts/config -d NILFS2_FS
 scripts/config -d F2FS_FS_SECURITY
 scripts/config -d F2FS_CHECK_FS
 scripts/config -d F2FS_FS_COMPRESSION
@@ -2054,17 +2030,14 @@ scripts/config -d TMPFS_QUOTA
 
 scripts/config -d ORANGEFS_FS
 scripts/config -d AFFS_FS
-scripts/config -d HFS_FS
 scripts/config -d BEFS_FS
 scripts/config -d JFFS2_FS
 scripts/config -d UBIFS_FS
 scripts/config -d CRAMFS_MTD
-scripts/config -d MINIX_FS
 scripts/config -d OMFS_FS
 scripts/config -d ROMFS_FS
 scripts/config -d PSTORE_RAM
 scripts/config -d PSTORE_BLK
-scripts/config -d UFS_FS
 scripts/config -d EROFS_FS_ZIP_LZMA
 scripts/config -d EROFS_FS_ZIP_DEFLATE
 scripts/config -d EROFS_FS_ZIP_ZSTD

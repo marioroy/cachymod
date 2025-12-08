@@ -14,8 +14,8 @@ diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
 -#else
 -unsigned int sysctl_sched_base_slice			= 700000ULL;
 -static unsigned int normalized_sysctl_sched_base_slice	= 700000ULL;
-+unsigned int sysctl_sched_base_slice			= 625000ULL;
-+static unsigned int normalized_sysctl_sched_base_slice	= 625000ULL;
++unsigned int sysctl_sched_base_slice			= 1000000000ULL / HZ / (HZ < 750 ? 4 : 2);
++static unsigned int normalized_sysctl_sched_base_slice	= 1000000000ULL / HZ / (HZ < 750 ? 4 : 2);
 -#endif /* CONFIG_CACHY */
  
 -#ifdef CONFIG_CACHY
@@ -33,7 +33,8 @@ diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
 -#ifdef CONFIG_CACHY
 -static unsigned int sysctl_sched_cfs_bandwidth_slice		= 3000UL;
 -#else
- static unsigned int sysctl_sched_cfs_bandwidth_slice		= 5000UL;
+-static unsigned int sysctl_sched_cfs_bandwidth_slice		= 5000UL;
++static unsigned int sysctl_sched_cfs_bandwidth_slice = 1000000UL / HZ * (HZ < 750 ? 2 : 4);
  #endif
 -#endif
  

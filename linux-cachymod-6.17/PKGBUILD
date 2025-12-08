@@ -57,9 +57,13 @@
 : "${_localmodcfg_minimal:=no}"
 
 # Enable TCP_CONG_BBR3
-: "${_tcp_bbr3:=yes}"
+: "${_tcp_bbr3:=no}"
 
-# Running with a 1000HZ, 800Hz, 750Hz, 600Hz, or 500Hz tick rate
+# Running tick rate { 1000, 800, 750, 625, 600, 500 }
+# Select 1000 if your machine has less than or equal to 16 CPUs.
+# Select 800 if you want a balance between latency and performance,
+# with more focus on latency. Otherwise, the best value is a mystery.
+# Select 625 or 500 if you want to minimize battery consumption.
 : "${_HZ_ticks:=800}"
 
 # Choose between full or idle tickless type
@@ -132,7 +136,7 @@ _stable=${_major}.${_minor}
 
 _srcname=linux-${_stable}
 pkgdesc='CachyMod Linux Kernel with other patches and improvements'
-pkgrel=1
+pkgrel=2
 _kernver="$pkgver-$pkgrel"
 _kernuname="${pkgver}-${_pkgsuffix}"
 arch=('x86_64')
@@ -314,8 +318,8 @@ prepare() {
 
     ### Select tick rate
     case "$_HZ_ticks" in
-        1000|800|750|600|500)
-            scripts/config -d HZ_800 -d HZ_300 -e "HZ_${_HZ_ticks}" --set-val HZ "${_HZ_ticks}";;
+        1000|800|750|625|600|500)
+            scripts/config -d HZ_800 -d HZ_625 -d HZ_300 -e "HZ_${_HZ_ticks}" --set-val HZ "${_HZ_ticks}";;
         *)
             _die "The _HZ_ticks value '$_HZ_ticks' is invalid. Choose the correct one again."
     esac

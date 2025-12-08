@@ -145,7 +145,7 @@ diff --git a/kernel/Kconfig.hz b/kernel/Kconfig.hz
 index ce1435cb08..9eee2005e2 100644
 --- a/kernel/Kconfig.hz
 +++ b/kernel/Kconfig.hz
-@@ -88,3 +88,20 @@ config HZ
+@@ -99,3 +99,20 @@ config HZ
  
  config SCHED_HRTICK
  	def_bool HIGH_RES_TIMERS
@@ -810,8 +810,8 @@ index 8ce56a8d50..507e1c1ef8 100644
 +unsigned int sysctl_sched_min_base_slice       = CONFIG_MIN_BASE_SLICE_NS;
 +__read_mostly uint sysctl_sched_base_slice     = nsecs_per_tick;
 +#else /* !CONFIG_SCHED_BORE */
- unsigned int sysctl_sched_base_slice			= 625000ULL;
- static unsigned int normalized_sysctl_sched_base_slice	= 625000ULL;
+ unsigned int sysctl_sched_base_slice			= 1000000000ULL / HZ / (HZ < 750 ? 4 : 2);
+ static unsigned int normalized_sysctl_sched_base_slice	= 1000000000ULL / HZ / (HZ < 750 ? 4 : 2);
 +#endif /* CONFIG_SCHED_BORE */
  
  __read_mostly unsigned int sysctl_sched_migration_cost	= 500000UL;

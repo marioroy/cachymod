@@ -57,13 +57,13 @@ set -e
 : "${_hugepage:=always}"
 
 # Enable TCP_CONG_BBR3
-: "${_tcp_bbr3:=yes}"
+: "${_tcp_bbr3:=no}"
 
-# Running tick rate { 1000, 800, 750, 600, 500 }
+# Running tick rate { 1000, 800, 750, 625, 600, 500 }
 # Select 1000 if your machine has less than or equal to 16 CPUs.
 # Select 800 if you want a balance between latency and performance,
 # with more focus on latency. Otherwise, the best value is a mystery.
-# If unsure, select 800 or 1000.
+# Select 625 or 500 if you want to minimize battery consumption.
 : "${_HZ_ticks:=800}"
 
 # Select tickless type { full, idle }
