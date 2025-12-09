@@ -64,7 +64,7 @@
 # Select 800 if you want a balance between latency and performance,
 # with more focus on latency. Otherwise, the best value is a mystery.
 # Select 625 or 500 if you want to minimize battery consumption.
-: "${_HZ_ticks:=800}"
+: "${_HZ_ticks:=1000}"
 
 # Choose between full or idle tickless type
 # Full tickless can give higher performances in various cases but, depending on
