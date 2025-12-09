@@ -70,9 +70,6 @@ scripts/config -d KEXEC_HANDOVER
 ### Disable Kprobes, trap to kernel address and execute a callback function.
 scripts/config -d KPROBES
 
-### Disable pressure stall information tracking.
-scripts/config -d PSI
-
 ### Disable check for low memory corruption.
 scripts/config -d X86_CHECK_BIOS_CORRUPTION
 
