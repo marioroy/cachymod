@@ -279,7 +279,7 @@ diff --git a/kernel/sched/core.c b/kernel/sched/core.c
 index ccba6fc3c3fed2..90a7a58e155cd3 100644
 --- a/kernel/sched/core.c
 +++ b/kernel/sched/core.c
-@@ -5949,15 +5949,23 @@ static void prev_balance(struct rq *rq, struct task_struct *prev,
+@@ -5944,15 +5944,23 @@ static void prev_balance(struct rq *rq, struct task_struct *prev,
  	const struct sched_class *class;
  
  #ifdef CONFIG_SCHED_CLASS_EXT
@@ -310,7 +310,7 @@ index ccba6fc3c3fed2..90a7a58e155cd3 100644
  	}
  #endif
  
-@@ -8810,6 +8818,9 @@ void __init sched_init(void)
+@@ -8802,6 +8810,9 @@ void __init sched_init(void)
  		hrtick_rq_init(rq);
  		atomic_set(&rq->nr_iowait, 0);
  		fair_server_init(rq);
@@ -320,7 +320,7 @@ index ccba6fc3c3fed2..90a7a58e155cd3 100644
  
  #ifdef CONFIG_SCHED_CORE
  		rq->core = rq;
-@@ -9385,8 +9396,6 @@ static void cpu_cgroup_attach(struct cgroup_taskset *tset)
+@@ -9377,8 +9388,6 @@ static void cpu_cgroup_attach(struct cgroup_taskset *tset)
  
  	cgroup_taskset_for_each(task, css, tset)
  		sched_move_task(task, false);
@@ -2886,7 +2886,7 @@ diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
 index 8ce56a8d507f98..caa396f41568da 100644
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -6930,7 +6930,7 @@ enqueue_task_fair(struct rq *rq, struct task_struct *p, int flags)
+@@ -6933,7 +6933,7 @@ enqueue_task_fair(struct rq *rq, struct task_struct *p, int flags)
  	if (!rq_h_nr_queued && rq->cfs.h_nr_queued) {
  		/* Account for idle runtime */
  		if (!rq->nr_running)
@@ -2895,7 +2895,7 @@ index 8ce56a8d507f98..caa396f41568da 100644
  		dl_server_start(&rq->fair_server);
  	}
  
-@@ -8886,7 +8886,7 @@ void fair_server_init(struct rq *rq)
+@@ -8889,7 +8889,7 @@ void fair_server_init(struct rq *rq)
  
  	init_dl_entity(dl_se);
  

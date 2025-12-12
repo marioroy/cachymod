@@ -1,0 +1,122 @@
+
+Upstream miscellaneous scheduler fixes/cleanups:
+https://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git/tag/?h=sched-urgent-2025-12-06
+
+  - Fix psi_dequeue() for Proxy Execution
+  - Fix unfairness caused by stalled tg_load_avg_contrib when the last task migrates out
+  - Remove a preempt-disable section in rt_mutex_setprio()
+  - Fix hrtick() vs. scheduling context bug
+  - Fix whitespace noise in headers
+
+Signed-off-by: Ingo Molnar <mingo@xxxxxxxxxx>
+
+
+sched/core: Fix psi_dequeue() for Proxy Execution
+https://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git/commit/?h=sched/urgent&id=c2ae8b0df2d1bb7a063f9e356e4e9a06cd4afe11
+
+diff --git a/kernel/sched/stats.h b/kernel/sched/stats.h
+index cbf7206b3f9d7f..c903f1a4289116 100644
+--- a/kernel/sched/stats.h
++++ b/kernel/sched/stats.h
+@@ -180,8 +180,13 @@ static inline void psi_dequeue(struct task_struct *p, int flags)
+ 	 * avoid walking all ancestors twice, psi_task_switch() handles
+ 	 * TSK_RUNNING and TSK_IOWAIT for us when it moves TSK_ONCPU.
+ 	 * Do nothing here.
++	 *
++	 * In the SCHED_PROXY_EXECUTION case we may do sleeping
++	 * dequeues that are not followed by a task switch, so check
++	 * TSK_ONCPU is set to ensure the task switch is imminent.
++	 * Otherwise clear the flags as usual.
+ 	 */
+-	if (flags & DEQUEUE_SLEEP)
++	if ((flags & DEQUEUE_SLEEP) && (p->psi_flags & TSK_ONCPU))
+ 		return;
+ 
+ 	/*
+-- 
+2.47.1
+
+sched/fair: Fix unfairness caused by stalled tg_load_avg_contrib when the last task migrates out
+https://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git/commit/?h=sched/urgent&id=ca125231dd29fc0678dd3622e9cdea80a51dffe4
+
+diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
+index 769d7b7990df4f..da46c316453783 100644
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -4075,6 +4075,9 @@ static inline bool cfs_rq_is_decayed(struct cfs_rq *cfs_rq)
+ 	if (child_cfs_rq_on_list(cfs_rq))
+ 		return false;
+ 
++	if (cfs_rq->tg_load_avg_contrib)
++		return false;
++
+ 	return true;
+ }
+ 
+-- 
+2.47.1
+
+sched/rt: Remove a preempt-disable section in rt_mutex_setprio()
+https://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git/commit/?h=sched/urgent&id=22abd832776b1317ae4c3f8a097c8b71bf83fb38
+
+diff --git a/kernel/sched/core.c b/kernel/sched/core.c
+index 1711e9e501003a..ee7dfbf01792e5 100644
+--- a/kernel/sched/core.c
++++ b/kernel/sched/core.c
+@@ -7467,14 +7467,11 @@ void rt_mutex_setprio(struct task_struct *p, struct task_struct *pi_task)
+ 
+ 	check_class_changed(rq, p, prev_class, oldprio);
+ out_unlock:
+-	/* Avoid rq from going away on us: */
+-	preempt_disable();
++	/* Caller holds task_struct::pi_lock, IRQs are still disabled */
+ 
+ 	rq_unpin_lock(rq, &rf);
+ 	__balance_callbacks(rq);
+ 	raw_spin_rq_unlock(rq);
+-
+-	preempt_enable();
+ }
+ #endif /* CONFIG_RT_MUTEXES */
+ 
+-- 
+2.47.1
+
+sched/hrtick: Fix hrtick() vs. scheduling context
+https://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git/commit/?h=sched/urgent&id=e38e5299747b23015b00b0109891815db44a2f30
+
+diff --git a/kernel/sched/core.c b/kernel/sched/core.c
+index fc358c1b6ca987..1711e9e501003a 100644
+--- a/kernel/sched/core.c
++++ b/kernel/sched/core.c
+@@ -870,7 +870,7 @@ static enum hrtimer_restart hrtick(struct hrtimer *timer)
+ 
+ 	rq_lock(rq, &rf);
+ 	update_rq_clock(rq);
+-	rq->donor->sched_class->task_tick(rq, rq->curr, 1);
++	rq->donor->sched_class->task_tick(rq, rq->donor, 1);
+ 	rq_unlock(rq, &rf);
+ 
+ 	return HRTIMER_NORESTART;
+-- 
+2.47.1
+
+sched/headers: Remove whitespace noise from kernel/sched/sched.h
+https://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git/commit/?h=sched/urgent&id=dde3763365d80398d1465214458d0c38cc32de9c
+
+diff --git a/kernel/sched/sched.h b/kernel/sched/sched.h
+index 8590113e4a604d..cb80666addec3a 100644
+--- a/kernel/sched/sched.h
++++ b/kernel/sched/sched.h
+@@ -1163,7 +1163,7 @@ struct rq {
+ 	 * one CPU and if it got migrated afterwards it may decrease
+ 	 * it on another CPU. Always updated under the runqueue lock:
+ 	 */
+-	unsigned long 		nr_uninterruptible;
++	unsigned long		nr_uninterruptible;
+ 
+ #ifdef CONFIG_SCHED_PROXY_EXEC
+ 	struct task_struct __rcu	*donor;  /* Scheduling context */
+-- 
+2.47.1
+

@@ -591,7 +591,7 @@ index f730b6fe94a7..ee0ec4ab7d1c 100644
  		raw_spin_lock_nested(&rq->__lock, subclass);
  		/* preempt_count *MUST* be > 1 */
  		preempt_enable_no_resched();
-@@ -844,7 +844,7 @@ void update_rq_clock(struct rq *rq)
+@@ -839,7 +839,7 @@ void update_rq_clock(struct rq *rq)
  	scx_rq_clock_update(rq, clock);
  
  	delta = clock - rq->clock;
@@ -600,7 +600,7 @@ index f730b6fe94a7..ee0ec4ab7d1c 100644
  		return;
  	rq->clock += delta;
  
-@@ -6082,7 +6082,7 @@ pick_next_task(struct rq *rq, struct task_struct *prev, struct rq_flags *rf)
+@@ -6077,7 +6077,7 @@ pick_next_task(struct rq *rq, struct task_struct *prev, struct rq_flags *rf)
  	struct rq *rq_i;
  	bool need_sync;
  
@@ -609,7 +609,7 @@ index f730b6fe94a7..ee0ec4ab7d1c 100644
  		return __pick_next_task(rq, prev, rf);
  
  	cpu = cpu_of(rq);
-@@ -7486,7 +7486,7 @@ SYSCALL_DEFINE0(sched_yield)
+@@ -7478,7 +7478,7 @@ SYSCALL_DEFINE0(sched_yield)
  #if !defined(CONFIG_PREEMPTION) || defined(CONFIG_PREEMPT_DYNAMIC)
  int __sched __cond_resched(void)
  {

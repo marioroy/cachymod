@@ -399,7 +399,7 @@ diff --git a/kernel/sched/core.c b/kernel/sched/core.c
 index 2e61c9707bea..fa7b0d1e8be6 100644
 --- a/kernel/sched/core.c
 +++ b/kernel/sched/core.c
-@@ -9208,7 +9208,7 @@ void sched_release_group(struct task_group *tg)
+@@ -9200,7 +9200,7 @@ void sched_release_group(struct task_group *tg)
  	spin_unlock_irqrestore(&task_group_lock, flags);
  }
  
@@ -408,7 +408,7 @@ index 2e61c9707bea..fa7b0d1e8be6 100644
  {
  	struct task_group *tg;
  
-@@ -9220,8 +9220,13 @@ static void sched_change_group(struct task_struct *tsk)
+@@ -9212,8 +9212,13 @@ static void sched_change_group(struct task_struct *tsk)
  	tg = container_of(task_css_check(tsk, cpu_cgrp_id, true),
  			  struct task_group, css);
  	tg = autogroup_task_group(tsk, tg);
@@ -423,7 +423,7 @@ index 2e61c9707bea..fa7b0d1e8be6 100644
  #ifdef CONFIG_FAIR_GROUP_SCHED
  	if (tsk->sched_class->task_change_group)
  		tsk->sched_class->task_change_group(tsk);
-@@ -9230,6 +9235,18 @@ static void sched_change_group(struct task_struct *tsk)
+@@ -9222,6 +9227,18 @@ static void sched_change_group(struct task_struct *tsk)
  		set_task_rq(tsk, task_cpu(tsk));
  }
  
@@ -442,7 +442,7 @@ index 2e61c9707bea..fa7b0d1e8be6 100644
  /*
   * Change task's runqueue when it moves between groups.
   *
-@@ -9239,10 +9256,14 @@ static void sched_change_group(struct task_struct *tsk)
+@@ -9231,10 +9248,14 @@ static void sched_change_group(struct task_struct *tsk)
   */
  void sched_move_task(struct task_struct *tsk, bool for_autogroup)
  {
@@ -457,7 +457,7 @@ index 2e61c9707bea..fa7b0d1e8be6 100644
  	CLASS(task_rq_lock, rq_guard)(tsk);
  	rq = rq_guard.rq;
  
-@@ -9256,7 +9277,7 @@ void sched_move_task(struct task_struct *tsk, bool for_autogroup)
+@@ -9248,7 +9269,7 @@ void sched_move_task(struct task_struct *tsk, bool for_autogroup)
  	if (running)
  		put_prev_task(rq, tsk);
  
@@ -476,7 +476,7 @@ diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
 index 7cc9d50e3e11..9c1f21d59b5c 100644
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -11712,12 +11712,15 @@ static int sched_balance_rq(int this_cpu, struct rq *this_rq,
+@@ -11715,12 +11715,15 @@ static int sched_balance_rq(int this_cpu, struct rq *this_rq,
  		 * still unbalanced. ld_moved simply stays zero, so it is
  		 * correctly treated as an imbalance.
  		 */

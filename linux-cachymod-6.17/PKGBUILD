@@ -111,6 +111,15 @@
 
 # ATTENTION: Do not modify after this line
 
+if [ -x /usr/bin/tput ] && tput setaf 1 >&/dev/null; then
+    # We have color support; assume it's compliant with Ecma-48 (ISO/IEC-6429)
+    _CYAN='\033[00;36m' _NC='\033[00m' # no color
+    # Respect the makepkg !color option if set in /etc/makepkg.conf
+    [[ "${BUILDENV[*]}" = *"!color"* ]] && _CYAN= _NC=
+else
+    _CYAN= _NC=
+fi
+
 if [[ "$_buildtype" =~ ^(gcc|clang)$ ]]; then
     _autofdo="no"
     _autofdo_profile_name=""
@@ -129,14 +138,14 @@ fi
 
 _pkgsuffix=cachymod
 _major=6.17
-_minor=11
+_minor=12
 pkgver=${_major}.${_minor}
 _stable=${_major}.${_minor}
 #_stable=${_major}
 
 _srcname=linux-${_stable}
 pkgdesc='CachyMod Linux Kernel with other patches and improvements'
-pkgrel=5
+pkgrel=1
 _kernver="$pkgver-$pkgrel"
 _kernuname="${pkgver}-${_pkgsuffix}"
 arch=('x86_64')
@@ -159,6 +168,7 @@ source=(
     "0003-block.patch"
     "0004-cachy.patch"
     "0005-fixes.patch"
+    "0050-misc-sched-fixes.patch"
     "0100-kconfig-add-800Hz.patch"
     "0140-rm-redundant-rculocks.patch"
     "0200-clearlinux-extras.patch"
@@ -247,11 +257,11 @@ prepare() {
         if [[ $src = *-prjc* ]]; then
             [[ "$_cpusched" = "bmq" ]] || continue
         fi
-        echo "Applying patch $src..."
+        echo -e "${_CYAN}Applying patch $src...${_NC}"
         patch -Np1 < "../$src"
     done
 
-    echo "Setting config..."
+    echo -e "${_CYAN}Setting config...${_NC}"
     cp ../config .config
 
     ### Remove RT version file
@@ -455,7 +465,7 @@ prepare() {
     fi
 
     ### Rewrite configuration
-    echo "Rewrite configuration..."
+    echo -e "${_CYAN}Rewrite configuration...${_NC}"
     make "${BUILD_FLAGS[@]}" -j3 prepare
     yes "" | make "${BUILD_FLAGS[@]}" config >/dev/null
 
@@ -473,7 +483,7 @@ prepare() {
     [[ "$_makexconfig" =~ ^(yes|y|1)$ ]] && make "${BUILD_FLAGS[@]}" xconfig
 
     ### Save configuration for later reuse
-    echo "Save configuration for later reuse..."
+    echo -e "${_CYAN}Save configuration for later reuse...${_NC}"
     local basedir="$(dirname "$(readlink "${srcdir}/config")")"
     cat .config > "${basedir}/config-${pkgver}-${pkgrel}${pkgbase#linux}"
 }
