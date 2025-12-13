@@ -59,7 +59,8 @@ sudo pacman -U linux-cachymod-617-rt-[6dh]*.zst
 
 ## Uninstall
 
-Removal is via pacman as well.
+Removal is via pacman as well. Run the `uninstall.sh` script
+(requires gum dependency). Or follow the manual instructions.
 
 Tip: `ls /usr/src` for the list of kernels on the system.
 Copy the folder name and append "-headers" for the 2nd
