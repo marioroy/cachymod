@@ -145,7 +145,7 @@ _stable=${_major}.${_minor}
 
 _srcname=linux-${_stable}
 pkgdesc='CachyMod Linux Kernel with other patches and improvements'
-pkgrel=1
+pkgrel=2
 _kernver="$pkgver-$pkgrel"
 _kernuname="${pkgver}-${_pkgsuffix}"
 arch=('x86_64')
@@ -457,6 +457,15 @@ prepare() {
               nf_tables nft_chain_nat nft_compat ntsync overlay stp tcp_bbr \
               tcp_dctcp tcp_htcp ttm tun veth xfrm_algo xfrm_user xt_addrtype \
               xt_comment xt_conntrack xt_mark xt_MASQUERADE xt_nat xt_tcpudp \
+           ;do echo "$module"; done
+           # Include modules for Waydroid (Android in a Linux container)
+           for module in \
+              af_key inet_diag iptable_filter iptable_mangle iptable_nat \
+              iptable_raw nfnetlink_log nft_masq sch_ingress tcp_diag tunnel4 \
+              tunnel6 udp_diag vmw_vmci vmw_vsock_virtio_transport_common \
+              vmw_vsock_vmci_transport vsock vsock_loopback xfrm6_tunnel \
+              xfrm_interface xt_bpf xt_connmark xt_NFLOG xt_policy xt_state \
+              xt_TCPMSS xt_u32 \
            ;do echo "$module"; done
         ) | sort -u > "/tmp/modprobed.db.$$"
 
