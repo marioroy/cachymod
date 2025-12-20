@@ -488,6 +488,9 @@ edit_conf() {
     oldval=${ans#*=}    # trim left side, up to and including '='
     oldval=${oldval%\}} # chop '}'
 
+    # pass the variable by reference to the input function
+    # update the selected variable
+    # continue if the same value
     case "$ans" in
       ': ${_cpusched:='*)
         input_cpusched _cpusched
