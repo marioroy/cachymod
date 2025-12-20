@@ -18,31 +18,63 @@ sudo pacman -Sy nvidia-open-dkms
 sudo pacman -Sy nvidia-dkms
 ```
 
-## Building
+## Utility dependency
 
-Copy the `linux-cachymod-6.17` folder to a work area and change
-directory. Optionally, adjust the build options in `build.sh`.
-If building multiple CachyMod variants, the `env` command can
-be used to specify the values uniquely.
+The `confmod.sh` and `uninstall.sh` utilities use the `gum` command,
+a tool for making shell scripts more glamorous.
 
 ```bash
-bash build.sh
-
-env _cpusched=eevdf _kernel_suffix= bash build.sh
-env _cpusched=bore _kernel_suffix=bore bash build.sh
-env _cpusched=bmq _kernel_suffix=bmq bash build.sh
-env _cpusched=rt _kernel_suffix=rt bash build.sh
-
-# with kernel tag
-env _cpusched=eevdf _kernel_suffix=617 bash build.sh
-env _cpusched=bore _kernel_suffix=617-bore bash build.sh
-env _cpusched=bmq _kernel_suffix=617-bmq bash build.sh
-env _cpusched=rt _kernel_suffix=617-rt bash build.sh
+sudo pacman -S gum
 ```
 
-## Installation
+Optionally, copy the ready-made configs to your home folder.
+
+```bash
+mkdir -p ~/.config/cachymod
+cp defconfigs/*.conf ~/.config/cachymod/
+```
+
+## Building and Installation
+
+Run the `confmod.sh` script from inside the source dir, preferably,
+to make changes or create new configs. Set your desired build options
+and exit the main menu.
+
+Note: The reason to run the utility from inside the source dir is in
+the case having local patches. The `confmod.sh` has a file chooser
+capability. Otherwise, you can run it from anywhere.
+
+```bash
+cd /path-to/cachymod/linux-cachymod-6.18
+../confmod.sh
+```
+
+To build, run the `build.sh` script and pass the config name.
+Omitting the config name will build a kernel with default options
+(no kernel suffix). The utility handles installation as well.
+
+```bash
+./build.sh confname # E.g. 618, 618-bmq, 618-bore, 618-rt
+```
+
+The config names can be obtained with the `list` argument.
+
+```bash
+./build.sh list
+618-rt
+618-bore
+618-bmq
+618
+...
+```
+
+## Manual Installation
+
+Below are the manual steps if needed.
 
 The `d` in `[6dh]` will include the `dbg` package if built.
+Adjust the kernel tag to your kernel suffix. Two sets of
+examples are provided for demonstration.
 
 ```bash
 sudo pacman -U linux-cachymod-[6dh]*.zst
@@ -51,30 +83,20 @@ sudo pacman -U linux-cachymod-bmq-[6dh]*.zst
 sudo pacman -U linux-cachymod-rt-[6dh]*.zst
 
 # with kernel tag
-sudo pacman -U linux-cachymod-617-[6dh]*.zst
-sudo pacman -U linux-cachymod-617-bore-[6dh]*.zst
-sudo pacman -U linux-cachymod-617-bmq-[6dh]*.zst
-sudo pacman -U linux-cachymod-617-rt-[6dh]*.zst
+sudo pacman -U linux-cachymod-618-[6dh]*.zst
+sudo pacman -U linux-cachymod-618-bore-[6dh]*.zst
+sudo pacman -U linux-cachymod-618-bmq-[6dh]*.zst
+sudo pacman -U linux-cachymod-618-rt-[6dh]*.zst
 ```
 
 ## Uninstall
 
-Removal is via pacman as well. Run the `uninstall.sh` script
-(requires gum dependency). Or follow the manual instructions.
+The CachyMod kernel(s) can be removed with the `uninstall.sh`
+utility. Run the script and toggle the kernels you wish to
+uninstall. Then, press the `enter` key.
 
-Tip: `ls /usr/src` for the list of kernels on the system.
-Copy the folder name and append "-headers" for the 2nd
-package name. Include 3rd package "-dbg" if you selected
-`_build_debug` and installed on the system.
-
-```text
-sudo pacman -Rsn \
-  linux-cachymod linux-cachymod-headers
-
-# include debug package
-sudo pacman -Rsn \
-  linux-cachymod linux-cachymod-headers \
-  linux-cachymod-dbg
+```bash
+./uninstall.sh
 ```
 
 ## Improving Interactive Performance
@@ -87,53 +109,12 @@ This can be used with EEVDF and BORE.
 
 ## Developer Notes
 
-Feel free to copy the `build.sh` script, name it anything
-you like, and edit that file. I have four depending on the
-type of kernel I want to build.
-
-```text
-# fast localmod build `_preempt=full`
-mario.fast
-mario.fast-rt
-
-# same thing, but without localmod `_preempt=full`
-mario.full
-mario.full-rt
-```
-
 Custom kernel tuning is possible via `custom.sh`, if it exists.
 Make a copy of the sample provided and edit `custom.sh`. The file
 is ignored from GIT commits.
 
 ```text
 cp ../sample/custom.sh.in custom.sh
-```
-
-Optionally, append kernel installation steps at the end of the script.
-
-```text
-# Wait for pacman to finish
-while [ -e "/var/lib/pacman/db.lck" ]; do sleep 1; done
-
-echo "Installing the kernel..."
-[ "$_buildtype" = "thin" ] \
-    && buildtype="lto" || buildtype="$_buildtype"
-
-if [ "$_kernel_suffix" = "auto" ]; then
-    kernel_suffix="$buildtype"
-elif [ -n "$_kernel_suffix" ]; then
-    kernel_suffix="$_kernel_suffix"
-else
-    kernel_suffix=""
-fi
-
-if [ -n "$kernel_suffix" ]; then
-    sudo pacman -U --noconfirm linux-cachymod-${kernel_suffix}-[6dh]*
-else
-    sudo pacman -U --noconfirm linux-cachymod-[6dh]*
-fi
-
-sync
 ```
 
 ## LICENSE

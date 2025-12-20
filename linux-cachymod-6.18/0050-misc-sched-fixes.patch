@@ -16,7 +16,7 @@ diff --git a/kernel/sched/core.c b/kernel/sched/core.c
 index 1711e9e501003a..ee7dfbf01792e5 100644
 --- a/kernel/sched/core.c
 +++ b/kernel/sched/core.c
-@@ -7467,14 +7467,11 @@ void rt_mutex_setprio(struct task_struct *p, struct task_struct *pi_task)
+@@ -7435,14 +7435,11 @@ void rt_mutex_setprio(struct task_struct *p, struct task_struct *pi_task)
  
  	check_class_changed(rq, p, prev_class, oldprio);
  out_unlock:
@@ -42,7 +42,7 @@ diff --git a/kernel/sched/core.c b/kernel/sched/core.c
 index fc358c1b6ca987..1711e9e501003a 100644
 --- a/kernel/sched/core.c
 +++ b/kernel/sched/core.c
-@@ -870,7 +870,7 @@ static enum hrtimer_restart hrtick(struct hrtimer *timer)
+@@ -872,7 +872,7 @@ static enum hrtimer_restart hrtick(struct hrtimer *timer)
  
  	rq_lock(rq, &rf);
  	update_rq_clock(rq);
@@ -61,7 +61,7 @@ diff --git a/kernel/sched/sched.h b/kernel/sched/sched.h
 index 8590113e4a604d..cb80666addec3a 100644
 --- a/kernel/sched/sched.h
 +++ b/kernel/sched/sched.h
-@@ -1163,7 +1163,7 @@ struct rq {
+@@ -1165,7 +1165,7 @@ struct rq {
  	 * one CPU and if it got migrated afterwards it may decrease
  	 * it on another CPU. Always updated under the runqueue lock:
  	 */

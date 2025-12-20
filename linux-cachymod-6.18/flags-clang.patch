@@ -1,0 +1,71 @@
+
+diff -uarp a/Makefile b/Makefile
+--- a/Makefile
++++ b/Makefile
+@@ -887,6 +887,16 @@ KBUILD_CFLAGS += $(call cc-option,-fmodu
+ KBUILD_RUSTFLAGS += -Cdebug-assertions=$(if $(CONFIG_RUST_DEBUG_ASSERTIONS),y,n)
+ KBUILD_RUSTFLAGS += -Coverflow-checks=$(if $(CONFIG_RUST_OVERFLOW_CHECKS),y,n)
+ 
++ifdef CONFIG_CC_IS_CLANG
++KBUILD_CFLAGS	+= -fmerge-all-constants \
++		   -mllvm=-enable-pipeliner \
++		   -mllvm=-inline-threshold=700 \
++		   -mllvm=-unroll-threshold=50
++ifdef CONFIG_LTO_CLANG
++KBUILD_LDFLAGS	+= --lto-O2 --lto-CGO2 --thinlto-jobs=6
++endif
++endif
++
+ # Tell gcc to never replace conditional load with a non-conditional one
+ ifdef CONFIG_CC_IS_GCC
+ # gcc-10 renamed --param=allow-store-data-races=0 to
+-- 
+2.40.2
+
+Ensure the do_nanosleep function is not inlined
+
+  "bpfland-next is setting a kprobe on do_nanosleep to detect tasks
+  that are calling sleep explicititly and it keeps those on the same
+  CPU, if the kprobe fails, nothing bad happens, but it's a small
+  optimization"  -- arighi, CachyOS sched-ext discord
+
+  $ sudo grep do_nanosleep /proc/kallsyms
+  0000000000000000 t __pfx_do_nanosleep
+  0000000000000000 t do_nanosleep
+
+Signed-off-by: Mario Roy <...>
+
+diff -uarp a/kernel/time/hrtimer.c b/kernel/time/hrtimer.c
+--- a/kernel/time/hrtimer.c
++++ b/kernel/time/hrtimer.c
+@@ -2104,7 +2104,7 @@ int nanosleep_copyout(struct restart_blo
+ 	return -ERESTART_RESTARTBLOCK;
+ }
+ 
+-static int __sched do_nanosleep(struct hrtimer_sleeper *t, enum hrtimer_mode mode)
++static noinline int __sched do_nanosleep(struct hrtimer_sleeper *t, enum hrtimer_mode mode)
+ {
+ 	struct restart_block *restart;
+ 
+-- 
+2.40.2
+
+Ensure the setup_net function is not inlined, needed by bpftune
+
+Signed-off-by: Mario Roy <...>
+
+diff -uarp a/net/core/net_namespace.c b/net/core/net_namespace.c
+--- a/net/core/net_namespace.c
++++ b/net/core/net_namespace.c
+@@ -432,7 +432,7 @@ static __net_init void preinit_net(struc
+ /*
+  * setup_net runs the initializers for the network namespace object.
+  */
+-static __net_init int setup_net(struct net *net)
++static noinline __net_init int setup_net(struct net *net)
+ {
+ 	/* Must be called with pernet_ops_rwsem held */
+ 	const struct pernet_operations *ops;
+-- 
+2.40.2
+

@@ -8,7 +8,7 @@ Signed-off-by: Mario Roy <...>
 diff -uarp a/arch/x86/Makefile b/arch/x86/Makefile
 --- a/arch/x86/Makefile
 +++ b/arch/x86/Makefile
-@@ -47,7 +47,7 @@ endif
+@@ -48,7 +48,7 @@ endif
  
  # How to compile the 16-bit code.  Note we always compile for -march=i386;
  # that way we can complain to the user if the CPU is insufficient.
@@ -130,7 +130,7 @@ Signed-off-by: Alexandre Frade <kernel@xxxxxxxxxx>
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/block/mq-deadline.c b/block/mq-deadline.c
-index b9b7cdf1d3c9..eb2007d3d5d9 100644
+index 3e741d33142d..26fca23aa43a 100644
 --- a/block/mq-deadline.c
 +++ b/block/mq-deadline.c
 @@ -28,7 +28,7 @@
@@ -156,10 +156,10 @@ Signed-off-by: Alexandre Frade <kernel@xxxxxxxxxx>
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/block/mq-deadline.c b/block/mq-deadline.c
-index eb2007d3d5d9..4463f6736cf6 100644
+index 26fca23aa43a..148c21f84729 100644
 --- a/block/mq-deadline.c
 +++ b/block/mq-deadline.c
-@@ -594,7 +594,7 @@ static int dd_init_sched(struct request_queue *q, struct elevator_queue *eq)
+@@ -566,7 +566,7 @@ static int dd_init_sched(struct request_queue *q, struct elevator_queue *eq)
  	dd->fifo_expire[DD_READ] = read_expire;
  	dd->fifo_expire[DD_WRITE] = write_expire;
  	dd->writes_starved = writes_starved;
@@ -182,10 +182,10 @@ Signed-off-by: Alexandre Frade <kernel@xxxxxxxxxx>
  1 file changed, 2 insertions(+), 1 deletion(-)
 
 diff --git a/include/linux/blkdev.h b/include/linux/blkdev.h
-index fe1797bbec42..96deb7a7a8fc 100644
+index 70b671a9a7f7..814b7a6fe783 100644
 --- a/include/linux/blkdev.h
 +++ b/include/linux/blkdev.h
-@@ -660,7 +660,8 @@ enum {
+@@ -661,7 +661,8 @@ enum {
  	QUEUE_FLAG_MAX
  };
  
@@ -243,7 +243,7 @@ Signed-off-by: Alexandre Frade <kernel@xxxxxxxxxx>
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/fs/dcache.c b/fs/dcache.c
-index 60046ae23d51..1d1b67910b29 100644
+index 035cccbc9276..c56793f84122 100644
 --- a/fs/dcache.c
 +++ b/fs/dcache.c
 @@ -73,7 +73,7 @@
@@ -265,24 +265,11 @@ Subject: [PATCH 18/20] XANMOD: lib/kconfig.debug: disable default
 
 Signed-off-by: Alexandre Frade <kernel@xxxxxxxxxx>
 ---
- fs/bcachefs/Kconfig | 1 -
- lib/Kconfig.debug   | 4 ++--
- 2 files changed, 2 insertions(+), 3 deletions(-)
+ lib/Kconfig.debug | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-diff --git a/fs/bcachefs/Kconfig b/fs/bcachefs/Kconfig
-index 8cb2b9d5da96..a924361c2aad 100644
---- a/fs/bcachefs/Kconfig
-+++ b/fs/bcachefs/Kconfig
-@@ -23,7 +23,6 @@ config BCACHEFS_FS
- 	select XOR_BLOCKS
- 	select XXHASH
- 	select SRCU
--	select SYMBOLIC_ERRNAME
- 	select MIN_HEAP
- 	select XARRAY_MULTI
- 	help
 diff --git a/lib/Kconfig.debug b/lib/Kconfig.debug
-index dc0e0c6ed075..3f2444a6796e 100644
+index 713cc94caa02..5a78ef05dbd2 100644
 --- a/lib/Kconfig.debug
 +++ b/lib/Kconfig.debug
 @@ -190,7 +190,7 @@ config DYNAMIC_DEBUG_CORE
@@ -339,10 +326,10 @@ index 5ef43231fe77..c6f9815830e1 100644
 2.47.2
 
 Curated patches from SUNLIGHT Linux
-https://github.com/sunlightlinux/linux-sunlight/commits/6.17
+https://github.com/sunlightlinux/linux-sunlight/commits/6.18
 
 SUNLIGHT: x86/tsc: Use rdtsc_ordered() when RDTSCP or LFENCE_RDTSC are supported
-https://github.com/sunlightlinux/linux-sunlight/commit/1966f2297775
+https://github.com/sunlightlinux/linux-sunlight/commit/929c1af3dc63
 
 On AMD processors the TSC has been reported drifting on and off for
 various platforms. This has been root caused to becaused by out of order
@@ -372,7 +359,7 @@ diff --git a/arch/x86/include/asm/tsc.h b/arch/x86/include/asm/tsc.h
 2.43.0
 
 SUNLIGHT: Change default value for wq_cpu_intensive_thresh_us
-https://github.com/sunlightlinux/linux-sunlight/commit/3e7ec6c34073
+https://github.com/sunlightlinux/linux-sunlight/commit/bc5af06c8ce6
 
 Description:
  - 10ms -> 30ms (edit: change to 20ms)
@@ -418,7 +405,7 @@ diff --git a/kernel/workqueue.c b/kernel/workqueue.c
 
 SUNLIGHT: sched/core: Further optimize sched_move_task by avoiding
   lock acquisition when autogroup is enabled
-https://github.com/sunlightlinux/linux-sunlight/commit/05a5c9633543
+https://github.com/sunlightlinux/linux-sunlight/commit/cd9f17bf83e7
 
 Description:
  - Some sched_move_task calls are useless because task_struct->sched_task_group
@@ -447,7 +434,7 @@ diff --git a/kernel/sched/core.c b/kernel/sched/core.c
 index 2e61c9707bea..fa7b0d1e8be6 100644
 --- a/kernel/sched/core.c
 +++ b/kernel/sched/core.c
-@@ -9200,7 +9200,7 @@ void sched_release_group(struct task_group *tg)
+@@ -9168,7 +9168,7 @@ void sched_release_group(struct task_group *tg)
  	spin_unlock_irqrestore(&task_group_lock, flags);
  }
  
@@ -456,7 +443,7 @@ index 2e61c9707bea..fa7b0d1e8be6 100644
  {
  	struct task_group *tg;
  
-@@ -9212,8 +9212,13 @@ static void sched_change_group(struct task_struct *tsk)
+@@ -9180,8 +9180,13 @@ static void sched_change_group(struct task_struct *tsk)
  	tg = container_of(task_css_check(tsk, cpu_cgrp_id, true),
  			  struct task_group, css);
  	tg = autogroup_task_group(tsk, tg);
@@ -471,7 +458,7 @@ index 2e61c9707bea..fa7b0d1e8be6 100644
  #ifdef CONFIG_FAIR_GROUP_SCHED
  	if (tsk->sched_class->task_change_group)
  		tsk->sched_class->task_change_group(tsk);
-@@ -9222,6 +9227,18 @@ static void sched_change_group(struct task_struct *tsk)
+@@ -9190,6 +9195,18 @@ static void sched_change_group(struct task_struct *tsk)
  		set_task_rq(tsk, task_cpu(tsk));
  }
  
@@ -490,7 +477,7 @@ index 2e61c9707bea..fa7b0d1e8be6 100644
  /*
   * Change task's runqueue when it moves between groups.
   *
-@@ -9231,10 +9248,14 @@ static void sched_change_group(struct task_struct *tsk)
+@@ -9199,10 +9216,14 @@ static void sched_change_group(struct task_struct *tsk)
   */
  void sched_move_task(struct task_struct *tsk, bool for_autogroup)
  {
@@ -505,7 +492,7 @@ index 2e61c9707bea..fa7b0d1e8be6 100644
  	CLASS(task_rq_lock, rq_guard)(tsk);
  	rq = rq_guard.rq;
  
-@@ -9248,7 +9269,7 @@ void sched_move_task(struct task_struct *tsk, bool for_autogroup)
+@@ -9216,7 +9237,7 @@ void sched_move_task(struct task_struct *tsk, bool for_autogroup)
  	if (running)
  		put_prev_task(rq, tsk);
  
@@ -524,7 +511,7 @@ diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
 index 7cc9d50e3e11..9c1f21d59b5c 100644
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -11727,12 +11727,15 @@ static int sched_balance_rq(int this_cpu, struct rq *this_rq,
+@@ -11822,12 +11822,15 @@ static int sched_balance_rq(int this_cpu, struct rq *this_rq,
  		 * still unbalanced. ld_moved simply stays zero, so it is
  		 * correctly treated as an imbalance.
  		 */

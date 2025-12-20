@@ -13,7 +13,7 @@
 : ${_cpusched:=eevdf}
 
 # Custom kernel suffix, specify uniquely if building multiple CachyMod kernels
-# E.g. { blank value, bmq, bore, rt } or { 617, 617-bmq, 617-bore, 617-rt }
+# E.g. { blank value, bmq, bore, rt } or { 618, 618-bmq, 618-bore, 618-rt }
 # Or set to "auto" for automatic suffix { gcc, clang, lto }
 # Or set to blank value for no kernel suffix
 : ${_kernel_suffix:=}
@@ -131,8 +131,8 @@ else
 fi
 
 _pkgsuffix=cachymod
-_major=6.17
-_minor=13
+_major=6.18
+_minor=2
 pkgver=${_major}.${_minor}
 _stable=${_major}.${_minor}
 #_stable=${_major}
@@ -156,27 +156,29 @@ source=(
     "config.sh"
     "minimal-modprobed.db"
     "0000-rt.patch"
-    "0001-acpi-call.patch"
-    "0002-bbr3.patch"
-    "0003-block.patch"
-    "0004-cachy.patch"
-    "0005-fixes.patch"
+    "0001-amd-pstate.patch"
+    "0004-bbr3.patch"
+    "0005-block.patch"
+    "0006-cachy.patch"
+    "0007-crypto.patch"
+    "0008-fixes.patch"
+    "0009-intel-pstate.patch"
+    "0010-sched-ext.patch"
     "0050-misc-sched-fixes.patch"
     "0100-kconfig-add-800Hz.patch"
-    "0140-rm-redundant-rculocks.patch"
     "0200-clearlinux-extras.patch"
     "0210-cachymod-misc.patch"
-    "0250-sched-ext-updates.patch"
     "0260-fair-update-cachy-mods.patch"
     "0300-x86-prevent-avx2-vector.patch"
-    "0310-linux6.17-bore.patch"
-    "0310-linux6.17-prjc.patch"
+    "0310-linux6.18-bore.patch"
+    "0310-linux6.18-prjc.patch"
 )
 
 # LLVM makedepends
 if [[ "$buildtype" =~ (lto|clang) ]]; then
     makedepends+=(clang llvm lld)
     source+=("dkms-clang.patch" "flags-clang.patch")
+    [[ "$_autofdo" =~ ^(yes|y|1)$ ]] && source+=("autofdo.patch")
 
     BUILD_FLAGS=(CC=clang LD=ld.lld LLVM_IAS=1)
     CLANG_BIN=$(which clang) ; CLANG_BIN="${CLANG_BIN%clang}"
@@ -496,7 +498,7 @@ build() {
 
     ### Use grep to filter/silence harmless warnings
     make "${BUILD_FLAGS[@]}" -j"$ncpu" all 2>&1 | \
-       grep -Ev '^  (AS|AR|CC|LD|BT|CE|CO|GE|HO|IN|IP|MK|OB|PA|PE|PO|RE|ST|TA|TE|UN|UP|VD|WR|X32)|: unexpected end of section|: unreachable instruction| missing __noreturn in | no .sframe will be created'
+       grep -Ev '^  (AS|AR|CC|LD|BT|CE|CO|GE|HO|IN|IP|MK|OB|PA|PE|PO|RE|ST|TA|TE|UN|UP|VD|WR|X32)|: unexpected end of section|: unreachable instruction| missing __noreturn in | no .sframe will be created|ld: warning: orphan section|ld.lld: warning: .* is being placed in'
 
     ### In the case compiling with a later LLVM release, use the
     ### system toolchain for auto-detecting system features

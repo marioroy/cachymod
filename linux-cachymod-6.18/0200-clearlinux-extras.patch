@@ -28,7 +28,7 @@
 diff -uar a/arch/x86/Kconfig b/arch/x86/Kconfig
 --- a/arch/x86/Kconfig
 +++ b/arch/x86/Kconfig
-@@ -1233,7 +1233,7 @@
+@@ -1230,7 +1230,7 @@
  	default X86_LEGACY_VM86
  
  config X86_16BIT
@@ -37,7 +37,7 @@ diff -uar a/arch/x86/Kconfig b/arch/x86/Kconfig
  	default y
  	depends on MODIFY_LDT_SYSCALL
  	help
-@@ -1251,7 +1251,7 @@ config X86_ESPFIX64
+@@ -1248,7 +1248,7 @@ config X86_ESPFIX64
  	depends on X86_16BIT && X86_64
  
  config X86_VSYSCALL_EMULATION
@@ -46,7 +46,7 @@ diff -uar a/arch/x86/Kconfig b/arch/x86/Kconfig
  	default y
  	depends on X86_64
  	help
-@@ -2303,7 +2303,7 @@
+@@ -2304,7 +2304,7 @@
  	  be set to 'N' under normal conditions.
  
  config MODIFY_LDT_SYSCALL
@@ -85,7 +85,7 @@ diff -uar a/fs/Kconfig.binfmt b/fs/Kconfig.binfmt
 diff -uar a/init/Kconfig b/init/Kconfig
 --- a/init/Kconfig
 +++ b/init/Kconfig
-@@ -1655,7 +1655,7 @@
+@@ -1665,7 +1665,7 @@
  	  Only use this if you really know what you are doing.
  
  config UID16
@@ -98,7 +98,7 @@ diff -uar a/init/Kconfig b/init/Kconfig
 diff -uar a/lib/Kconfig.debug b/lib/Kconfig.debug
 --- a/lib/Kconfig.debug
 +++ b/lib/Kconfig.debug
-@@ -910,7 +910,7 @@
+@@ -909,7 +909,7 @@
  	  regions to be regularly checked for invalid topology.
  
  config DEBUG_MEMORY_INIT
@@ -187,7 +187,7 @@ diff --git a/net/ipv4/tcp.c b/net/ipv4/tcp.c
 index 28ff2a820f7c..c4f240da8d70 100644
 --- a/net/ipv4/tcp.c
 +++ b/net/ipv4/tcp.c
-@@ -5239,8 +5239,8 @@ void __init tcp_init(void)
+@@ -5270,8 +5270,8 @@ void __init tcp_init(void)
  	tcp_init_mem();
  	/* Set per-socket limits to no more than 1/128 the pressure threshold */
  	limit = nr_free_buffer_pages() << (PAGE_SHIFT - 7);
@@ -519,7 +519,7 @@ diff --git a/init/main.c b/init/main.c
 index aa21add5f7c5..715d57f58895 100644
 --- a/init/main.c
 +++ b/init/main.c
-@@ -1218,10 +1218,13 @@ static __init_or_module void
+@@ -1220,10 +1220,13 @@ static __init_or_module void
  trace_initcall_finish_cb(void *data, initcall_t fn, int ret)
  {
  	ktime_t rettime, *calltime = data;
@@ -545,7 +545,7 @@ Place libraries right below the binary for PIE binaries, this helps code localit
 
 --- linux-5.18.2/fs/binfmt_elf.c~	2022-06-06 06:49:00.000000000 +0000
 +++ linux-5.18.2/fs/binfmt_elf.c	2022-08-10 13:53:04.878633166 +0000
-@@ -1286,6 +1286,8 @@
+@@ -1301,6 +1301,8 @@
  	mm = current->mm;
  	mm->end_code = end_code;
  	mm->start_code = start_code;
@@ -559,7 +559,7 @@ Place libraries right below the binary for PIE binaries, this helps code localit
 
 --- linux-6.1/arch/x86/include/asm/msr-index.h~	2022-12-11 22:15:18.000000000 +0000
 +++ linux-6.1/arch/x86/include/asm/msr-index.h	2022-12-16 01:31:32.266119875 +0000
-@@ -555,7 +555,7 @@
+@@ -560,7 +560,7 @@
  #define HWP_MAX_PERF(x)			((x & 0xff) << 8)
  #define HWP_DESIRED_PERF(x)		((x & 0xff) << 16)
  #define HWP_ENERGY_PERF_PREFERENCE(x)	(((u64)x & 0xff) << 24)
@@ -582,7 +582,7 @@ diff --git a/kernel/sched/core.c b/kernel/sched/core.c
 index f730b6fe94a7..ee0ec4ab7d1c 100644
 --- a/kernel/sched/core.c
 +++ b/kernel/sched/core.c
-@@ -632,7 +632,7 @@ void raw_spin_rq_lock_nested(struct rq *rq, int subclass)
+@@ -634,7 +634,7 @@ void raw_spin_rq_lock_nested(struct rq *rq, int subclass)
  
  	/* Matches synchronize_rcu() in __sched_core_enable() */
  	preempt_disable();
@@ -591,7 +591,7 @@ index f730b6fe94a7..ee0ec4ab7d1c 100644
  		raw_spin_lock_nested(&rq->__lock, subclass);
  		/* preempt_count *MUST* be > 1 */
  		preempt_enable_no_resched();
-@@ -839,7 +839,7 @@ void update_rq_clock(struct rq *rq)
+@@ -841,7 +841,7 @@ void update_rq_clock(struct rq *rq)
  	scx_rq_clock_update(rq, clock);
  
  	delta = clock - rq->clock;
@@ -600,7 +600,7 @@ index f730b6fe94a7..ee0ec4ab7d1c 100644
  		return;
  	rq->clock += delta;
  
-@@ -6077,7 +6077,7 @@ pick_next_task(struct rq *rq, struct task_struct *prev, struct rq_flags *rf)
+@@ -6045,7 +6045,7 @@ pick_next_task(struct rq *rq, struct task_struct *prev, struct rq_flags *rf)
  	struct rq *rq_i;
  	bool need_sync;
  
@@ -609,7 +609,7 @@ index f730b6fe94a7..ee0ec4ab7d1c 100644
  		return __pick_next_task(rq, prev, rf);
  
  	cpu = cpu_of(rq);
-@@ -7478,7 +7478,7 @@ SYSCALL_DEFINE0(sched_yield)
+@@ -7446,7 +7446,7 @@ SYSCALL_DEFINE0(sched_yield)
  #if !defined(CONFIG_PREEMPTION) || defined(CONFIG_PREEMPT_DYNAMIC)
  int __sched __cond_resched(void)
  {
@@ -627,7 +627,7 @@ diff --git a/include/net/sock.h b/include/net/sock.h
 index 4e787285fc66..3e045f6eb6ee 100644
 --- a/include/net/sock.h
 +++ b/include/net/sock.h
-@@ -1618,10 +1618,17 @@ static inline void sk_mem_charge(struct sock *sk, int size)
+@@ -1611,10 +1611,17 @@ static inline void sk_mem_charge(struct sock *sk, int size)
  
  static inline void sk_mem_uncharge(struct sock *sk, int size)
  {

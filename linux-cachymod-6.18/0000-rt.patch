@@ -1,0 +1,1019 @@
+patch-6.18-rc4-rt3
+https://cdn.kernel.org/pub/linux/kernel/projects/rt/6.18/
+
+diff --git a/arch/arm/Kconfig b/arch/arm/Kconfig
+index 2e3f93b690f47..84ad4fe11589b 100644
+--- a/arch/arm/Kconfig
++++ b/arch/arm/Kconfig
+@@ -41,6 +41,7 @@ config ARM
+ 	select ARCH_SUPPORTS_CFI
+ 	select ARCH_SUPPORTS_HUGETLBFS if ARM_LPAE
+ 	select ARCH_SUPPORTS_PER_VMA_LOCK
++	select ARCH_SUPPORTS_RT
+ 	select ARCH_USE_BUILTIN_BSWAP
+ 	select ARCH_USE_CMPXCHG_LOCKREF
+ 	select ARCH_USE_MEMTEST
+@@ -82,7 +83,7 @@ config ARM
+ 	select HAS_IOPORT
+ 	select HAVE_ARCH_AUDITSYSCALL if AEABI && !OABI_COMPAT
+ 	select HAVE_ARCH_BITREVERSE if (CPU_32v7M || CPU_32v7) && !CPU_32v6
+-	select HAVE_ARCH_JUMP_LABEL if !XIP_KERNEL && !CPU_ENDIAN_BE32 && MMU
++	select HAVE_ARCH_JUMP_LABEL if !XIP_KERNEL && !CPU_ENDIAN_BE32 && MMU && (!PREEMPT_RT || !SMP)
+ 	select HAVE_ARCH_KFENCE if MMU && !XIP_KERNEL
+ 	select HAVE_ARCH_KGDB if !CPU_ENDIAN_BE32 && MMU
+ 	select HAVE_ARCH_KASAN if MMU && !XIP_KERNEL
+@@ -1215,7 +1216,7 @@ config HIGHMEM
+ 
+ config HIGHPTE
+ 	bool "Allocate 2nd-level pagetables from highmem" if EXPERT
+-	depends on HIGHMEM
++	depends on HIGHMEM && !PREEMPT_RT
+ 	default y
+ 	help
+ 	  The VM uses one page of physical memory for each page table.
+diff --git a/arch/arm/mm/fault.c b/arch/arm/mm/fault.c
+index 2bc828a1940c0..ad58c1e22a5f9 100644
+--- a/arch/arm/mm/fault.c
++++ b/arch/arm/mm/fault.c
+@@ -183,9 +183,6 @@ __do_user_fault(unsigned long addr, unsigned int fsr, unsigned int sig,
+ {
+ 	struct task_struct *tsk = current;
+ 
+-	if (addr > TASK_SIZE)
+-		harden_branch_predictor();
+-
+ #ifdef CONFIG_DEBUG_USER
+ 	if (((user_debug & UDBG_SEGV) && (sig == SIGSEGV)) ||
+ 	    ((user_debug & UDBG_BUS)  && (sig == SIGBUS))) {
+@@ -218,10 +215,14 @@ void do_bad_area(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
+ 	 * If we are in kernel mode at this point, we
+ 	 * have no context to handle this fault with.
+ 	 */
+-	if (user_mode(regs))
++	if (user_mode(regs)) {
++		if (addr >= TASK_SIZE)
++			harden_branch_predictor();
++		local_irq_enable();
+ 		__do_user_fault(addr, fsr, SIGSEGV, SEGV_MAPERR, regs);
+-	else
++	} else {
+ 		__do_kernel_fault(mm, addr, fsr, regs);
++	}
+ }
+ 
+ #ifdef CONFIG_MMU
+@@ -274,8 +275,11 @@ do_page_fault(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
+ 
+ 
+ 	/* Enable interrupts if they were enabled in the parent context. */
+-	if (interrupts_enabled(regs))
++	if (interrupts_enabled(regs)) {
++		if (user_mode(regs) && addr >= TASK_SIZE)
++			harden_branch_predictor();
+ 		local_irq_enable();
++	}
+ 
+ 	/*
+ 	 * If we're in an interrupt or have no user
+diff --git a/arch/powerpc/Kconfig b/arch/powerpc/Kconfig
+index e24f4d88885ae..38b2b01455b76 100644
+--- a/arch/powerpc/Kconfig
++++ b/arch/powerpc/Kconfig
+@@ -172,6 +172,7 @@ config PPC
+ 	select ARCH_STACKWALK
+ 	select ARCH_SUPPORTS_ATOMIC_RMW
+ 	select ARCH_SUPPORTS_DEBUG_PAGEALLOC	if PPC_BOOK3S || PPC_8xx
++	select ARCH_SUPPORTS_RT			if HAVE_POSIX_CPU_TIMERS_TASK_WORK
+ 	select ARCH_SUPPORTS_SCHED_MC		if SMP
+ 	select ARCH_SUPPORTS_SCHED_SMT		if PPC64 && SMP
+ 	select SCHED_MC				if ARCH_SUPPORTS_SCHED_MC
+@@ -278,6 +279,7 @@ config PPC
+ 	select HAVE_PERF_EVENTS_NMI		if PPC64
+ 	select HAVE_PERF_REGS
+ 	select HAVE_PERF_USER_STACK_DUMP
++	select HAVE_POSIX_CPU_TIMERS_TASK_WORK	if !KVM
+ 	select HAVE_PREEMPT_DYNAMIC_KEY
+ 	select HAVE_RETHOOK			if KPROBES
+ 	select HAVE_REGS_AND_STACK_ACCESS_API
+diff --git a/arch/powerpc/include/asm/stackprotector.h b/arch/powerpc/include/asm/stackprotector.h
+index 283c346478565..4727f40052ddd 100644
+--- a/arch/powerpc/include/asm/stackprotector.h
++++ b/arch/powerpc/include/asm/stackprotector.h
+@@ -19,8 +19,13 @@
+  */
+ static __always_inline void boot_init_stack_canary(void)
+ {
+-	unsigned long canary = get_random_canary();
++	unsigned long canary;
+ 
++#ifndef CONFIG_PREEMPT_RT
++	canary = get_random_canary();
++#else
++	canary = ((unsigned long)&canary) & CANARY_MASK;
++#endif
+ 	current->stack_canary = canary;
+ #ifdef CONFIG_PPC64
+ 	get_paca()->canary = canary;
+diff --git a/arch/powerpc/kvm/Kconfig b/arch/powerpc/kvm/Kconfig
+index 2f2702c867f76..8e5a7bab208ab 100644
+--- a/arch/powerpc/kvm/Kconfig
++++ b/arch/powerpc/kvm/Kconfig
+@@ -234,6 +234,7 @@ config KVM_E500MC
+ config KVM_MPIC
+ 	bool "KVM in-kernel MPIC emulation"
+ 	depends on KVM && PPC_E500
++	depends on !PREEMPT_RT
+ 	select HAVE_KVM_IRQCHIP
+ 	select HAVE_KVM_IRQ_ROUTING
+ 	select HAVE_KVM_MSI
+diff --git a/arch/powerpc/platforms/pseries/Kconfig b/arch/powerpc/platforms/pseries/Kconfig
+index 3e042218d6cd8..68285dc51b632 100644
+--- a/arch/powerpc/platforms/pseries/Kconfig
++++ b/arch/powerpc/platforms/pseries/Kconfig
+@@ -2,6 +2,7 @@
+ config PPC_PSERIES
+ 	depends on PPC64 && PPC_BOOK3S
+ 	bool "IBM pSeries & new (POWER5-based) iSeries"
++	select GENERIC_ALLOCATOR
+ 	select HAVE_PCSPKR_PLATFORM
+ 	select MPIC
+ 	select OF_DYNAMIC
+diff --git a/arch/powerpc/platforms/pseries/iommu.c b/arch/powerpc/platforms/pseries/iommu.c
+index eec333dd2e598..0b952ad638f9c 100644
+--- a/arch/powerpc/platforms/pseries/iommu.c
++++ b/arch/powerpc/platforms/pseries/iommu.c
+@@ -26,6 +26,7 @@
+ #include <linux/of_address.h>
+ #include <linux/iommu.h>
+ #include <linux/rculist.h>
++#include <linux/local_lock.h>
+ #include <asm/io.h>
+ #include <asm/prom.h>
+ #include <asm/rtas.h>
+@@ -245,7 +246,13 @@ static int tce_build_pSeriesLP(unsigned long liobn, long tcenum, long tceshift,
+ 	return ret;
+ }
+ 
+-static DEFINE_PER_CPU(__be64 *, tce_page);
++struct tce_page {
++	__be64 * page;
++	local_lock_t lock;
++};
++static DEFINE_PER_CPU(struct tce_page, tce_page) = {
++	.lock = INIT_LOCAL_LOCK(lock),
++};
+ 
+ static int tce_buildmulti_pSeriesLP(struct iommu_table *tbl, long tcenum,
+ 				     long npages, unsigned long uaddr,
+@@ -268,9 +275,10 @@ static int tce_buildmulti_pSeriesLP(struct iommu_table *tbl, long tcenum,
+ 		                           direction, attrs);
+ 	}
+ 
+-	local_irq_save(flags);	/* to protect tcep and the page behind it */
++	/* to protect tcep and the page behind it */
++	local_lock_irqsave(&tce_page.lock, flags);
+ 
+-	tcep = __this_cpu_read(tce_page);
++	tcep = __this_cpu_read(tce_page.page);
+ 
+ 	/* This is safe to do since interrupts are off when we're called
+ 	 * from iommu_alloc{,_sg}()
+@@ -279,12 +287,12 @@ static int tce_buildmulti_pSeriesLP(struct iommu_table *tbl, long tcenum,
+ 		tcep = (__be64 *)__get_free_page(GFP_ATOMIC);
+ 		/* If allocation fails, fall back to the loop implementation */
+ 		if (!tcep) {
+-			local_irq_restore(flags);
++			local_unlock_irqrestore(&tce_page.lock, flags);
+ 			return tce_build_pSeriesLP(tbl->it_index, tcenum,
+ 					tceshift,
+ 					npages, uaddr, direction, attrs);
+ 		}
+-		__this_cpu_write(tce_page, tcep);
++		__this_cpu_write(tce_page.page, tcep);
+ 	}
+ 
+ 	rpn = __pa(uaddr) >> tceshift;
+@@ -314,7 +322,7 @@ static int tce_buildmulti_pSeriesLP(struct iommu_table *tbl, long tcenum,
+ 		tcenum += limit;
+ 	} while (npages > 0 && !rc);
+ 
+-	local_irq_restore(flags);
++	local_unlock_irqrestore(&tce_page.lock, flags);
+ 
+ 	if (unlikely(rc == H_NOT_ENOUGH_RESOURCES)) {
+ 		ret = (int)rc;
+@@ -498,16 +506,17 @@ static int tce_setrange_multi_pSeriesLP(unsigned long start_pfn,
+ 				DMA_BIDIRECTIONAL, 0);
+ 	}
+ 
+-	local_irq_disable();	/* to protect tcep and the page behind it */
+-	tcep = __this_cpu_read(tce_page);
++	/* to protect tcep and the page behind it */
++	local_lock_irq(&tce_page.lock);
++	tcep = __this_cpu_read(tce_page.page);
+ 
+ 	if (!tcep) {
+ 		tcep = (__be64 *)__get_free_page(GFP_ATOMIC);
+ 		if (!tcep) {
+-			local_irq_enable();
++			local_unlock_irq(&tce_page.lock);
+ 			return -ENOMEM;
+ 		}
+-		__this_cpu_write(tce_page, tcep);
++		__this_cpu_write(tce_page.page, tcep);
+ 	}
+ 
+ 	proto_tce = TCE_PCI_READ | TCE_PCI_WRITE;
+@@ -550,7 +559,7 @@ static int tce_setrange_multi_pSeriesLP(unsigned long start_pfn,
+ 
+ 	/* error cleanup: caller will clear whole range */
+ 
+-	local_irq_enable();
++	local_unlock_irq(&tce_page.lock);
+ 	return rc;
+ }
+ 
+diff --git a/drivers/gpu/drm/i915/Kconfig b/drivers/gpu/drm/i915/Kconfig
+index 5e939004b6463..40a9234e6e5dc 100644
+--- a/drivers/gpu/drm/i915/Kconfig
++++ b/drivers/gpu/drm/i915/Kconfig
+@@ -3,7 +3,6 @@ config DRM_I915
+ 	tristate "Intel 8xx/9xx/G3x/G4x/HD Graphics"
+ 	depends on DRM
+ 	depends on X86 && PCI
+-	depends on !PREEMPT_RT
+ 	select INTEL_GTT if X86
+ 	select INTERVAL_TREE
+ 	# we need shmfs for the swappable backing store, and in particular
+diff --git a/drivers/gpu/drm/i915/display/intel_crtc.c b/drivers/gpu/drm/i915/display/intel_crtc.c
+index a187db6df2d36..dbdc4d9b2a33c 100644
+--- a/drivers/gpu/drm/i915/display/intel_crtc.c
++++ b/drivers/gpu/drm/i915/display/intel_crtc.c
+@@ -562,7 +562,8 @@ void intel_pipe_update_start(struct intel_atomic_state *state,
+ 	 */
+ 	intel_psr_wait_for_idle_locked(new_crtc_state);
+ 
+-	local_irq_disable();
++	if (!IS_ENABLED(CONFIG_PREEMPT_RT))
++		local_irq_disable();
+ 
+ 	crtc->debug.min_vbl = evade.min;
+ 	crtc->debug.max_vbl = evade.max;
+@@ -580,7 +581,8 @@ void intel_pipe_update_start(struct intel_atomic_state *state,
+ 	return;
+ 
+ irq_disable:
+-	local_irq_disable();
++	if (!IS_ENABLED(CONFIG_PREEMPT_RT))
++		local_irq_disable();
+ }
+ 
+ #if IS_ENABLED(CONFIG_DRM_I915_DEBUG_VBLANK_EVADE)
+@@ -726,7 +728,8 @@ void intel_pipe_update_end(struct intel_atomic_state *state,
+ 	if (!state->base.legacy_cursor_update)
+ 		intel_vrr_send_push(NULL, new_crtc_state);
+ 
+-	local_irq_enable();
++	if (!IS_ENABLED(CONFIG_PREEMPT_RT))
++		local_irq_enable();
+ 
+ 	if (intel_vgpu_active(dev_priv))
+ 		goto out;
+diff --git a/drivers/gpu/drm/i915/display/intel_cursor.c b/drivers/gpu/drm/i915/display/intel_cursor.c
+index d4d181f9dca5f..58f2f074aff20 100644
+--- a/drivers/gpu/drm/i915/display/intel_cursor.c
++++ b/drivers/gpu/drm/i915/display/intel_cursor.c
+@@ -919,13 +919,15 @@ intel_legacy_cursor_update(struct drm_plane *_plane,
+ 		 */
+ 		intel_psr_wait_for_idle_locked(crtc_state);
+ 
+-		local_irq_disable();
++		if (!IS_ENABLED(CONFIG_PREEMPT_RT))
++			local_irq_disable();
+ 
+ 		intel_vblank_evade(&evade);
+ 
+ 		drm_crtc_vblank_put(&crtc->base);
+ 	} else {
+-		local_irq_disable();
++		if (!IS_ENABLED(CONFIG_PREEMPT_RT))
++			local_irq_disable();
+ 	}
+ 
+ 	if (new_plane_state->uapi.visible) {
+@@ -935,7 +937,8 @@ intel_legacy_cursor_update(struct drm_plane *_plane,
+ 		intel_plane_disable_arm(NULL, plane, crtc_state);
+ 	}
+ 
+-	local_irq_enable();
++	if (!IS_ENABLED(CONFIG_PREEMPT_RT))
++		local_irq_enable();
+ 
+ 	intel_psr_unlock(crtc_state);
+ 
+diff --git a/drivers/gpu/drm/i915/display/intel_display_trace.h b/drivers/gpu/drm/i915/display/intel_display_trace.h
+index 27ebc32cb61a5..a519d94700c36 100644
+--- a/drivers/gpu/drm/i915/display/intel_display_trace.h
++++ b/drivers/gpu/drm/i915/display/intel_display_trace.h
+@@ -13,6 +13,10 @@
+ #if !defined(__INTEL_DISPLAY_TRACE_H__) || defined(TRACE_HEADER_MULTI_READ)
+ #define __INTEL_DISPLAY_TRACE_H__
+ 
++#if defined(CONFIG_PREEMPT_RT) && !defined(NOTRACE)
++#define NOTRACE
++#endif
++
+ #include <linux/string.h>
+ #include <linux/string_helpers.h>
+ #include <linux/types.h>
+diff --git a/drivers/gpu/drm/i915/display/intel_vblank.c b/drivers/gpu/drm/i915/display/intel_vblank.c
+index c15234c1d96e7..590a079f926b2 100644
+--- a/drivers/gpu/drm/i915/display/intel_vblank.c
++++ b/drivers/gpu/drm/i915/display/intel_vblank.c
+@@ -315,6 +315,20 @@ static void intel_vblank_section_exit(struct intel_display *display)
+ 	struct drm_i915_private *i915 = to_i915(display->drm);
+ 	spin_unlock(&i915->uncore.lock);
+ }
++
++static void intel_vblank_section_enter_irqf(struct intel_display *display, unsigned long *flags)
++	__acquires(i915->uncore.lock)
++{
++	struct drm_i915_private *i915 = to_i915(display->drm);
++	spin_lock_irqsave(&i915->uncore.lock, *flags);
++}
++
++static void intel_vblank_section_exit_irqf(struct intel_display *display, unsigned long flags)
++	__releases(i915->uncore.lock)
++{
++	struct drm_i915_private *i915 = to_i915(display->drm);
++	spin_unlock_irqrestore(&i915->uncore.lock, flags);
++}
+ #else
+ static void intel_vblank_section_enter(struct intel_display *display)
+ {
+@@ -323,6 +337,17 @@ static void intel_vblank_section_enter(struct intel_display *display)
+ static void intel_vblank_section_exit(struct intel_display *display)
+ {
+ }
++
++static void intel_vblank_section_enter_irqf(struct intel_display *display, unsigned long *flags)
++{
++	*flags = 0;
++}
++
++static void intel_vblank_section_exit_irqf(struct intel_display *display, unsigned long flags)
++{
++	if (flags)
++		return;
++}
+ #endif
+ 
+ static bool i915_get_crtc_scanoutpos(struct drm_crtc *_crtc,
+@@ -359,10 +384,10 @@ static bool i915_get_crtc_scanoutpos(struct drm_crtc *_crtc,
+ 	 * timing critical raw register reads, potentially with
+ 	 * preemption disabled, so the following code must not block.
+ 	 */
+-	local_irq_save(irqflags);
+-	intel_vblank_section_enter(display);
++	intel_vblank_section_enter_irqf(display, &irqflags);
+ 
+-	/* preempt_disable_rt() should go right here in PREEMPT_RT patchset. */
++	if (IS_ENABLED(CONFIG_PREEMPT_RT))
++		preempt_disable();
+ 
+ 	/* Get optional system timestamp before query. */
+ 	if (stime)
+@@ -426,10 +451,10 @@ static bool i915_get_crtc_scanoutpos(struct drm_crtc *_crtc,
+ 	if (etime)
+ 		*etime = ktime_get();
+ 
+-	/* preempt_enable_rt() should go right here in PREEMPT_RT patchset. */
++	if (IS_ENABLED(CONFIG_PREEMPT_RT))
++		preempt_enable();
+ 
+-	intel_vblank_section_exit(display);
+-	local_irq_restore(irqflags);
++	intel_vblank_section_exit_irqf(display, irqflags);
+ 
+ 	/*
+ 	 * While in vblank, position will be negative
+@@ -467,13 +492,11 @@ int intel_get_crtc_scanline(struct intel_crtc *crtc)
+ 	unsigned long irqflags;
+ 	int position;
+ 
+-	local_irq_save(irqflags);
+-	intel_vblank_section_enter(display);
++	intel_vblank_section_enter_irqf(display, &irqflags);
+ 
+ 	position = __intel_get_crtc_scanline(crtc);
+ 
+-	intel_vblank_section_exit(display);
+-	local_irq_restore(irqflags);
++	intel_vblank_section_exit_irqf(display, irqflags);
+ 
+ 	return position;
+ }
+@@ -738,11 +761,13 @@ int intel_vblank_evade(struct intel_vblank_evade_ctx *evade)
+ 			break;
+ 		}
+ 
+-		local_irq_enable();
++		if (!IS_ENABLED(CONFIG_PREEMPT_RT))
++			local_irq_enable();
+ 
+ 		timeout = schedule_timeout(timeout);
+ 
+-		local_irq_disable();
++		if (!IS_ENABLED(CONFIG_PREEMPT_RT))
++			local_irq_disable();
+ 	}
+ 
+ 	finish_wait(wq, &wait);
+diff --git a/drivers/gpu/drm/i915/gt/intel_engine_cs.c b/drivers/gpu/drm/i915/gt/intel_engine_cs.c
+index b721bbd233567..f5a6143ea8a24 100644
+--- a/drivers/gpu/drm/i915/gt/intel_engine_cs.c
++++ b/drivers/gpu/drm/i915/gt/intel_engine_cs.c
+@@ -1609,7 +1609,7 @@ u64 intel_engine_get_last_batch_head(const struct intel_engine_cs *engine)
+ 
+ static unsigned long stop_timeout(const struct intel_engine_cs *engine)
+ {
+-	if (in_atomic() || irqs_disabled()) /* inside atomic preempt-reset? */
++	if (in_atomic() || irqs_disabled() || rcu_preempt_depth()) /* inside atomic preempt-reset? */
+ 		return 0;
+ 
+ 	/*
+diff --git a/drivers/gpu/drm/i915/gt/intel_execlists_submission.c b/drivers/gpu/drm/i915/gt/intel_execlists_submission.c
+index 7f389cb0bde44..607c9a7b3a0a6 100644
+--- a/drivers/gpu/drm/i915/gt/intel_execlists_submission.c
++++ b/drivers/gpu/drm/i915/gt/intel_execlists_submission.c
+@@ -1298,7 +1298,7 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
+ 	 * and context switches) submission.
+ 	 */
+ 
+-	spin_lock(&sched_engine->lock);
++	spin_lock_irq(&sched_engine->lock);
+ 
+ 	/*
+ 	 * If the queue is higher priority than the last
+@@ -1398,7 +1398,7 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
+ 				 * Even if ELSP[1] is occupied and not worthy
+ 				 * of timeslices, our queue might be.
+ 				 */
+-				spin_unlock(&sched_engine->lock);
++				spin_unlock_irq(&sched_engine->lock);
+ 				return;
+ 			}
+ 		}
+@@ -1424,7 +1424,7 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
+ 
+ 		if (last && !can_merge_rq(last, rq)) {
+ 			spin_unlock(&ve->base.sched_engine->lock);
+-			spin_unlock(&engine->sched_engine->lock);
++			spin_unlock_irq(&engine->sched_engine->lock);
+ 			return; /* leave this for another sibling */
+ 		}
+ 
+@@ -1586,7 +1586,7 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
+ 	 */
+ 	sched_engine->queue_priority_hint = queue_prio(sched_engine);
+ 	i915_sched_engine_reset_on_empty(sched_engine);
+-	spin_unlock(&sched_engine->lock);
++	spin_unlock_irq(&sched_engine->lock);
+ 
+ 	/*
+ 	 * We can skip poking the HW if we ended up with exactly the same set
+@@ -1612,13 +1612,6 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
+ 	}
+ }
+ 
+-static void execlists_dequeue_irq(struct intel_engine_cs *engine)
+-{
+-	local_irq_disable(); /* Suspend interrupts across request submission */
+-	execlists_dequeue(engine);
+-	local_irq_enable(); /* flush irq_work (e.g. breadcrumb enabling) */
+-}
+-
+ static void clear_ports(struct i915_request **ports, int count)
+ {
+ 	memset_p((void **)ports, NULL, count);
+@@ -2473,7 +2466,7 @@ static void execlists_submission_tasklet(struct tasklet_struct *t)
+ 	}
+ 
+ 	if (!engine->execlists.pending[0]) {
+-		execlists_dequeue_irq(engine);
++		execlists_dequeue(engine);
+ 		start_timeslice(engine);
+ 	}
+ 
+diff --git a/drivers/gpu/drm/i915/gt/uc/intel_guc.h b/drivers/gpu/drm/i915/gt/uc/intel_guc.h
+index 053780f562c1a..b25fa8f4dc4bd 100644
+--- a/drivers/gpu/drm/i915/gt/uc/intel_guc.h
++++ b/drivers/gpu/drm/i915/gt/uc/intel_guc.h
+@@ -362,7 +362,7 @@ static inline int intel_guc_send_busy_loop(struct intel_guc *guc,
+ {
+ 	int err;
+ 	unsigned int sleep_period_ms = 1;
+-	bool not_atomic = !in_atomic() && !irqs_disabled();
++	bool not_atomic = !in_atomic() && !irqs_disabled() && !rcu_preempt_depth();
+ 
+ 	/*
+ 	 * FIXME: Have caller pass in if we are in an atomic context to avoid
+diff --git a/drivers/gpu/drm/i915/i915_request.c b/drivers/gpu/drm/i915/i915_request.c
+index b9a2b2194c8ff..e24798e4b44ea 100644
+--- a/drivers/gpu/drm/i915/i915_request.c
++++ b/drivers/gpu/drm/i915/i915_request.c
+@@ -608,7 +608,6 @@ bool __i915_request_submit(struct i915_request *request)
+ 
+ 	RQ_TRACE(request, "\n");
+ 
+-	GEM_BUG_ON(!irqs_disabled());
+ 	lockdep_assert_held(&engine->sched_engine->lock);
+ 
+ 	/*
+@@ -717,7 +716,6 @@ void __i915_request_unsubmit(struct i915_request *request)
+ 	 */
+ 	RQ_TRACE(request, "\n");
+ 
+-	GEM_BUG_ON(!irqs_disabled());
+ 	lockdep_assert_held(&engine->sched_engine->lock);
+ 
+ 	/*
+diff --git a/drivers/gpu/drm/i915/i915_trace.h b/drivers/gpu/drm/i915/i915_trace.h
+index 7ed41ce9b7085..6b87ef6005c69 100644
+--- a/drivers/gpu/drm/i915/i915_trace.h
++++ b/drivers/gpu/drm/i915/i915_trace.h
+@@ -6,6 +6,10 @@
+ #if !defined(_I915_TRACE_H_) || defined(TRACE_HEADER_MULTI_READ)
+ #define _I915_TRACE_H_
+ 
++#if defined(CONFIG_PREEMPT_RT) && !defined(NOTRACE)
++#define NOTRACE
++#endif
++
+ #include <linux/stringify.h>
+ #include <linux/types.h>
+ #include <linux/tracepoint.h>
+diff --git a/drivers/gpu/drm/i915/intel_uncore_trace.h b/drivers/gpu/drm/i915/intel_uncore_trace.h
+index f13ff71edf2db..3c67e267fb602 100644
+--- a/drivers/gpu/drm/i915/intel_uncore_trace.h
++++ b/drivers/gpu/drm/i915/intel_uncore_trace.h
+@@ -7,6 +7,10 @@
+ #if !defined(__INTEL_UNCORE_TRACE_H__) || defined(TRACE_HEADER_MULTI_READ)
+ #define __INTEL_UNCORE_TRACE_H__
+ 
++#if defined(CONFIG_PREEMPT_RT) && !defined(NOTRACE)
++#define NOTRACE
++#endif
++
+ #include "i915_reg_defs.h"
+ 
+ #include <linux/types.h>
+diff --git a/drivers/tty/serial/8250/8250_core.c b/drivers/tty/serial/8250/8250_core.c
+index bfa421ab32536..a820f5cda7e70 100644
+--- a/drivers/tty/serial/8250/8250_core.c
++++ b/drivers/tty/serial/8250/8250_core.c
+@@ -386,12 +386,34 @@ void __init serial8250_register_ports(struct uart_driver *drv, struct device *de
+ 
+ #ifdef CONFIG_SERIAL_8250_CONSOLE
+ 
+-static void univ8250_console_write(struct console *co, const char *s,
+-				   unsigned int count)
++static void univ8250_console_write_atomic(struct console *co,
++					  struct nbcon_write_context *wctxt)
+ {
+ 	struct uart_8250_port *up = &serial8250_ports[co->index];
+ 
+-	serial8250_console_write(up, s, count);
++	serial8250_console_write(up, wctxt, true);
++}
++
++static void univ8250_console_write_thread(struct console *co,
++					  struct nbcon_write_context *wctxt)
++{
++	struct uart_8250_port *up = &serial8250_ports[co->index];
++
++	serial8250_console_write(up, wctxt, false);
++}
++
++static void univ8250_console_device_lock(struct console *co, unsigned long *flags)
++{
++	struct uart_port *up = &serial8250_ports[co->index].port;
++
++	__uart_port_lock_irqsave(up, flags);
++}
++
++static void univ8250_console_device_unlock(struct console *co, unsigned long flags)
++{
++	struct uart_port *up = &serial8250_ports[co->index].port;
++
++	__uart_port_unlock_irqrestore(up, flags);
+ }
+ 
+ static int univ8250_console_setup(struct console *co, char *options)
+@@ -492,12 +514,15 @@ static int univ8250_console_match(struct console *co, char *name, int idx,
+ 
+ static struct console univ8250_console = {
+ 	.name		= "ttyS",
+-	.write		= univ8250_console_write,
++	.write_atomic	= univ8250_console_write_atomic,
++	.write_thread	= univ8250_console_write_thread,
++	.device_lock	= univ8250_console_device_lock,
++	.device_unlock	= univ8250_console_device_unlock,
+ 	.device		= uart_console_device,
+ 	.setup		= univ8250_console_setup,
+ 	.exit		= univ8250_console_exit,
+ 	.match		= univ8250_console_match,
+-	.flags		= CON_PRINTBUFFER | CON_ANYTIME,
++	.flags		= CON_PRINTBUFFER | CON_ANYTIME | CON_NBCON,
+ 	.index		= -1,
+ 	.data		= &serial8250_reg,
+ };
+diff --git a/drivers/tty/serial/8250/8250_port.c b/drivers/tty/serial/8250/8250_port.c
+index 719faf92aa8ae..96d32db9f8872 100644
+--- a/drivers/tty/serial/8250/8250_port.c
++++ b/drivers/tty/serial/8250/8250_port.c
+@@ -706,7 +706,12 @@ static void serial8250_clear_interrupts(struct uart_port *port)
+ 	serial_port_in(port, UART_MSR);
+ }
+ 
+-static void serial8250_clear_IER(struct uart_8250_port *up)
++/*
++ * Only to be used directly by the callback helper serial8250_console_write(),
++ * which may not require the port lock. Use serial8250_clear_IER() instead for
++ * all other cases.
++ */
++static void __serial8250_clear_IER(struct uart_8250_port *up)
+ {
+ 	if (up->capabilities & UART_CAP_UUE)
+ 		serial_out(up, UART_IER, UART_IER_UUE);
+@@ -714,6 +719,14 @@ static void serial8250_clear_IER(struct uart_8250_port *up)
+ 		serial_out(up, UART_IER, 0);
+ }
+ 
++static inline void serial8250_clear_IER(struct uart_8250_port *up)
++{
++	/* Port locked to synchronize UART_IER access against the console */
++	lockdep_assert_held_once(&up->port.lock);
++
++	__serial8250_clear_IER(up);
++}
++
+ /*
+  * This is a quickie test to see how big the FIFO is.
+  * It doesn't work at all the time, more's the pity.
+@@ -1286,9 +1299,6 @@ void serial8250_em485_stop_tx(struct uart_8250_port *p, bool toggle_ier)
+ {
+ 	unsigned char mcr = serial8250_in_MCR(p);
+ 
+-	/* Port locked to synchronize UART_IER access against the console. */
+-	lockdep_assert_held_once(&p->port.lock);
+-
+ 	if (p->port.rs485.flags & SER_RS485_RTS_AFTER_SEND)
+ 		mcr |= UART_MCR_RTS;
+ 	else
+@@ -1304,6 +1314,16 @@ void serial8250_em485_stop_tx(struct uart_8250_port *p, bool toggle_ier)
+ 		serial8250_clear_and_reinit_fifos(p);
+ 
+ 		if (toggle_ier) {
++			/*
++			 * Port locked to synchronize UART_IER access against
++			 * the console. The lockdep_assert must be restricted
++			 * to this condition because only here is it
++			 * guaranteed that the port lock is held. The other
++			 * hardware access in this function is synchronized
++			 * by console ownership.
++			 */
++			lockdep_assert_held_once(&p->port.lock);
++
+ 			p->ier |= UART_IER_RLSI | UART_IER_RDI;
+ 			serial_port_out(&p->port, UART_IER, p->ier);
+ 		}
+@@ -3189,7 +3209,11 @@ EXPORT_SYMBOL_GPL(serial8250_set_defaults);
+ 
+ static void serial8250_console_putchar(struct uart_port *port, unsigned char ch)
+ {
++	struct uart_8250_port *up = up_to_u8250p(port);
++
+ 	serial_port_out(port, UART_TX, ch);
++
++	up->console_line_ended = (ch == '\n');
+ }
+ 
+ static void serial8250_console_wait_putchar(struct uart_port *port, unsigned char ch)
+@@ -3226,11 +3250,22 @@ static void serial8250_console_restore(struct uart_8250_port *up)
+ 	serial8250_out_MCR(up, up->mcr | UART_MCR_DTR | UART_MCR_RTS);
+ }
+ 
+-static void fifo_wait_for_lsr(struct uart_8250_port *up, unsigned int count)
++static void fifo_wait_for_lsr(struct uart_8250_port *up,
++			      struct nbcon_write_context *wctxt,
++			      unsigned int count)
+ {
+ 	unsigned int i;
+ 
+ 	for (i = 0; i < count; i++) {
++		/*
++		 * Pass the ownership as quickly as possible to a higher
++		 * priority context. Otherwise, its attempt to take over
++		 * the ownership might timeout. The new owner will wait
++		 * for UART_LSR_THRE before reusing the fifo.
++		 */
++		if (!nbcon_can_proceed(wctxt))
++			return;
++
+ 		if (wait_for_lsr(up, UART_LSR_THRE))
+ 			return;
+ 	}
+@@ -3243,20 +3278,29 @@ static void fifo_wait_for_lsr(struct uart_8250_port *up, unsigned int count)
+  * to get empty.
+  */
+ static void serial8250_console_fifo_write(struct uart_8250_port *up,
+-					  const char *s, unsigned int count)
++					  struct nbcon_write_context *wctxt)
+ {
+-	const char *end = s + count;
+ 	unsigned int fifosize = up->tx_loadsz;
+ 	struct uart_port *port = &up->port;
++	const char *s = wctxt->outbuf;
++	const char *end = s + wctxt->len;
+ 	unsigned int tx_count = 0;
+ 	bool cr_sent = false;
+ 	unsigned int i;
+ 
+ 	while (s != end) {
+ 		/* Allow timeout for each byte of a possibly full FIFO */
+-		fifo_wait_for_lsr(up, fifosize);
++		fifo_wait_for_lsr(up, wctxt, fifosize);
+ 
++		/*
++		 * Fill the FIFO. If a handover or takeover occurs, writing
++		 * must be aborted since wctxt->outbuf and wctxt->len are no
++		 * longer valid.
++		 */
+ 		for (i = 0; i < fifosize && s != end; ++i) {
++			if (!nbcon_enter_unsafe(wctxt))
++				return;
++
+ 			if (*s == '\n' && !cr_sent) {
+ 				serial8250_console_putchar(port, '\r');
+ 				cr_sent = true;
+@@ -3264,6 +3308,8 @@ static void serial8250_console_fifo_write(struct uart_8250_port *up,
+ 				serial8250_console_putchar(port, *s++);
+ 				cr_sent = false;
+ 			}
++
++			nbcon_exit_unsafe(wctxt);
+ 		}
+ 		tx_count = i;
+ 	}
+@@ -3272,39 +3318,57 @@ static void serial8250_console_fifo_write(struct uart_8250_port *up,
+ 	 * Allow timeout for each byte written since the caller will only wait
+ 	 * for UART_LSR_BOTH_EMPTY using the timeout of a single character
+ 	 */
+-	fifo_wait_for_lsr(up, tx_count);
++	fifo_wait_for_lsr(up, wctxt, tx_count);
++}
++
++static void serial8250_console_byte_write(struct uart_8250_port *up,
++					  struct nbcon_write_context *wctxt)
++{
++	struct uart_port *port = &up->port;
++	const char *s = wctxt->outbuf;
++	const char *end = s + wctxt->len;
++
++	/*
++	 * Write out the message. If a handover or takeover occurs, writing
++	 * must be aborted since wctxt->outbuf and wctxt->len are no longer
++	 * valid.
++	 */
++	while (s != end) {
++		if (!nbcon_enter_unsafe(wctxt))
++			return;
++
++		uart_console_write(port, s++, 1, serial8250_console_wait_putchar);
++
++		nbcon_exit_unsafe(wctxt);
++	}
+ }
+ 
+ /*
+- *	Print a string to the serial port trying not to disturb
+- *	any possible real use of the port...
++ * Print a string to the serial port trying not to disturb
++ * any possible real use of the port...
+  *
+- *	The console_lock must be held when we get here.
+- *
+- *	Doing runtime PM is really a bad idea for the kernel console.
+- *	Thus, we assume the function is called when device is powered up.
++ * Doing runtime PM is really a bad idea for the kernel console.
++ * Thus, assume it is called when device is powered up.
+  */
+-void serial8250_console_write(struct uart_8250_port *up, const char *s,
+-			      unsigned int count)
++void serial8250_console_write(struct uart_8250_port *up,
++			      struct nbcon_write_context *wctxt,
++			      bool is_atomic)
+ {
+ 	struct uart_8250_em485 *em485 = up->em485;
+ 	struct uart_port *port = &up->port;
+-	unsigned long flags;
+-	unsigned int ier, use_fifo;
+-	int locked = 1;
++	unsigned int ier;
++	bool use_fifo;
+ 
+-	touch_nmi_watchdog();
+-
+-	if (oops_in_progress)
+-		locked = uart_port_trylock_irqsave(port, &flags);
+-	else
+-		uart_port_lock_irqsave(port, &flags);
++	if (!nbcon_enter_unsafe(wctxt))
++		return;
+ 
+ 	/*
+-	 *	First save the IER then disable the interrupts
++	 * First, save the IER, then disable the interrupts. The special
++	 * variant to clear the IER is used because console printing may
++	 * occur without holding the port lock.
+ 	 */
+ 	ier = serial_port_in(port, UART_IER);
+-	serial8250_clear_IER(up);
++	__serial8250_clear_IER(up);
+ 
+ 	/* check scratch reg to see if port powered off during system sleep */
+ 	if (up->canary && (up->canary != serial_port_in(port, UART_SCR))) {
+@@ -3318,6 +3382,18 @@ void serial8250_console_write(struct uart_8250_port *up, const char *s,
+ 		mdelay(port->rs485.delay_rts_before_send);
+ 	}
+ 
++	/* If ownership was lost, no writing is allowed */
++	if (!nbcon_can_proceed(wctxt))
++		goto skip_write;
++
++	/*
++	 * If console printer did not fully output the previous line, it must
++	 * have been handed or taken over. Insert a newline in order to
++	 * maintain clean output.
++	 */
++	if (!up->console_line_ended)
++		uart_console_write(port, "\n", 1, serial8250_console_wait_putchar);
++
+ 	use_fifo = (up->capabilities & UART_CAP_FIFO) &&
+ 		/*
+ 		 * BCM283x requires to check the fifo
+@@ -3338,10 +3414,23 @@ void serial8250_console_write(struct uart_8250_port *up, const char *s,
+ 		 */
+ 		!(up->port.flags & UPF_CONS_FLOW);
+ 
++	nbcon_exit_unsafe(wctxt);
++
+ 	if (likely(use_fifo))
+-		serial8250_console_fifo_write(up, s, count);
++		serial8250_console_fifo_write(up, wctxt);
+ 	else
+-		uart_console_write(port, s, count, serial8250_console_wait_putchar);
++		serial8250_console_byte_write(up, wctxt);
++skip_write:
++	/*
++	 * If ownership was lost, this context must reacquire ownership and
++	 * re-enter the unsafe section in order to perform final actions
++	 * (such as re-enabling interrupts).
++	 */
++	if (!nbcon_can_proceed(wctxt)) {
++		do {
++			nbcon_reacquire_nobuf(wctxt);
++		} while (!nbcon_enter_unsafe(wctxt));
++	}
+ 
+ 	/*
+ 	 *	Finally, wait for transmitter to become empty
+@@ -3364,11 +3453,18 @@ void serial8250_console_write(struct uart_8250_port *up, const char *s,
+ 	 *	call it if we have saved something in the saved flags
+ 	 *	while processing with interrupts off.
+ 	 */
+-	if (up->msr_saved_flags)
+-		serial8250_modem_status(up);
++	if (up->msr_saved_flags) {
++		/*
++		 * For atomic, it must be deferred to irq_work because this
++		 * may be a context that does not permit waking up tasks.
++		 */
++		if (is_atomic)
++			irq_work_queue(&up->modem_status_work);
++		else
++			serial8250_modem_status(up);
++	}
+ 
+-	if (locked)
+-		uart_port_unlock_irqrestore(port, flags);
++	nbcon_exit_unsafe(wctxt);
+ }
+ 
+ static unsigned int probe_baud(struct uart_port *port)
+@@ -3386,8 +3482,24 @@ static unsigned int probe_baud(struct uart_port *port)
+ 	return (port->uartclk / 16) / quot;
+ }
+ 
++/*
++ * irq_work handler to perform modem control. Only triggered via
++ * ->write_atomic() callback because it may be in a scheduler or
++ * NMI context, unable to wake tasks.
++ */
++static void modem_status_handler(struct irq_work *iwp)
++{
++	struct uart_8250_port *up = container_of(iwp, struct uart_8250_port, modem_status_work);
++	struct uart_port *port = &up->port;
++
++	uart_port_lock(port);
++	serial8250_modem_status(up);
++	uart_port_unlock(port);
++}
++
+ int serial8250_console_setup(struct uart_port *port, char *options, bool probe)
+ {
++	struct uart_8250_port *up = up_to_u8250p(port);
+ 	int baud = 9600;
+ 	int bits = 8;
+ 	int parity = 'n';
+@@ -3397,6 +3509,9 @@ int serial8250_console_setup(struct uart_port *port, char *options, bool probe)
+ 	if (!port->iobase && !port->membase)
+ 		return -ENODEV;
+ 
++	up->console_line_ended = true;
++	init_irq_work(&up->modem_status_work, modem_status_handler);
++
+ 	if (options)
+ 		uart_parse_options(options, &baud, &parity, &bits, &flow);
+ 	else if (probe)
+diff --git a/include/linux/serial_8250.h b/include/linux/serial_8250.h
+index 01efdce0fda07..c10b31a79fe61 100644
+--- a/include/linux/serial_8250.h
++++ b/include/linux/serial_8250.h
+@@ -150,8 +150,17 @@ struct uart_8250_port {
+ #define LSR_SAVE_FLAGS UART_LSR_BRK_ERROR_BITS
+ 	u16			lsr_saved_flags;
+ 	u16			lsr_save_mask;
++
++	/*
++	 * Track when a console line has been fully written to the
++	 * hardware, i.e. true when the most recent byte written to
++	 * UART_TX by the console was '\n'.
++	 */
++	bool			console_line_ended;
++
+ #define MSR_SAVE_FLAGS UART_MSR_ANY_DELTA
+ 	unsigned char		msr_saved_flags;
++	struct irq_work		modem_status_work;
+ 
+ 	struct uart_8250_dma	*dma;
+ 	const struct uart_8250_ops *ops;
+@@ -202,8 +211,8 @@ void serial8250_tx_chars(struct uart_8250_port *up);
+ unsigned int serial8250_modem_status(struct uart_8250_port *up);
+ void serial8250_init_port(struct uart_8250_port *up);
+ void serial8250_set_defaults(struct uart_8250_port *up);
+-void serial8250_console_write(struct uart_8250_port *up, const char *s,
+-			      unsigned int count);
++void serial8250_console_write(struct uart_8250_port *up,
++			      struct nbcon_write_context *wctxt, bool in_atomic);
+ int serial8250_console_setup(struct uart_port *port, char *options, bool probe);
+ int serial8250_console_exit(struct uart_port *port);
+ 
+diff --git a/kernel/ksysfs.c b/kernel/ksysfs.c
+index eefb67d9883c2..20ac8a5ac27d7 100644
+--- a/kernel/ksysfs.c
++++ b/kernel/ksysfs.c
+@@ -188,6 +188,15 @@ KERNEL_ATTR_RO(crash_elfcorehdr_size);
+ 
+ #endif /* CONFIG_VMCORE_INFO */
+ 
++#if defined(CONFIG_PREEMPT_RT)
++static ssize_t realtime_show(struct kobject *kobj,
++			     struct kobj_attribute *attr, char *buf)
++{
++	return sprintf(buf, "%d\n", 1);
++}
++KERNEL_ATTR_RO(realtime);
++#endif
++
+ /* whether file capabilities are enabled */
+ static ssize_t fscaps_show(struct kobject *kobj,
+ 				  struct kobj_attribute *attr, char *buf)
+@@ -271,6 +280,9 @@ static struct attribute * kernel_attrs[] = {
+ #ifndef CONFIG_TINY_RCU
+ 	&rcu_expedited_attr.attr,
+ 	&rcu_normal_attr.attr,
++#endif
++#ifdef CONFIG_PREEMPT_RT
++	&realtime_attr.attr,
+ #endif
+ 	NULL
+ };
+diff --git a/localversion-rt b/localversion-rt
+new file mode 100644
+index 0000000000000..1445cd65885cd
+--- /dev/null
++++ b/localversion-rt
+@@ -0,0 +1 @@
++-rt3

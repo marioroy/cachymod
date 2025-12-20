@@ -134,7 +134,7 @@ diff --git a/drivers/acpi/apei/ghes.c b/drivers/acpi/apei/ghes.c
 index a0d54993edb3..97ee19f2cae0 100644
 --- a/drivers/acpi/apei/ghes.c
 +++ b/drivers/acpi/apei/ghes.c
-@@ -1207,12 +1207,10 @@ static int ghes_notify_hed(struct notifier_block *this, unsigned long event,
+@@ -1208,12 +1208,10 @@ static int ghes_notify_hed(struct notifier_block *this, unsigned long event,
  	int ret = NOTIFY_DONE;
  
  	spin_lock_irqsave(&ghes_notify_lock_irq, flags);
@@ -216,7 +216,7 @@ diff --git a/kernel/cgroup/cpuset.c b/kernel/cgroup/cpuset.c
 index 27adb04df675..9b7e8e8e9411 100644
 --- a/kernel/cgroup/cpuset.c
 +++ b/kernel/cgroup/cpuset.c
-@@ -4069,7 +4069,6 @@ void cpuset_cpus_allowed(struct task_struct *tsk, struct cpumask *pmask)
+@@ -4088,7 +4088,6 @@ void cpuset_cpus_allowed(struct task_struct *tsk, struct cpumask *pmask)
  	struct cpuset *cs;
  
  	spin_lock_irqsave(&callback_lock, flags);
@@ -224,7 +224,7 @@ index 27adb04df675..9b7e8e8e9411 100644
  
  	cs = task_cs(tsk);
  	if (cs != &top_cpuset)
-@@ -4091,7 +4090,6 @@ void cpuset_cpus_allowed(struct task_struct *tsk, struct cpumask *pmask)
+@@ -4110,7 +4109,6 @@ void cpuset_cpus_allowed(struct task_struct *tsk, struct cpumask *pmask)
  			cpumask_copy(pmask, possible_mask);
  	}
  
@@ -232,7 +232,7 @@ index 27adb04df675..9b7e8e8e9411 100644
  	spin_unlock_irqrestore(&callback_lock, flags);
  }
  
-@@ -4164,9 +4162,7 @@ nodemask_t cpuset_mems_allowed(struct task_struct *tsk)
+@@ -4183,9 +4181,7 @@ nodemask_t cpuset_mems_allowed(struct task_struct *tsk)
  	unsigned long flags;
  
  	spin_lock_irqsave(&callback_lock, flags);
@@ -242,7 +242,7 @@ index 27adb04df675..9b7e8e8e9411 100644
  	spin_unlock_irqrestore(&callback_lock, flags);
  
  	return mask;
-@@ -4261,10 +4257,8 @@ bool cpuset_current_node_allowed(int node, gfp_t gfp_mask)
+@@ -4280,10 +4276,8 @@ bool cpuset_current_node_allowed(int node, gfp_t gfp_mask)
  	/* Not hardwall and node outside mems_allowed: scan up cpusets */
  	spin_lock_irqsave(&callback_lock, flags);
  
