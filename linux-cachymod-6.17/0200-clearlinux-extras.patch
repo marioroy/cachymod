@@ -98,6 +98,15 @@ diff -uar a/init/Kconfig b/init/Kconfig
 diff -uar a/lib/Kconfig.debug b/lib/Kconfig.debug
 --- a/lib/Kconfig.debug
 +++ b/lib/Kconfig.debug
+@@ -198,7 +198,7 @@ config SYMBOLIC_ERRNAME
+ 	  (about 3KB), but can make the kernel logs easier to read.
+ 
+ config DEBUG_BUGVERBOSE
+-	bool "Verbose BUG() reporting (adds 70K)" if DEBUG_KERNEL && EXPERT
++	bool "Verbose BUG() reporting (adds 70K)" if DEBUG_KERNEL
+ 	depends on BUG && (GENERIC_BUG || HAVE_DEBUG_BUGVERBOSE)
+ 	default y
+ 	help
 @@ -910,7 +910,7 @@
  	  regions to be regularly checked for invalid topology.
  

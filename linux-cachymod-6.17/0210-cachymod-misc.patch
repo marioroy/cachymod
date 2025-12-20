@@ -296,7 +296,7 @@ index dc0e0c6ed075..3f2444a6796e 100644
  	  be able to print symbolic error names such as ENOSPC instead
 @@ -200,7 +200,7 @@ config SYMBOLIC_ERRNAME
  config DEBUG_BUGVERBOSE
- 	bool "Verbose BUG() reporting (adds 70K)" if DEBUG_KERNEL && EXPERT
+ 	bool "Verbose BUG() reporting (adds 70K)" if DEBUG_KERNEL
  	depends on BUG && (GENERIC_BUG || HAVE_DEBUG_BUGVERBOSE)
 -	default y
 +	default n

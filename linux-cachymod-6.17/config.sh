@@ -49,6 +49,10 @@ scripts/config -d POSIX_AUX_CLOCKS
 ### Disable AppArmor support.
 scripts/config -d SECURITY_APPARMOR
 
+### Disable symbolic error names in printf and verbose BUG() reporting.
+### XanMod default with the 18/20 patch in 0210.
+scripts/config -d SYMBOLIC_ERRNAME -d DEBUG_BUGVERBOSE
+
 ### Disable boot config support.
 scripts/config -d BOOTTIME_TRACING -d BOOT_CONFIG
 
