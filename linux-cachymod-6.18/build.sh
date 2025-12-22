@@ -70,8 +70,6 @@ else
   : ${_extra_patch_or_url9:=}
 fi
 
-###############################################################################
-
 export _cpusched _buildtype _autofdo _hugepage _kernel_suffix
 export _localmodcfg _localmodcfg_path _localmodcfg_minimal
 export _makenconfig _makexconfig _tcp_bbr3 _HZ_ticks _ticktype
