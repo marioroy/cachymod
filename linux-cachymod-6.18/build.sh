@@ -87,38 +87,8 @@ no_pkg() {
   exit 1
 }
 
-# Build the CachyMod kernel.
-time nice -n 15 ionice -n 1 makepkg -scf --cleanbuild --skipinteg || exit 1
-
-# Check if the build failed.
-[ "$_buildtype" = "thin" ] && buildtype="lto" || buildtype="$_buildtype"
-
-if [ "$_kernel_suffix" = "auto" ]; then
-  kernel_suffix="$buildtype"
-elif [ -n "$_kernel_suffix" ]; then
-  kernel_suffix="$_kernel_suffix"
-else
-  kernel_suffix=""
-fi
-
-if [ -n "$kernel_suffix" ]; then
-  [ -z $(ls -1 linux-cachymod-${kernel_suffix}-[0-9]* 2>/dev/null) ] && no_pkg
-else
-  [ -z $(ls -1 linux-cachymod-[0-9]* 2>/dev/null) ] && no_pkg
-fi
-
-# Wait for pacman to finish before kernel installation.
-if [ -e "/var/lib/pacman/db.lck" ]; then
-  echo "Waiting for pacman to finish..."
-  while [ -e "/var/lib/pacman/db.lck" ]; do sleep 1; done
-fi
-
-echo -e "\n${CYAN}Installing the kernel... (requires sudo)${NC}"
-if [ -n "$kernel_suffix" ]; then
-  sudo pacman -U --noconfirm linux-cachymod-${kernel_suffix}-[6dh]*
-else
-  sudo pacman -U --noconfirm linux-cachymod-[6dh]*
-fi
+# Build and install the CachyMod kernel.
+time nice -n 15 ionice -n 1 makepkg -scif --cleanbuild --skipinteg || exit 1
 
 sync
 
