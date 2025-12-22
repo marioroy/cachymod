@@ -79,12 +79,6 @@ export _extra_patch_or_url3 _extra_patch_or_url4 _extra_patch_or_url5
 export _extra_patch_or_url6 _extra_patch_or_url7 _extra_patch_or_url8
 export _extra_patch_or_url9
 
-no_pkg() {
-  echo -e "\n${RED}ERROR:${NC} No kernel package. Check the build output."
-  echo
-  exit 1
-}
-
 # Build and install the CachyMod kernel.
 time nice -n 15 ionice -n 1 makepkg -scif --cleanbuild --skipinteg || exit 1
 
