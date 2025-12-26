@@ -618,3 +618,22 @@ index 23d2e696fb832b..a44a009b33ce1d 100644
 -- 
 2.52.0
 
+Add BT support for PRIME B650M-A AX6 II motherboard
+https://github.com/torvalds/linux/commit/e038062b20adf288318eeec970ae7e23f14cc5c8
+
+diff --git a/drivers/bluetooth/btusb.c b/drivers/bluetooth/btusb.c
+index fa683bb7f0b494..5414e0d7b5b284 100644
+--- a/drivers/bluetooth/btusb.c
++++ b/drivers/bluetooth/btusb.c
+@@ -555,6 +555,8 @@ static const struct usb_device_id quirks_table[] = {
+ 						     BTUSB_WIDEBAND_SPEECH },
+ 	{ USB_DEVICE(0x13d3, 0x3592), .driver_info = BTUSB_REALTEK |
+ 						     BTUSB_WIDEBAND_SPEECH },
++	{ USB_DEVICE(0x0489, 0xe112), .driver_info = BTUSB_REALTEK |
++						     BTUSB_WIDEBAND_SPEECH },
+ 	{ USB_DEVICE(0x0489, 0xe122), .driver_info = BTUSB_REALTEK |
+ 						     BTUSB_WIDEBAND_SPEECH },
+ 
+-- 
+2.52.0
+

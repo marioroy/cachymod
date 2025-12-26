@@ -80,7 +80,8 @@ export _extra_patch_or_url6 _extra_patch_or_url7 _extra_patch_or_url8
 export _extra_patch_or_url9
 
 # Build and install the CachyMod kernel.
-time nice -n 15 ionice -n 1 makepkg -scif --cleanbuild --skipinteg || exit 1
+time nice -n 15 ionice -n 1 \
+  makepkg -scif --cleanbuild --skipinteg --noconfirm || exit 1
 
 sync
 

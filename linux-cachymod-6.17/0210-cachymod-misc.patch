@@ -524,7 +524,7 @@ diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
 index 7cc9d50e3e11..9c1f21d59b5c 100644
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -11727,12 +11727,15 @@ static int sched_balance_rq(int this_cpu, struct rq *this_rq,
+@@ -11689,12 +11689,15 @@ static int sched_balance_rq(int this_cpu, struct rq *this_rq,
  		 * still unbalanced. ld_moved simply stays zero, so it is
  		 * correctly treated as an imbalance.
  		 */
@@ -550,7 +550,7 @@ Bluetooth adapters of many Acer laptops don't work without it
 diff -uarp a/drivers/bluetooth/btusb.c b/drivers/bluetooth/btusb.c
 --- a/drivers/bluetooth/btusb.c
 +++ b/drivers/bluetooth/btusb.c
-@@ -575,6 +575,8 @@ static const struct usb_device_id quirks
+@@ -577,6 +577,8 @@ static const struct usb_device_id quirks
  						     BTUSB_WIDEBAND_SPEECH },
  	{ USB_DEVICE(0x13d3, 0x3591), .driver_info = BTUSB_REALTEK |
  						     BTUSB_WIDEBAND_SPEECH },

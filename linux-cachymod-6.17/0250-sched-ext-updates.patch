@@ -2886,7 +2886,7 @@ diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
 index 8ce56a8d507f98..caa396f41568da 100644
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -6933,7 +6933,7 @@ enqueue_task_fair(struct rq *rq, struct task_struct *p, int flags)
+@@ -6891,7 +6891,7 @@ enqueue_task_fair(struct rq *rq, struct task_struct *p, int flags)
  	if (!rq_h_nr_queued && rq->cfs.h_nr_queued) {
  		/* Account for idle runtime */
  		if (!rq->nr_running)
@@ -2895,7 +2895,7 @@ index 8ce56a8d507f98..caa396f41568da 100644
  		dl_server_start(&rq->fair_server);
  	}
  
-@@ -8889,7 +8889,7 @@ void fair_server_init(struct rq *rq)
+@@ -8847,7 +8847,7 @@ void fair_server_init(struct rq *rq)
  
  	init_dl_entity(dl_se);
  
