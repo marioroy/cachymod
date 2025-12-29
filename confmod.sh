@@ -67,6 +67,7 @@ new_conf() {
     echo ": \${_cpusched:=eevdf}"
     echo ": \${_buildtype:=thin}"
     echo ": \${_autofdo:=no}"
+    echo ": \${_autofdo_profile_name:=cachymod.afdo}"
     echo ": \${_hugepage:=always}"
     echo ": \${_kernel_suffix:=${conf// /-}}"
     echo ": \${_localmodcfg:=no}"
@@ -101,6 +102,7 @@ save_conf() {
     echo ": \${_cpusched:=${_cpusched}}"
     echo ": \${_buildtype:=${_buildtype}}"
     echo ": \${_autofdo:=${_autofdo}}"
+    echo ": \${_autofdo_profile_name:=${_autofdo_profile_name}}"
     echo ": \${_hugepage:=${_hugepage}}"
     echo ": \${_kernel_suffix:=${_kernel_suffix}}"
     echo ": \${_localmodcfg:=${_localmodcfg}}"
@@ -234,6 +236,26 @@ input_autofdo() {
   msg+="This is ignored for the 'clang' and 'gcc' build types.\n"
 
   confirm $1 "Build kernel with the AutoFDO profile?" "$msg"
+}
+
+input_autofdo_profile_name() {
+  local -n varref="$1"; local oldval="$varref" num="$2" msg= ans=
+  msg+="Enter the name for the AutoFDO profile?\n"
+  msg+="\n"
+  msg+="Enter 'blank' to clear the value.\n"
+  msg+="Enter 'file' to choose a profile. The profile must reside in\n"
+  msg+="the same folder as the PKGBUILD file.\n"
+
+  input $1 "$msg" 1
+  if [ "$varref" = "file" ]; then
+    # TODO: gum file does not respect the height value
+    # v0.17.0 version makes gum file command fail to correctly display
+    # https://github.com/charmbracelet/gum/issues/969
+    ans=$(gum file . --padding="2 0" --height=$((LINES - 6)) --file)
+    [ $? -gt 1 ] && exit # received a signal e.g. Ctrl-C
+    [ "$ans" = "no file selected" ] && ans="$oldval"
+    varref="${ans##*/}" # basename
+  fi
 }
 
 input_hugepage() {
@@ -403,8 +425,8 @@ input_patch_or_url() {
   msg+="Enter the patch name or paste the URL for item $num?\n"
   msg+="\n"
   msg+="Enter 'blank' to clear the value.\n"
-  msg+="Enter 'file' to choose a patch. The patch must reside\n"
-  msg+="in the same folder as the PKGBUILD file.\n"
+  msg+="Enter 'file' to choose a patch. The patch must reside in\n"
+  msg+="the same folder as the PKGBUILD file.\n"
 
   input $1 "$msg" 1
   if [ "$varref" = "file" ]; then
@@ -434,7 +456,13 @@ edit_conf() {
     local _extra_patch_or_url0= _extra_patch_or_url1= _extra_patch_or_url2=
     local _extra_patch_or_url3= _extra_patch_or_url4= _extra_patch_or_url5=
     local _extra_patch_or_url6= _extra_patch_or_url7= _extra_patch_or_url8=
-    local _extra_patch_or_url9=
+    local _extra_patch_or_url9= _autofdo_profile_name=
+
+    # Add _autofdo_profile_name var if missing - December 29, 2025
+    if ! grep -q '_autofdo_profile_name:=' "$CONFIG_DIR/$conf.conf"; then
+      sed -i '/_autofdo:=/a\
+: ${_autofdo_profile_name:=cachymod.afdo}' "$CONFIG_DIR/$conf.conf"
+    fi
 
     source "$CONFIG_DIR/$conf.conf"
 
@@ -506,6 +534,11 @@ edit_conf() {
         input_autofdo _autofdo
         selected=": \${_autofdo:=$_autofdo}"
         [ "$_autofdo" = "$oldval" ] && continue ;;
+
+      ': ${_autofdo_profile_name:='*)
+        input_autofdo_profile_name _autofdo_profile_name
+        selected=": \${_autofdo_profile_name:=$_autofdo_profile_name}"
+        [ "$_autofdo_profile_name" = "$oldval" ] && continue ;;
 
       ': ${_hugepage:='*)
         input_hugepage _hugepage
