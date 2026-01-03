@@ -11174,7 +11174,7 @@ index 77ae87f36..a2b06eba4 100644
 +	rq = this_rq_lock_irq(&rf);
 +
  	schedstat_inc(rq->yld_count);
- 	current->sched_class->yield_task(rq);
+ 	rq->donor->sched_class->yield_task(rq);
 +#endif /* !CONFIG_SCHED_ALT */
  
  	preempt_disable();
@@ -11186,10 +11186,10 @@ index 77ae87f36..a2b06eba4 100644
 +#ifdef CONFIG_SCHED_ALT
 +	return 0;
 +#else /* !CONFIG_SCHED_ALT */
- 	struct task_struct *curr = current;
+ 	struct task_struct *curr;
  	struct rq *rq, *p_rq;
  	int yielded = 0;
-@@ -1465,6 +1725,7 @@ int __sched yield_to(struct task_struct *p, bool preempt)
+@@ -1466,6 +1726,7 @@ int __sched yield_to(struct task_struct *p, bool preempt)
  		schedule();
  
  	return yielded;
@@ -11197,7 +11197,7 @@ index 77ae87f36..a2b06eba4 100644
  }
  EXPORT_SYMBOL_GPL(yield_to);
  
-@@ -1485,7 +1746,9 @@ SYSCALL_DEFINE1(sched_get_priority_max, int, policy)
+@@ -1486,7 +1747,9 @@ SYSCALL_DEFINE1(sched_get_priority_max, int, policy)
  	case SCHED_RR:
  		ret = MAX_RT_PRIO-1;
  		break;
@@ -11207,7 +11207,7 @@ index 77ae87f36..a2b06eba4 100644
  	case SCHED_NORMAL:
  	case SCHED_BATCH:
  	case SCHED_IDLE:
-@@ -1513,7 +1776,9 @@ SYSCALL_DEFINE1(sched_get_priority_min, int, policy)
+@@ -1514,7 +1777,9 @@ SYSCALL_DEFINE1(sched_get_priority_min, int, policy)
  	case SCHED_RR:
  		ret = 1;
  		break;
@@ -11217,7 +11217,7 @@ index 77ae87f36..a2b06eba4 100644
  	case SCHED_NORMAL:
  	case SCHED_BATCH:
  	case SCHED_IDLE:
-@@ -1525,7 +1790,9 @@ SYSCALL_DEFINE1(sched_get_priority_min, int, policy)
+@@ -1526,7 +1791,9 @@ SYSCALL_DEFINE1(sched_get_priority_min, int, policy)
  
  static int sched_rr_get_interval(pid_t pid, struct timespec64 *t)
  {
@@ -11227,7 +11227,7 @@ index 77ae87f36..a2b06eba4 100644
  	int retval;
  
  	if (pid < 0)
-@@ -1540,6 +1807,7 @@ static int sched_rr_get_interval(pid_t pid, struct timespec64 *t)
+@@ -1541,6 +1808,7 @@ static int sched_rr_get_interval(pid_t pid, struct timespec64 *t)
  		if (retval)
  			return retval;
  
@@ -11235,7 +11235,7 @@ index 77ae87f36..a2b06eba4 100644
  		scoped_guard (task_rq_lock, p) {
  			struct rq *rq = scope.rq;
  			if (p->sched_class->get_rr_interval)
-@@ -1548,6 +1816,13 @@ static int sched_rr_get_interval(pid_t pid, struct timespec64 *t)
+@@ -1549,6 +1817,13 @@ static int sched_rr_get_interval(pid_t pid, struct timespec64 *t)
  	}
  
  	jiffies_to_timespec64(time_slice, t);

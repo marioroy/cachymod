@@ -80,10 +80,15 @@
 # Build a debug package with non-stripped vmlinux
 : ${_build_debug:=no}
 
-# Select build type { gcc, clang, thin }
+# Select build type { gcc, clang, thin, full }
+# ATTENTION: Selecting the full buildtype consumes more memory,
+# not recommended if you have less than 24GB of RAM. The single
+# thread for linking can reach up to 20GB of memory utilization.
+# Auto suffix depends on the kernel_suffix option set to auto.
 # gcc:   Build kernel with gcc, auto suffix "-gcc"
 # clang: Build kernel with clang, auto suffix "-clang"
-# thin:  Build the kernel with clang thin-LTO, auto suffix "-lto"
+# thin:  Build kernel with clang thin-LTO, auto suffix "-lto"
+# full:  Build kernel with clang full-LTO; auto suffix "-lto"
 : ${_buildtype:=thin}
 
 # Enable AUTOFDO_CLANG for the first compilation,
@@ -119,7 +124,7 @@ if [[ "$_buildtype" =~ ^(gcc|clang)$ ]]; then
     _autofdo_profile_name=""
 fi
 
-[ "$_buildtype" = "thin" ] \
+[[ "$_buildtype" =~ ^(thin|full)$ ]] \
     && buildtype="lto" || buildtype="$_buildtype"
 
 if [ "$_kernel_suffix" = "auto" ]; then
@@ -132,14 +137,14 @@ fi
 
 _pkgsuffix=cachymod
 _major=6.18
-_minor=2
+_minor=3
 pkgver=${_major}.${_minor}
 _stable=${_major}.${_minor}
 #_stable=${_major}
 
 _srcname=linux-${_stable}
 pkgdesc='CachyMod Linux Kernel with other patches and improvements'
-pkgrel=3
+pkgrel=1
 _kernver="$pkgver-$pkgrel"
 _kernuname="${pkgver}-${_pkgsuffix}"
 arch=('x86_64')
@@ -169,6 +174,7 @@ source=(
     "0200-clearlinux-extras.patch"
     "0210-cachymod-misc.patch"
     "0260-fair-update-cachy-mods.patch"
+    "0280-prefer-prevcpu-for-wakeup.patch"
     "0300-x86-prevent-avx2-vector.patch"
     "0310-linux6.18-bore.patch"
     "0310-linux6.18-prjc.patch"
@@ -302,6 +308,9 @@ prepare() {
 
     ### Select build type
     case "$_buildtype" in
+        full)
+            scripts/config -e LTO -e LTO_CLANG -e ARCH_SUPPORTS_LTO_CLANG -e ARCH_SUPPORTS_LTO_CLANG_THIN -e HAS_LTO_CLANG -d LTO_NONE -e LTO_CLANG_FULL -d LTO_CLANG_THIN -d LTO_CLANG_THIN_DIST -e HAVE_GCC_PLUGINS
+            ;;
         thin)
             scripts/config -e LTO -e LTO_CLANG -e ARCH_SUPPORTS_LTO_CLANG -e ARCH_SUPPORTS_LTO_CLANG_THIN -e HAS_LTO_CLANG -d LTO_NONE -d LTO_CLANG_FULL -d LTO_CLANG_THIN -e LTO_CLANG_THIN_DIST -e HAVE_GCC_PLUGINS
             ;;
@@ -498,7 +507,7 @@ build() {
 
     ### Use grep to filter/silence harmless warnings
     make "${BUILD_FLAGS[@]}" -j"$ncpu" all 2>&1 | \
-       grep -Ev '^  (AS|AR|CC|LD|BT|CE|CO|GE|HO|IN|IP|MK|OB|PA|PE|PO|RE|ST|TA|TE|UN|UP|VD|WR|X32)|: unexpected end of section|: unreachable instruction| missing __noreturn in | no .sframe will be created|ld: warning: orphan section|ld.lld: warning: .* is being placed in'
+       grep -Ev '^  (AS|AR|CC|LD|BT|CE|CO|GE|HO|IN|IP|MK|OB|PA|PE|PO|RE|ST|TA|TE|UN|UP|VD|WR|X32)|: unexpected end of section|: unreachable instruction| missing __noreturn in | no .sframe will be created|: relocation to !ENDBR|ld: warning: orphan section|ld.lld: warning: .*is being placed in'
 
     ### In the case compiling with a later LLVM release, use the
     ### system toolchain for auto-detecting system features

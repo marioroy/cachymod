@@ -215,18 +215,26 @@ input_cpusched() {
 }
 
 input_buildtype() {
-  local -n varref="$1"; local menu=() selected=
+  local -n varref="$1"; local menu=() selected= msg=
+  msg+="ATTENTION: Selecting the full buildtype consumes more memory,\n"
+  msg+="not recommended if you have less than 24GB of RAM. The single\n"
+  msg+="thread for linking can reach up to 20GB of memory utilization.\n\n"
+
+  msg+="Auto suffix depends on the kernel_suffix option set to auto.\n"
+
   menu+=("gcc:   Build kernel with gcc; auto suffix '-gcc'")
   menu+=("clang: Build kernel with clang; auto suffix '-clang'")
   menu+=("thin:  Build kernel with clang thin-LTO; auto suffix '-lto'")
+  menu+=("full:  Build kernel with clang full-LTO; auto suffix '-lto'")
 
   case "$varref" in
     gcc  ) selected="${menu[0]}" ;;
     clang) selected="${menu[1]}" ;;
     thin ) selected="${menu[2]}" ;;
+    full ) selected="${menu[3]}" ;;
   esac
 
-  choose $1 menu "Choose a build type:" "$selected"
+  choose $1 menu "Choose a build type:" "$selected" "$msg"
 }
 
 input_autofdo() {

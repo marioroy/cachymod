@@ -62,4 +62,5 @@ for kernel in $kernels; do
 done
 
 sudo pacman -Rsn ${packages[@]}
+sync
 

@@ -42,7 +42,7 @@ and exit the main menu.
 
 Note: The reason to run the utility from inside the source dir is in
 the case having local patches. The `confmod.sh` has a file chooser
-capability. Otherwise, you can run it from anywhere.
+capability. Otherwise, it can be run from anywhere.
 
 ```bash
 cd /path-to/cachymod/linux-cachymod-6.18

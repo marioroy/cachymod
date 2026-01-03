@@ -212,7 +212,7 @@ diff --git a/block/blk-wbt.c b/block/blk-wbt.c
 index eb8037bae0bd..fe2d29903ae2 100644
 --- a/block/blk-wbt.c
 +++ b/block/blk-wbt.c
-@@ -731,14 +731,8 @@ EXPORT_SYMBOL_GPL(wbt_enable_default);
+@@ -743,14 +743,8 @@ EXPORT_SYMBOL_GPL(wbt_enable_default);
  
  u64 wbt_default_latency_nsec(struct request_queue *q)
  {
@@ -504,40 +504,12 @@ index 2e61c9707bea..fa7b0d1e8be6 100644
 -- 
 2.43.0
 
-sched/fair: do not scan twice in detach_tasks()
-https://lore.kernel.org/all/20250722102600.25976-1-shijie@os.amperecomputing.com/
-
-diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
-index 7cc9d50e3e11..9c1f21d59b5c 100644
---- a/kernel/sched/fair.c
-+++ b/kernel/sched/fair.c
-@@ -11784,12 +11784,15 @@ static int sched_balance_rq(int this_cpu, struct rq *this_rq,
- 		 * still unbalanced. ld_moved simply stays zero, so it is
- 		 * correctly treated as an imbalance.
- 		 */
--		env.loop_max  = min(sysctl_sched_nr_migrate, busiest->nr_running);
--
- more_balance:
- 		rq_lock_irqsave(busiest, &rf);
- 		update_rq_clock(busiest);
- 
-+		if (!env.loop_max)
-+			env.loop_max  = min(sysctl_sched_nr_migrate, busiest->cfs.h_nr_queued);
-+		else
-+			env.loop_max  = min(env.loop_max, busiest->cfs.h_nr_queued);
-+
- 		/*
- 		 * cur_ld_moved - load moved in current iteration
- 		 * ld_moved     - cumulative load moved across iterations
--- 
-2.40.1
-
 Bluetooth adapters of many Acer laptops don't work without it
 
 diff -uarp a/drivers/bluetooth/btusb.c b/drivers/bluetooth/btusb.c
 --- a/drivers/bluetooth/btusb.c
 +++ b/drivers/bluetooth/btusb.c
-@@ -577,6 +577,8 @@ static const struct usb_device_id quirks
+@@ -579,6 +579,8 @@ static const struct usb_device_id quirks
  						     BTUSB_WIDEBAND_SPEECH },
  	{ USB_DEVICE(0x13d3, 0x3591), .driver_info = BTUSB_REALTEK |
  						     BTUSB_WIDEBAND_SPEECH },

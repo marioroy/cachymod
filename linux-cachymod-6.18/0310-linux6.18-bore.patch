@@ -651,7 +651,7 @@ index ccba6fc3c3..5bd3d55af4 100644
  	struct load_weight lw;
  
  	if (task_has_idle_policy(p)) {
-@@ -8647,6 +8655,10 @@ void __init sched_init(void)
+@@ -8652,6 +8660,10 @@ void __init sched_init(void)
  	BUG_ON(!sched_class_above(&ext_sched_class, &idle_sched_class));
  #endif
  
@@ -1047,7 +1047,7 @@ index 8ce56a8d50..507e1c1ef8 100644
  	if (dequeue_entities(rq, &p->se, flags) < 0)
  		return false;
  
-@@ -8778,7 +8860,13 @@ static void check_preempt_wakeup_fair(struct rq *rq, struct task_struct *p, int
+@@ -8798,7 +8880,13 @@ static void check_preempt_wakeup_fair(struct rq *rq, struct task_struct *p, int
  	if (__pick_eevdf(cfs_rq, !do_preempt_short) == pse)
  		goto preempt;
  
@@ -1061,7 +1061,7 @@ index 8ce56a8d50..507e1c1ef8 100644
  		update_protect_slice(cfs_rq, se);
  
  	return;
-@@ -8958,16 +9046,25 @@ static void yield_task_fair(struct rq *rq)
+@@ -8978,16 +9066,25 @@ static void yield_task_fair(struct rq *rq)
  	/*
  	 * Are we the only task in the tree?
  	 */
@@ -1087,7 +1087,7 @@ index 8ce56a8d50..507e1c1ef8 100644
  	/*
  	 * Tell update_rq_clock() that we've just updated,
  	 * so we don't do microscopic update in schedule()
-@@ -13241,6 +13338,9 @@ static void switched_to_fair(struct rq *rq, struct task_struct *p)
+@@ -13249,6 +13346,9 @@ static void switched_to_fair(struct rq *rq, struct task_struct *p)
  	WARN_ON_ONCE(p->se.sched_delayed);
  
  	attach_task_cfs_rq(p);
