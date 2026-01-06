@@ -203,12 +203,14 @@ input_cpusched() {
   menu+=("bore:  EEVDF Scheduler with Burst-Oriented Response Enhancer")
   menu+=("rt:    EEVDF Scheduler with real-time preemption enabled")
   menu+=("bmq:   BitMap Queue Scheduler")
+  menu+=("pds:   Priority and Deadline based Skip list multiple queue scheduler")
 
   case "$varref" in
     eevdf) selected="${menu[0]}" ;;
     bore ) selected="${menu[1]}" ;;
     rt   ) selected="${menu[2]}" ;;
     bmq  ) selected="${menu[3]}" ;;
+    pds  ) selected="${menu[4]}" ;;
   esac
 
   choose $1 menu "Choose a CPU scheduler:" "$selected"
@@ -282,7 +284,7 @@ input_hugepage() {
 input_kernel_suffix() {
   local -n varref="$1"; local msg=
   msg+="Enter a custom kernel suffix?\n"
-  msg+="E.g. { bmq, bore, rt } or { 618, 618-bmq, 618-bore, 618-rt }.\n"
+  msg+="E.g. { bmq, bore, pds, rt, or 618, 618-bmq, 618-bore, 618-pds, 618-rt }\n"
   msg+="\n"
   msg+="Enter 'auto' for automatic suffix { gcc, clang, lto }.\n"
   msg+="Enter 'blank' to clear the value.\n"

@@ -54,7 +54,7 @@ Omitting the config name will build a kernel with default options
 (no kernel suffix). The utility handles installation as well.
 
 ```bash
-./build.sh confname # E.g. 618, 618-bmq, 618-bore, 618-rt
+./build.sh confname # E.g. 618, 618-bmq, 618-bore, 618-pds, 618-rt
 ```
 
 The config names can be obtained with the `list` argument.
@@ -62,6 +62,7 @@ The config names can be obtained with the `list` argument.
 ```bash
 ./build.sh list
 618-rt
+618-pds
 618-bore
 618-bmq
 618
@@ -78,14 +79,16 @@ examples are provided for demonstration.
 
 ```bash
 sudo pacman -U linux-cachymod-[6dh]*.zst
-sudo pacman -U linux-cachymod-bore-[6dh]*.zst
 sudo pacman -U linux-cachymod-bmq-[6dh]*.zst
+sudo pacman -U linux-cachymod-bore-[6dh]*.zst
+sudo pacman -U linux-cachymod-pds-[6dh]*.zst
 sudo pacman -U linux-cachymod-rt-[6dh]*.zst
 
 # with kernel tag
 sudo pacman -U linux-cachymod-618-[6dh]*.zst
-sudo pacman -U linux-cachymod-618-bore-[6dh]*.zst
 sudo pacman -U linux-cachymod-618-bmq-[6dh]*.zst
+sudo pacman -U linux-cachymod-618-bore-[6dh]*.zst
+sudo pacman -U linux-cachymod-618-pds-[6dh]*.zst
 sudo pacman -U linux-cachymod-618-rt-[6dh]*.zst
 ```
 

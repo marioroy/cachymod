@@ -310,9 +310,6 @@ if [[ $(uname -m) = *"x86"* ]]; then
     ### Disable low-overhead sampling-based memory safety error detector.
     scripts/config -d KFENCE
 
-    ### Disable automatic stack variable initialization. (Clear and XanMod default)
-    scripts/config -d INIT_STACK_ALL_ZERO -e INIT_STACK_NONE
-
     ### Disable utilization clamping for RT/FAIR tasks.
     scripts/config -d UCLAMP_TASK
 

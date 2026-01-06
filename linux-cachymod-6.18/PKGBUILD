@@ -5,15 +5,16 @@
 ### BUILD OPTIONS
 # Set these variables to ANYTHING that is not null or choose proper variable to enable them
 
-# Select CPU scheduler { eevdf, bore, rt, bmq }
+# Select CPU scheduler { eevdf, bore, rt, bmq, pds }
 # eevdf: EEVDF Scheduler (use with the linux-cgroup-always repo, optional)
 # bore:  EEVDF Scheduler with Burst-Oriented Response Enhancer
 # rt:    EEVDF Scheduler with real-time preemption enabled
 # bmq:   BitMap Queue Scheduler
+# pds:   Priority and Deadline based Skip list multiple queue scheduler
 : ${_cpusched:=eevdf}
 
 # Custom kernel suffix, specify uniquely if building multiple CachyMod kernels
-# E.g. { blank value, bmq, bore, rt } or { 618, 618-bmq, 618-bore, 618-rt }
+# E.g. { blank value, bmq, bore, pds, rt, or 618, 618-bmq, 618-bore, 618-pds, 618-rt }
 # Or set to "auto" for automatic suffix { gcc, clang, lto }
 # Or set to blank value for no kernel suffix
 : ${_kernel_suffix:=}
@@ -144,7 +145,7 @@ _stable=${_major}.${_minor}
 
 _srcname=linux-${_stable}
 pkgdesc='CachyMod Linux Kernel with other patches and improvements'
-pkgrel=2
+pkgrel=3
 _kernver="$pkgver-$pkgrel"
 _kernuname="${pkgver}-${_pkgsuffix}"
 arch=('x86_64')
@@ -256,7 +257,7 @@ prepare() {
             [[ "$_cpusched" = "bore" ]] || continue
         fi
         if [[ $src = *-prjc* ]]; then
-            [[ "$_cpusched" = "bmq" ]] || continue
+            [[ "$_cpusched" =~ ^(bmq|pds)$ ]] || continue
         fi
         echo -e "${_CYAN}Applying patch $src...${_NC}"
         patch -Np1 < "../$src"
@@ -301,6 +302,7 @@ prepare() {
         eevdf|rt) ;;
         bore) scripts/config -e SCHED_BORE --set-val MIN_BASE_SLICE_NS 1600000;;
         bmq) scripts/config -e SCHED_ALT -e SCHED_BMQ;;
+        pds) scripts/config -e SCHED_ALT -e SCHED_PDS;;
         *) _die "The _cpusched value '$_cpusched' is invalid. Choose the correct one again.";;
     esac
 
