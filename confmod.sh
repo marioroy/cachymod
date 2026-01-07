@@ -163,15 +163,15 @@ choose() {
 
 confirm() {
   # Yes/no confirm function.
-  local -n varref="$1"; local header="$2" menu=("yes" "no") selected=
+  local -n varref="$1"; local header="$2" menu=("no" "yes") selected=
 
   # Display an optional message string.
   [[ "$#" -gt 2 && -n "$3" ]] && emsg "$3"
 
   case "$varref" in
-    yes|y|1) selected="${menu[0]}" ;;
-     no|n|0) selected="${menu[1]}" ;;
-          *) selected="${menu[1]}" ;;
+     no|n|0) selected="${menu[0]}" ;;
+    yes|y|1) selected="${menu[1]}" ;;
+          *) selected="${menu[0]}" ;;
   esac
 
   choose $1 menu "$header" "$selected"
