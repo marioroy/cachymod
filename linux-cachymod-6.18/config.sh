@@ -322,13 +322,13 @@ if [[ $(uname -m) = *"x86"* ]]; then
     ### Disable support for latency based cgroup IO protection.
     scripts/config -d BLK_CGROUP_IOLATENCY
 
-    ### Apply Clear defaults for NR_CPUS multiply by 8 and NODES_SHIFT.
-    ### Enable MAXSMP to have CPUMASK_OFFSTACK enabled. (CachyOS default)
-    scripts/config -e MAXSMP
-    scripts/config --set-val NR_CPUS_RANGE_BEGIN 16
-    scripts/config --set-val NR_CPUS_RANGE_END 4096
+    ### Apply Clear defaults for NR_CPUS and NODES_SHIFT.
+    ### Set the other NR_CPUS_* knobs same as NR_CPUS.
+    scripts/config -d CPUMASK_OFFSTACK -d MAXSMP
+    scripts/config --set-val NR_CPUS_RANGE_BEGIN 512
+    scripts/config --set-val NR_CPUS_RANGE_END 512
     scripts/config --set-val NR_CPUS_DEFAULT 512
-    scripts/config --set-val NR_CPUS 4096
+    scripts/config --set-val NR_CPUS 512
     scripts/config --set-val NODES_SHIFT 10
 fi
 
