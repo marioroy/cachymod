@@ -654,7 +654,7 @@ index 52468d2c1..3e5b1d314 100644
  void rebuild_sched_domains_locked(void)
  {
  }
-@@ -3143,12 +3143,15 @@ static int cpuset_can_attach(struct cgroup_taskset *tset)
+@@ -3150,12 +3150,15 @@ static int cpuset_can_attach(struct cgroup_taskset *tset)
  				goto out_unlock;
  		}
  
@@ -670,7 +670,7 @@ index 52468d2c1..3e5b1d314 100644
  	if (!cs->nr_migrate_dl_tasks)
  		goto out_success;
  
-@@ -3169,6 +3172,7 @@ static int cpuset_can_attach(struct cgroup_taskset *tset)
+@@ -3176,6 +3179,7 @@ static int cpuset_can_attach(struct cgroup_taskset *tset)
  	}
  
  out_success:
@@ -678,7 +678,7 @@ index 52468d2c1..3e5b1d314 100644
  	/*
  	 * Mark attach is in progress.  This makes validate_change() fail
  	 * changes which zero cpus/mems_allowed.
-@@ -3190,12 +3194,14 @@ static void cpuset_cancel_attach(struct cgroup_taskset *tset)
+@@ -3197,12 +3201,14 @@ static void cpuset_cancel_attach(struct cgroup_taskset *tset)
  	mutex_lock(&cpuset_mutex);
  	dec_attach_in_progress_locked(cs);
  

@@ -72,7 +72,7 @@ diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
 index da46c316453783..aa033e45dce49e 100644
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -3722,7 +3722,7 @@ account_entity_dequeue(struct cfs_rq *cfs_rq, struct sched_entity *se)
+@@ -3695,7 +3695,7 @@ account_entity_dequeue(struct cfs_rq *cfs_rq, struct sched_entity *se)
   */
  #define add_positive(_ptr, _val) do {                           \
  	typeof(_ptr) ptr = (_ptr);                              \
@@ -81,7 +81,7 @@ index da46c316453783..aa033e45dce49e 100644
  	typeof(*ptr) res, var = READ_ONCE(*ptr);                \
  								\
  	res = var + val;                                        \
-@@ -3733,23 +3733,6 @@ account_entity_dequeue(struct cfs_rq *cfs_rq, struct sched_entity *se)
+@@ -3706,23 +3706,6 @@ account_entity_dequeue(struct cfs_rq *cfs_rq, struct sched_entity *se)
  	WRITE_ONCE(*ptr, res);                                  \
  } while (0)
  
@@ -105,7 +105,7 @@ index da46c316453783..aa033e45dce49e 100644
  /*
   * Remove and clamp on negative, from a local variable.
   *
-@@ -3761,21 +3744,37 @@ account_entity_dequeue(struct cfs_rq *cfs_rq, struct sched_entity *se)
+@@ -3734,21 +3717,37 @@ account_entity_dequeue(struct cfs_rq *cfs_rq, struct sched_entity *se)
  	*ptr -= min_t(typeof(*ptr), *ptr, _val);		\
  } while (0)
  
@@ -150,7 +150,7 @@ index da46c316453783..aa033e45dce49e 100644
  }
  
  static void place_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int flags);
-@@ -4280,7 +4279,6 @@ update_tg_cfs_util(struct cfs_rq *cfs_rq, struct sched_entity *se, struct cfs_rq
+@@ -4244,7 +4243,6 @@ update_tg_cfs_util(struct cfs_rq *cfs_rq, struct sched_entity *se, struct cfs_rq
  	 */
  	divider = get_pelt_divider(&cfs_rq->avg);
  
@@ -158,7 +158,7 @@ index da46c316453783..aa033e45dce49e 100644
  	/* Set new sched_entity's utilization */
  	se->avg.util_avg = gcfs_rq->avg.util_avg;
  	new_sum = se->avg.util_avg * divider;
-@@ -4288,12 +4286,7 @@ update_tg_cfs_util(struct cfs_rq *cfs_rq, struct sched_entity *se, struct cfs_rq
+@@ -4252,12 +4250,7 @@ update_tg_cfs_util(struct cfs_rq *cfs_rq, struct sched_entity *se, struct cfs_rq
  	se->avg.util_sum = new_sum;
  
  	/* Update parent cfs_rq utilization */
@@ -172,7 +172,7 @@ index da46c316453783..aa033e45dce49e 100644
  }
  
  static inline void
-@@ -4319,11 +4312,7 @@ update_tg_cfs_runnable(struct cfs_rq *cfs_rq, struct sched_entity *se, struct cf
+@@ -4283,11 +4276,7 @@ update_tg_cfs_runnable(struct cfs_rq *cfs_rq, struct sched_entity *se, struct cf
  	se->avg.runnable_sum = new_sum;
  
  	/* Update parent cfs_rq runnable */
@@ -185,7 +185,7 @@ index da46c316453783..aa033e45dce49e 100644
  }
  
  static inline void
-@@ -4387,11 +4376,7 @@ update_tg_cfs_load(struct cfs_rq *cfs_rq, struct sched_entity *se, struct cfs_rq
+@@ -4351,11 +4340,7 @@ update_tg_cfs_load(struct cfs_rq *cfs_rq, struct sched_entity *se, struct cfs_rq
  
  	se->avg.load_sum = runnable_sum;
  	se->avg.load_avg = load_avg;
@@ -198,7 +198,7 @@ index da46c316453783..aa033e45dce49e 100644
  }
  
  static inline void add_tg_cfs_propagate(struct cfs_rq *cfs_rq, long runnable_sum)
-@@ -4590,33 +4575,13 @@ update_cfs_rq_load_avg(u64 now, struct cfs_rq *cfs_rq)
+@@ -4554,33 +4539,13 @@ update_cfs_rq_load_avg(u64 now, struct cfs_rq *cfs_rq)
  		raw_spin_unlock(&cfs_rq->removed.lock);
  
  		r = removed_load;
@@ -235,7 +235,7 @@ index da46c316453783..aa033e45dce49e 100644
  
  		/*
  		 * removed_runnable is the unweighted version of removed_load so we
-@@ -4701,17 +4666,8 @@ static void attach_entity_load_avg(struct cfs_rq *cfs_rq, struct sched_entity *s
+@@ -4665,17 +4630,8 @@ static void attach_entity_load_avg(struct cfs_rq *cfs_rq, struct sched_entity *s
  static void detach_entity_load_avg(struct cfs_rq *cfs_rq, struct sched_entity *se)
  {
  	dequeue_load_avg(cfs_rq, se);
@@ -274,7 +274,7 @@ diff --git a/include/linux/compiler_types.h b/include/linux/compiler_types.h
 index 1280693..280b4ac 100644
 --- a/include/linux/compiler_types.h
 +++ b/include/linux/compiler_types.h
-@@ -558,6 +558,25 @@ struct ftrace_likely_data {
+@@ -571,6 +571,25 @@ struct ftrace_likely_data {
  			 __scalar_type_to_expr_cases(long long),	\
  			 default: (x)))
  
@@ -320,7 +320,7 @@ diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
 index 76f5e4b..7377f91 100644
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -3768,13 +3768,15 @@ account_entity_dequeue(struct cfs_rq *cfs_rq, struct sched_entity *se)
+@@ -3741,13 +3741,15 @@ account_entity_dequeue(struct cfs_rq *cfs_rq, struct sched_entity *se)
  static inline void
  enqueue_load_avg(struct cfs_rq *cfs_rq, struct sched_entity *se)
  {
@@ -359,7 +359,7 @@ diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
 index aa033e4..708ad01 100644
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -9876,15 +9876,11 @@ static unsigned long task_h_load(struct task_struct *p)
+@@ -9830,15 +9830,11 @@ static unsigned long task_h_load(struct task_struct *p)
  }
  #endif /* !CONFIG_FAIR_GROUP_SCHED */
  
@@ -376,7 +376,7 @@ index aa033e4..708ad01 100644
  
  	decayed |= __update_blocked_others(rq, &done);
  	decayed |= __update_blocked_fair(rq, &done);
-@@ -9892,7 +9888,15 @@ static void sched_balance_update_blocked_averages(int cpu)
+@@ -9846,7 +9842,15 @@ static void sched_balance_update_blocked_averages(int cpu)
  	update_blocked_load_status(rq, !done);
  	if (decayed)
  		cpufreq_update_util(rq, 0);
@@ -393,7 +393,7 @@ index aa033e4..708ad01 100644
  }
  
  /********** Helpers for sched_balance_find_src_group ************************/
-@@ -12816,11 +12820,16 @@ static int sched_balance_newidle(struct rq *this_rq, struct rq_flags *rf)
+@@ -12770,11 +12774,16 @@ static int sched_balance_newidle(struct rq *this_rq, struct rq_flags *rf)
  	}
  	rcu_read_unlock();
  
@@ -415,100 +415,4 @@ index aa033e4..708ad01 100644
  		u64 domain_cost;
 -- 
 2.47.1
-
-sched/proxy: Yield the donor task
-Fixes sched/fair: Forfeit vruntime on yield (mainline 79104becf42b)
-https://lore.kernel.org/all/176286104220.498.5228299661392935552.tip-bot2@tip-bot2/
-
-diff --git a/kernel/sched/deadline.c b/kernel/sched/deadline.c
-index 6b8a928..13112c6 100644
---- a/kernel/sched/deadline.c
-+++ b/kernel/sched/deadline.c
-@@ -2143,7 +2143,7 @@ static void yield_task_dl(struct rq *rq)
- 	 * it and the bandwidth timer will wake it up and will give it
- 	 * new scheduling parameters (thanks to dl_yielded=1).
- 	 */
--	rq->curr->dl.dl_yielded = 1;
-+	rq->donor->dl.dl_yielded = 1;
- 
- 	update_rq_clock(rq);
- 	update_curr_dl(rq);
-diff --git a/kernel/sched/ext.c b/kernel/sched/ext.c
-index b063444..224b72c 100644
---- a/kernel/sched/ext.c
-+++ b/kernel/sched/ext.c
-@@ -1512,7 +1512,7 @@ static bool dequeue_task_scx(struct rq *rq, struct task_struct *p, int deq_flags
- static void yield_task_scx(struct rq *rq)
- {
- 	struct scx_sched *sch = scx_root;
--	struct task_struct *p = rq->curr;
-+	struct task_struct *p = rq->donor;
- 
- 	if (SCX_HAS_OP(sch, yield))
- 		SCX_CALL_OP_2TASKS_RET(sch, SCX_KF_REST, yield, rq, p, NULL);
-@@ -1523,7 +1523,7 @@ static void yield_task_scx(struct rq *rq)
- static bool yield_to_task_scx(struct rq *rq, struct task_struct *to)
- {
- 	struct scx_sched *sch = scx_root;
--	struct task_struct *from = rq->curr;
-+	struct task_struct *from = rq->donor;
- 
- 	if (SCX_HAS_OP(sch, yield))
- 		return SCX_CALL_OP_2TASKS_RET(sch, SCX_KF_REST, yield, rq,
-diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
-index 273e287..f1d8eb3 100644
---- a/kernel/sched/fair.c
-+++ b/kernel/sched/fair.c
-@@ -8964,7 +8964,7 @@ static void put_prev_task_fair(struct rq *rq, struct task_struct *prev, struct t
-  */
- static void yield_task_fair(struct rq *rq)
- {
--	struct task_struct *curr = rq->curr;
-+	struct task_struct *curr = rq->donor;
- 	struct cfs_rq *cfs_rq = task_cfs_rq(curr);
- 	struct sched_entity *se = &curr->se;
- 
-diff --git a/kernel/sched/rt.c b/kernel/sched/rt.c
-index 1fd97f2..f1867fe 100644
---- a/kernel/sched/rt.c
-+++ b/kernel/sched/rt.c
-@@ -1490,7 +1490,7 @@ static void requeue_task_rt(struct rq *rq, struct task_struct *p, int head)
- 
- static void yield_task_rt(struct rq *rq)
- {
--	requeue_task_rt(rq, rq->curr, 0);
-+	requeue_task_rt(rq, rq->donor, 0);
- }
- 
- static int find_lowest_rq(struct task_struct *task);
-diff --git a/kernel/sched/syscalls.c b/kernel/sched/syscalls.c
-index 8f0f603..8078791 100644
---- a/kernel/sched/syscalls.c
-+++ b/kernel/sched/syscalls.c
-@@ -1351,7 +1351,7 @@ static void do_sched_yield(void)
- 	rq = this_rq_lock_irq(&rf);
- 
- 	schedstat_inc(rq->yld_count);
--	current->sched_class->yield_task(rq);
-+	rq->donor->sched_class->yield_task(rq);
- 
- 	preempt_disable();
- 	rq_unlock_irq(rq, &rf);
-@@ -1420,12 +1420,13 @@ EXPORT_SYMBOL(yield);
-  */
- int __sched yield_to(struct task_struct *p, bool preempt)
- {
--	struct task_struct *curr = current;
-+	struct task_struct *curr;
- 	struct rq *rq, *p_rq;
- 	int yielded = 0;
- 
- 	scoped_guard (raw_spinlock_irqsave, &p->pi_lock) {
- 		rq = this_rq();
-+		curr = rq->donor;
- 
- again:
- 		p_rq = task_rq(p);
--- 
-2.51.0
 
