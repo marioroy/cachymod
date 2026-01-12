@@ -1056,3 +1056,89 @@ index c8619995b1d7..14dee44de7d7 100644
 -- 
 2.52.0
 
+sched/fair: Drop useless cpumask_empty() in find_energy_efficient_cpu()
+https://github.com/torvalds/linux/commit/4d6465d33bacb6f8d0603203546b4c727318ad66
+
+diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
+index 5b752324270b08..f7ac8cc4e51551 100644
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -8383,9 +8383,7 @@ static int find_energy_efficient_cpu(struct task_struct *p, int prev_cpu)
+ 		int max_spare_cap_cpu = -1;
+ 		int fits, max_fits = -1;
+ 
+-		cpumask_and(cpus, perf_domain_span(pd), cpu_online_mask);
+-
+-		if (cpumask_empty(cpus))
++		if (!cpumask_and(cpus, perf_domain_span(pd), cpu_online_mask))
+ 			continue;
+ 
+ 		/* Account external pressure for the energy estimation */
+-- 
+2.52.0
+
+sched/fair: Simplify task_numa_find_cpu()
+https://github.com/torvalds/linux/commit/cb46026affeaaca9cbe71be617e3a96ff6c2e9ca
+
+diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
+index f7ac8cc4e51551..316c9af83a1696 100644
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -2460,11 +2460,8 @@ static void task_numa_find_cpu(struct task_numa_env *env,
+ 		maymove = !load_too_imbalanced(src_load, dst_load, env);
+ 	}
+ 
+-	for_each_cpu(cpu, cpumask_of_node(env->dst_nid)) {
+-		/* Skip this CPU if the source task cannot migrate */
+-		if (!cpumask_test_cpu(cpu, env->p->cpus_ptr))
+-			continue;
+-
++	/* Skip CPUs if the source task cannot migrate */
++	for_each_cpu_and(cpu, cpumask_of_node(env->dst_nid), env->p->cpus_ptr) {
+ 		env->dst_cpu = cpu;
+ 		if (task_numa_compare(env, taskimp, groupimp, maymove))
+ 			break;
+-- 
+2.52.0
+
+drm/amd/display: Bump the HDMI clock to 340MHz
+https://github.com/torvalds/linux/commit/bdb412a0e4b57214d893db368864d14ee0fcb1ff
+
+diff --git a/drivers/gpu/drm/amd/display/dc/dc_hdmi_types.h b/drivers/gpu/drm/amd/display/dc/dc_hdmi_types.h
+index b015e80672ec9b..fcd3ab4b004594 100644
+--- a/drivers/gpu/drm/amd/display/dc/dc_hdmi_types.h
++++ b/drivers/gpu/drm/amd/display/dc/dc_hdmi_types.h
+@@ -41,7 +41,7 @@
+ /* kHZ*/
+ #define DP_ADAPTOR_DVI_MAX_TMDS_CLK 165000
+ /* kHZ*/
+-#define DP_ADAPTOR_HDMI_SAFE_MAX_TMDS_CLK 165000
++#define DP_ADAPTOR_HDMI_SAFE_MAX_TMDS_CLK 340000
+ 
+ struct dp_hdmi_dongle_signature_data {
+ 	int8_t id[15];/* "DP-HDMI ADAPTOR"*/
+diff --git a/drivers/gpu/drm/amd/display/dc/link/link_detection.c b/drivers/gpu/drm/amd/display/dc/link/link_detection.c
+index 1173c53359b009..31b404e9b9ae07 100644
+--- a/drivers/gpu/drm/amd/display/dc/link/link_detection.c
++++ b/drivers/gpu/drm/amd/display/dc/link/link_detection.c
+@@ -332,7 +332,7 @@ static void query_dp_dual_mode_adaptor(
+ 
+ 	/* Assume we have no valid DP passive dongle connected */
+ 	*dongle = DISPLAY_DONGLE_NONE;
+-	sink_cap->max_hdmi_pixel_clock = DP_ADAPTOR_HDMI_SAFE_MAX_TMDS_CLK;
++	sink_cap->max_hdmi_pixel_clock = DP_ADAPTOR_DVI_MAX_TMDS_CLK;
+ 
+ 	/* Read DP-HDMI dongle I2c (no response interpreted as DP-DVI dongle)*/
+ 	if (!i2c_read(
+@@ -388,6 +388,8 @@ static void query_dp_dual_mode_adaptor(
+ 
+ 		}
+ 	}
++	if (is_valid_hdmi_signature)
++		sink_cap->max_hdmi_pixel_clock = DP_ADAPTOR_HDMI_SAFE_MAX_TMDS_CLK;
+ 
+ 	if (is_type2_dongle) {
+ 		uint32_t max_tmds_clk =
+-- 
+2.52.0
+

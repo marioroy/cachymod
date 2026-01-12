@@ -72,7 +72,7 @@ diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
 index da46c316453783..aa033e45dce49e 100644
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -3695,7 +3695,7 @@ account_entity_dequeue(struct cfs_rq *cfs_rq, struct sched_entity *se)
+@@ -3692,7 +3692,7 @@ account_entity_dequeue(struct cfs_rq *cfs_rq, struct sched_entity *se)
   */
  #define add_positive(_ptr, _val) do {                           \
  	typeof(_ptr) ptr = (_ptr);                              \
@@ -81,7 +81,7 @@ index da46c316453783..aa033e45dce49e 100644
  	typeof(*ptr) res, var = READ_ONCE(*ptr);                \
  								\
  	res = var + val;                                        \
-@@ -3706,23 +3706,6 @@ account_entity_dequeue(struct cfs_rq *cfs_rq, struct sched_entity *se)
+@@ -3703,23 +3703,6 @@ account_entity_dequeue(struct cfs_rq *cfs_rq, struct sched_entity *se)
  	WRITE_ONCE(*ptr, res);                                  \
  } while (0)
  
@@ -105,7 +105,7 @@ index da46c316453783..aa033e45dce49e 100644
  /*
   * Remove and clamp on negative, from a local variable.
   *
-@@ -3734,21 +3717,37 @@ account_entity_dequeue(struct cfs_rq *cfs_rq, struct sched_entity *se)
+@@ -3731,21 +3714,37 @@ account_entity_dequeue(struct cfs_rq *cfs_rq, struct sched_entity *se)
  	*ptr -= min_t(typeof(*ptr), *ptr, _val);		\
  } while (0)
  
@@ -150,7 +150,7 @@ index da46c316453783..aa033e45dce49e 100644
  }
  
  static void place_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int flags);
-@@ -4244,7 +4243,6 @@ update_tg_cfs_util(struct cfs_rq *cfs_rq, struct sched_entity *se, struct cfs_rq
+@@ -4241,7 +4240,6 @@ update_tg_cfs_util(struct cfs_rq *cfs_rq, struct sched_entity *se, struct cfs_rq
  	 */
  	divider = get_pelt_divider(&cfs_rq->avg);
  
@@ -158,7 +158,7 @@ index da46c316453783..aa033e45dce49e 100644
  	/* Set new sched_entity's utilization */
  	se->avg.util_avg = gcfs_rq->avg.util_avg;
  	new_sum = se->avg.util_avg * divider;
-@@ -4252,12 +4250,7 @@ update_tg_cfs_util(struct cfs_rq *cfs_rq, struct sched_entity *se, struct cfs_rq
+@@ -4249,12 +4247,7 @@ update_tg_cfs_util(struct cfs_rq *cfs_rq, struct sched_entity *se, struct cfs_rq
  	se->avg.util_sum = new_sum;
  
  	/* Update parent cfs_rq utilization */
@@ -172,7 +172,7 @@ index da46c316453783..aa033e45dce49e 100644
  }
  
  static inline void
-@@ -4283,11 +4276,7 @@ update_tg_cfs_runnable(struct cfs_rq *cfs_rq, struct sched_entity *se, struct cf
+@@ -4280,11 +4273,7 @@ update_tg_cfs_runnable(struct cfs_rq *cfs_rq, struct sched_entity *se, struct cf
  	se->avg.runnable_sum = new_sum;
  
  	/* Update parent cfs_rq runnable */
@@ -185,7 +185,7 @@ index da46c316453783..aa033e45dce49e 100644
  }
  
  static inline void
-@@ -4351,11 +4340,7 @@ update_tg_cfs_load(struct cfs_rq *cfs_rq, struct sched_entity *se, struct cfs_rq
+@@ -4348,11 +4337,7 @@ update_tg_cfs_load(struct cfs_rq *cfs_rq, struct sched_entity *se, struct cfs_rq
  
  	se->avg.load_sum = runnable_sum;
  	se->avg.load_avg = load_avg;
@@ -198,7 +198,7 @@ index da46c316453783..aa033e45dce49e 100644
  }
  
  static inline void add_tg_cfs_propagate(struct cfs_rq *cfs_rq, long runnable_sum)
-@@ -4554,33 +4539,13 @@ update_cfs_rq_load_avg(u64 now, struct cfs_rq *cfs_rq)
+@@ -4551,33 +4536,13 @@ update_cfs_rq_load_avg(u64 now, struct cfs_rq *cfs_rq)
  		raw_spin_unlock(&cfs_rq->removed.lock);
  
  		r = removed_load;
@@ -235,7 +235,7 @@ index da46c316453783..aa033e45dce49e 100644
  
  		/*
  		 * removed_runnable is the unweighted version of removed_load so we
-@@ -4665,17 +4630,8 @@ static void attach_entity_load_avg(struct cfs_rq *cfs_rq, struct sched_entity *s
+@@ -4662,17 +4627,8 @@ static void attach_entity_load_avg(struct cfs_rq *cfs_rq, struct sched_entity *s
  static void detach_entity_load_avg(struct cfs_rq *cfs_rq, struct sched_entity *se)
  {
  	dequeue_load_avg(cfs_rq, se);
@@ -320,7 +320,7 @@ diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
 index 76f5e4b..7377f91 100644
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -3741,13 +3741,15 @@ account_entity_dequeue(struct cfs_rq *cfs_rq, struct sched_entity *se)
+@@ -3738,13 +3738,15 @@ account_entity_dequeue(struct cfs_rq *cfs_rq, struct sched_entity *se)
  static inline void
  enqueue_load_avg(struct cfs_rq *cfs_rq, struct sched_entity *se)
  {
@@ -359,7 +359,7 @@ diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
 index aa033e4..708ad01 100644
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -9830,15 +9830,11 @@ static unsigned long task_h_load(struct task_struct *p)
+@@ -9825,15 +9825,11 @@ static unsigned long task_h_load(struct task_struct *p)
  }
  #endif /* !CONFIG_FAIR_GROUP_SCHED */
  
@@ -376,7 +376,7 @@ index aa033e4..708ad01 100644
  
  	decayed |= __update_blocked_others(rq, &done);
  	decayed |= __update_blocked_fair(rq, &done);
-@@ -9846,7 +9842,15 @@ static void sched_balance_update_blocked_averages(int cpu)
+@@ -9841,7 +9837,15 @@ static void sched_balance_update_blocked_averages(int cpu)
  	update_blocked_load_status(rq, !done);
  	if (decayed)
  		cpufreq_update_util(rq, 0);
@@ -393,7 +393,7 @@ index aa033e4..708ad01 100644
  }
  
  /********** Helpers for sched_balance_find_src_group ************************/
-@@ -12791,11 +12795,16 @@ static int sched_balance_newidle(struct rq *this_rq, struct rq_flags *rf)
+@@ -12786,11 +12790,16 @@ static int sched_balance_newidle(struct rq *this_rq, struct rq_flags *rf)
  	}
  	rcu_read_unlock();
  

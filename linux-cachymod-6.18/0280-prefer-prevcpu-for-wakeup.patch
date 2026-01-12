@@ -261,7 +261,7 @@ diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
  static unsigned long task_h_load(struct task_struct *p);
  static unsigned long capacity_of(int cpu);
  
-@@ -7465,6 +7465,24 @@ static inline int __select_idle_cpu(int cpu, struct task_struct *p)
+@@ -7462,6 +7462,24 @@ static inline int __select_idle_cpu(int cpu, struct task_struct *p)
  DEFINE_STATIC_KEY_FALSE(sched_smt_present);
  EXPORT_SYMBOL_GPL(sched_smt_present);
  
@@ -286,7 +286,7 @@ diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
  static inline void set_idle_cores(int cpu, int val)
  {
  	struct sched_domain_shared *sds;
-@@ -7733,13 +7751,26 @@ static inline bool asym_fits_cpu(unsigned long util,
+@@ -7730,13 +7748,26 @@ static inline bool asym_fits_cpu(unsigned long util,
  /*
   * Try and locate an idle core/thread in the LLC cache domain.
   */
@@ -314,7 +314,7 @@ diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
  	/*
  	 * On asymmetric system, update task utilization because we will check
  	 * that the task fits with CPU's capacity.
-@@ -7756,7 +7787,7 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target)
+@@ -7753,7 +7784,7 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target)
  	 */
  	lockdep_assert_irqs_disabled();
  
@@ -323,7 +323,7 @@ diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
  	    asym_fits_cpu(task_util, util_min, util_max, target))
  		return target;
  
-@@ -7790,24 +7821,6 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target)
+@@ -7787,24 +7818,6 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target)
  		return prev;
  	}
  
@@ -348,7 +348,7 @@ diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
  	/*
  	 * For asymmetric CPU capacity systems, our domain of interest is
  	 * sd_asym_cpucapacity rather than sd_llc.
-@@ -8541,7 +8554,14 @@ select_task_rq_fair(struct task_struct *p, int prev_cpu, int wake_flags)
+@@ -8536,7 +8549,14 @@ select_task_rq_fair(struct task_struct *p, int prev_cpu, int wake_flags)
  		new_cpu = sched_balance_find_dst_cpu(sd, p, cpu, prev_cpu, sd_flag);
  	} else if (wake_flags & WF_TTWU) { /* XXX always ? */
  		/* Fast path */
@@ -364,7 +364,7 @@ diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
  	}
  	rcu_read_unlock();
  
-@@ -10150,7 +10170,7 @@ static bool sched_use_asym_prio(struct s
+@@ -10145,7 +10165,7 @@ static bool sched_use_asym_prio(struct s
  	if (!sched_smt_active())
  		return true;
  
@@ -434,7 +434,7 @@ diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
 index 1855975b8248..c3b4895f8e50 100644
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -12755,6 +12755,7 @@ static int sched_balance_newidle(struct rq *this_rq, struct rq_flags *rf)
+@@ -12750,6 +12750,7 @@ static int sched_balance_newidle(struct rq *this_rq, struct rq_flags *rf)
  	u64 t0, t1, curr_cost = 0;
  	struct sched_domain *sd;
  	int pulled_task = 0;
@@ -442,7 +442,7 @@ index 1855975b8248..c3b4895f8e50 100644
  
  	update_misfit_status(NULL, this_rq);
  
-@@ -12770,7 +12771,7 @@ static int sched_balance_newidle(struct rq *this_rq, struct rq_flags *rf)
+@@ -12765,7 +12766,7 @@ static int sched_balance_newidle(struct rq *this_rq, struct rq_flags *rf)
  	 * for CPU_NEWLY_IDLE, such that we measure the this duration
  	 * as idle time.
  	 */
@@ -451,7 +451,7 @@ index 1855975b8248..c3b4895f8e50 100644
  
  	/*
  	 * Do not pull tasks towards !active CPUs...
-@@ -12886,10 +12887,13 @@ static int sched_balance_newidle(struct rq *this_rq, struct rq_flags *rf)
+@@ -12881,10 +12882,13 @@ static int sched_balance_newidle(struct rq *this_rq, struct rq_flags *rf)
  	if (time_after(this_rq->next_balance, next_balance))
  		this_rq->next_balance = next_balance;
  
