@@ -4,9 +4,9 @@ https://gitlab.com/alfredchen/linux-prjc/-/tree/linux-6.18.y-prjc
 https://github.com/CachyOS/kernel-patches/tree/master/6.18/sched
 
 
-From c165579008bff1bff2a6a896247c248cc645ee57 Mon Sep 17 00:00:00 2001
+From 77e9a2cf89e86ab95945f4adfe955e7379d304f7 Mon Sep 17 00:00:00 2001
 From: Piotr Gorski <lucjan.lucjanov@gmail.com>
-Date: Wed, 12 Nov 2025 08:27:49 +0100
+Date: Mon, 12 Jan 2026 08:23:09 +0100
 Subject: [PATCH] prjc
 
 Signed-off-by: Piotr Gorski <lucjan.lucjanov@gmail.com>
@@ -32,7 +32,7 @@ Signed-off-by: Piotr Gorski <lucjan.lucjanov@gmail.com>
  kernel/sched/alt_core.c                     | 7568 +++++++++++++++++++
  kernel/sched/alt_core.h                     |  175 +
  kernel/sched/alt_debug.c                    |   32 +
- kernel/sched/alt_sched.h                    | 1013 +++
+ kernel/sched/alt_sched.h                    | 1011 +++
  kernel/sched/alt_topology.c                 |  287 +
  kernel/sched/alt_topology.h                 |  113 +
  kernel/sched/bmq.h                          |  103 +
@@ -56,7 +56,7 @@ Signed-off-by: Piotr Gorski <lucjan.lucjanov@gmail.com>
  kernel/trace/trace_osnoise.c                |    4 +
  kernel/trace/trace_selftest.c               |    5 +
  kernel/workqueue.c                          |   15 +
- 45 files changed, 10197 insertions(+), 30 deletions(-)
+ 45 files changed, 10195 insertions(+), 30 deletions(-)
  create mode 100644 Documentation/scheduler/sched-BMQ.txt
  create mode 100644 kernel/sched/alt_core.c
  create mode 100644 kernel/sched/alt_core.h
@@ -481,10 +481,10 @@ index 4e3338103..6dfef878f 100644
  }
  
 diff --git a/include/linux/sched/topology.h b/include/linux/sched/topology.h
-index bbcfdf12a..bbde1d387 100644
+index 45c0022b9..d281dabe4 100644
 --- a/include/linux/sched/topology.h
 +++ b/include/linux/sched/topology.h
-@@ -187,7 +187,8 @@ extern void sched_update_asym_prefer_cpu(int cpu, int old_prio, int new_prio);
+@@ -190,7 +190,8 @@ extern void sched_update_asym_prefer_cpu(int cpu, int old_prio, int new_prio);
  #define SDTL_INIT(maskfn, flagsfn, dname) ((struct sched_domain_topology_level) \
  	    { .mask = maskfn, .sd_flags = flagsfn, .name = #dname })
  
@@ -633,7 +633,7 @@ index da326800c..728036392 100644
  	help
  	  This option enables a new scheduler class sched_ext (SCX), which
 diff --git a/kernel/cgroup/cpuset.c b/kernel/cgroup/cpuset.c
-index 52468d2c1..3e5b1d314 100644
+index 61b56b6ca..16990a991 100644
 --- a/kernel/cgroup/cpuset.c
 +++ b/kernel/cgroup/cpuset.c
 @@ -733,7 +733,7 @@ static int validate_change(struct cpuset *cur, struct cpuset *trial)
@@ -8631,10 +8631,10 @@ index 000000000..1dbd7eb6a
 +{}
 diff --git a/kernel/sched/alt_sched.h b/kernel/sched/alt_sched.h
 new file mode 100644
-index 000000000..6cd5cfe3a
+index 000000000..8e3ed9d95
 --- /dev/null
 +++ b/kernel/sched/alt_sched.h
-@@ -0,0 +1,1013 @@
+@@ -0,0 +1,1011 @@
 +#ifndef _KERNEL_SCHED_ALT_SCHED_H
 +#define _KERNEL_SCHED_ALT_SCHED_H
 +
@@ -9544,11 +9544,9 @@ index 000000000..6cd5cfe3a
 +			     struct mm_struct *mm)
 +{
 +	struct mm_cid __percpu *pcpu_cid = mm->pcpu_cid;
-+	struct cpumask *cpumask;
 +	int cid;
 +
 +	lockdep_assert_rq_held(rq);
-+	cpumask = mm_cidmask(mm);
 +	cid = __this_cpu_read(pcpu_cid->cid);
 +	if (mm_cid_is_valid(cid)) {
 +		mm_cid_snapshot_time(rq, mm);
@@ -10321,7 +10319,7 @@ index 7097de2c8..52b5626ce 100644
  
  	if (task_cputime(p, &cputime.utime, &cputime.stime))
 diff --git a/kernel/sched/debug.c b/kernel/sched/debug.c
-index 02e16b70a..2687421bc 100644
+index 41caa22e0..87e292a0d 100644
 --- a/kernel/sched/debug.c
 +++ b/kernel/sched/debug.c
 @@ -10,6 +10,7 @@
@@ -10654,7 +10652,7 @@ index f921302dc..2fade7dab 100644
  
  #endif /* _KERNEL_SCHED_PELT_H */
 diff --git a/kernel/sched/sched.h b/kernel/sched/sched.h
-index adfb6e340..a51dcdd4d 100644
+index 2f8b06b12..139c1cc8f 100644
 --- a/kernel/sched/sched.h
 +++ b/kernel/sched/sched.h
 @@ -5,6 +5,10 @@
@@ -10665,10 +10663,10 @@ index adfb6e340..a51dcdd4d 100644
 +#include "alt_sched.h"
 +#else
 +
+ #include <linux/prandom.h>
  #include <linux/sched/affinity.h>
  #include <linux/sched/autogroup.h>
- #include <linux/sched/cpufreq.h>
-@@ -3908,4 +3912,9 @@ void sched_enq_and_set_task(struct sched_enq_and_set_ctx *ctx);
+@@ -3915,4 +3919,9 @@ void sched_enq_and_set_task(struct sched_enq_and_set_ctx *ctx);
  
  #include "ext.h"
  
@@ -10710,7 +10708,7 @@ index d1c9429a4..cc3764073 100644
  	return 0;
  }
 diff --git a/kernel/sched/stats.h b/kernel/sched/stats.h
-index 26f3fd4d3..a3e389997 100644
+index 73bd6bca4..d77d149af 100644
 --- a/kernel/sched/stats.h
 +++ b/kernel/sched/stats.h
 @@ -89,6 +89,7 @@ static inline void rq_sched_info_depart  (struct rq *rq, unsigned long long delt
@@ -10730,7 +10728,7 @@ index 26f3fd4d3..a3e389997 100644
  #ifdef CONFIG_PSI
  void psi_task_change(struct task_struct *task, int clear, int set);
 diff --git a/kernel/sched/syscalls.c b/kernel/sched/syscalls.c
-index 77ae87f36..a2b06eba4 100644
+index bf360a6fb..417eb6a63 100644
 --- a/kernel/sched/syscalls.c
 +++ b/kernel/sched/syscalls.c
 @@ -16,6 +16,14 @@
@@ -11250,7 +11248,7 @@ index 77ae87f36..a2b06eba4 100644
  }
  
 diff --git a/kernel/sched/topology.c b/kernel/sched/topology.c
-index 444bdfdab..ba207fb45 100644
+index c7a4d2fff..3154ddbdb 100644
 --- a/kernel/sched/topology.c
 +++ b/kernel/sched/topology.c
 @@ -3,6 +3,7 @@
@@ -11272,7 +11270,7 @@ index 444bdfdab..ba207fb45 100644
  static int __init setup_relax_domain_level(char *str)
  {
  	if (kstrtoint(str, 0, &default_relax_domain_level))
-@@ -1723,6 +1726,7 @@ sd_init(struct sched_domain_topology_level *tl,
+@@ -1729,6 +1732,7 @@ sd_init(struct sched_domain_topology_level *tl,
  
  	return sd;
  }
@@ -11280,7 +11278,7 @@ index 444bdfdab..ba207fb45 100644
  
  #ifdef CONFIG_SCHED_SMT
  int cpu_smt_flags(void)
-@@ -1800,6 +1804,7 @@ void __init set_sched_topology(struct sched_domain_topology_level *tl)
+@@ -1806,6 +1810,7 @@ void __init set_sched_topology(struct sched_domain_topology_level *tl)
  	sched_domain_topology_saved = NULL;
  }
  
@@ -11288,7 +11286,7 @@ index 444bdfdab..ba207fb45 100644
  #ifdef CONFIG_NUMA
  static int cpu_numa_flags(void)
  {
-@@ -2870,3 +2875,31 @@ void partition_sched_domains(int ndoms_new, cpumask_var_t doms_new[],
+@@ -2876,3 +2881,31 @@ void partition_sched_domains(int ndoms_new, cpumask_var_t doms_new[],
  	partition_sched_domains_locked(ndoms_new, doms_new, dattr_new);
  	sched_domains_mutex_unlock();
  }
@@ -11414,7 +11412,7 @@ index 2e5b89d7d..38c4526f5 100644
  	return false;
  }
 diff --git a/kernel/time/timer.c b/kernel/time/timer.c
-index 553fa469d..d7c90f6ff 100644
+index d5ebb1d92..5f12938bc 100644
 --- a/kernel/time/timer.c
 +++ b/kernel/time/timer.c
 @@ -2454,7 +2454,11 @@ static void run_local_timers(void)
@@ -11529,5 +11527,5 @@ index 45320e27a..aaf7b3fbc 100644
  	worker->current_color = get_work_color(work_data);
  
 -- 
-2.51.2
+2.52.0
 

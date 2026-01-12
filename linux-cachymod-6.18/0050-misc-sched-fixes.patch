@@ -14,7 +14,7 @@ diff --git a/kernel/sched/core.c b/kernel/sched/core.c
 index 1711e9e501003a..ee7dfbf01792e5 100644
 --- a/kernel/sched/core.c
 +++ b/kernel/sched/core.c
-@@ -7435,14 +7435,11 @@ void rt_mutex_setprio(struct task_struct *p, struct task_struct *pi_task)
+@@ -7436,14 +7436,11 @@ void rt_mutex_setprio(struct task_struct *p, struct task_struct *pi_task)
  
  	check_class_changed(rq, p, prev_class, oldprio);
  out_unlock:
@@ -40,7 +40,7 @@ diff --git a/kernel/sched/core.c b/kernel/sched/core.c
 index fc358c1b6ca987..1711e9e501003a 100644
 --- a/kernel/sched/core.c
 +++ b/kernel/sched/core.c
-@@ -872,7 +872,7 @@ static enum hrtimer_restart hrtick(struct hrtimer *timer)
+@@ -873,7 +873,7 @@ static enum hrtimer_restart hrtick(struct hrtimer *timer)
  
  	rq_lock(rq, &rf);
  	update_rq_clock(rq);
@@ -393,7 +393,7 @@ index aa033e4..708ad01 100644
  }
  
  /********** Helpers for sched_balance_find_src_group ************************/
-@@ -12770,11 +12774,16 @@ static int sched_balance_newidle(struct rq *this_rq, struct rq_flags *rf)
+@@ -12791,11 +12795,16 @@ static int sched_balance_newidle(struct rq *this_rq, struct rq_flags *rf)
  	}
  	rcu_read_unlock();
  

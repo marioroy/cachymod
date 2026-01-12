@@ -434,7 +434,7 @@ diff --git a/kernel/sched/core.c b/kernel/sched/core.c
 index 2e61c9707bea..fa7b0d1e8be6 100644
 --- a/kernel/sched/core.c
 +++ b/kernel/sched/core.c
-@@ -9168,7 +9168,7 @@ void sched_release_group(struct task_group *tg)
+@@ -9171,7 +9171,7 @@ void sched_release_group(struct task_group *tg)
  	spin_unlock_irqrestore(&task_group_lock, flags);
  }
  
@@ -443,7 +443,7 @@ index 2e61c9707bea..fa7b0d1e8be6 100644
  {
  	struct task_group *tg;
  
-@@ -9180,8 +9180,13 @@ static void sched_change_group(struct task_struct *tsk)
+@@ -9183,8 +9183,13 @@ static void sched_change_group(struct task_struct *tsk)
  	tg = container_of(task_css_check(tsk, cpu_cgrp_id, true),
  			  struct task_group, css);
  	tg = autogroup_task_group(tsk, tg);
@@ -458,7 +458,7 @@ index 2e61c9707bea..fa7b0d1e8be6 100644
  #ifdef CONFIG_FAIR_GROUP_SCHED
  	if (tsk->sched_class->task_change_group)
  		tsk->sched_class->task_change_group(tsk);
-@@ -9190,6 +9195,18 @@ static void sched_change_group(struct task_struct *tsk)
+@@ -9193,6 +9198,18 @@ static void sched_change_group(struct task_struct *tsk)
  		set_task_rq(tsk, task_cpu(tsk));
  }
  
@@ -477,7 +477,7 @@ index 2e61c9707bea..fa7b0d1e8be6 100644
  /*
   * Change task's runqueue when it moves between groups.
   *
-@@ -9199,10 +9216,14 @@ static void sched_change_group(struct task_struct *tsk)
+@@ -9202,10 +9219,14 @@ static void sched_change_group(struct task_struct *tsk)
   */
  void sched_move_task(struct task_struct *tsk, bool for_autogroup)
  {
@@ -492,7 +492,7 @@ index 2e61c9707bea..fa7b0d1e8be6 100644
  	CLASS(task_rq_lock, rq_guard)(tsk);
  	rq = rq_guard.rq;
  
-@@ -9216,7 +9237,7 @@ void sched_move_task(struct task_struct *tsk, bool for_autogroup)
+@@ -9219,7 +9240,7 @@ void sched_move_task(struct task_struct *tsk, bool for_autogroup)
  	if (running)
  		put_prev_task(rq, tsk);
  
@@ -563,4 +563,45 @@ index 2c2dc559e0f8de..48d6b137e8f6ae 100644
  	 * Modern (>=Nehalem) Intel systems use ACPI via intel_idle,
 -- 
 2.40.2
+
+drm/amd/display: Bump the HDMI clock to 340MHz
+https://lists.freedesktop.org/archives/amd-gfx/2026-January/136218.html
+
+diff --git a/drivers/gpu/drm/amd/display/dc/dc_hdmi_types.h b/drivers/gpu/drm/amd/display/dc/dc_hdmi_types.h
+index b015e80672ec..fcd3ab4b0045 100644
+--- a/drivers/gpu/drm/amd/display/dc/dc_hdmi_types.h
++++ b/drivers/gpu/drm/amd/display/dc/dc_hdmi_types.h
+@@ -41,7 +41,7 @@
+ /* kHZ*/
+ #define DP_ADAPTOR_DVI_MAX_TMDS_CLK 165000
+ /* kHZ*/
+-#define DP_ADAPTOR_HDMI_SAFE_MAX_TMDS_CLK 165000
++#define DP_ADAPTOR_HDMI_SAFE_MAX_TMDS_CLK 340000
+ 
+ struct dp_hdmi_dongle_signature_data {
+ 	int8_t id[15];/* "DP-HDMI ADAPTOR"*/
+diff --git a/drivers/gpu/drm/amd/display/dc/link/link_detection.c b/drivers/gpu/drm/amd/display/dc/link/link_detection.c
+index f24365395cd9..2c9d2b932482 100644
+--- a/drivers/gpu/drm/amd/display/dc/link/link_detection.c
++++ b/drivers/gpu/drm/amd/display/dc/link/link_detection.c
+@@ -332,7 +332,7 @@ static void query_dp_dual_mode_adaptor(
+ 
+ 	/* Assume we have no valid DP passive dongle connected */
+ 	*dongle = DISPLAY_DONGLE_NONE;
+-	sink_cap->max_hdmi_pixel_clock = DP_ADAPTOR_HDMI_SAFE_MAX_TMDS_CLK;
++	sink_cap->max_hdmi_pixel_clock = DP_ADAPTOR_DVI_MAX_TMDS_CLK;
+ 
+ 	/* Read DP-HDMI dongle I2c (no response interpreted as DP-DVI dongle)*/
+ 	if (!i2c_read(
+@@ -388,6 +388,8 @@ static void query_dp_dual_mode_adaptor(
+ 
+ 		}
+ 	}
++	if (is_valid_hdmi_signature)
++		sink_cap->max_hdmi_pixel_clock = DP_ADAPTOR_HDMI_SAFE_MAX_TMDS_CLK;
+ 
+ 	if (is_type2_dongle) {
+ 		uint32_t max_tmds_clk =
+-- 
+2.52.0
 

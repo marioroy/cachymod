@@ -434,7 +434,7 @@ diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
 index 1855975b8248..c3b4895f8e50 100644
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -12736,6 +12736,7 @@ static int sched_balance_newidle(struct rq *this_rq, struct rq_flags *rf)
+@@ -12755,6 +12755,7 @@ static int sched_balance_newidle(struct rq *this_rq, struct rq_flags *rf)
  	u64 t0, t1, curr_cost = 0;
  	struct sched_domain *sd;
  	int pulled_task = 0;
@@ -442,7 +442,7 @@ index 1855975b8248..c3b4895f8e50 100644
  
  	update_misfit_status(NULL, this_rq);
  
-@@ -12751,7 +12752,7 @@ static int sched_balance_newidle(struct rq *this_rq, struct rq_flags *rf)
+@@ -12770,7 +12771,7 @@ static int sched_balance_newidle(struct rq *this_rq, struct rq_flags *rf)
  	 * for CPU_NEWLY_IDLE, such that we measure the this duration
  	 * as idle time.
  	 */
@@ -451,7 +451,7 @@ index 1855975b8248..c3b4895f8e50 100644
  
  	/*
  	 * Do not pull tasks towards !active CPUs...
-@@ -12845,10 +12846,13 @@ static int sched_balance_newidle(struct rq *this_rq, struct rq_flags *rf)
+@@ -12886,10 +12887,13 @@ static int sched_balance_newidle(struct rq *this_rq, struct rq_flags *rf)
  	if (time_after(this_rq->next_balance, next_balance))
  		this_rq->next_balance = next_balance;
  
@@ -503,7 +503,7 @@ diff --git a/kernel/sched/core.c b/kernel/sched/core.c
 index 9f10cfbdc228..2e3c4043de51 100644
 --- a/kernel/sched/core.c
 +++ b/kernel/sched/core.c
-@@ -2072,6 +2072,21 @@ unsigned long get_wchan(struct task_struct *p)
+@@ -2073,6 +2073,21 @@ unsigned long get_wchan(struct task_struct *p)
  	return ip;
  }
  
@@ -525,7 +525,7 @@ index 9f10cfbdc228..2e3c4043de51 100644
  void enqueue_task(struct rq *rq, struct task_struct *p, int flags)
  {
  	if (!(flags & ENQUEUE_NOCLOCK))
-@@ -2093,6 +2108,8 @@ void enqueue_task(struct rq *rq, struct task_struct *p, int flags)
+@@ -2094,6 +2109,8 @@ void enqueue_task(struct rq *rq, struct task_struct *p, int flags)
  
  	if (sched_core_enabled(rq))
  		sched_core_enqueue(rq, p);
@@ -534,7 +534,7 @@ index 9f10cfbdc228..2e3c4043de51 100644
  }
  
  /*
-@@ -3712,18 +3729,6 @@ ttwu_do_activate(struct rq *rq, struct task_struct *p, int wake_flags,
+@@ -3713,18 +3730,6 @@ ttwu_do_activate(struct rq *rq, struct task_struct *p, int wake_flags,
  		p->sched_class->task_woken(rq, p);
  		rq_repin_lock(rq, rf);
  	}

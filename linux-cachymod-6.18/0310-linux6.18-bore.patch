@@ -639,7 +639,7 @@ index ccba6fc3c3..5bd3d55af4 100644
  EXPORT_TRACEPOINT_SYMBOL_GPL(ipi_send_cpu);
  EXPORT_TRACEPOINT_SYMBOL_GPL(ipi_send_cpumask);
  
-@@ -1426,7 +1430,11 @@ int tg_nop(struct task_group *tg, void *data)
+@@ -1427,7 +1431,11 @@ int tg_nop(struct task_group *tg, void *data)
  
  void set_load_weight(struct task_struct *p, bool update_load)
  {
@@ -651,7 +651,7 @@ index ccba6fc3c3..5bd3d55af4 100644
  	struct load_weight lw;
  
  	if (task_has_idle_policy(p)) {
-@@ -8652,6 +8660,10 @@ void __init sched_init(void)
+@@ -8655,6 +8663,10 @@ void __init sched_init(void)
  	BUG_ON(!sched_class_above(&ext_sched_class, &idle_sched_class));
  #endif
  
@@ -1087,7 +1087,7 @@ index 8ce56a8d50..507e1c1ef8 100644
  	/*
  	 * Tell update_rq_clock() that we've just updated,
  	 * so we don't do microscopic update in schedule()
-@@ -13366,6 +13463,9 @@ static void switched_to_fair(struct rq *rq, struct task_struct *p)
+@@ -13407,6 +13504,9 @@ static void switched_to_fair(struct rq *rq, struct task_struct *p)
  	WARN_ON_ONCE(p->se.sched_delayed);
  
  	attach_task_cfs_rq(p);
@@ -1115,7 +1115,7 @@ diff --git a/kernel/sched/sched.h b/kernel/sched/sched.h
 index cf2109b67f..aa70f36084 100644
 --- a/kernel/sched/sched.h
 +++ b/kernel/sched/sched.h
-@@ -2134,7 +2134,11 @@ extern int group_balance_cpu(struct sched_group *sg);
+@@ -2141,7 +2141,11 @@ extern int group_balance_cpu(struct sched_group *sg);
  extern void update_sched_domain_debugfs(void);
  extern void dirty_sched_domain_sysctl(int cpu);
  
@@ -1127,7 +1127,7 @@ index cf2109b67f..aa70f36084 100644
  
  static inline const struct cpumask *task_user_cpus(struct task_struct *p)
  {
-@@ -2813,7 +2817,12 @@ extern void wakeup_preempt(struct rq *rq, struct task_struct *p, int flags);
+@@ -2820,7 +2824,12 @@ extern void wakeup_preempt(struct rq *rq, struct task_struct *p, int flags);
  extern __read_mostly unsigned int sysctl_sched_nr_migrate;
  extern __read_mostly unsigned int sysctl_sched_migration_cost;
  
