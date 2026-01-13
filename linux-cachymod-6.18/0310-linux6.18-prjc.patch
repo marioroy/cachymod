@@ -484,7 +484,7 @@ diff --git a/include/linux/sched/topology.h b/include/linux/sched/topology.h
 index 45c0022b9..d281dabe4 100644
 --- a/include/linux/sched/topology.h
 +++ b/include/linux/sched/topology.h
-@@ -190,7 +190,8 @@ extern void sched_update_asym_prefer_cpu(int cpu, int old_prio, int new_prio);
+@@ -187,7 +187,8 @@ extern void sched_update_asym_prefer_cpu(int cpu, int old_prio, int new_prio);
  #define SDTL_INIT(maskfn, flagsfn, dname) ((struct sched_domain_topology_level) \
  	    { .mask = maskfn, .sd_flags = flagsfn, .name = #dname })
  
@@ -10663,10 +10663,10 @@ index 2f8b06b12..139c1cc8f 100644
 +#include "alt_sched.h"
 +#else
 +
- #include <linux/prandom.h>
  #include <linux/sched/affinity.h>
  #include <linux/sched/autogroup.h>
-@@ -3915,4 +3919,9 @@ void sched_enq_and_set_task(struct sched_enq_and_set_ctx *ctx);
+ #include <linux/sched/cpufreq.h>
+@@ -3908,4 +3912,9 @@ void sched_enq_and_set_task(struct sched_enq_and_set_ctx *ctx);
  
  #include "ext.h"
  
@@ -11270,7 +11270,7 @@ index c7a4d2fff..3154ddbdb 100644
  static int __init setup_relax_domain_level(char *str)
  {
  	if (kstrtoint(str, 0, &default_relax_domain_level))
-@@ -1729,6 +1732,7 @@ sd_init(struct sched_domain_topology_level *tl,
+@@ -1723,6 +1726,7 @@ sd_init(struct sched_domain_topology_level *tl,
  
  	return sd;
  }
@@ -11278,7 +11278,7 @@ index c7a4d2fff..3154ddbdb 100644
  
  #ifdef CONFIG_SCHED_SMT
  int cpu_smt_flags(void)
-@@ -1806,6 +1810,7 @@ void __init set_sched_topology(struct sched_domain_topology_level *tl)
+@@ -1800,6 +1804,7 @@ void __init set_sched_topology(struct sched_domain_topology_level *tl)
  	sched_domain_topology_saved = NULL;
  }
  
@@ -11286,7 +11286,7 @@ index c7a4d2fff..3154ddbdb 100644
  #ifdef CONFIG_NUMA
  static int cpu_numa_flags(void)
  {
-@@ -2876,3 +2881,31 @@ void partition_sched_domains(int ndoms_new, cpumask_var_t doms_new[],
+@@ -2870,3 +2875,31 @@ void partition_sched_domains(int ndoms_new, cpumask_var_t doms_new[],
  	partition_sched_domains_locked(ndoms_new, doms_new, dattr_new);
  	sched_domains_mutex_unlock();
  }

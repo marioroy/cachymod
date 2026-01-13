@@ -145,7 +145,7 @@ _stable=${_major}.${_minor}
 
 _srcname=linux-${_stable}
 pkgdesc='CachyMod Linux Kernel with other patches and improvements'
-pkgrel=2
+pkgrel=3
 _kernver="$pkgver-$pkgrel"
 _kernuname="${pkgver}-${_pkgsuffix}"
 arch=('x86_64')
@@ -170,6 +170,7 @@ source=(
     "0008-fixes.patch"
     "0009-intel-pstate.patch"
     "0010-sched-ext.patch"
+    "0040-revert-dot5-sched-change.patch"
     "0050-misc-sched-fixes.patch"
     "0100-kconfig-add-800Hz.patch"
     "0200-clearlinux-extras.patch"

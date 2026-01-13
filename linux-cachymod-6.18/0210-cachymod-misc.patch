@@ -434,7 +434,7 @@ diff --git a/kernel/sched/core.c b/kernel/sched/core.c
 index 2e61c9707bea..fa7b0d1e8be6 100644
 --- a/kernel/sched/core.c
 +++ b/kernel/sched/core.c
-@@ -9171,7 +9171,7 @@ void sched_release_group(struct task_group *tg)
+@@ -9168,7 +9168,7 @@ void sched_release_group(struct task_group *tg)
  	spin_unlock_irqrestore(&task_group_lock, flags);
  }
  
@@ -443,7 +443,7 @@ index 2e61c9707bea..fa7b0d1e8be6 100644
  {
  	struct task_group *tg;
  
-@@ -9183,8 +9183,13 @@ static void sched_change_group(struct task_struct *tsk)
+@@ -9180,8 +9180,13 @@ static void sched_change_group(struct task_struct *tsk)
  	tg = container_of(task_css_check(tsk, cpu_cgrp_id, true),
  			  struct task_group, css);
  	tg = autogroup_task_group(tsk, tg);
@@ -458,7 +458,7 @@ index 2e61c9707bea..fa7b0d1e8be6 100644
  #ifdef CONFIG_FAIR_GROUP_SCHED
  	if (tsk->sched_class->task_change_group)
  		tsk->sched_class->task_change_group(tsk);
-@@ -9193,6 +9198,18 @@ static void sched_change_group(struct task_struct *tsk)
+@@ -9190,6 +9195,18 @@ static void sched_change_group(struct task_struct *tsk)
  		set_task_rq(tsk, task_cpu(tsk));
  }
  
@@ -477,7 +477,7 @@ index 2e61c9707bea..fa7b0d1e8be6 100644
  /*
   * Change task's runqueue when it moves between groups.
   *
-@@ -9202,10 +9219,14 @@ static void sched_change_group(struct task_struct *tsk)
+@@ -9199,10 +9216,14 @@ static void sched_change_group(struct task_struct *tsk)
   */
  void sched_move_task(struct task_struct *tsk, bool for_autogroup)
  {
@@ -492,7 +492,7 @@ index 2e61c9707bea..fa7b0d1e8be6 100644
  	CLASS(task_rq_lock, rq_guard)(tsk);
  	rq = rq_guard.rq;
  
-@@ -9219,7 +9240,7 @@ void sched_move_task(struct task_struct *tsk, bool for_autogroup)
+@@ -9216,7 +9237,7 @@ void sched_move_task(struct task_struct *tsk, bool for_autogroup)
  	if (running)
  		put_prev_task(rq, tsk);
  
