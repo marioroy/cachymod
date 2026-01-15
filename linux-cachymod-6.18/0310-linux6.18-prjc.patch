@@ -614,7 +614,7 @@ diff --git a/kernel/Kconfig.preempt b/kernel/Kconfig.preempt
 index da326800c..728036392 100644
 --- a/kernel/Kconfig.preempt
 +++ b/kernel/Kconfig.preempt
-@@ -147,7 +147,7 @@ config PREEMPT_DYNAMIC
+@@ -150,7 +150,7 @@ config PREEMPT_DYNAMIC
  
  config SCHED_CORE
  	bool "Core Scheduling for SMT"
@@ -623,7 +623,7 @@ index da326800c..728036392 100644
  	help
  	  This option permits Core Scheduling, a means of coordinated task
  	  selection across SMT siblings. When enabled -- see
-@@ -165,7 +165,7 @@ config SCHED_CORE
+@@ -168,7 +168,7 @@ config SCHED_CORE
  
  config SCHED_CLASS_EXT
  	bool "Extensible Scheduling Class"
