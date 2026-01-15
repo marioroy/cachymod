@@ -1,0 +1,26 @@
+
+Suppress the variable 'mask' is uninitialized warning.
+
+Signed-off-by: Mario Roy <>
+
+
+diff -uarp a/kernel/sched/alt_core.c b/kernel/sched/alt_core.c
+--- a/kernel/sched/alt_core.c
++++ b/kernel/sched/alt_core.c
+@@ -1943,10 +1943,13 @@ static inline int select_task_rq(struct
+ 	if (unlikely(!cpumask_and(&allow_mask, p->cpus_ptr, cpu_active_mask)))
+ 		return select_fallback_rq(task_cpu(p), p);
+ 
++#pragma clang diagnostic push
++#pragma clang diagnostic ignored "-Wuninitialized"
+ 	if ((cpumask_intersects(&mask, sched_idle_mask) &&
+ 	     static_call(sched_idle_select_func)(&mask, &allow_mask, sched_idle_mask)) ||
+ 	    preempt_mask_check(&mask, &allow_mask, task_sched_prio(p)))
+ 		return best_mask_cpu(task_cpu(p), &mask);
++#pragma clang diagnostic pop
+ 
+ 	return best_mask_cpu(task_cpu(p), &allow_mask);
+ }
+-- 
+2.52.0
+
