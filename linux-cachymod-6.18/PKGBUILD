@@ -145,7 +145,7 @@ _stable=${_major}.${_minor}
 
 _srcname=linux-${_stable}
 pkgdesc='CachyMod Linux Kernel with other patches and improvements'
-pkgrel=4
+pkgrel=5
 _kernver="$pkgver-$pkgrel"
 _kernuname="${pkgver}-${_pkgsuffix}"
 arch=('x86_64')
@@ -179,9 +179,7 @@ source=(
     "0280-prefer-prevcpu-for-wakeup.patch"
     "0300-x86-prevent-avx2-vector.patch"
     "0310-linux6.18-bore.patch"
-    "0310-linux6.18-prjc-lfbmq.patch"
     "0310-linux6.18-prjc.patch"
-    "0320-linux6.18-prjc-lfbmq-s.patch"
     "0320-linux6.18-prjc-s.patch"
 )
 
@@ -260,17 +258,11 @@ prepare() {
         if [[ $src = *-bore.patch ]]; then
             [[ "$_cpusched" = "bore" ]] || continue
         fi
-        if [[ $src = *-prjc-lfbmq.patch ]]; then
-            [[ "$_cpusched" = "bmq" ]] || continue
-        fi
         if [[ $src = *-prjc.patch ]]; then
-            [[ "$_cpusched" = "pds" ]] || continue
-        fi
-        if [[ $src = *-prjc-lfbmq-s.patch ]]; then
-            [[ "$_cpusched" = "bmq" && "$_buildtype" != "gcc" ]] || continue
+            [[ "$_cpusched" =~ ^(bmq|pds)$ ]] || continue
         fi
         if [[ $src = *-prjc-s.patch ]]; then
-            [[ "$_cpusched" = "pds" && "$_buildtype" != "gcc" ]] || continue
+            [[ "$_cpusched" =~ ^(bmq|pds)$ && "$_buildtype" != "gcc" ]] || continue
         fi
         echo -e "${_CYAN}Applying patch $src...${_NC}"
         patch -Np1 < "../$src"

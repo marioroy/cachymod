@@ -202,7 +202,7 @@ input_cpusched() {
   menu+=("eevdf: EEVDF Scheduler (use with linux-cgroup-always repo, optional)")
   menu+=("bore:  EEVDF Scheduler with Burst-Oriented Response Enhancer")
   menu+=("rt:    EEVDF Scheduler with real-time preemption enabled")
-  menu+=("bmq:   Low-Latency Frequency-Aware BitMap Queue Scheduler")
+  menu+=("bmq:   BitMap Queue Scheduler")
   menu+=("pds:   Priority and Deadline based Skip list multiple queue scheduler")
 
   case "$varref" in
