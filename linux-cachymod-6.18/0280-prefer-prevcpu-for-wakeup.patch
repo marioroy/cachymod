@@ -364,7 +364,7 @@ diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
  	}
  	rcu_read_unlock();
  
-@@ -10145,7 +10165,7 @@ static bool sched_use_asym_prio(struct s
+@@ -10139,7 +10159,7 @@ static bool sched_use_asym_prio(struct s
  	if (!sched_smt_active())
  		return true;
  
@@ -434,7 +434,7 @@ diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
 index 1855975b8248..c3b4895f8e50 100644
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -12734,6 +12734,7 @@ static int sched_balance_newidle(struct rq *this_rq, struct rq_flags *rf)
+@@ -12728,6 +12728,7 @@ static int sched_balance_newidle(struct rq *this_rq, struct rq_flags *rf)
  	u64 t0, t1, curr_cost = 0;
  	struct sched_domain *sd;
  	int pulled_task = 0;
@@ -442,7 +442,7 @@ index 1855975b8248..c3b4895f8e50 100644
  
  	update_misfit_status(NULL, this_rq);
  
-@@ -12749,7 +12750,7 @@ static int sched_balance_newidle(struct rq *this_rq, struct rq_flags *rf)
+@@ -12743,7 +12744,7 @@ static int sched_balance_newidle(struct rq *this_rq, struct rq_flags *rf)
  	 * for CPU_NEWLY_IDLE, such that we measure the this duration
  	 * as idle time.
  	 */
@@ -451,7 +451,7 @@ index 1855975b8248..c3b4895f8e50 100644
  
  	/*
  	 * Do not pull tasks towards !active CPUs...
-@@ -12845,10 +12846,13 @@ static int sched_balance_newidle(struct rq *this_rq, struct rq_flags *rf)
+@@ -12839,10 +12840,13 @@ static int sched_balance_newidle(struct rq *this_rq, struct rq_flags *rf)
  	if (time_after(this_rq->next_balance, next_balance))
  		this_rq->next_balance = next_balance;
  

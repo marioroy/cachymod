@@ -416,3 +416,44 @@ index aa033e4..708ad01 100644
 -- 
 2.47.1
 
+From: Vincent Guittot
+  We could have old clock_pelt_idle and clock_idle that were used to
+  decay the util_avg of cfs task before migrating them which would ends
+  up with decaying too much util_avg
+
+sched/fair: Fix pelt lost idle time detection
+https://lore.kernel.org/all/aWpjrg0Z6QTiqnEE@vingu-cube/
+
+diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
+index 108213e94158..bea71564d3da 100644
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -8867,12 +8867,6 @@ pick_next_task_fair(struct rq *rq, struct task_struct *prev, struct rq_flags *rf
+ 			goto again;
+ 	}
+
+-	/*
+-	 * rq is about to be idle, check if we need to update the
+-	 * lost_idle_time of clock_pelt
+-	 */
+-	update_idle_rq_clock_pelt(rq);
+-
+ 	return NULL;
+ }
+
+diff --git a/kernel/sched/idle.c b/kernel/sched/idle.c
+index 65eb8f8c1a5d..9df6654ef84f 100644
+--- a/kernel/sched/idle.c
++++ b/kernel/sched/idle.c
+@@ -464,6 +464,8 @@ static void set_next_task_idle(struct rq *rq, struct task_struct *next, bool fir
+ 	scx_update_idle(rq, true, true);
+ 	schedstat_inc(rq->sched_goidle);
+ 	next->se.exec_start = rq_clock_task(rq);
++
++	update_idle_rq_clock_pelt(rq);
+ }
+
+ struct task_struct *pick_task_idle(struct rq *rq)
+--
+2.43.0
+
