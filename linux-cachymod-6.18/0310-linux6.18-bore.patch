@@ -810,11 +810,11 @@ index 8ce56a8d50..507e1c1ef8 100644
 +unsigned int sysctl_sched_min_base_slice       = CONFIG_MIN_BASE_SLICE_NS;
 +__read_mostly uint sysctl_sched_base_slice     = nsecs_per_tick;
 +#else /* !CONFIG_SCHED_BORE */
- unsigned int sysctl_sched_base_slice			= 1000000000ULL / HZ / (HZ < 750 ? 4 : 2);
- static unsigned int normalized_sysctl_sched_base_slice	= 1000000000ULL / HZ / (HZ < 750 ? 4 : 2);
+ unsigned int sysctl_sched_base_slice			= 800000000ULL / HZ / (HZ < 750 ? 4 : 2);
+ static unsigned int normalized_sysctl_sched_base_slice	= 800000000ULL / HZ / (HZ < 750 ? 4 : 2);
 +#endif /* CONFIG_SCHED_BORE */
  
- __read_mostly unsigned int sysctl_sched_migration_cost	= 500000UL;
+ __read_mostly unsigned int sysctl_sched_migration_cost	= 400000UL;
  
 @@ -189,6 +206,13 @@ static inline void update_load_set(struct load_weight *lw, unsigned long w)
   *
@@ -907,7 +907,7 @@ index 8ce56a8d50..507e1c1ef8 100644
  		/*
  		 * If the fair_server is active, we need to account for the
  		 * fair_server time whether or not the task is running on
-@@ -3738,7 +3785,7 @@ dequeue_load_avg(struct cfs_rq *cfs_rq, struct sched_entity *se)
+@@ -3737,7 +3784,7 @@ dequeue_load_avg(struct cfs_rq *cfs_rq, struct sched_entity *se)
  
  static void place_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int flags);
  
@@ -916,7 +916,7 @@ index 8ce56a8d50..507e1c1ef8 100644
  			    unsigned long weight)
  {
  	bool curr = cfs_rq->curr == se;
-@@ -5046,12 +5093,11 @@ void __setparam_fair(struct task_struct *p, const struct sched_attr *attr)
+@@ -5088,12 +5135,11 @@ void __setparam_fair(struct task_struct *p, const struct sched_attr *attr)
  static void
  place_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int flags)
  {
@@ -930,7 +930,7 @@ index 8ce56a8d50..507e1c1ef8 100644
  
  	/*
  	 * Due to how V is constructed as the weighted average of entities,
-@@ -5136,7 +5182,18 @@ place_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int flags)
+@@ -5178,7 +5224,18 @@ place_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int flags)
  		se->rel_deadline = 0;
  		return;
  	}
@@ -950,7 +950,7 @@ index 8ce56a8d50..507e1c1ef8 100644
  	/*
  	 * When joining the competition; the existing tasks will be,
  	 * on average, halfway through their slice, as such start tasks
-@@ -5145,6 +5202,9 @@ place_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int flags)
+@@ -5187,6 +5244,9 @@ place_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int flags)
  	if (sched_feat(PLACE_DEADLINE_INITIAL) && (flags & ENQUEUE_INITIAL))
  		vslice /= 2;
  
@@ -960,7 +960,7 @@ index 8ce56a8d50..507e1c1ef8 100644
  	/*
  	 * EEVDF: vd_i = ve_i + r_i/w_i
  	 */
-@@ -5155,7 +5215,7 @@ static void check_enqueue_throttle(struct cfs_rq *cfs_rq);
+@@ -5197,7 +5257,7 @@ static void check_enqueue_throttle(struct cfs_rq *cfs_rq);
  static inline int cfs_rq_throttled(struct cfs_rq *cfs_rq);
  
  static void
@@ -969,7 +969,7 @@ index 8ce56a8d50..507e1c1ef8 100644
  
  static void
  enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int flags)
-@@ -5313,6 +5373,10 @@ dequeue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int flags)
+@@ -5355,6 +5415,10 @@ dequeue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int flags)
  		if (sched_feat(DELAY_DEQUEUE) && delay &&
  		    !entity_eligible(cfs_rq, se)) {
  			update_load_avg(cfs_rq, se, 0);
@@ -980,7 +980,7 @@ index 8ce56a8d50..507e1c1ef8 100644
  			set_delayed(se);
  			return false;
  		}
-@@ -6792,7 +6856,7 @@ static int sched_idle_cpu(int cpu)
+@@ -6834,7 +6898,7 @@ static int sched_idle_cpu(int cpu)
  }
  
  static void
@@ -989,7 +989,7 @@ index 8ce56a8d50..507e1c1ef8 100644
  {
  	struct cfs_rq *cfs_rq = cfs_rq_of(se);
  
-@@ -6805,13 +6869,22 @@ requeue_delayed_entity(struct sched_entity *se)
+@@ -6847,13 +6911,22 @@ requeue_delayed_entity(struct sched_entity *se)
  	WARN_ON_ONCE(!se->on_rq);
  
  	if (sched_feat(DELAY_ZERO)) {
@@ -1013,7 +1013,7 @@ index 8ce56a8d50..507e1c1ef8 100644
  			if (se != cfs_rq->curr)
  				__enqueue_entity(cfs_rq, se);
  			cfs_rq->nr_queued++;
-@@ -6851,7 +6924,7 @@ enqueue_task_fair(struct rq *rq, struct task_struct *p, int flags)
+@@ -6893,7 +6966,7 @@ enqueue_task_fair(struct rq *rq, struct task_struct *p, int flags)
  		util_est_enqueue(&rq->cfs, p);
  
  	if (flags & ENQUEUE_DELAYED) {
@@ -1022,7 +1022,7 @@ index 8ce56a8d50..507e1c1ef8 100644
  		return;
  	}
  
-@@ -6869,7 +6942,7 @@ enqueue_task_fair(struct rq *rq, struct task_struct *p, int flags)
+@@ -6911,7 +6984,7 @@ enqueue_task_fair(struct rq *rq, struct task_struct *p, int flags)
  	for_each_sched_entity(se) {
  		if (se->on_rq) {
  			if (se->sched_delayed)
@@ -1031,7 +1031,7 @@ index 8ce56a8d50..507e1c1ef8 100644
  			break;
  		}
  		cfs_rq = cfs_rq_of(se);
-@@ -7082,6 +7155,15 @@ static bool dequeue_task_fair(struct rq *rq, struct task_struct *p, int flags)
+@@ -7124,6 +7197,15 @@ static bool dequeue_task_fair(struct rq *rq, struct task_struct *p, int flags)
  		util_est_dequeue(&rq->cfs, p);
  
  	util_est_update(&rq->cfs, p, flags & DEQUEUE_SLEEP);
@@ -1047,7 +1047,7 @@ index 8ce56a8d50..507e1c1ef8 100644
  	if (dequeue_entities(rq, &p->se, flags) < 0)
  		return false;
  
-@@ -8748,7 +8830,13 @@ static void check_preempt_wakeup_fair(struct rq *rq, struct task_struct *p, int
+@@ -8790,7 +8872,13 @@ static void check_preempt_wakeup_fair(struct rq *rq, struct task_struct *p, int
  	if (__pick_eevdf(cfs_rq, !do_preempt_short) == pse)
  		goto preempt;
  
@@ -1061,7 +1061,7 @@ index 8ce56a8d50..507e1c1ef8 100644
  		update_protect_slice(cfs_rq, se);
  
  	return;
-@@ -8922,16 +9010,25 @@ static void yield_task_fair(struct rq *rq)
+@@ -8964,16 +9052,25 @@ static void yield_task_fair(struct rq *rq)
  	/*
  	 * Are we the only task in the tree?
  	 */
@@ -1087,7 +1087,7 @@ index 8ce56a8d50..507e1c1ef8 100644
  	/*
  	 * Tell update_rq_clock() that we've just updated,
  	 * so we don't do microscopic update in schedule()
-@@ -13360,6 +13457,9 @@ static void switched_to_fair(struct rq *rq, struct task_struct *p)
+@@ -13393,6 +13490,9 @@ static void switched_to_fair(struct rq *rq, struct task_struct *p)
  	WARN_ON_ONCE(p->se.sched_delayed);
  
  	attach_task_cfs_rq(p);

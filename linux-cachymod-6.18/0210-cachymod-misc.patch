@@ -505,15 +505,18 @@ index 2e61c9707bea..fa7b0d1e8be6 100644
 2.43.0
 
 Bluetooth adapters of many Acer laptops don't work without it
+Add BT support for ASUS TUF Gaming A16 and TX Gaming FA608FM
 
 diff -uarp a/drivers/bluetooth/btusb.c b/drivers/bluetooth/btusb.c
 --- a/drivers/bluetooth/btusb.c
 +++ b/drivers/bluetooth/btusb.c
-@@ -579,6 +579,8 @@ static const struct usb_device_id quirks
+@@ -579,6 +579,10 @@ static const struct usb_device_id quirks
  						     BTUSB_WIDEBAND_SPEECH },
  	{ USB_DEVICE(0x13d3, 0x3591), .driver_info = BTUSB_REALTEK |
  						     BTUSB_WIDEBAND_SPEECH },
 +	{ USB_DEVICE(0x13d3, 0x3601), .driver_info = BTUSB_REALTEK |
++						     BTUSB_WIDEBAND_SPEECH },
++	{ USB_DEVICE(0x13d3, 0x3612), .driver_info = BTUSB_REALTEK |
 +						     BTUSB_WIDEBAND_SPEECH },
  	{ USB_DEVICE(0x13d3, 0x3618), .driver_info = BTUSB_REALTEK |
  						     BTUSB_WIDEBAND_SPEECH },
@@ -563,4 +566,41 @@ index 2c2dc559e0f8de..48d6b137e8f6ae 100644
  	 * Modern (>=Nehalem) Intel systems use ACPI via intel_idle,
 -- 
 2.40.2
+
+rcu: Reduce synchronize_rcu() latency by reporting GP kthread's CPU QS early
+https://lore.kernel.org/all/20251230004124.438070-1-joelagnelf@nvidia.com/
+
+diff --git a/kernel/rcu/tree.c b/kernel/rcu/tree.c
+index 78c045a5ef03..b7c818cabe44 100644
+--- a/kernel/rcu/tree.c
++++ b/kernel/rcu/tree.c
+@@ -160,6 +160,7 @@ static void rcu_report_qs_rnp(unsigned long mask, struct rcu_node *rnp,
+ 			      unsigned long gps, unsigned long flags);
+ static void invoke_rcu_core(void);
+ static void rcu_report_exp_rdp(struct rcu_data *rdp);
++static void rcu_report_qs_rdp(struct rcu_data *rdp);
+ static void check_cb_ovld_locked(struct rcu_data *rdp, struct rcu_node *rnp);
+ static bool rcu_rdp_is_offloaded(struct rcu_data *rdp);
+ static bool rcu_rdp_cpu_online(struct rcu_data *rdp);
+@@ -1983,6 +1984,17 @@ static noinline_for_stack bool rcu_gp_init(void)
+ 	if (IS_ENABLED(CONFIG_RCU_STRICT_GRACE_PERIOD))
+ 		on_each_cpu(rcu_strict_gp_boundary, NULL, 0);
+ 
++	/*
++	 * Immediately report QS for the GP kthread's CPU. The GP kthread
++	 * cannot be in an RCU read-side critical section while running
++	 * the FQS scan. This eliminates the need for a second FQS wait
++	 * when all CPUs are idle.
++	 */
++	preempt_disable();
++	rcu_qs();
++	rcu_report_qs_rdp(this_cpu_ptr(&rcu_data));
++	preempt_enable();
++
+ 	return true;
+ }
+ 
+
+-- 
+2.34.1
 
