@@ -206,7 +206,7 @@ index 562a730befda..b6e51182ca5b 100644
  	/* Some buggy low-speed devices have Bulk endpoints, which is
  	 * explicitly forbidden by the USB spec.  In an attempt to make
  	 * them usable, we will try treating them as Interrupt endpoints.
-@@ -1144,3 +1304,11 @@ int usb_get_bos_descriptor(struct usb_device *dev)
+@@ -1149,3 +1309,11 @@ int usb_get_bos_descriptor(struct usb_device *dev)
  	usb_release_bos_descriptor(dev);
  	return ret;
  }

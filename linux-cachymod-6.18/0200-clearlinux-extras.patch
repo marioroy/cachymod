@@ -28,7 +28,7 @@
 diff -uar a/arch/x86/Kconfig b/arch/x86/Kconfig
 --- a/arch/x86/Kconfig
 +++ b/arch/x86/Kconfig
-@@ -1230,7 +1230,7 @@
+@@ -1231,7 +1231,7 @@
  	default X86_LEGACY_VM86
  
  config X86_16BIT
@@ -37,7 +37,7 @@ diff -uar a/arch/x86/Kconfig b/arch/x86/Kconfig
  	default y
  	depends on MODIFY_LDT_SYSCALL
  	help
-@@ -1248,7 +1248,7 @@ config X86_ESPFIX64
+@@ -1249,7 +1249,7 @@ config X86_ESPFIX64
  	depends on X86_16BIT && X86_64
  
  config X86_VSYSCALL_EMULATION
@@ -46,7 +46,7 @@ diff -uar a/arch/x86/Kconfig b/arch/x86/Kconfig
  	default y
  	depends on X86_64
  	help
-@@ -2304,7 +2304,7 @@
+@@ -2305,7 +2305,7 @@
  	  be set to 'N' under normal conditions.
  
  config MODIFY_LDT_SYSCALL
@@ -609,7 +609,7 @@ index f730b6fe94a7..ee0ec4ab7d1c 100644
  		return;
  	rq->clock += delta;
  
-@@ -6045,7 +6045,7 @@ pick_next_task(struct rq *rq, struct task_struct *prev, struct rq_flags *rf)
+@@ -6053,7 +6053,7 @@ pick_next_task(struct rq *rq, struct task_struct *prev, struct rq_flags *rf)
  	struct rq *rq_i;
  	bool need_sync;
  
@@ -618,7 +618,7 @@ index f730b6fe94a7..ee0ec4ab7d1c 100644
  		return __pick_next_task(rq, prev, rf);
  
  	cpu = cpu_of(rq);
-@@ -7446,7 +7446,7 @@ SYSCALL_DEFINE0(sched_yield)
+@@ -7454,7 +7454,7 @@ SYSCALL_DEFINE0(sched_yield)
  #if !defined(CONFIG_PREEMPTION) || defined(CONFIG_PREEMPT_DYNAMIC)
  int __sched __cond_resched(void)
  {

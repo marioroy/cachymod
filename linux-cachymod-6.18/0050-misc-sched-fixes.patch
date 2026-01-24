@@ -14,7 +14,7 @@ diff --git a/kernel/sched/core.c b/kernel/sched/core.c
 index 1711e9e501003a..ee7dfbf01792e5 100644
 --- a/kernel/sched/core.c
 +++ b/kernel/sched/core.c
-@@ -7435,14 +7435,11 @@ void rt_mutex_setprio(struct task_struct *p, struct task_struct *pi_task)
+@@ -7443,14 +7443,11 @@ void rt_mutex_setprio(struct task_struct *p, struct task_struct *pi_task)
  
  	check_class_changed(rq, p, prev_class, oldprio);
  out_unlock:
@@ -52,6 +52,10 @@ index fc358c1b6ca987..1711e9e501003a 100644
 -- 
 2.47.1
 
+sched:pelt: fix pelt clock sync when entering idle
+https://lore.kernel.org/all/20260121163317.505635-1-vincent.guittot@linaro.org/
+https://lore.kernel.org/all/aWpjrg0Z6QTiqnEE@vingu-cube/
+
 From: Vincent Guittot
   We could have old clock_pelt_idle and clock_idle that were used to
   decay the util_avg of cfs task before migrating them which would ends
@@ -63,8 +67,9 @@ From: Alex Hoh (賀振坤)
   This fix looks good to me, and in my local testing, 
   RT utilization dropped significantly from 72 to 20.
 
-sched/fair: Fix pelt lost idle time detection
-https://lore.kernel.org/all/aWpjrg0Z6QTiqnEE@vingu-cube/
+From: Samuel Wu
+  Fix also looks good to me, with RT util and power both
+  dropped significantly and within baseline levels.
 
 diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
 index 108213e94158..bea71564d3da 100644
@@ -87,57 +92,19 @@ diff --git a/kernel/sched/idle.c b/kernel/sched/idle.c
 index 65eb8f8c1a5d..9df6654ef84f 100644
 --- a/kernel/sched/idle.c
 +++ b/kernel/sched/idle.c
-@@ -464,6 +464,8 @@ static void set_next_task_idle(struct rq *rq, struct task_struct *next, bool fir
+@@ -464,6 +464,12 @@ static void set_next_task_idle(struct rq *rq, struct task_struct *next, bool fir
  	scx_update_idle(rq, true, true);
  	schedstat_inc(rq->sched_goidle);
  	next->se.exec_start = rq_clock_task(rq);
 +
++	/*
++	 * rq is about to be idle, check if we need to update the
++	 * lost_idle_time of clock_pelt
++	 */
 +	update_idle_rq_clock_pelt(rq);
  }
 
  struct task_struct *pick_task_idle(struct rq *rq)
 --
 2.43.0
-
-sched/deadline: Avoid double update_rq_clock()
-https://lore.kernel.org/all/176851086283.510.1348786970791383617.tip-bot2@tip-bot2/
-
-When setup_new_dl_entity() is called from enqueue_task_dl() ->
-enqueue_dl_entity(), the rq-clock should already be updated, and
-calling update_rq_clock() again is not right.
-
-Move the update_rq_clock() to the one other caller of
-setup_new_dl_entity(): sched_init_dl_server().
-
-Fixes: 9f239df55546 ("sched/deadline: Initialize dl_servers after SMP")
-Reported-by: Pierre Gondois <pierre.gondois@xxxxxxxxxx>
-Signed-off-by: Peter Zijlstra (Intel) <peterz@xxxxxxxxxx>
-Tested-by: Pierre Gondois <pierre.gondois@xxxxxxxxxx>
----
- kernel/sched/deadline.c | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
-
-diff --git a/kernel/sched/deadline.c b/kernel/sched/deadline.c
-index b7acf74..5d6f3cc 100644
---- a/kernel/sched/deadline.c
-+++ b/kernel/sched/deadline.c
-@@ -761,8 +761,6 @@ static inline void setup_new_dl_entity(struct sched_dl_entity *dl_se)
- 	struct dl_rq *dl_rq = dl_rq_of_se(dl_se);
- 	struct rq *rq = rq_of_dl_rq(dl_rq);
- 
--	update_rq_clock(rq);
--
- 	WARN_ON(is_dl_boosted(dl_se));
- 	WARN_ON(dl_time_before(rq_clock(rq), dl_se->deadline));
- 
-@@ -1623,6 +1621,7 @@ void sched_init_dl_servers(void)
- 		rq = cpu_rq(cpu);
- 
- 		guard(rq_lock_irq)(rq);
-+		update_rq_clock(rq);
- 
- 		dl_se = &rq->fair_server;
- 
--- 
-2.52.0
 

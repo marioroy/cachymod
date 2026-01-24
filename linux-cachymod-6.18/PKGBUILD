@@ -138,14 +138,14 @@ fi
 
 _pkgsuffix=cachymod
 _major=6.18
-_minor=6
+_minor=7
 pkgver=${_major}.${_minor}
 _stable=${_major}.${_minor}
 #_stable=${_major}
 
 _srcname=linux-${_stable}
 pkgdesc='CachyMod Linux Kernel with other patches and improvements'
-pkgrel=2
+pkgrel=1
 _kernver="$pkgver-$pkgrel"
 _kernuname="${pkgver}-${_pkgsuffix}"
 arch=('x86_64')
@@ -164,10 +164,10 @@ source=(
     "0000-rt.patch"
     "0001-amd-pstate.patch"
     "0004-bbr3.patch"
-    "0005-block.patch"
-    "0006-cachy.patch"
-    "0007-crypto.patch"
-    "0008-fixes.patch"
+    "0005-cachy.patch"
+    "0006-crypto.patch"
+    "0007-fixes.patch"
+    "0008-hdmi.patch"
     "0009-intel-pstate.patch"
     "0010-sched-ext.patch"
     "0040-revert-dot5-sched-change.patch"
@@ -510,7 +510,9 @@ build() {
 
     ### Respect -jN flag in /etc/makepkg.conf
     local ncpu=$(grep "^MAKEFLAGS=" "/etc/makepkg.conf" | sed "s/^.*-j\([0-9]*\).*/\1/")
-    [[ -z "$ncpu" || "$ncpu" = "MAKEFLAGS"* ]] && ncpu=$(nproc)
+    local nproc=$(nproc)
+    [[ -z "$ncpu" || "$ncpu" = "MAKEFLAGS"* ]] && ncpu="$nproc"
+    [[ "$ncpu" -gt "$nproc" ]] && ncpu="$nproc"
 
     ### Use grep to filter/silence harmless warnings
     make "${BUILD_FLAGS[@]}" -j"$ncpu" all 2>&1 | \

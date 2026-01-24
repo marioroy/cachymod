@@ -25,7 +25,7 @@ diff --git a/include/linux/sched.h b/include/linux/sched.h
 index e4ce0a7683..fa9c484128 100644
 --- a/include/linux/sched.h
 +++ b/include/linux/sched.h
-@@ -816,6 +816,32 @@ struct kmap_ctrl {
+@@ -818,6 +818,32 @@ struct kmap_ctrl {
  #endif
  };
  
@@ -58,7 +58,7 @@ index e4ce0a7683..fa9c484128 100644
  struct task_struct {
  #ifdef CONFIG_THREAD_INFO_IN_TASK
  	/*
-@@ -874,6 +900,9 @@ struct task_struct {
+@@ -876,6 +902,9 @@ struct task_struct {
  #ifdef CONFIG_SCHED_CLASS_EXT
  	struct sched_ext_entity		scx;
  #endif
@@ -651,7 +651,7 @@ index ccba6fc3c3..5bd3d55af4 100644
  	struct load_weight lw;
  
  	if (task_has_idle_policy(p)) {
-@@ -8652,6 +8660,10 @@ void __init sched_init(void)
+@@ -8660,6 +8668,10 @@ void __init sched_init(void)
  	BUG_ON(!sched_class_above(&ext_sched_class, &idle_sched_class));
  #endif
  
@@ -728,7 +728,7 @@ index 02e16b70a7..751df396d9 100644
  
  #ifdef CONFIG_PREEMPT_DYNAMIC
  
-@@ -500,12 +548,19 @@ static __init int sched_init_debug(void)
+@@ -606,12 +654,19 @@ static __init int sched_init_debug(void)
  	debugfs_create_file("preempt", 0644, debugfs_sched, NULL, &sched_dynamic_fops);
  #endif
  
@@ -748,7 +748,7 @@ index 02e16b70a7..751df396d9 100644
  	debugfs_create_u32("migration_cost_ns", 0644, debugfs_sched, &sysctl_sched_migration_cost);
  	debugfs_create_u32("nr_migrate", 0644, debugfs_sched, &sysctl_sched_nr_migrate);
  
-@@ -747,6 +802,9 @@ print_task(struct seq_file *m, struct rq *rq, struct task_struct *p)
+@@ -854,6 +909,9 @@ print_task(struct seq_file *m, struct rq *rq, struct task_struct *p)
  		SPLIT_NS(schedstat_val_or_zero(p->stats.sum_sleep_runtime)),
  		SPLIT_NS(schedstat_val_or_zero(p->stats.sum_block_runtime)));
  
@@ -758,7 +758,7 @@ index 02e16b70a7..751df396d9 100644
  #ifdef CONFIG_NUMA_BALANCING
  	SEQ_printf(m, "   %d      %d", task_node(p), task_numa_group_id(p));
  #endif
-@@ -1224,6 +1282,9 @@ void proc_sched_show_task(struct task_struct *p, struct pid_namespace *ns,
+@@ -1331,6 +1389,9 @@ void proc_sched_show_task(struct task_struct *p, struct pid_namespace *ns,
  	__PS("nr_involuntary_switches", p->nivcsw);
  
  	P(se.load.weight);
@@ -1087,7 +1087,7 @@ index 8ce56a8d50..507e1c1ef8 100644
  	/*
  	 * Tell update_rq_clock() that we've just updated,
  	 * so we don't do microscopic update in schedule()
-@@ -13393,6 +13490,9 @@ static void switched_to_fair(struct rq *rq, struct task_struct *p)
+@@ -13396,6 +13493,9 @@ static void switched_to_fair(struct rq *rq, struct task_struct *p)
  	WARN_ON_ONCE(p->se.sched_delayed);
  
  	attach_task_cfs_rq(p);
@@ -1115,7 +1115,7 @@ diff --git a/kernel/sched/sched.h b/kernel/sched/sched.h
 index cf2109b67f..aa70f36084 100644
 --- a/kernel/sched/sched.h
 +++ b/kernel/sched/sched.h
-@@ -2134,7 +2134,11 @@ extern int group_balance_cpu(struct sched_group *sg);
+@@ -2145,7 +2145,11 @@ extern int group_balance_cpu(struct sched_group *sg);
  extern void update_sched_domain_debugfs(void);
  extern void dirty_sched_domain_sysctl(int cpu);
  
@@ -1127,7 +1127,7 @@ index cf2109b67f..aa70f36084 100644
  
  static inline const struct cpumask *task_user_cpus(struct task_struct *p)
  {
-@@ -2813,7 +2817,12 @@ extern void wakeup_preempt(struct rq *rq, struct task_struct *p, int flags);
+@@ -2824,7 +2828,12 @@ extern void wakeup_preempt(struct rq *rq, struct task_struct *p, int flags);
  extern __read_mostly unsigned int sysctl_sched_nr_migrate;
  extern __read_mostly unsigned int sysctl_sched_migration_cost;
  

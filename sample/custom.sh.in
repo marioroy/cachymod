@@ -15,6 +15,16 @@
 
 set -e
 
+# Disable dynamic kernel debugging messages support
+# https://www.kernel.org/doc/html/latest/admin-guide/dynamic-debug-howto.html
+#scripts/config -d DYNAMIC_DEBUG
+#scripts/config -d DYNAMIC_DEBUG_CORE
+
+# Disable per-task delay accounting
+# https://utcc.utoronto.ca/~cks/space/blog/linux/TaskDelayAccountingNotes
+# https://www.reddit.com/r/linuxquestions/comments/1b6bijd/downsides_to_kerneltask_delayacct/
+#scripts/config -d TASK_DELAY_ACCT
+
 # Disable staging drivers
 # Drivers that are not of the "normal" Linux kernel quality level
 #scripts/config -d STAGING

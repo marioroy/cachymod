@@ -84,13 +84,6 @@ scripts/config -d HARDLOCKUP_DETECTOR
 scripts/config -d SOFTLOCKUP_DETECTOR_INTR_STORM
 scripts/config -d SOFTLOCKUP_DETECTOR
 
-### Disable dynamic printk() support.
-scripts/config -d DYNAMIC_DEBUG
-scripts/config -d DYNAMIC_DEBUG_CORE
-
-### Disable per-task delay accounting.
-scripts/config -d TASK_DELAY_ACCT
-
 ### Disable tracers.
 scripts/config -d ATH5K_TRACER
 scripts/config -d DM_UEVENT
@@ -121,7 +114,6 @@ scripts/config -d SLUB_DEBUG_ON
 scripts/config -d PAGE_POISONING
 scripts/config -d GDB_SCRIPTS
 scripts/config -d ACPI_DEBUG
-scripts/config -d FW_LOADER_DEBUG
 scripts/config -d PM_DEBUG
 scripts/config -d PM_ADVANCED_DEBUG
 scripts/config -d PM_SLEEP_DEBUG
@@ -151,7 +143,6 @@ scripts/config -d BCACHEFS_DEBUG
 scripts/config -d BEFS_DEBUG
 scripts/config -d BLK_DEBUG_FS
 scripts/config -d BT_DEBUGFS
-scripts/config -d BT_FEATURE_DEBUG
 scripts/config -d CEPH_LIB_PRETTYDEBUG
 scripts/config -d CFG80211_DEBUGFS
 scripts/config -d CIFS_DEBUG
@@ -169,7 +160,6 @@ scripts/config -d DEBUG_RSEQ
 scripts/config -d DEBUG_SHIRQ
 scripts/config -d DEBUG_WX
 scripts/config -d DLM_DEBUG
-scripts/config -d DM_DEBUG
 scripts/config -d DM_DEBUG_BLOCK_MANAGER_LOCKING
 scripts/config -d DM_DEBUG_BLOCK_STACK_TRACING
 scripts/config -d DRM_ACCEL_IVPU_DEBUG
@@ -214,7 +204,6 @@ scripts/config -d RTW89_DEBUGFS
 scripts/config -d RTW89_DEBUGMSG
 scripts/config -d SHRINKER_DEBUG
 scripts/config -d SMS_SIANO_DEBUGFS
-scripts/config -d SND_DEBUG
 scripts/config -d SND_SOC_SOF_DEBUG
 scripts/config -d SUNRPC_DEBUG
 scripts/config -d UFS_DEBUG

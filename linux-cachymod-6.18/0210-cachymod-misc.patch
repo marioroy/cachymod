@@ -434,7 +434,7 @@ diff --git a/kernel/sched/core.c b/kernel/sched/core.c
 index 2e61c9707bea..fa7b0d1e8be6 100644
 --- a/kernel/sched/core.c
 +++ b/kernel/sched/core.c
-@@ -9168,7 +9168,7 @@ void sched_release_group(struct task_group *tg)
+@@ -9179,7 +9179,7 @@ void sched_release_group(struct task_group *tg)
  	spin_unlock_irqrestore(&task_group_lock, flags);
  }
  
@@ -443,7 +443,7 @@ index 2e61c9707bea..fa7b0d1e8be6 100644
  {
  	struct task_group *tg;
  
-@@ -9180,8 +9180,13 @@ static void sched_change_group(struct task_struct *tsk)
+@@ -9191,8 +9191,13 @@ static void sched_change_group(struct task_struct *tsk)
  	tg = container_of(task_css_check(tsk, cpu_cgrp_id, true),
  			  struct task_group, css);
  	tg = autogroup_task_group(tsk, tg);
@@ -458,7 +458,7 @@ index 2e61c9707bea..fa7b0d1e8be6 100644
  #ifdef CONFIG_FAIR_GROUP_SCHED
  	if (tsk->sched_class->task_change_group)
  		tsk->sched_class->task_change_group(tsk);
-@@ -9190,6 +9195,18 @@ static void sched_change_group(struct task_struct *tsk)
+@@ -9201,6 +9206,18 @@ static void sched_change_group(struct task_struct *tsk)
  		set_task_rq(tsk, task_cpu(tsk));
  }
  
@@ -477,7 +477,7 @@ index 2e61c9707bea..fa7b0d1e8be6 100644
  /*
   * Change task's runqueue when it moves between groups.
   *
-@@ -9199,10 +9216,14 @@ static void sched_change_group(struct task_struct *tsk)
+@@ -9210,10 +9227,14 @@ static void sched_change_group(struct task_struct *tsk)
   */
  void sched_move_task(struct task_struct *tsk, bool for_autogroup)
  {
@@ -492,7 +492,7 @@ index 2e61c9707bea..fa7b0d1e8be6 100644
  	CLASS(task_rq_lock, rq_guard)(tsk);
  	rq = rq_guard.rq;
  
-@@ -9216,7 +9237,7 @@ void sched_move_task(struct task_struct *tsk, bool for_autogroup)
+@@ -9227,7 +9248,7 @@ void sched_move_task(struct task_struct *tsk, bool for_autogroup)
  	if (running)
  		put_prev_task(rq, tsk);
  
@@ -503,6 +503,34 @@ index 2e61c9707bea..fa7b0d1e8be6 100644
  
 -- 
 2.43.0
+
+sched/fair: do not scan twice in detach_tasks()
+https://lore.kernel.org/all/20250722102600.25976-1-shijie@os.amperecomputing.com/
+
+diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
+index 7cc9d50e3e11..9c1f21d59b5c 100644
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -11765,12 +11765,15 @@ static int sched_balance_rq(int this_cpu, struct rq *this_rq,
+ 		 * still unbalanced. ld_moved simply stays zero, so it is
+ 		 * correctly treated as an imbalance.
+ 		 */
+-		env.loop_max  = min(sysctl_sched_nr_migrate, busiest->nr_running);
+-
+ more_balance:
+ 		rq_lock_irqsave(busiest, &rf);
+ 		update_rq_clock(busiest);
+ 
++		if (!env.loop_max)
++			env.loop_max  = min(sysctl_sched_nr_migrate, busiest->cfs.h_nr_queued);
++		else
++			env.loop_max  = min(env.loop_max, busiest->cfs.h_nr_queued);
++
+ 		/*
+ 		 * cur_ld_moved - load moved in current iteration
+ 		 * ld_moved     - cumulative load moved across iterations
+-- 
+2.40.1
 
 Bluetooth adapters of many Acer laptops don't work without it
 Add BT support for ASUS TUF Gaming A16 and TX Gaming FA608FM
