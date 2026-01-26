@@ -10429,7 +10429,7 @@ index c39b089d4..9903f1d96 100644
  /*
   * idle-task scheduling class.
   */
-@@ -545,3 +546,4 @@ DEFINE_SCHED_CLASS(idle) = {
+@@ -546,3 +547,4 @@ DEFINE_SCHED_CLASS(idle) = {
  	.switched_to		= switched_to_idle,
  	.update_curr		= update_curr_idle,
  };
@@ -10667,7 +10667,7 @@ index 2f8b06b12..139c1cc8f 100644
  #include <linux/sched/affinity.h>
  #include <linux/sched/autogroup.h>
  #include <linux/sched/cpufreq.h>
-@@ -3919,4 +3923,9 @@ void sched_enq_and_set_task(struct sched_enq_and_set_ctx *ctx);
+@@ -3920,4 +3924,9 @@ void sched_enq_and_set_task(struct sched_enq_and_set_ctx *ctx);
  
  #include "ext.h"
  

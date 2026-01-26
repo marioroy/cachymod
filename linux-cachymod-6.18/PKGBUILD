@@ -145,7 +145,7 @@ _stable=${_major}.${_minor}
 
 _srcname=linux-${_stable}
 pkgdesc='CachyMod Linux Kernel with other patches and improvements'
-pkgrel=1
+pkgrel=2
 _kernver="$pkgver-$pkgrel"
 _kernuname="${pkgver}-${_pkgsuffix}"
 arch=('x86_64')
@@ -153,7 +153,10 @@ url="https://github.com/marioroy/cachymod"
 license=('GPL-2.0-only')
 options=('!strip' '!debug' '!lto')
 
-makedepends=(bc cpio gettext libelf pahole perl python tar xz zstd)
+makedepends=(
+    bc cpio gettext libelf pahole perl python tar xz zstd
+    rust rust-bindgen rust-src
+)
 
 source=(
   # "https://github.com/torvalds/linux/archive/refs/tags/v${_major}-${_rcver}.tar.gz"
