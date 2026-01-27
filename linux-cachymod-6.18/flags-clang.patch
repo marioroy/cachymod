@@ -9,7 +9,7 @@ diff -uarp a/Makefile b/Makefile
 +ifdef CONFIG_CC_IS_CLANG
 +KBUILD_CFLAGS	+= -fmerge-all-constants \
 +		   -mllvm=-enable-pipeliner \
-+		   -mllvm=-inline-threshold=700 \
++		   -mllvm=-inline-threshold=420 \
 +		   -mllvm=-unroll-threshold=50
 +ifdef CONFIG_LTO_CLANG
 +KBUILD_LDFLAGS	+= --lto-O2 --lto-CGO2 --thinlto-jobs=6
