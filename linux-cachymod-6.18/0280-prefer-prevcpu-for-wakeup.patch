@@ -17,7 +17,9 @@ From Andrea Righi
   Select target in select_idle_sibling(), if an idle core
 
 From Mario Roy
-  Prefer the previous cpu for wakeup, if an idle core
+  Initial inspiration reading a patch by Shubhang Kaushik [0]
+  With slight modification, prefer the previous cpu for wakeup,
+  if an idle core
   Move the recent_used_cpu heuristic to the top, and check
   if an idle core
 
@@ -31,6 +33,10 @@ Results
   Cosmos is the sched-ext scheduler
     https://github.com/sched-ext/scx
     sudo scx_cosmos -m all -s 1250 -l 50000 -c 0 -p 0 -d
+
+[0] https://lore.kernel.org/all/20251017-b4-sched-cfs-refactor-propagate-v1-1-1eb0dc5b19b3@os.amperecomputing.com/
+
+Results:
 
 :-------------------------------------------------------------------
 : pogocache million ops/sec [7][8]
