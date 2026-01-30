@@ -165,6 +165,8 @@ source=(
     "config.sh"
     "minimal-modprobed.db"  # used if _localmodcfg=yes and _localmodcfg_minimal=yes
     "0000-rt.patch"
+
+    # CachyOS
     "0001-amd-pstate.patch"
     "0004-bbr3.patch"
     "0005-cachy.patch"
@@ -173,6 +175,8 @@ source=(
     "0008-hdmi.patch"
     "0009-intel-pstate.patch"
     "0010-sched-ext.patch"
+
+    # CachyMod
     "0040-revert-dot5-sched-change.patch"
     "0050-misc-sched-fixes.patch"
     "0060-fair-drm-sched.patch"
@@ -181,10 +185,14 @@ source=(
     "0210-cachymod-misc.patch"
     "0260-fair-update-cachy-mods.patch"
     "0280-prefer-prevcpu-for-wakeup.patch"
+
+    # Clear Linux default
     "0300-x86-prevent-avx2-vector.patch"  # applied if _prevent_avx2=yes
-    "0310-linux6.18-bore.patch"           # applied if _cpusched=bore, default eevdf
-    "0310-linux6.18-prjc.patch"           # applied if _cpusched=bmq or pds
-    "0320-linux6.18-prjc-s.patch"         # applied if _cpusched=bmq or pds
+
+    # Requested patches
+    "0310-linux6.18-bore.patch"    # applied if _cpusched=bore, default eevdf
+    "0310-linux6.18-prjc.patch"    # applied if _cpusched=bmq or pds
+    "0320-linux6.18-prjc-s.patch"  # applied if _cpusched=bmq or pds
 )
 
 # LLVM makedepends
