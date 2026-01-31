@@ -138,14 +138,14 @@ fi
 
 _pkgsuffix=cachymod
 _major=6.18
-_minor=7
+_minor=8
 pkgver=${_major}.${_minor}
 _stable=${_major}.${_minor}
 #_stable=${_major}
 
 _srcname=linux-${_stable}
 pkgdesc='CachyMod Linux Kernel with other patches and improvements'
-pkgrel=3
+pkgrel=1
 _kernver="$pkgver-$pkgrel"
 _kernuname="${pkgver}-${_pkgsuffix}"
 arch=('x86_64')
@@ -172,13 +172,13 @@ source=(
     "0005-cachy.patch"
     "0006-crypto.patch"
     "0007-fixes.patch"
-    "0008-hdmi.patch"
     "0009-intel-pstate.patch"
     "0010-sched-ext.patch"
 
     # CachyMod
     "0040-revert-dot5-sched-change.patch"
     "0050-misc-sched-fixes.patch"
+    "0060-fair-drm-sched.patch"
     "0100-kconfig-add-800Hz.patch"
     "0200-clearlinux-extras.patch"
     "0210-cachymod-misc.patch"

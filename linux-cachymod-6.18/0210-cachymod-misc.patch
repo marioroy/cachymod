@@ -3,7 +3,7 @@ Switch to gnu17, a GCC bug-fix version of the C11 standard.
 What is C17 and what changes have been made to the language?
 https://stackoverflow.com/questions/47529854/
 
-Signed-off-by: Mario Roy <...>
+Signed-off-by: Mario Roy <>
 
 diff -uarp a/arch/x86/Makefile b/arch/x86/Makefile
 --- a/arch/x86/Makefile
@@ -367,7 +367,7 @@ Description:
    a higher threshold for thresh
 
 Signed-off-by: Ionut Nechita <ionut_n2001@xxxxxxxxxx>
-Signed-off-by: Mario Roy <...>
+Signed-off-by: Mario Roy <>
 ---
  kernel/workqueue.c | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)

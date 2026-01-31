@@ -905,7 +905,7 @@ index 967ca52fb2..ba104577c5 100644
  	vlag = avg_vruntime(cfs_rq) - se->vruntime;
  	limit = calc_delta_fair(max_t(u64, 2*se->slice, TICK_NSEC), se);
 +#ifdef CONFIG_SCHED_BORE
-+	limit >>= !!sched_bore;
++	// limit >>= !!sched_bore; // less stutters by commenting this line out
 +#endif /* CONFIG_SCHED_BORE */
  
  	se->vlag = clamp(vlag, -limit, limit);

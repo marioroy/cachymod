@@ -33,7 +33,7 @@ Ensure the do_nanosleep function is not inlined
   0000000000000000 t __pfx_do_nanosleep
   0000000000000000 t do_nanosleep
 
-Signed-off-by: Mario Roy <...>
+Signed-off-by: Mario Roy <>
 
 diff -uarp a/kernel/time/hrtimer.c b/kernel/time/hrtimer.c
 --- a/kernel/time/hrtimer.c
@@ -52,7 +52,7 @@ diff -uarp a/kernel/time/hrtimer.c b/kernel/time/hrtimer.c
 
 Ensure the setup_net function is not inlined, needed by bpftune
 
-Signed-off-by: Mario Roy <...>
+Signed-off-by: Mario Roy <>
 
 diff -uarp a/net/core/net_namespace.c b/net/core/net_namespace.c
 --- a/net/core/net_namespace.c

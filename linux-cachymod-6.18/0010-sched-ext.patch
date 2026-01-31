@@ -24,7 +24,7 @@ https://git.kernel.org/pub/scm/linux/kernel/git/arighi/linux.git/log/?h=scx-6.18
   [PATCH] sched_ext: Fix scx_bpf_dsq_peek() with FIFO DSQs
   https://lore.kernel.org/all/20251024220102.1556384-1-arighi@nvidia.com/
 
-Tested-by: Mario Roy <...>
+Tested-by: Mario Roy <>
 
 
 From 7fac93b5eb7587743dfc667dd741d8c3790ba9e3 Mon Sep 17 00:00:00 2001
@@ -475,7 +475,7 @@ diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
 index 1877cbe4fac3f1..ae176d687a680c 100644
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -8934,7 +8934,7 @@ void fair_server_init(struct rq *rq)
+@@ -8928,7 +8928,7 @@ void fair_server_init(struct rq *rq)
  
  	init_dl_entity(dl_se);
  

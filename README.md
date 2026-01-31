@@ -18,58 +18,40 @@ sudo pacman -Sy nvidia-open-dkms
 sudo pacman -Sy nvidia-dkms
 ```
 
-## Utility dependency
-
-The `confmod.sh` and `uninstall.sh` utilities use the `gum` command,
-a tool for making shell scripts more glamorous.
-
-```bash
-sudo pacman -S gum
-```
-
-Optionally, copy the ready-made configs to your home folder.
-
-```bash
-mkdir -p ~/.config/cachymod
-cp defconfigs/*.conf ~/.config/cachymod/
-```
-
 ## Building and Installation
 
-Run the `confmod.sh` script from inside the source dir, preferably,
-to make changes or create new configs. Set your desired build options
-and exit the main menu.
-
-Note: The reason to run the utility from inside the source dir is in
-the case having local patches. The `confmod.sh` has a file chooser
-capability. Otherwise, it can be run from anywhere.
+There are no binary packages. One builds the kernel with `build.sh`
 
 ```bash
-cd /path-to/cachymod/linux-cachymod-6.18
+# obtain CachyMod repo
+git clone --depth=1 https://github.com/marioroy/cachymod.git
+cd cachymod
+
+# copy the build configs
+mkdir -p ~/.config/cachymod
+cp defconfigs/*.conf ~/.config/cachymod/
+
+# the tui tools require the gum package
+sudo pacman -S gum
+
+# make any adjustments with the confmod.sh tui tool
+cd linux-cachymod-6.18
 ../confmod.sh
+
+# build CachyMod kernel (includes installation)
+./build.sh list  # to get a list of build configs
+./build.sh 618   # build kernel using the 618 config
 ```
 
-To build, run the `build.sh` script and pass the config name.
-Omitting the config name will build a kernel with default options
-(no kernel suffix). The utility handles installation as well.
+To update, fetch the changes to automatically merge them into
+your local CachyMod repo.
 
 ```bash
-./build.sh confname # E.g. 618, 618-bmq, 618-bore, 618-pds, 618-rt
+cd cachymod
+git pull
 ```
 
-The config names can be obtained with the `list` argument.
-
-```bash
-./build.sh list
-618-rt
-618-pds
-618-bore
-618-bmq
-618
-...
-```
-
-## Manual Installation
+## Manual Package Installation
 
 Below are the manual steps if needed.
 
@@ -119,6 +101,10 @@ is ignored from GIT commits.
 ```text
 cp ../sample/custom.sh.in custom.sh
 ```
+
+## Acknowledgement
+
+Thank you, CachyOS community with sounding board and testing.
 
 ## LICENSE
 

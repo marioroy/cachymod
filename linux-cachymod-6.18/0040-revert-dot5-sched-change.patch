@@ -48,7 +48,7 @@ diff -uarp a/kernel/sched/core.c b/kernel/sched/core.c
 diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -12130,27 +12130,11 @@ void update_max_interval(void)
+@@ -12124,27 +12124,11 @@ void update_max_interval(void)
  	max_load_balance_interval = HZ*num_online_cpus()/10;
  }
  
@@ -77,7 +77,7 @@ diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
  	if (cost > sd->max_newidle_lb_cost) {
  		/*
  		 * Track max cost of a domain to make sure to not delay the
-@@ -12198,7 +12182,7 @@ static void sched_balance_domains(struct
+@@ -12192,7 +12176,7 @@ static void sched_balance_domains(struct
  		 * Decay the newidle max times here because this is a regular
  		 * visit to all the domains.
  		 */
@@ -86,7 +86,7 @@ diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
  		max_cost += sd->max_newidle_lb_cost;
  
  		/*
-@@ -12843,22 +12827,6 @@ static int sched_balance_newidle(struct
+@@ -12837,22 +12821,6 @@ static int sched_balance_newidle(struct
  			break;
  
  		if (sd->flags & SD_BALANCE_NEWIDLE) {
@@ -109,7 +109,7 @@ diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
  
  			pulled_task = sched_balance_rq(this_cpu, this_rq,
  						   sd, CPU_NEWLY_IDLE,
-@@ -12866,14 +12834,10 @@ static int sched_balance_newidle(struct
+@@ -12860,14 +12828,10 @@ static int sched_balance_newidle(struct
  
  			t1 = sched_clock_cpu(this_cpu);
  			domain_cost = t1 - t0;
