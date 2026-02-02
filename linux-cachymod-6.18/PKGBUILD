@@ -5,16 +5,15 @@
 ### BUILD OPTIONS
 # Set these variables to ANYTHING that is not null or choose proper variable to enable them
 
-# Select CPU scheduler { eevdf, bore, rt, bmq, pds }
+# Select CPU scheduler { eevdf, rt, bmq, pds }
 # eevdf: EEVDF Scheduler (use with the linux-cgroup-always repo, optional)
-# bore:  EEVDF Scheduler with Burst-Oriented Response Enhancer
 # rt:    EEVDF Scheduler with real-time preemption enabled
 # bmq:   BitMap Queue Scheduler
 # pds:   Priority and Deadline based Skip list multiple queue scheduler
 : ${_cpusched:=eevdf}
 
 # Custom kernel suffix, specify uniquely if building multiple CachyMod kernels
-# E.g. { blank value, bmq, bore, pds, rt, or 618, 618-bmq, 618-bore, 618-pds, 618-rt }
+# E.g. { blank value, bmq, pds, rt, or 618, 618-bmq, 618-pds, 618-rt }
 # Or set to "auto" for automatic suffix { gcc, clang, lto }
 # Or set to blank value for no kernel suffix
 : ${_kernel_suffix:=}
@@ -145,7 +144,7 @@ _stable=${_major}.${_minor}
 
 _srcname=linux-${_stable}
 pkgdesc='CachyMod Linux Kernel with other patches and improvements'
-pkgrel=1
+pkgrel=2
 _kernver="$pkgver-$pkgrel"
 _kernuname="${pkgver}-${_pkgsuffix}"
 arch=('x86_64')
@@ -172,6 +171,7 @@ source=(
     "0005-cachy.patch"
     "0006-crypto.patch"
     "0007-fixes.patch"
+    "0008-hdmi.patch"
     "0009-intel-pstate.patch"
     "0010-sched-ext.patch"
 
@@ -189,7 +189,6 @@ source=(
     "0300-x86-prevent-avx2-vector.patch"  # applied if _prevent_avx2=yes
 
     # Requested patches
-    "0310-linux6.18-bore.patch"    # applied if _cpusched=bore, default eevdf
     "0310-linux6.18-prjc.patch"    # applied if _cpusched=bmq or pds
     "0320-linux6.18-prjc-s.patch"  # applied if _cpusched=bmq or pds
 )
@@ -266,9 +265,6 @@ prepare() {
         if [[ $src = *-prevent-avx2* ]]; then
             [[ "$_prevent_avx2" =~ ^(yes|y|1)$ ]] || continue
         fi
-        if [[ $src = *-bore.patch ]]; then
-            [[ "$_cpusched" = "bore" ]] || continue
-        fi
         if [[ $src = *-prjc.patch ]]; then
             [[ "$_cpusched" =~ ^(bmq|pds)$ ]] || continue
         fi
@@ -316,7 +312,6 @@ prepare() {
     ### Selecting the CPU scheduler
     case "$_cpusched" in
         eevdf|rt) ;;
-        bore) scripts/config -e SCHED_BORE --set-val MIN_BASE_SLICE_NS 1600000;;
         bmq) scripts/config -e SCHED_ALT -e SCHED_BMQ;;
         pds) scripts/config -e SCHED_ALT -e SCHED_PDS;;
         *) _die "The _cpusched value '$_cpusched' is invalid. Choose the correct one again.";;

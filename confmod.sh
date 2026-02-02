@@ -200,17 +200,20 @@ input() {
 input_cpusched() {
   local -n varref="$1"; local menu=() selected=
   menu+=("eevdf: EEVDF Scheduler (use with linux-cgroup-always repo, optional)")
-  menu+=("bore:  EEVDF Scheduler with Burst-Oriented Response Enhancer")
   menu+=("rt:    EEVDF Scheduler with real-time preemption enabled")
   menu+=("bmq:   BitMap Queue Scheduler")
   menu+=("pds:   Priority and Deadline based Skip list multiple queue scheduler")
 
+  if [ "$varref" = "bore" ]; then
+    menu+=("bore:  Patch dropped since CachyMod 6.18.8-2 (select another scheduler)")
+  fi
+
   case "$varref" in
     eevdf) selected="${menu[0]}" ;;
-    bore ) selected="${menu[1]}" ;;
-    rt   ) selected="${menu[2]}" ;;
-    bmq  ) selected="${menu[3]}" ;;
-    pds  ) selected="${menu[4]}" ;;
+    rt   ) selected="${menu[1]}" ;;
+    bmq  ) selected="${menu[2]}" ;;
+    pds  ) selected="${menu[3]}" ;;
+    bore ) selected="${menu[4]}" ;;
   esac
 
   choose $1 menu "Choose a CPU scheduler:" "$selected"
@@ -284,7 +287,7 @@ input_hugepage() {
 input_kernel_suffix() {
   local -n varref="$1"; local msg=
   msg+="Enter a custom kernel suffix?\n"
-  msg+="E.g. { bmq, bore, pds, rt, or 618, 618-bmq, 618-bore, 618-pds, 618-rt }\n"
+  msg+="E.g. { bmq, pds, rt, or 618, 618-bmq, 618-pds, 618-rt }\n"
   msg+="\n"
   msg+="Enter 'auto' for automatic suffix { gcc, clang, lto }.\n"
   msg+="Enter 'blank' to clear the value.\n"
@@ -708,7 +711,7 @@ main_loop() {
       return # pressed the Esc key or selected "Exit"
     elif [ "$conf" = "New/Open config..." ]; then
       selected="New/Open config..."
-      emsg "Enter new config name? E.g. 618, 618-bore, 618-bmq"
+      emsg "Enter new config name? E.g. 618, 618-bmq"
       emsg "This will open the config if it exists.\n"
 
       conf=$(gum input --placeholder "")

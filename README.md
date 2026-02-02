@@ -62,14 +62,12 @@ examples are provided for demonstration.
 ```bash
 sudo pacman -U linux-cachymod-[6dh]*.zst
 sudo pacman -U linux-cachymod-bmq-[6dh]*.zst
-sudo pacman -U linux-cachymod-bore-[6dh]*.zst
 sudo pacman -U linux-cachymod-pds-[6dh]*.zst
 sudo pacman -U linux-cachymod-rt-[6dh]*.zst
 
 # with kernel tag
 sudo pacman -U linux-cachymod-618-[6dh]*.zst
 sudo pacman -U linux-cachymod-618-bmq-[6dh]*.zst
-sudo pacman -U linux-cachymod-618-bore-[6dh]*.zst
 sudo pacman -U linux-cachymod-618-pds-[6dh]*.zst
 sudo pacman -U linux-cachymod-618-rt-[6dh]*.zst
 ```
@@ -90,7 +88,7 @@ If you're running CPU-intensive background tasks or make jobs, refer to
 [linux-cgroup-always](https://github.com/marioroy/linux-cgroup-always)
 for Ghostty-like `linux-cgroup = always` feature with your terminal emulator.
 
-This can be used with EEVDF and BORE.
+This can be used with EEVDF.
 
 ## Developer Notes
 
