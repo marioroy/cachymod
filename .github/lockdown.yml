@@ -2,4 +2,4 @@
 lock: true
 
 # Limit to only `issues` or `pulls`
-# only: pull
+only: pull
