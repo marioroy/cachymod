@@ -51,6 +51,10 @@
 # This is the diet db from Linux-tkg
 : ${_localmodcfg_minimal:=no}
 
+# Enable Piece-Of-Cake (POC) CPU Selector
+#A kernel patch that accelerates idle CPU discovery using per-LLC atomic bitmasks, achieving O(1) lookup instead of linear scanning.
+: ${_poc_selector:=yes}
+
 # Enable TCP_CONG_BBR3
 : ${_tcp_bbr3:=no}
 
@@ -220,6 +224,11 @@ if [[ "$_autofdo" =~ ^(yes|y|1)$ && -n "$_autofdo_profile_name" ]]; then
     else
         _die "Failed to find file ${_autofdo_profile_name}"
     fi
+fi
+
+# Enable Piece-Of-Cake (POC) CPU Selector
+if [[ "$_poc_selector" =~ ^(yes|y|1)$ ]]; then
+	source+=("poc-selector.patch")
 fi
 
 # Append extra sources in build.sh
@@ -434,7 +443,7 @@ prepare() {
 
     echo "Enabling USER_NS_UNPRIVILEGED"
     scripts/config -e USER_NS
-
+	
     ### Run the config.sh script for kernel tuning
     if [[ -s "${srcdir}"/config.sh ]]; then
         echo "Further kernel customization. Running config.sh script..."
