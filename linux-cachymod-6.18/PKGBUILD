@@ -228,7 +228,7 @@ fi
 
 # Enable Piece-Of-Cake (POC) CPU Selector
 if [[ "$_poc_selector" =~ ^(yes|y|1)$ ]]; then
-	source+=("poc-selector.patch")
+	source+=("0002-poc-selector.patch")
 fi
 
 # Append extra sources in build.sh
