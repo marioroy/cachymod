@@ -1,14 +1,32 @@
 
-Upstream miscellaneous scheduler fixes/cleanups:
-https://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git/tag/?h=sched-urgent-2025-12-06
-
-  - Remove a preempt-disable section in rt_mutex_setprio()
-  - Fix hrtick() vs. scheduling context bug
-
-Signed-off-by: Ingo Molnar <mingo@xxxxxxxxxx>
-
 sched/rt: Remove a preempt-disable section in rt_mutex_setprio()
 https://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git/commit/?h=sched/urgent&id=22abd832776b1317ae4c3f8a097c8b71bf83fb38
+
+rt_mutex_setprio() has only one caller: rt_mutex_adjust_prio(). It
+expects that task_struct::pi_lock and rt_mutex_base::wait_lock are held.
+Both locks are raw_spinlock_t and are acquired with disabled interrupts.
+
+Nevertheless rt_mutex_setprio() disables preemption while invoking
+__balance_callbacks() and raw_spin_rq_unlock(). Even if one of the
+balance callbacks unlocks the rq then it must not enable interrupts
+because rt_mutex_base::wait_lock is still locked.
+Therefore interrupts should remain disabled and disabling preemption is
+not needed.
+
+Commit 4c9a4bc89a9cc ("sched: Allow balance callbacks for check_class_changed()")
+adds a preempt-disable section to rt_mutex_setprio() and
+__sched_setscheduler(). In __sched_setscheduler() the preemption is
+disabled before rq is unlocked and interrupts enabled but I don't see
+why it makes a difference in rt_mutex_setprio().
+
+Remove the preempt_disable() section from rt_mutex_setprio().
+
+Signed-off-by: Sebastian Andrzej Siewior <bigeasy@xxxxxxxxxx>
+Signed-off-by: Peter Zijlstra (Intel) <peterz@xxxxxxxxxx>
+Signed-off-by: Ingo Molnar <mingo@xxxxxxxxxx>
+---
+ kernel/sched/core.c | 5 +----
+ 1 file changed, 1 insertions(+), 4 deletions(-)
 
 diff --git a/kernel/sched/core.c b/kernel/sched/core.c
 index 1711e9e501003a..ee7dfbf01792e5 100644
@@ -36,6 +54,20 @@ index 1711e9e501003a..ee7dfbf01792e5 100644
 sched/hrtick: Fix hrtick() vs. scheduling context
 https://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git/commit/?h=sched/urgent&id=e38e5299747b23015b00b0109891815db44a2f30
 
+The sched_class::task_tick() method is called on the donor
+sched_class, and sched_tick() hands it rq->donor as argument,
+which is consistent.
+
+However, while hrtick() uses the donor sched_class, it then passes
+rq->curr, which is inconsistent. Fix it.
+
+Signed-off-by: Peter Zijlstra (Intel) <peterz@xxxxxxxxxx>
+Signed-off-by: Ingo Molnar <mingo@xxxxxxxxxx>
+Acked-by: John Stultz <jstultz@xxxxxxxxxx>
+---
+ kernel/sched/core.c | 2 +-
+ 1 file changed, 1 insertions(+), 1 deletions(-)
+
 diff --git a/kernel/sched/core.c b/kernel/sched/core.c
 index fc358c1b6ca987..1711e9e501003a 100644
 --- a/kernel/sched/core.c
@@ -51,101 +83,4 @@ index fc358c1b6ca987..1711e9e501003a 100644
  	return HRTIMER_NORESTART;
 -- 
 2.47.1
-
-sched: update rq->avg_idle when a task is moved to an idle CPU
-https://lore.kernel.org/all/20260121-v8-patch-series-v8-1-b7f1cbee5055@os.amperecomputing.com/
-
-Currently, rq->idle_stamp is only used to calculate avg_idle during
-wakeups. This means other paths that move a task to an idle CPU such as
-fork/clone, execve, or migrations, do not end the CPU's idle status in
-the scheduler's eyes, leading to an inaccurate avg_idle.
-
-This patch introduces update_rq_avg_idle() to provide a more accurate
-measurement of CPU idle duration. By invoking this helper in
-put_prev_task_idle(), we ensure avg_idle is updated whenever a CPU
-stops being idle, regardless of how the new task arrived.
-
-Testing on an 80-core Ampere Altra (ARMv8) with 6.19-rc5 baseline:
- - Hackbench : +7.2% performance gain at 16 threads.
- - Schbench: Reduced p99.9 tail latencies at high concurrency.
-
-Signed-off-by: Shubhang Kaushik <shubhang@xxxxxxxxxx>
-Signed-off-by: Peter Zijlstra (Intel) <peterz@xxxxxxxxxx>
-Reviewed-by: Vincent Guittot <vincent.guittot@xxxxxxxxxx>
-Tested-by: Shubhang Kaushik <shubhang@xxxxxxxxxx>
----
- kernel/sched/core.c  | 24 ++++++++++++------------
- kernel/sched/idle.c  |  1 +
- kernel/sched/sched.h |  1 +
- 3 files changed, 14 insertions(+), 12 deletions(-)
-
-diff --git a/kernel/sched/core.c b/kernel/sched/core.c
-index 045f83ad261e25283d290fd064ad47cd2399dc79..81a841e22c961ff04ad291eeeed81147fd464324 100644
---- a/kernel/sched/core.c
-+++ b/kernel/sched/core.c
-@@ -3677,6 +3677,18 @@ static inline void ttwu_do_wakeup(struct task_struct *p)
- 	trace_sched_wakeup(p);
- }
- 
-+void update_rq_avg_idle(struct rq *rq)
-+{
-+	u64 delta = rq_clock(rq) - rq->idle_stamp;
-+	u64 max = 2*rq->max_idle_balance_cost;
-+
-+	update_avg(&rq->avg_idle, delta);
-+
-+	if (rq->avg_idle > max)
-+		rq->avg_idle = max;
-+	rq->idle_stamp = 0;
-+}
-+
- static void
- ttwu_do_activate(struct rq *rq, struct task_struct *p, int wake_flags,
- 		 struct rq_flags *rf)
-@@ -3712,18 +3724,6 @@ ttwu_do_activate(struct rq *rq, struct task_struct *p, int wake_flags,
- 		p->sched_class->task_woken(rq, p);
- 		rq_repin_lock(rq, rf);
- 	}
--
--	if (rq->idle_stamp) {
--		u64 delta = rq_clock(rq) - rq->idle_stamp;
--		u64 max = 2*rq->max_idle_balance_cost;
--
--		update_avg(&rq->avg_idle, delta);
--
--		if (rq->avg_idle > max)
--			rq->avg_idle = max;
--
--		rq->idle_stamp = 0;
--	}
- }
- 
- /*
-diff --git a/kernel/sched/idle.c b/kernel/sched/idle.c
-index c174afe1dd177a22535417be0de1fc1b690c0368..36ddc5bcfa0383bd4d07d3c8b732ee5b8567d194 100644
---- a/kernel/sched/idle.c
-+++ b/kernel/sched/idle.c
-@@ -456,6 +456,7 @@ static void put_prev_task_idle(struct rq *rq, struct task_struct *prev, struct t
- {
- 	dl_server_update_idle_time(rq, prev, &rq->fair_server);
- 	scx_update_idle(rq, false, true);
-+	update_rq_avg_idle(rq);
- }
- 
- static void set_next_task_idle(struct rq *rq, struct task_struct *next, bool first)
-diff --git a/kernel/sched/sched.h b/kernel/sched/sched.h
-index 93fce4bbff5eac1d4719394e89dfae886b74d865..7edf8600f2c3f45afa32bc73db2155ea6e0067f0 100644
---- a/kernel/sched/sched.h
-+++ b/kernel/sched/sched.h
-@@ -1658,6 +1658,7 @@ static inline struct cfs_rq *group_cfs_rq(struct sched_entity *grp)
- 
- #endif /* !CONFIG_FAIR_GROUP_SCHED */
- 
-+extern void update_rq_avg_idle(struct rq *rq);
- extern void update_rq_clock(struct rq *rq);
- 
- /*
-
--- 
-2.43.0
 

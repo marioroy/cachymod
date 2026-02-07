@@ -1,0 +1,320 @@
+
+Subject: [PATCH] bore-base-slice-cachy
+
+About 21% of BORE code is setting base_slice_ns based on the Hz value,
+plus /sys/kernel/debug support for changing the minimal base_slice_ns
+value. This part is beneficial for any eevdf kernels.
+
+Sometimes, I wish BORE were two patches { base_slice stuff in 1st patch,
+bore logic in 2nd patch }. That way, any eevdf kernels that prefer
+interactivity via cgroup isolation can apply the first patch only.
+
+Plus, half vlag and disable RUN_TO_PARITY.
+
+Signed-off-by: Mario Roy <>
+---
+ init/Kconfig            |  8 ++
+ kernel/Kconfig.hz       | 17 ++
+ kernel/sched/debug.c    | 55 ++++++
+ kernel/sched/fair.c     | 49 +++--
+ kernel/sched/features.h |  2 +-
+ kernel/sched/sched.h    |  9 +
+ 6 files changed, 123 insertions(+), 17 deletions(-)
+
+diff --git a/init/Kconfig b/init/Kconfig
+index 3a664a42c..5f55a077b 100644
+--- a/init/Kconfig
++++ b/init/Kconfig
+@@ -1443,6 +1443,14 @@ config CHECKPOINT_RESTORE
+ 
+ 	  If unsure, say N here.
+ 
++config SCHED_BORE
++	bool "Use Burst-Oriented Response Enhancer base_slice tuning"
++	default y
++	help
++	  In Desktop and Mobile computing, one might prefer more smoothness.
++
++	  If unsure, say Y here.
++
+ config SCHED_AUTOGROUP
+ 	bool "Automatic process group scheduling"
+ 	select CGROUPS
+diff --git a/kernel/Kconfig.hz b/kernel/Kconfig.hz
+index e1359db55..31053e619 100644
+--- a/kernel/Kconfig.hz
++++ b/kernel/Kconfig.hz
+@@ -99,3 +99,20 @@ config HZ
+ 
+ config SCHED_HRTICK
+ 	def_bool HIGH_RES_TIMERS
++
++config MIN_BASE_SLICE_NS
++	int "Default value for min_base_slice_ns"
++	default 1600000
++	help
++	 The BORE Scheduler automatically calculates the optimal base
++	 slice for the configured HZ using the following equation:
++	 
++	 base_slice_ns =
++	 	800000000/HZ * DIV_ROUNDUP(min_base_slice_ns, 800000000/HZ)
++	 
++	 This option sets the default lower bound limit of the base slice
++	 to prevent the loss of task throughput due to overscheduling.
++	 
++	 Setting this value too high can cause the system to boot with
++	 an unnecessarily large base slice, resulting in high scheduling
++	 latency and poor system responsiveness.
+diff --git a/kernel/sched/debug.c b/kernel/sched/debug.c
+index 41caa22e0..1c5ace627 100644
+--- a/kernel/sched/debug.c
++++ b/kernel/sched/debug.c
+@@ -169,6 +169,53 @@ static const struct file_operations sched_feat_fops = {
+ 	.release	= single_release,
+ };
+ 
++#ifdef CONFIG_SCHED_BORE
++#define DEFINE_SYSCTL_SCHED_FUNC(name, update_func) \
++static ssize_t sched_##name##_write(struct file *filp, const char __user *ubuf, size_t cnt, loff_t *ppos) \
++{ \
++	char buf[16]; \
++	unsigned int value; \
++\
++	if (cnt > 15) \
++		cnt = 15; \
++\
++	if (copy_from_user(&buf, ubuf, cnt)) \
++		return -EFAULT; \
++	buf[cnt] = '\0'; \
++\
++	if (kstrtouint(buf, 10, &value)) \
++		return -EINVAL; \
++\
++	sysctl_sched_##name = value; \
++	sched_update_##update_func(); \
++\
++	*ppos += cnt; \
++	return cnt; \
++} \
++\
++static int sched_##name##_show(struct seq_file *m, void *v) \
++{ \
++	seq_printf(m, "%d\n", sysctl_sched_##name); \
++	return 0; \
++} \
++\
++static int sched_##name##_open(struct inode *inode, struct file *filp) \
++{ \
++	return single_open(filp, sched_##name##_show, NULL); \
++} \
++\
++static const struct file_operations sched_##name##_fops = { \
++	.open		= sched_##name##_open, \
++	.write		= sched_##name##_write, \
++	.read		= seq_read, \
++	.llseek		= seq_lseek, \
++	.release	= single_release, \
++};
++
++DEFINE_SYSCTL_SCHED_FUNC(min_base_slice, min_base_slice)
++
++#undef DEFINE_SYSCTL_SCHED_FUNC
++#else /* !CONFIG_SCHED_BORE */
+ static ssize_t sched_scaling_write(struct file *filp, const char __user *ubuf,
+ 				   size_t cnt, loff_t *ppos)
+ {
+@@ -214,6 +261,7 @@ static const struct file_operations sched_scaling_fops = {
+ 	.llseek		= seq_lseek,
+ 	.release	= single_release,
+ };
++#endif /* CONFIG_SCHED_BORE */
+ 
+ #ifdef CONFIG_PREEMPT_DYNAMIC
+ 
+@@ -606,12 +654,19 @@ static __init int sched_init_debug(void)
+ 	debugfs_create_file("preempt", 0644, debugfs_sched, NULL, &sched_dynamic_fops);
+ #endif
+ 
++#ifdef CONFIG_SCHED_BORE
++	debugfs_create_file("min_base_slice_ns", 0644, debugfs_sched, NULL, &sched_min_base_slice_fops);
++	debugfs_create_u32("base_slice_ns", 0444, debugfs_sched, &sysctl_sched_base_slice);
++#else /* !CONFIG_SCHED_BORE */
+ 	debugfs_create_u32("base_slice_ns", 0644, debugfs_sched, &sysctl_sched_base_slice);
++#endif /* CONFIG_SCHED_BORE */
+ 
+ 	debugfs_create_u32("latency_warn_ms", 0644, debugfs_sched, &sysctl_resched_latency_warn_ms);
+ 	debugfs_create_u32("latency_warn_once", 0644, debugfs_sched, &sysctl_resched_latency_warn_once);
+ 
++#if !defined(CONFIG_SCHED_BORE)
+ 	debugfs_create_file("tunable_scaling", 0644, debugfs_sched, NULL, &sched_scaling_fops);
++#endif /* CONFIG_SCHED_BORE */
+ 	debugfs_create_u32("migration_cost_ns", 0644, debugfs_sched, &sysctl_sched_migration_cost);
+ 	debugfs_create_u32("nr_migrate", 0644, debugfs_sched, &sysctl_sched_nr_migrate);
+ 
+diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
+index f29c544a6..948a1f97f 100644
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -67,28 +67,32 @@
+  *   SCHED_TUNABLESCALING_LOG - scaled logarithmically, *1+ilog(ncpus)
+  *   SCHED_TUNABLESCALING_LINEAR - scaled linear, *ncpus
+  *
+- * (default SCHED_TUNABLESCALING_LOG = *(1+ilog(ncpus))
++ * BORE : default SCHED_TUNABLESCALING_NONE = *1 constant
++ * EEVDF: default SCHED_TUNABLESCALING_LOG  = *(1+ilog(ncpus))
+  */
++#ifdef CONFIG_SCHED_BORE
++unsigned int sysctl_sched_tunable_scaling = SCHED_TUNABLESCALING_NONE;
++#else /* !CONFIG_SCHED_BORE */
+ unsigned int sysctl_sched_tunable_scaling = SCHED_TUNABLESCALING_LOG;
++#endif /* CONFIG_SCHED_BORE */
+ 
+ /*
+  * Minimal preemption granularity for CPU-bound tasks:
+  *
+- * (default: 0.70 msec * (1 + ilog(ncpus)), units: nanoseconds)
++ * BORE : base_slice = minimum multiple of nsecs_per_tick >= min_base_slice
++ * (default min_base_slice = 2000000 constant, units: nanoseconds)
++ * EEVDF: default 0.70 msec * (1 + ilog(ncpus)), units: nanoseconds
+  */
+-#ifdef CONFIG_CACHY
+-unsigned int sysctl_sched_base_slice			= 350000ULL;
+-static unsigned int normalized_sysctl_sched_base_slice	= 350000ULL;
+-#else
++#ifdef CONFIG_SCHED_BORE
++static const unsigned int nsecs_per_tick       = 800000000ULL / HZ;
++unsigned int sysctl_sched_min_base_slice       = CONFIG_MIN_BASE_SLICE_NS;
++__read_mostly uint sysctl_sched_base_slice     = nsecs_per_tick;
++#else /* !CONFIG_SCHED_BORE */
+ unsigned int sysctl_sched_base_slice			= 700000ULL;
+ static unsigned int normalized_sysctl_sched_base_slice	= 700000ULL;
+-#endif /* CONFIG_CACHY */
++#endif /* CONFIG_SCHED_BORE */
+ 
+-#ifdef CONFIG_CACHY
+-__read_mostly unsigned int sysctl_sched_migration_cost	= 300000UL;
+-#else
+-__read_mostly unsigned int sysctl_sched_migration_cost	= 500000UL;
++__read_mostly unsigned int sysctl_sched_migration_cost	= 400000UL;
+-#endif
+ 
+ static int __init setup_sched_thermal_decay_shift(char *str)
+ {
+@@ -131,12 +135,8 @@ int __weak arch_asym_cpu_priority(int cpu)
+  *
+  * (default: 5 msec, units: microseconds)
+  */
+-#ifdef CONFIG_CACHY
+-static unsigned int sysctl_sched_cfs_bandwidth_slice		= 3000UL;
+-#else
+ static unsigned int sysctl_sched_cfs_bandwidth_slice		= 5000UL;
+ #endif
+-#endif
+ 
+ #ifdef CONFIG_NUMA_BALANCING
+ /* Restrict the NUMA promotion throughput (MB/s) for each target node. */
+@@ -202,6 +202,13 @@ static inline void update_load_set(struct load_weight *lw, unsigned long w)
+  *
+  * This idea comes from the SD scheduler of Con Kolivas:
+  */
++#ifdef CONFIG_SCHED_BORE
++static void update_sysctl(void) {
++	sysctl_sched_base_slice = nsecs_per_tick *
++		max(1UL, DIV_ROUND_UP(sysctl_sched_min_base_slice, nsecs_per_tick));
++}
++void sched_update_min_base_slice(void) { update_sysctl(); }
++#else /* !CONFIG_SCHED_BORE */
+ static unsigned int get_update_sysctl_factor(void)
+ {
+ 	unsigned int cpus = min_t(unsigned int, num_online_cpus(), 8);
+@@ -232,6 +239,7 @@ static void update_sysctl(void)
+ 	SET_SYSCTL(sched_base_slice);
+ #undef SET_SYSCTL
+ }
++#endif /* CONFIG_SCHED_BORE */
+ 
+ void __init sched_init_granularity(void)
+ {
+@@ -711,6 +719,9 @@ static void update_entity_lag(struct cfs_rq *cfs_rq, struct sched_entity *se)
+ 
+ 	vlag = avg_vruntime(cfs_rq) - se->vruntime;
+ 	limit = calc_delta_fair(max_t(u64, 2*se->slice, TICK_NSEC), se);
++#ifdef CONFIG_SCHED_BORE   
++	limit >>= 1; 
++#endif /* CONFIG_SCHED_BORE */ 
+ 
+ 	se->vlag = clamp(vlag, -limit, limit);
+ }
+@@ -878,7 +889,11 @@ struct sched_entity *__pick_first_entity(struct cfs_rq *cfs_rq)
+  */
+ static inline void set_protect_slice(struct cfs_rq *cfs_rq, struct sched_entity *se)
+ {
++#ifdef CONFIG_SCHED_BORE
++	u64 slice = sysctl_sched_base_slice;
++#else /* CONFIG_SCHED_BORE */
+ 	u64 slice = normalized_sysctl_sched_base_slice;
++#endif /* CONFIG_SCHED_BORE */
+ 	u64 vprot = se->deadline;
+ 
+ 	if (sched_feat(RUN_TO_PARITY))
+@@ -1007,6 +1022,7 @@ struct sched_entity *__pick_last_entity(struct cfs_rq *cfs_rq)
+ /**************************************************************
+  * Scheduling class statistics methods:
+  */
++#if !defined(CONFIG_SCHED_BORE)
+ int sched_update_scaling(void)
+ {
+ 	unsigned int factor = get_update_sysctl_factor();
+@@ -1018,6 +1034,7 @@ int sched_update_scaling(void)
+ 
+ 	return 0;
+ }
++#endif /* CONFIG_SCHED_BORE */
+ 
+ static void clear_buddies(struct cfs_rq *cfs_rq, struct sched_entity *se);
+ 
+diff --git a/kernel/sched/features.h b/kernel/sched/features.h
+index 3c12d9f933..abadc5ca74 100644
+--- a/kernel/sched/features.h  
++++ b/kernel/sched/features.h 
+@@ -17,7 +17,7 @@ SCHED_FEAT(PLACE_REL_DEADLINE, true)
+  * Inhibit (wakeup) preemption until the current task has either matched the
+  * 0-lag point or until is has exhausted it's slice.
+  */
+-SCHED_FEAT(RUN_TO_PARITY, true)
++SCHED_FEAT(RUN_TO_PARITY, false)
+ /*
+  * Allow wakeup of tasks with a shorter slice to cancel RUN_TO_PARITY for
+  * current.
+diff --git a/kernel/sched/sched.h b/kernel/sched/sched.h
+index a3f52e493..8124507c2 100644
+--- a/kernel/sched/sched.h
++++ b/kernel/sched/sched.h
+@@ -2145,7 +2145,11 @@ extern int group_balance_cpu(struct sched_group *sg);
+ extern void update_sched_domain_debugfs(void);
+ extern void dirty_sched_domain_sysctl(int cpu);
+ 
++#ifdef CONFIG_SCHED_BORE
++extern void sched_update_min_base_slice(void);
++#else /* !CONFIG_SCHED_BORE */
+ extern int sched_update_scaling(void);
++#endif /* CONFIG_SCHED_BORE */
+ 
+ static inline const struct cpumask *task_user_cpus(struct task_struct *p)
+ {
+@@ -2824,7 +2828,12 @@ extern void wakeup_preempt(struct rq *rq, struct task_struct *p, int flags);
+ extern __read_mostly unsigned int sysctl_sched_nr_migrate;
+ extern __read_mostly unsigned int sysctl_sched_migration_cost;
+ 
++#ifdef CONFIG_SCHED_BORE
++extern unsigned int sysctl_sched_min_base_slice;
++extern __read_mostly uint sysctl_sched_base_slice;
++#else /* !CONFIG_SCHED_BORE */
+ extern unsigned int sysctl_sched_base_slice;
++#endif /* CONFIG_SCHED_BORE */
+ 
+ extern int sysctl_resched_latency_warn_ms;
+ extern int sysctl_resched_latency_warn_once;
+-- 
+2.52.0
+

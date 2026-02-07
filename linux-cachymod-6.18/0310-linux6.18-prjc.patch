@@ -317,7 +317,7 @@ index b469878de..020c6a82b 100644
  #define TASK_REPORT_IDLE	(TASK_REPORT + 1)
  #define TASK_REPORT_MAX		(TASK_REPORT_IDLE << 1)
  
-@@ -2246,7 +2278,11 @@ static inline void set_task_cpu(struct task_struct *p, unsigned int cpu)
+@@ -2251,7 +2283,11 @@ static inline void set_task_cpu(struct task_struct *p, unsigned int cpu)
  
  static inline bool task_is_runnable(struct task_struct *p)
  {
@@ -329,7 +329,7 @@ index b469878de..020c6a82b 100644
  }
  
  extern bool sched_task_on_rq(struct task_struct *p);
-@@ -2343,6 +2379,25 @@ DECLARE_PER_CPU_SHARED_ALIGNED(struct rq, runqueues);
+@@ -2348,6 +2384,25 @@ DECLARE_PER_CPU_SHARED_ALIGNED(struct rq, runqueues);
  #endif
  #define this_rq_pinned() (*(unsigned int *)((void *)this_rq_raw() + RQ_nr_pinned))
  
@@ -355,7 +355,7 @@ index b469878de..020c6a82b 100644
  static inline void __migrate_enable(void)
  {
  	struct task_struct *p = current;
-@@ -2366,8 +2421,17 @@ static inline void __migrate_enable(void)
+@@ -2371,8 +2426,17 @@ static inline void __migrate_enable(void)
  	 * __set_cpus_allowed_ptr(SCA_MIGRATE_ENABLE) doesn't schedule().
  	 */
  	guard(preempt)();
@@ -373,7 +373,7 @@ index b469878de..020c6a82b 100644
  	/*
  	 * Mustn't clear migration_disabled() until cpus_ptr points back at the
  	 * regular cpus_mask, otherwise things that race (eg.
-@@ -2394,8 +2458,20 @@ static inline void __migrate_disable(void)
+@@ -2399,8 +2463,20 @@ static inline void __migrate_disable(void)
  	}
  
  	guard(preempt)();
@@ -10429,7 +10429,7 @@ index c39b089d4..9903f1d96 100644
  /*
   * idle-task scheduling class.
   */
-@@ -546,3 +547,4 @@ DEFINE_SCHED_CLASS(idle) = {
+@@ -545,3 +546,4 @@ DEFINE_SCHED_CLASS(idle) = {
  	.switched_to		= switched_to_idle,
  	.update_curr		= update_curr_idle,
  };
@@ -10667,7 +10667,7 @@ index 2f8b06b12..139c1cc8f 100644
  #include <linux/sched/affinity.h>
  #include <linux/sched/autogroup.h>
  #include <linux/sched/cpufreq.h>
-@@ -3920,4 +3924,9 @@ void sched_enq_and_set_task(struct sched_enq_and_set_ctx *ctx);
+@@ -3919,4 +3923,9 @@ void sched_enq_and_set_task(struct sched_enq_and_set_ctx *ctx);
  
  #include "ext.h"
  

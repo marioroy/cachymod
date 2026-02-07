@@ -632,38 +632,58 @@ index 78c045a5ef03..b7c818cabe44 100644
 -- 
 2.34.1
 
-Revert "drm/amd: Check if ASPM is enabled from PCIe subsystem"
-https://lore.kernel.org/all/20260201002508.1293510-1-spasswolf@web.de/
+drm/amd: Fix hang on amdgpu unload by using pci_dev_is_disconnected()
+https://lore.kernel.org/all/20260205164254.4091912-1-mario.limonciello@amd.com/
 
-This reverts commit 7294863a6f01248d72b61d38478978d638641bee.
+The commit 28695ca09d32 ("drm/amd: Clean up kfd node on surprise
+disconnect") introduced early KFD cleanup when drm_dev_is_unplugged()
+returns true. However, this causes hangs during normal module unload
+(rmmod amdgpu).
 
-This commit was erroneously applied again after commit 0ab5d711ec74 
-("drm/amd: Refactor `amdgpu_aspm` to be evaluated per device")
-removed it, leading to very hard to debug crashes, when used with a system with two
-AMD GPUs of which only one supports ASPM.
+The issue occurs because drm_dev_unplug() is called in amdgpu_pci_remove()
+for all removal scenarios, not just surprise disconnects. This was done
+intentionally in commit 39934d3ed5725c ("Revert "drm/amdgpu: TA unload
+messages are not actually sent to psp when amdgpu is uninstalled"") to
+fix IGT PCI software unplug test failures. As a result,
+drm_dev_is_unplugged() returns true even during normal module unload,
+triggering the early KFD cleanup inappropriately.
 
-Link: https://github.com/acpica/acpica/issues/1060
-Fixes: 0ab5d711ec74 ("drm/amd: Refactor `amdgpu_aspm` to be evaluated per device")
+The correct check should distinguish between:
+ - Actual surprise disconnect (eGPU unplugged): pci_dev_is_disconnected()
+   returns true
+ - Normal module unload (rmmod): pci_dev_is_disconnected() returns false
 
-Signed-off-by: Bert Karwatzki <spasswolf@xxxxxxxxxx>
+Replace drm_dev_is_unplugged() with pci_dev_is_disconnected() to ensure
+the early cleanup only happens during true hardware disconnect events.
+
+Fixes: 28695ca09d32 ("drm/amd: Clean up kfd node on surprise disconnect")
+Signed-off-by: Mario Limonciello <mario.limonciello@xxxxxxxxxx>
 ---
- drivers/gpu/drm/amd/amdgpu/amdgpu_drv.c | 3 ---
- 1 file changed, 3 deletions(-)
+ drivers/gpu/drm/amd/amdgpu/amdgpu_device.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu_drv.c b/drivers/gpu/drm/amd/amdgpu/amdgpu_drv.c
-index 7333e19291cf..ec9516d6ae97 100644
---- a/drivers/gpu/drm/amd/amdgpu/amdgpu_drv.c
-+++ b/drivers/gpu/drm/amd/amdgpu/amdgpu_drv.c
-@@ -2369,9 +2369,6 @@ static int amdgpu_pci_probe(struct pci_dev *pdev,
- 			return -ENODEV;
- 	}
+diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu_device.c b/drivers/gpu/drm/amd/amdgpu/amdgpu_device.c
+index d2c3885de711f..8900e0dc8a61d 100644
+--- a/drivers/gpu/drm/amd/amdgpu/amdgpu_device.c
++++ b/drivers/gpu/drm/amd/amdgpu/amdgpu_device.c
+@@ -4989,7 +4989,7 @@ void amdgpu_device_fini_hw(struct amdgpu_device *adev)
+ 	 * before ip_fini_early to prevent kfd locking refcount issues by calling
+ 	 * amdgpu_amdkfd_suspend()
+ 	 */
+-	if (drm_dev_is_unplugged(adev_to_drm(adev)))
++	if (pci_dev_is_disconnected(adev->pdev))
+ 		amdgpu_amdkfd_device_fini_sw(adev);
  
--	if (amdgpu_aspm == -1 && !pcie_aspm_enabled(pdev))
--		amdgpu_aspm = 0;
--
- 	if (amdgpu_virtual_display ||
- 	    amdgpu_device_asic_has_dc_support(pdev, flags & AMD_ASIC_MASK))
- 		supports_atomic = true;
+ 	amdgpu_device_ip_fini_early(adev);
+@@ -5001,7 +5001,7 @@ void amdgpu_device_fini_hw(struct amdgpu_device *adev)
+ 
+ 	amdgpu_gart_dummy_page_fini(adev);
+ 
+-	if (drm_dev_is_unplugged(adev_to_drm(adev)))
++	if (pci_dev_is_disconnected(adev->pdev))
+ 		amdgpu_device_unmap_mmio(adev);
+ 
+ }
 -- 
-2.47.3
+2.52.0
 

@@ -46,7 +46,7 @@ diff --git a/kernel/sched/ext.c b/kernel/sched/ext.c
 index a677b3abb212c6..aea5b865a1d971 100644
 --- a/kernel/sched/ext.c
 +++ b/kernel/sched/ext.c
-@@ -4551,7 +4551,7 @@ static struct scx_sched *scx_alloc_and_add_sched(struct sched_ext_ops *ops)
+@@ -4552,7 +4552,7 @@ static struct scx_sched *scx_alloc_and_add_sched(struct sched_ext_ops *ops)
  	return ERR_PTR(ret);
  }
  
@@ -55,7 +55,7 @@ index a677b3abb212c6..aea5b865a1d971 100644
  			      const struct sched_ext_ops *ops)
  {
  	unsigned long long global_hotplug_seq;
-@@ -4568,8 +4568,11 @@ static void check_hotplug_seq(struct scx_sched *sch,
+@@ -4569,8 +4569,11 @@ static void check_hotplug_seq(struct scx_sched *sch,
  				 SCX_ECODE_ACT_RESTART | SCX_ECODE_RSN_HOTPLUG,
  				 "expected hotplug seq %llu did not match actual %llu",
  				 ops->hotplug_seq, global_hotplug_seq);
@@ -67,7 +67,7 @@ index a677b3abb212c6..aea5b865a1d971 100644
  }
  
  static int validate_ops(struct scx_sched *sch, const struct sched_ext_ops *ops)
-@@ -4671,7 +4674,11 @@ static int scx_enable(struct sched_ext_ops *ops, struct bpf_link *link)
+@@ -4672,7 +4675,11 @@ static int scx_enable(struct sched_ext_ops *ops, struct bpf_link *link)
  		if (((void (**)(void))ops)[i])
  			set_bit(i, sch->has_op);
  
@@ -222,7 +222,7 @@ diff --git a/kernel/sched/deadline.c b/kernel/sched/deadline.c
 index d3d8f04c7903fd..ceef85c3c18725 100644
 --- a/kernel/sched/deadline.c
 +++ b/kernel/sched/deadline.c
-@@ -3385,6 +3385,9 @@ static void __dl_clear_params(struct sched_dl_entity *dl_se)
+@@ -3591,6 +3591,9 @@ static void __dl_clear_params(struct sched_dl_entity *dl_se)
  	dl_se->dl_non_contending	= 0;
  	dl_se->dl_overrun		= 0;
  	dl_se->dl_server		= 0;
@@ -255,7 +255,7 @@ diff --git a/kernel/sched/deadline.c b/kernel/sched/deadline.c
 index ceef85c3c18725..fdbd8426b8fdd3 100644
 --- a/kernel/sched/deadline.c
 +++ b/kernel/sched/deadline.c
-@@ -1667,7 +1667,12 @@ int dl_server_apply_params(struct sched_dl_entity *dl_se, u64 runtime, u64 perio
+@@ -1873,7 +1873,12 @@ int dl_server_apply_params(struct sched_dl_entity *dl_se, u64 runtime, u64 perio
  	cpus = dl_bw_cpus(cpu);
  	cap = dl_bw_capacity(cpu);
  
@@ -294,7 +294,7 @@ diff --git a/kernel/sched/deadline.c b/kernel/sched/deadline.c
 index fdbd8426b8fdd3..df6c73fc8742f1 100644
 --- a/kernel/sched/deadline.c
 +++ b/kernel/sched/deadline.c
-@@ -1541,26 +1541,26 @@ static void update_curr_dl_se(struct rq *rq, struct sched_dl_entity *dl_se, s64
+@@ -1547,26 +1547,26 @@ static void update_curr_dl_se(struct rq *rq, struct sched_dl_entity *dl_se, s64
   * as time available for the fair server, avoiding a penalty for the
   * rt scheduler that did not consumed that time.
   */
@@ -434,7 +434,7 @@ index df6c73fc8742f1..121ce657eb0d4f 100644
  #ifdef CONFIG_RT_MUTEXES
  static inline struct sched_dl_entity *pi_of(struct sched_dl_entity *dl_se)
  {
-@@ -1602,10 +1597,12 @@ void dl_server_stop(struct sched_dl_entity *dl_se)
+@@ -1808,10 +1803,12 @@ void dl_server_stop(struct sched_dl_entity *dl_se)
  }
  
  void dl_server_init(struct sched_dl_entity *dl_se, struct rq *rq,
@@ -448,7 +448,7 @@ index df6c73fc8742f1..121ce657eb0d4f 100644
  }
  
  void sched_init_dl_servers(void)
-@@ -2272,8 +2269,12 @@ static void check_preempt_equal_dl(struct rq *rq, struct task_struct *p)
+@@ -2478,8 +2475,12 @@ static void check_preempt_equal_dl(struct rq *rq, struct task_struct *p)
  	resched_curr(rq);
  }
  
@@ -461,7 +461,7 @@ index df6c73fc8742f1..121ce657eb0d4f 100644
  	if (!on_dl_rq(&p->dl) && need_pull_dl_task(rq, p)) {
  		/*
  		 * This is OK, because current is on_cpu, which avoids it being
-@@ -2286,6 +2287,9 @@ static int balance_dl(struct rq *rq, struct task_struct *p, struct rq_flags *rf)
+@@ -2492,6 +2493,9 @@ static int balance_dl(struct rq *rq, struct task_struct *p, struct rq_flags *rf)
  		rq_repin_lock(rq, rf);
  	}
  
@@ -596,7 +596,7 @@ diff --git a/kernel/sched/deadline.c b/kernel/sched/deadline.c
 index 121ce657eb0d4f..a346d811db8d1b 100644
 --- a/kernel/sched/deadline.c
 +++ b/kernel/sched/deadline.c
-@@ -1497,7 +1497,7 @@ static void update_curr_dl_se(struct rq *rq, struct sched_dl_entity *dl_se, s64
+@@ -1503,7 +1503,7 @@ static void update_curr_dl_se(struct rq *rq, struct sched_dl_entity *dl_se, s64
  	 * The fair server (sole dl_server) does not account for real-time
  	 * workload because it is running fair work.
  	 */
@@ -647,7 +647,7 @@ index aea5b865a1d971..9139af6c21e0ac 100644
  	return true;
  }
  
-@@ -3048,6 +3065,15 @@ static void switching_to_scx(struct rq *rq, struct task_struct *p)
+@@ -3049,6 +3066,15 @@ static void switching_to_scx(struct rq *rq, struct task_struct *p)
  static void switched_from_scx(struct rq *rq, struct task_struct *p)
  {
  	scx_disable_task(p);
@@ -663,7 +663,7 @@ index aea5b865a1d971..9139af6c21e0ac 100644
  }
  
  static void wakeup_preempt_scx(struct rq *rq, struct task_struct *p,int wake_flags) {}
-@@ -6436,8 +6462,8 @@ __bpf_kfunc u32 scx_bpf_cpuperf_cur(s32 cpu)
+@@ -6447,8 +6473,8 @@ __bpf_kfunc u32 scx_bpf_cpuperf_cur(s32 cpu)
   * relative scale between 0 and %SCX_CPUPERF_ONE. This determines how the
   * schedutil cpufreq governor chooses the target frequency.
   *
@@ -674,7 +674,7 @@ index aea5b865a1d971..9139af6c21e0ac 100644
   * use. Consult hardware and cpufreq documentation for more information. The
   * current performance level can be monitored using scx_bpf_cpuperf_cur().
   */
-@@ -6809,6 +6835,37 @@ BTF_ID_FLAGS(func, scx_bpf_now)
+@@ -6820,6 +6846,37 @@ BTF_ID_FLAGS(func, scx_bpf_now)
  BTF_ID_FLAGS(func, scx_bpf_events, KF_TRUSTED_ARGS)
  BTF_KFUNCS_END(scx_kfunc_ids_any)
  
@@ -1037,7 +1037,7 @@ diff --git a/kernel/sched/deadline.c b/kernel/sched/deadline.c
 index a346d811db8d1b..5f84afebbc9b81 100644
 --- a/kernel/sched/deadline.c
 +++ b/kernel/sched/deadline.c
-@@ -1682,6 +1682,12 @@ int dl_server_apply_params(struct sched_dl_entity *dl_se, u64 runtime, u64 perio
+@@ -1888,6 +1888,12 @@ int dl_server_apply_params(struct sched_dl_entity *dl_se, u64 runtime, u64 perio
  		dl_rq_change_utilization(rq, dl_se, new_bw);
  	}
  
@@ -1050,7 +1050,7 @@ index a346d811db8d1b..5f84afebbc9b81 100644
  	dl_se->dl_runtime = runtime;
  	dl_se->dl_deadline = period;
  	dl_se->dl_period = period;
-@@ -1695,6 +1701,31 @@ int dl_server_apply_params(struct sched_dl_entity *dl_se, u64 runtime, u64 perio
+@@ -1901,6 +1907,31 @@ int dl_server_apply_params(struct sched_dl_entity *dl_se, u64 runtime, u64 perio
  	return retval;
  }
  
@@ -1118,7 +1118,7 @@ diff --git a/kernel/sched/deadline.c b/kernel/sched/deadline.c
 index 5f84afebbc9b81..f1b1cb19e6e036 100644
 --- a/kernel/sched/deadline.c
 +++ b/kernel/sched/deadline.c
-@@ -2989,9 +2989,17 @@ void dl_clear_root_domain(struct root_domain *rd)
+@@ -3195,9 +3195,17 @@ void dl_clear_root_domain(struct root_domain *rd)
  	 * them, we need to account for them here explicitly.
  	 */
  	for_each_cpu(i, rd->span) {
@@ -1138,7 +1138,7 @@ index 5f84afebbc9b81..f1b1cb19e6e036 100644
  			__dl_add(&rd->dl_bw, dl_se->dl_bw, dl_bw_cpus(i));
  	}
  }
-@@ -3486,6 +3494,7 @@ static int dl_bw_manage(enum dl_bw_request req, int cpu, u64 dl_bw)
+@@ -3692,6 +3700,7 @@ static int dl_bw_manage(enum dl_bw_request req, int cpu, u64 dl_bw)
  	struct dl_bw *dl_b;
  	bool overflow = 0;
  	u64 fair_server_bw = 0;
@@ -1146,7 +1146,7 @@ index 5f84afebbc9b81..f1b1cb19e6e036 100644
  
  	rcu_read_lock_sched();
  	dl_b = dl_bw_of(cpu);
-@@ -3518,27 +3527,31 @@ static int dl_bw_manage(enum dl_bw_request req, int cpu, u64 dl_bw)
+@@ -3724,27 +3733,31 @@ static int dl_bw_manage(enum dl_bw_request req, int cpu, u64 dl_bw)
  		cap -= arch_scale_cpu_capacity(cpu);
  
  		/*
@@ -1224,7 +1224,7 @@ diff --git a/kernel/sched/deadline.c b/kernel/sched/deadline.c
 index f1b1cb19e6e036..4795a312d906f7 100644
 --- a/kernel/sched/deadline.c
 +++ b/kernel/sched/deadline.c
-@@ -1568,6 +1568,32 @@ void dl_server_update(struct sched_dl_entity *dl_se, s64 delta_exec)
+@@ -1574,6 +1574,32 @@ void dl_server_update(struct sched_dl_entity *dl_se, s64 delta_exec)
  		update_curr_dl_se(dl_se->rq, dl_se, delta_exec);
  }
  
@@ -1254,10 +1254,10 @@ index f1b1cb19e6e036..4795a312d906f7 100644
 +	return err;
 +}
 +
- void dl_server_start(struct sched_dl_entity *dl_se)
- {
- 	struct rq *rq = dl_se->rq;
-@@ -1612,8 +1638,7 @@ void sched_init_dl_servers(void)
+ /*
+  * dl_server && dl_defer:
+  *
+@@ -1818,8 +1844,7 @@ void sched_init_dl_servers(void)
  	struct sched_dl_entity *dl_se;
  
  	for_each_online_cpu(cpu) {
@@ -1267,7 +1267,7 @@ index f1b1cb19e6e036..4795a312d906f7 100644
  
  		rq = cpu_rq(cpu);
  
-@@ -1624,11 +1649,8 @@ void sched_init_dl_servers(void)
+@@ -1830,11 +1855,8 @@ void sched_init_dl_servers(void)
  
  		WARN_ON(dl_server(dl_se));
  
@@ -1363,7 +1363,7 @@ diff --git a/kernel/sched/deadline.c b/kernel/sched/deadline.c
 index 4795a312d906f7..4ed6d1cb004758 100644
 --- a/kernel/sched/deadline.c
 +++ b/kernel/sched/deadline.c
-@@ -1782,7 +1782,16 @@ static enum hrtimer_restart inactive_task_timer(struct hrtimer *timer)
+@@ -1988,7 +1988,16 @@ static enum hrtimer_restart inactive_task_timer(struct hrtimer *timer)
  	struct rq_flags rf;
  	struct rq *rq;
  
@@ -1381,7 +1381,7 @@ index 4795a312d906f7..4ed6d1cb004758 100644
  		p = dl_task_of(dl_se);
  		rq = task_rq_lock(p, &rf);
  	} else {
-@@ -1793,7 +1802,7 @@ static enum hrtimer_restart inactive_task_timer(struct hrtimer *timer)
+@@ -1999,7 +2008,7 @@ static enum hrtimer_restart inactive_task_timer(struct hrtimer *timer)
  	sched_clock_tick();
  	update_rq_clock(rq);
  
@@ -1390,7 +1390,7 @@ index 4795a312d906f7..4ed6d1cb004758 100644
  		goto no_task;
  
  	if (!dl_task(p) || READ_ONCE(p->__state) == TASK_DEAD) {
-@@ -1821,7 +1830,7 @@ static enum hrtimer_restart inactive_task_timer(struct hrtimer *timer)
+@@ -2027,7 +2036,7 @@ static enum hrtimer_restart inactive_task_timer(struct hrtimer *timer)
  	dl_se->dl_non_contending = 0;
  unlock:
  
@@ -1432,7 +1432,7 @@ diff --git a/kernel/sched/ext.c b/kernel/sched/ext.c
 index 9139af6c21e0ac..0f4aa1bae1691f 100644
 --- a/kernel/sched/ext.c
 +++ b/kernel/sched/ext.c
-@@ -2606,6 +2606,57 @@ static void set_cpus_allowed_scx(struct task_struct *p,
+@@ -2607,6 +2607,57 @@ static void set_cpus_allowed_scx(struct task_struct *p,
  				 p, (struct cpumask *)p->cpus_ptr);
  }
  
@@ -1490,7 +1490,7 @@ index 9139af6c21e0ac..0f4aa1bae1691f 100644
  static void handle_hotplug(struct rq *rq, bool online)
  {
  	struct scx_sched *sch = scx_root;
-@@ -2621,9 +2672,20 @@ static void handle_hotplug(struct rq *rq, bool online)
+@@ -2622,9 +2673,20 @@ static void handle_hotplug(struct rq *rq, bool online)
  	if (unlikely(!sch))
  		return;
  
@@ -1512,7 +1512,7 @@ index 9139af6c21e0ac..0f4aa1bae1691f 100644
  	if (online && SCX_HAS_OP(sch, cpu_online))
  		SCX_CALL_OP(sch, SCX_KF_UNLOCKED, cpu_online, NULL, cpu);
  	else if (!online && SCX_HAS_OP(sch, cpu_offline))
-@@ -3970,6 +4032,7 @@ static void scx_disable_workfn(struct kthread_work *work)
+@@ -3971,6 +4033,7 @@ static void scx_disable_workfn(struct kthread_work *work)
  	struct scx_exit_info *ei = sch->exit_info;
  	struct scx_task_iter sti;
  	struct task_struct *p;
@@ -1520,7 +1520,7 @@ index 9139af6c21e0ac..0f4aa1bae1691f 100644
  	int kind, cpu;
  
  	kind = atomic_read(&sch->exit_kind);
-@@ -4025,6 +4088,22 @@ static void scx_disable_workfn(struct kthread_work *work)
+@@ -4026,6 +4089,22 @@ static void scx_disable_workfn(struct kthread_work *work)
  
  	scx_init_task_enabled = false;
  
@@ -1543,7 +1543,7 @@ index 9139af6c21e0ac..0f4aa1bae1691f 100644
  	scx_task_iter_start(&sti);
  	while ((p = scx_task_iter_next_locked(&sti))) {
  		const struct sched_class *old_class = p->sched_class;
-@@ -4047,15 +4126,6 @@ static void scx_disable_workfn(struct kthread_work *work)
+@@ -4048,15 +4127,6 @@ static void scx_disable_workfn(struct kthread_work *work)
  	scx_task_iter_stop(&sti);
  	percpu_up_write(&scx_fork_rwsem);
  
@@ -1559,7 +1559,7 @@ index 9139af6c21e0ac..0f4aa1bae1691f 100644
  	/* no task is on scx, turn off all the switches and flush in-progress calls */
  	static_branch_disable(&__scx_enabled);
  	bitmap_zero(sch->has_op, SCX_OPI_END);
-@@ -4842,6 +4912,13 @@ static int scx_enable(struct sched_ext_ops *ops, struct bpf_link *link)
+@@ -4843,6 +4913,13 @@ static int scx_enable(struct sched_ext_ops *ops, struct bpf_link *link)
  		put_task_struct(p);
  	}
  	scx_task_iter_stop(&sti);
@@ -2292,7 +2292,7 @@ index 0f4aa1bae1691f..c45e5fc5260944 100644
  	list_del_init(&p->scx.dsq_list.node);
  	dsq_mod_nr(dsq, -1);
  }
-@@ -6329,6 +6348,40 @@ __bpf_kfunc void bpf_iter_scx_dsq_destroy(struct bpf_iter_scx_dsq *it)
+@@ -6340,6 +6359,40 @@ __bpf_kfunc void bpf_iter_scx_dsq_destroy(struct bpf_iter_scx_dsq *it)
  	kit->dsq = NULL;
  }
  
@@ -2333,7 +2333,7 @@ index 0f4aa1bae1691f..c45e5fc5260944 100644
  __bpf_kfunc_end_defs();
  
  static s32 __bstr_format(struct scx_sched *sch, u64 *data_buf, char *line_buf,
-@@ -6886,6 +6939,7 @@ BTF_KFUNCS_START(scx_kfunc_ids_any)
+@@ -6897,6 +6950,7 @@ BTF_KFUNCS_START(scx_kfunc_ids_any)
  BTF_ID_FLAGS(func, scx_bpf_kick_cpu)
  BTF_ID_FLAGS(func, scx_bpf_dsq_nr_queued)
  BTF_ID_FLAGS(func, scx_bpf_destroy_dsq)

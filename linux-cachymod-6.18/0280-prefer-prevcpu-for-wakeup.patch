@@ -1,5 +1,5 @@
 
-Prefer the previous cpu for wakeup v7
+Prefer the previous cpu for wakeup (prefer-idle-core patch v7)
 sched/fair: Wish list, please not forget limited CPU saturation
 
 EEVDF limited CPU saturation can be lack-luster with CPUs having
@@ -23,8 +23,8 @@ From Mario Roy
   Move the recent_used_cpu heuristic to the top, and check
   if an idle core
 
-Results
-  Tested with an AMD Ryzen Threadripper 3970X CPU (32/64)
+Testing
+  AMD Ryzen Threadripper 3970X CPU (32/64)
   EEVDF, EEVDF with patch, scx_cosmos, and BMQ schedulers
 
   Pinned is affined to the primary CPUs, excluding siblings [6]
@@ -252,13 +252,13 @@ Results:
 
 Signed-off-by: Mario Roy <>
 ---
- kernel/sched/fair.c | 64 +++++++++++++++++++++++++++++----------------
- 1 file changed, 42 insertions(+), 22 deletions(-)
+ kernel/sched/fair.c | 66 +++++++++++++++++++++++++++++----------------
+ 1 file changed, 43 insertions(+), 23 deletions(-)
 
 diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -1038,7 +1038,7 @@ static bool update_deadline(struct cfs_rq *cfs_rq, struct sched_entity *se)
+@@ -1068,7 +1068,7 @@ static bool update_deadline(struct cfs_rq *cfs_rq, struct sched_entity *se)
  
  #include "pelt.h"
  
@@ -267,7 +267,7 @@ diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
  static unsigned long task_h_load(struct task_struct *p);
  static unsigned long capacity_of(int cpu);
  
-@@ -7504,6 +7504,24 @@ static inline int __select_idle_cpu(int cpu, struct task_struct *p)
+@@ -7534,6 +7534,24 @@ static inline int __select_idle_cpu(int cpu, struct task_struct *p)
  DEFINE_STATIC_KEY_FALSE(sched_smt_present);
  EXPORT_SYMBOL_GPL(sched_smt_present);
  
@@ -292,7 +292,7 @@ diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
  static inline void set_idle_cores(int cpu, int val)
  {
  	struct sched_domain_shared *sds;
-@@ -7772,13 +7790,26 @@ static inline bool asym_fits_cpu(unsigned long util,
+@@ -7802,13 +7820,26 @@ static inline bool asym_fits_cpu(unsigned long util,
  /*
   * Try and locate an idle core/thread in the LLC cache domain.
   */
@@ -320,7 +320,7 @@ diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
  	/*
  	 * On asymmetric system, update task utilization because we will check
  	 * that the task fits with CPU's capacity.
-@@ -7795,7 +7826,7 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target)
+@@ -7825,7 +7856,7 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target)
  	 */
  	lockdep_assert_irqs_disabled();
  
@@ -329,7 +329,7 @@ diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
  	    asym_fits_cpu(task_util, util_min, util_max, target))
  		return target;
  
-@@ -7829,24 +7860,6 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target)
+@@ -7859,24 +7890,6 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target)
  		return prev;
  	}
  
@@ -354,7 +354,7 @@ diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
  	/*
  	 * For asymmetric CPU capacity systems, our domain of interest is
  	 * sd_asym_cpucapacity rather than sd_llc.
-@@ -8578,7 +8591,14 @@ select_task_rq_fair(struct task_struct *p, int prev_cpu, int wake_flags)
+@@ -8608,7 +8621,14 @@ select_task_rq_fair(struct task_struct *p, int prev_cpu, int wake_flags)
  		new_cpu = sched_balance_find_dst_cpu(sd, p, cpu, prev_cpu, sd_flag);
  	} else if (wake_flags & WF_TTWU) { /* XXX always ? */
  		/* Fast path */
@@ -370,7 +370,7 @@ diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
  	}
  	rcu_read_unlock();
  
-@@ -10177,7 +10197,7 @@ static bool sched_use_asym_prio(struct s
+@@ -10207,7 +10227,7 @@ static bool sched_use_asym_prio(struct sched_domain *sd, int cpu)
  	if (!sched_smt_active())
  		return true;
  

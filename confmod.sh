@@ -522,6 +522,7 @@ edit_conf() {
 
       conf="$ans" selected="Main menu"
       _kernel_suffix="${conf// /-}"
+      export CONFMOD_SAVE_AS_CONF="$conf"
       save_conf "$conf"
       continue
     fi
@@ -688,6 +689,7 @@ edit_conf() {
 main_loop() {
   local menu= files= file= conf=
   local selected="New/Open config..."
+  unset CONFMOD_SAVE_AS_CONF
 
   while true; do
     hide_cursor; clear
@@ -728,6 +730,9 @@ main_loop() {
 
     if ! edit_conf "$conf"; then
       selected="New/Open config..." # config deleted
+    elif [ -n "$CONFMOD_SAVE_AS_CONF" ]; then
+      selected="$CONFMOD_SAVE_AS_CONF"
+      unset CONFMOD_SAVE_AS_CONF
     else
       selected="$conf"
     fi
