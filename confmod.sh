@@ -730,6 +730,7 @@ main_loop() {
 
     if ! edit_conf "$conf"; then
       selected="New/Open config..." # config deleted
+      unset CONFMOD_SAVE_AS_CONF
     elif [ -n "$CONFMOD_SAVE_AS_CONF" ]; then
       selected="$CONFMOD_SAVE_AS_CONF"
       unset CONFMOD_SAVE_AS_CONF
