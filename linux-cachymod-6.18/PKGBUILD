@@ -144,7 +144,7 @@ _stable=${_major}.${_minor}
 
 _srcname=linux-${_stable}
 pkgdesc='CachyMod Linux Kernel with other patches and improvements'
-pkgrel=1
+pkgrel=2
 _kernver="$pkgver-$pkgrel"
 _kernuname="${pkgver}-${_pkgsuffix}"
 arch=('x86_64')
@@ -182,7 +182,7 @@ source=(
     "0100-kconfig-add-800Hz.patch"
     "0200-clearlinux-extras.patch"
     "0210-cachymod-misc.patch"
-    "0260-bore-base-slice-cachy.patch"
+    "0260-fair-update-cachy-mods.patch"
     "0280-prefer-prevcpu-for-wakeup.patch"
 
     # Clear Linux default
