@@ -1,9 +1,20 @@
 
-Revert Cachy mods, update base_slice
+Revert Cachy mods
+(1) Set scheduler tunable latencies to unscaled
+(2) Update base_slice and migration_cost
 
 diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
+@@ -69,7 +69,7 @@
+  *
+  * (default SCHED_TUNABLESCALING_LOG = *(1+ilog(ncpus))
+  */
+-unsigned int sysctl_sched_tunable_scaling = SCHED_TUNABLESCALING_LOG;
++unsigned int sysctl_sched_tunable_scaling = SCHED_TUNABLESCALING_NONE;
+ 
+ /*
+  * Minimal preemption granularity for CPU-bound tasks:
 @@ -76,19 +76,10 @@ unsigned int sysctl_sched_tunable_scalin
   *
   * (default: 0.70 msec * (1 + ilog(ncpus)), units: nanoseconds)
@@ -14,8 +25,8 @@ diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
 -#else
 -unsigned int sysctl_sched_base_slice			= 700000ULL;
 -static unsigned int normalized_sysctl_sched_base_slice	= 700000ULL;
-+unsigned int sysctl_sched_base_slice			= 800000000ULL / HZ / (HZ < 750 ? 4 : 2);
-+static unsigned int normalized_sysctl_sched_base_slice	= 800000000ULL / HZ / (HZ < 750 ? 4 : 2);
++unsigned int sysctl_sched_base_slice			= 800000000ULL / HZ * (HZ > 500? 2: 1);
++static unsigned int normalized_sysctl_sched_base_slice	= 800000000ULL / HZ * (HZ > 500? 2: 1);
 -#endif /* CONFIG_CACHY */
  
 -#ifdef CONFIG_CACHY
@@ -34,8 +45,7 @@ diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
 -#ifdef CONFIG_CACHY
 -static unsigned int sysctl_sched_cfs_bandwidth_slice		= 3000UL;
 -#else
--static unsigned int sysctl_sched_cfs_bandwidth_slice		= 5000UL;
-+static unsigned int sysctl_sched_cfs_bandwidth_slice		= 3200UL;
+ static unsigned int sysctl_sched_cfs_bandwidth_slice		= 5000UL;
  #endif
 -#endif
  

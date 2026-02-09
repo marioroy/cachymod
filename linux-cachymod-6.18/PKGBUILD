@@ -144,7 +144,7 @@ _stable=${_major}.${_minor}
 
 _srcname=linux-${_stable}
 pkgdesc='CachyMod Linux Kernel with other patches and improvements'
-pkgrel=2
+pkgrel=3
 _kernver="$pkgver-$pkgrel"
 _kernuname="${pkgver}-${_pkgsuffix}"
 arch=('x86_64')
@@ -305,11 +305,6 @@ prepare() {
     ### Selecting CachyOS config
     echo "Enabling CachyOS config..."
     scripts/config -e CACHY
-
-    ### Selecting BORE base_slice tuning
-    echo "Enabling BORE base_slice tuning..."
-    scripts/config -e SCHED_BORE
-    scripts/config --set-val MIN_BASE_SLICE_NS 1600000
 
     echo "Enabling acpi_call module..."
     scripts/config -e ACPI_CALL
