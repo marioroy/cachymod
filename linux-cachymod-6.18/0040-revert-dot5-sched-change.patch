@@ -48,7 +48,7 @@ diff -uarp a/kernel/sched/core.c b/kernel/sched/core.c
 diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -12124,27 +12124,11 @@ void update_max_interval(void)
+@@ -12136,27 +12136,11 @@ void update_max_interval(void)
  	max_load_balance_interval = HZ*num_online_cpus()/10;
  }
  
@@ -77,7 +77,7 @@ diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
  	if (cost > sd->max_newidle_lb_cost) {
  		/*
  		 * Track max cost of a domain to make sure to not delay the
-@@ -12192,7 +12176,7 @@ static void sched_balance_domains(struct
+@@ -12204,7 +12188,7 @@ static void sched_balance_domains(struct
  		 * Decay the newidle max times here because this is a regular
  		 * visit to all the domains.
  		 */
@@ -86,7 +86,7 @@ diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
  		max_cost += sd->max_newidle_lb_cost;
  
  		/*
-@@ -12837,22 +12821,6 @@ static int sched_balance_newidle(struct
+@@ -12839,22 +12823,6 @@ static int sched_balance_newidle(struct
  			break;
  
  		if (sd->flags & SD_BALANCE_NEWIDLE) {
@@ -109,7 +109,7 @@ diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
  
  			pulled_task = sched_balance_rq(this_cpu, this_rq,
  						   sd, CPU_NEWLY_IDLE,
-@@ -12860,14 +12828,10 @@ static int sched_balance_newidle(struct
+@@ -12862,14 +12830,10 @@ static int sched_balance_newidle(struct
  
  			t1 = sched_clock_cpu(this_cpu);
  			domain_cost = t1 - t0;
@@ -180,4 +180,22 @@ diff -uarp a/kernel/sched/topology.c b/kernel/sched/topology.c
  		.child			= child,
 -- 
 2.52.0
+
+Revert also, "sched/fair: Have SD_SERIALIZE affect newidle balancing"
+https://lore.kernel.org/all/20260209142321.917660634@linuxfoundation.org/
+
+diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -11752,7 +11752,7 @@ redo:
+ 		goto out_balanced;
+ 	}
+ 
+-	if (!need_unlock && (sd->flags & SD_SERIALIZE)) {
++	if (!need_unlock && (sd->flags & SD_SERIALIZE) && idle != CPU_NEWLY_IDLE) {
+ 		int zero = 0;
+ 		if (!atomic_try_cmpxchg_acquire(&sched_balance_running, &zero, 1))
+ 			goto out_balanced;
+-- 
+2.47.1
 

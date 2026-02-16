@@ -549,7 +549,7 @@ index c65f4da93702..105b12fd86b8 100644
 +
 diff --git a/block/adios.c b/block/adios.c
 new file mode 100644
-index 000000000000..6ae4bce22463
+index 0000000000..6aa7574fc5
 --- /dev/null
 +++ b/block/adios.c
 @@ -0,0 +1,2004 @@
@@ -580,7 +580,7 @@ index 000000000000..6ae4bce22463
 +#include "blk-mq.h"
 +#include "blk-mq-sched.h"
 +
-+#define ADIOS_VERSION "3.1.9"
++#define ADIOS_VERSION "3.1.11"
 +
 +/* Request Types:
 + *
@@ -1479,7 +1479,7 @@ index 000000000000..6ae4bce22463
 +	 * separate barrier_queue. This ensures that no new requests are processed
 +	 * until all work preceding the barrier is complete.
 +	 */
-+	rq_is_flush = rq->cmd_flags & REQ_OP_FLUSH;
++	rq_is_flush = (rq->cmd_flags & REQ_OP_MASK) == REQ_OP_FLUSH;
 +	if (eval_adios_state(ad, ADIOS_STATE_BP) || rq_is_flush) {
 +		scoped_guard(spinlock_irqsave, &ad->barrier_lock) {
 +			if (rq_is_flush)
@@ -1859,7 +1859,7 @@ index 000000000000..6ae4bce22463
 +					continue;
 +				}
 +
-+				if (trq->cmd_flags & REQ_OP_FLUSH)
++				if ((trq->cmd_flags & REQ_OP_MASK) == REQ_OP_FLUSH)
 +					break;
 +
 +				list_move_tail(&trq->queuelist, &local_list);
@@ -2814,7 +2814,7 @@ diff --git a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm_crtc.c b/drivers/gp
 index 38f9ea313dcb..1208dd69643e 100644
 --- a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm_crtc.c
 +++ b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm_crtc.c
-@@ -514,7 +514,7 @@ static int amdgpu_dm_crtc_late_register(struct drm_crtc *crtc)
+@@ -503,7 +503,7 @@ static int amdgpu_dm_crtc_late_register(struct drm_crtc *crtc)
  }
  #endif
  
@@ -2823,7 +2823,7 @@ index 38f9ea313dcb..1208dd69643e 100644
  /**
   * dm_crtc_additional_color_mgmt - enable additional color properties
   * @crtc: DRM CRTC
-@@ -596,7 +596,7 @@ static const struct drm_crtc_funcs amdgpu_dm_crtc_funcs = {
+@@ -585,7 +585,7 @@ static const struct drm_crtc_funcs amdgpu_dm_crtc_funcs = {
  #if defined(CONFIG_DEBUG_FS)
  	.late_register = amdgpu_dm_crtc_late_register,
  #endif
@@ -2832,7 +2832,7 @@ index 38f9ea313dcb..1208dd69643e 100644
  	.atomic_set_property = amdgpu_dm_atomic_crtc_set_property,
  	.atomic_get_property = amdgpu_dm_atomic_crtc_get_property,
  #endif
-@@ -793,7 +793,7 @@ int amdgpu_dm_crtc_init(struct amdgpu_display_manager *dm,
+@@ -782,7 +782,7 @@ int amdgpu_dm_crtc_init(struct amdgpu_display_manager *dm,
  
  	drm_mode_crtc_set_gamma_size(&acrtc->base, MAX_COLOR_LEGACY_LUT_ENTRIES);
  

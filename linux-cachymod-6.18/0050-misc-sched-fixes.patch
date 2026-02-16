@@ -84,3 +84,126 @@ index fc358c1b6ca987..1711e9e501003a 100644
 -- 
 2.47.1
 
+sched/rt: Skip currently executing CPU in rto_next_cpu()
+https://lore.kernel.org/all/177011751498.2495410.2763756834301063916.tip-bot2@tip-bot2/
+
+CPU0 becomes overloaded when hosting a CPU-bound RT task, a non-CPU-bound
+RT task, and a CFS task stuck in kernel space. When other CPUs switch from
+RT to non-RT tasks, RT load balancing (LB) is triggered; with
+HAVE_RT_PUSH_IPI enabled, they send IPIs to CPU0 to drive the execution
+of rto_push_irq_work_func. During push_rt_task on CPU0,
+if next_task->prio < rq->donor->prio, resched_curr() sets NEED_RESCHED
+and after the push operation completes, CPU0 calls rto_next_cpu().
+Since only CPU0 is overloaded in this scenario, rto_next_cpu() should
+ideally return -1 (no further IPI needed).
+
+However, multiple CPUs invoking tell_cpu_to_push() during LB increments
+rd->rto_loop_next. Even when rd->rto_cpu is set to -1, the mismatch between
+rd->rto_loop and rd->rto_loop_next forces rto_next_cpu() to restart its
+search from -1. With CPU0 remaining overloaded (satisfying rt_nr_migratory
+&& rt_nr_total > 1), it gets reselected, causing CPU0 to queue irq_work to
+itself and send self-IPIs repeatedly. As long as CPU0 stays overloaded and
+other CPUs run pull_rt_tasks(), it falls into an infinite self-IPI loop,
+which triggers a CPU hardlockup due to continuous self-interrupts.
+
+The trigging scenario is as follows:
+
+         cpu0                      cpu1                    cpu2
+                                pull_rt_task
+                              tell_cpu_to_push
+                 <------------irq_work_queue_on
+rto_push_irq_work_func
+       push_rt_task
+    resched_curr(rq)                                   pull_rt_task
+    rto_next_cpu                                     tell_cpu_to_push
+                      <-------------------------- atomic_inc(rto_loop_next)
+rd->rto_loop != next
+     rto_next_cpu
+   irq_work_queue_on
+rto_push_irq_work_func
+
+Fix redundant self-IPI by filtering the initiating CPU in rto_next_cpu().
+This solution has been verified to effectively eliminate spurious self-IPIs
+and prevent CPU hardlockup scenarios.
+
+Fixes: 4bdced5c9a29 ("sched/rt: Simplify the IPI based RT balancing logic")
+Suggested-by: Steven Rostedt (Google) <rostedt@xxxxxxxxxx>
+Suggested-by: K Prateek Nayak <kprateek.nayak@xxxxxxxxxx>
+Signed-off-by: Chen Jinghuang <chenjinghuang2@xxxxxxxxxx>
+Signed-off-by: Peter Zijlstra (Intel) <peterz@xxxxxxxxxx>
+Reviewed-by: Steven Rostedt (Google) <rostedt@xxxxxxxxxx>
+Reviewed-by: Valentin Schneider <vschneid@xxxxxxxxxx>
+---
+ kernel/sched/rt.c | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/kernel/sched/rt.c b/kernel/sched/rt.c
+index 0a9b2cd..a768047 100644
+--- a/kernel/sched/rt.c
++++ b/kernel/sched/rt.c
+@@ -2100,6 +2100,7 @@ static void push_rt_tasks(struct rq *rq)
+  */
+ static int rto_next_cpu(struct root_domain *rd)
+ {
++	int this_cpu = smp_processor_id();
+ 	int next;
+ 	int cpu;
+ 
+@@ -2123,6 +2124,10 @@ static int rto_next_cpu(struct root_domain *rd)
+ 
+ 		rd->rto_cpu = cpu;
+ 
++		/* Do not send IPI to self */
++		if (cpu == this_cpu)
++			continue;
++
+ 		if (cpu < nr_cpu_ids)
+ 			return cpu;
+ 
+-- 
+2.47.1
+
+sched/fair: Update overutilized detection
+https://lore.kernel.org/all/20260213101751.3121899-1-vincent.guittot@linaro.org/
+
+Checking uclamp_min is useless and counterproductive for overutilized state
+as misfit can now happen without being in overutilized state.
+
+Since commit e5ed0550c04c ("sched/fair: unlink misfit task from cpu overutilized")
+util_fits_cpu returns -1 when uclamp_min is above capacity which is not
+considered as cpu overutilized.
+
+Remove the useless rq_util_min parameter.
+
+Signed-off-by: Vincent Guittot <vincent.guittot@xxxxxxxxxx>
+Reviewed-by: Qais Yousef <qyousef@xxxxxxxxxx>
+---
+ kernel/sched/fair.c | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
+index c16b5fd71b2d..fdc4303ca83a 100644
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -6794,16 +6794,15 @@ static inline void hrtick_update(struct rq *rq)
+ 
+ static inline bool cpu_overutilized(int cpu)
+ {
+-	unsigned long  rq_util_min, rq_util_max;
++	unsigned long rq_util_max;
+ 
+ 	if (!sched_energy_enabled())
+ 		return false;
+ 
+-	rq_util_min = uclamp_rq_get(cpu_rq(cpu), UCLAMP_MIN);
+ 	rq_util_max = uclamp_rq_get(cpu_rq(cpu), UCLAMP_MAX);
+ 
+ 	/* Return true only if the utilization doesn't fit CPU's capacity */
+-	return !util_fits_cpu(cpu_util_cfs(cpu), rq_util_min, rq_util_max, cpu);
++	return !util_fits_cpu(cpu_util_cfs(cpu), 0, rq_util_max, cpu);
+ }
+ 
+ /*
+-- 
+2.43.0
+

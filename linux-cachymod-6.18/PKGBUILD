@@ -137,14 +137,14 @@ fi
 
 _pkgsuffix=cachymod
 _major=6.18
-_minor=9
+_minor=12
 pkgver=${_major}.${_minor}
 _stable=${_major}.${_minor}
 #_stable=${_major}
 
 _srcname=linux-${_stable}
 pkgdesc='CachyMod Linux Kernel with other patches and improvements'
-pkgrel=3
+pkgrel=1
 _kernver="$pkgver-$pkgrel"
 _kernuname="${pkgver}-${_pkgsuffix}"
 arch=('x86_64')
@@ -305,9 +305,6 @@ prepare() {
     ### Selecting CachyOS config
     echo "Enabling CachyOS config..."
     scripts/config -e CACHY
-
-    echo "Enabling acpi_call module..."
-    scripts/config -e ACPI_CALL
 
     ### Selecting the CPU scheduler
     case "$_cpusched" in
