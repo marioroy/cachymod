@@ -2,7 +2,6 @@
 Revert Cachy mods
 (1) Set scheduler tunable latencies to unscaled
 (2) Update base_slice and migration_cost
-(3) Disable RUN_TO_PARITY
 
 diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
 --- a/kernel/sched/fair.c
@@ -52,18 +51,6 @@ diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
  
  #ifdef CONFIG_NUMA_BALANCING
  /* Restrict the NUMA promotion throughput (MB/s) for each target node. */
-diff -uarp a/kernel/sched/features.h b/kernel/sched/features.h
---- a/kernel/sched/features.h
-+++ b/kernel/sched/features.h
-@@ -17,7 +17,7 @@ SCHED_FEAT(PLACE_REL_DEADLINE, true)
-  * Inhibit (wakeup) preemption until the current task has either matched the
-  * 0-lag point or until is has exhausted it's slice.
-  */
--SCHED_FEAT(RUN_TO_PARITY, true)
-+SCHED_FEAT(RUN_TO_PARITY, false)
- /*
-  * Allow wakeup of tasks with a shorter slice to cancel RUN_TO_PARITY for
-  * current.
 -- 
 2.40.2
 
