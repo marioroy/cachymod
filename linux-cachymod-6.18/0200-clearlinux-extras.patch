@@ -581,7 +581,7 @@ index f730b6fe94a7..ee0ec4ab7d1c 100644
  		return;
  	rq->clock += delta;
  
-@@ -6053,7 +6053,7 @@ pick_next_task(struct rq *rq, struct task_struct *prev, struct rq_flags *rf)
+@@ -6045,7 +6045,7 @@ pick_next_task(struct rq *rq, struct task_struct *prev, struct rq_flags *rf)
  	struct rq *rq_i;
  	bool need_sync;
  
@@ -590,7 +590,7 @@ index f730b6fe94a7..ee0ec4ab7d1c 100644
  		return __pick_next_task(rq, prev, rf);
  
  	cpu = cpu_of(rq);
-@@ -7454,7 +7454,7 @@ SYSCALL_DEFINE0(sched_yield)
+@@ -7446,7 +7446,7 @@ SYSCALL_DEFINE0(sched_yield)
  #if !defined(CONFIG_PREEMPTION) || defined(CONFIG_PREEMPT_DYNAMIC)
  int __sched __cond_resched(void)
  {
@@ -627,6 +627,8 @@ index 4e787285fc66..3e045f6eb6ee 100644
  }
  
  #if IS_ENABLED(CONFIG_PROVE_LOCKING) && IS_ENABLED(CONFIG_MODULES)
+-- 
+2.39.1
 
 # Patch0158: 0158-clocksource-only-perform-extended-clocksource-checks.patch
 

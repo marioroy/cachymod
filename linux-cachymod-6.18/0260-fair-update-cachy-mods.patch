@@ -2,6 +2,7 @@
 Revert Cachy mods
 (1) Set scheduler tunable latencies to unscaled
 (2) Update base_slice and migration_cost
+(3) Decrease the timer_slack_ns default
 
 diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
 --- a/kernel/sched/fair.c
@@ -53,4 +54,21 @@ diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
  /* Restrict the NUMA promotion throughput (MB/s) for each target node. */
 -- 
 2.40.2
+
+Decrease the timer_slack_ns default
+
+diff -uarp a/init/init_task.c b/init/init_task.c
+--- a/init/init_task.c
++++ b/init/init_task.c
+@@ -143,7 +143,7 @@ struct task_struct init_task __aligned(L
+ 	.journal_info	= NULL,
+ 	INIT_CPU_TIMERS(init_task)
+ 	.pi_lock	= __RAW_SPIN_LOCK_UNLOCKED(init_task.pi_lock),
+-	.timer_slack_ns = 50000, /* 50 usec default slack */
++	.timer_slack_ns = 35000, /* 35 usec default slack */
+ 	.thread_pid	= &init_struct_pid,
+ 	.thread_node	= LIST_HEAD_INIT(init_signals.thread_head),
+ #ifdef CONFIG_AUDIT
+-- 
+2.47.1
 

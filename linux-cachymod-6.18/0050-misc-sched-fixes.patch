@@ -32,7 +32,7 @@ diff --git a/kernel/sched/core.c b/kernel/sched/core.c
 index 1711e9e501003a..ee7dfbf01792e5 100644
 --- a/kernel/sched/core.c
 +++ b/kernel/sched/core.c
-@@ -7443,14 +7443,11 @@ void rt_mutex_setprio(struct task_struct *p, struct task_struct *pi_task)
+@@ -7435,14 +7435,11 @@ void rt_mutex_setprio(struct task_struct *p, struct task_struct *pi_task)
  
  	check_class_changed(rq, p, prev_class, oldprio);
  out_unlock:
@@ -206,4 +206,22 @@ index c16b5fd71b2d..fdc4303ca83a 100644
  /*
 -- 
 2.43.0
+ 
+Revert "sched/fair: Have SD_SERIALIZE affect newidle balancing"
+https://lore.kernel.org/all/20260209142321.917660634@linuxfoundation.org/
+
+diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -11751,7 +11751,7 @@ redo:
+ 		goto out_balanced;
+ 	}
+ 
+-	if (!need_unlock && (sd->flags & SD_SERIALIZE)) {
++	if (!need_unlock && (sd->flags & SD_SERIALIZE) && idle != CPU_NEWLY_IDLE) {
+ 		int zero = 0;
+ 		if (!atomic_try_cmpxchg_acquire(&sched_balance_running, &zero, 1))
+ 			goto out_balanced;
+-- 
+2.47.1
 

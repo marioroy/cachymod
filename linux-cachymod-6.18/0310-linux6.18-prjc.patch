@@ -4,10 +4,10 @@ https://gitlab.com/alfredchen/linux-prjc/-/tree/linux-6.18.y-prjc
 https://github.com/CachyOS/kernel-patches/tree/master/6.18/sched
 
 
-From 77e9a2cf89e86ab95945f4adfe955e7379d304f7 Mon Sep 17 00:00:00 2001
+From 5227cc6a80b96ef5b9b2d29ddb2b7317f044d9c9 Mon Sep 17 00:00:00 2001
 From: Piotr Gorski <lucjan.lucjanov@gmail.com>
-Date: Mon, 12 Jan 2026 08:23:09 +0100
-Subject: [PATCH] prjc
+Date: Mon, 12 Jan 2026 08:23:38 +0100
+Subject: [PATCH] prjc-cachy
 
 Signed-off-by: Piotr Gorski <lucjan.lucjanov@gmail.com>
 ---
@@ -230,7 +230,7 @@ diff --git a/include/linux/sched.h b/include/linux/sched.h
 index b469878de..020c6a82b 100644
 --- a/include/linux/sched.h
 +++ b/include/linux/sched.h
-@@ -848,7 +848,9 @@ struct task_struct {
+@@ -846,7 +846,9 @@ struct task_struct {
  #endif
  
  	int				on_cpu;
@@ -240,7 +240,7 @@ index b469878de..020c6a82b 100644
  	unsigned int			wakee_flips;
  	unsigned long			wakee_flip_decay_ts;
  	struct task_struct		*last_wakee;
-@@ -862,6 +864,7 @@ struct task_struct {
+@@ -860,6 +862,7 @@ struct task_struct {
  	 */
  	int				recent_used_cpu;
  	int				wake_cpu;
@@ -248,7 +248,7 @@ index b469878de..020c6a82b 100644
  	int				on_rq;
  
  	int				prio;
-@@ -869,6 +872,19 @@ struct task_struct {
+@@ -867,6 +870,19 @@ struct task_struct {
  	int				normal_prio;
  	unsigned int			rt_priority;
  
@@ -268,7 +268,7 @@ index b469878de..020c6a82b 100644
  	struct sched_entity		se;
  	struct sched_rt_entity		rt;
  	struct sched_dl_entity		dl;
-@@ -883,6 +899,7 @@ struct task_struct {
+@@ -881,6 +897,7 @@ struct task_struct {
  	unsigned long			core_cookie;
  	unsigned int			core_occupation;
  #endif
@@ -276,7 +276,7 @@ index b469878de..020c6a82b 100644
  
  #ifdef CONFIG_CGROUP_SCHED
  	struct task_group		*sched_task_group;
-@@ -924,9 +941,13 @@ struct task_struct {
+@@ -922,9 +939,13 @@ struct task_struct {
  	const cpumask_t			*cpus_ptr;
  	cpumask_t			*user_cpus_ptr;
  	cpumask_t			cpus_mask;
@@ -290,7 +290,7 @@ index b469878de..020c6a82b 100644
  
  #ifdef CONFIG_PREEMPT_RCU
  	int				rcu_read_lock_nesting;
-@@ -957,8 +978,10 @@ struct task_struct {
+@@ -955,8 +976,10 @@ struct task_struct {
  	struct sched_info		sched_info;
  
  	struct list_head		tasks;
@@ -301,7 +301,7 @@ index b469878de..020c6a82b 100644
  
  	struct mm_struct		*mm;
  	struct mm_struct		*active_mm;
-@@ -1682,6 +1705,15 @@ static inline bool sched_proxy_exec(void)
+@@ -1680,6 +1703,15 @@ static inline bool sched_proxy_exec(void)
  }
  #endif
  
@@ -317,7 +317,7 @@ index b469878de..020c6a82b 100644
  #define TASK_REPORT_IDLE	(TASK_REPORT + 1)
  #define TASK_REPORT_MAX		(TASK_REPORT_IDLE << 1)
  
-@@ -2251,7 +2283,11 @@ static inline void set_task_cpu(struct task_struct *p, unsigned int cpu)
+@@ -2249,7 +2281,11 @@ static inline void set_task_cpu(struct task_struct *p, unsigned int cpu)
  
  static inline bool task_is_runnable(struct task_struct *p)
  {
@@ -329,7 +329,7 @@ index b469878de..020c6a82b 100644
  }
  
  extern bool sched_task_on_rq(struct task_struct *p);
-@@ -2348,6 +2384,25 @@ DECLARE_PER_CPU_SHARED_ALIGNED(struct rq, runqueues);
+@@ -2346,6 +2382,25 @@ DECLARE_PER_CPU_SHARED_ALIGNED(struct rq, runqueues);
  #endif
  #define this_rq_pinned() (*(unsigned int *)((void *)this_rq_raw() + RQ_nr_pinned))
  
@@ -355,7 +355,7 @@ index b469878de..020c6a82b 100644
  static inline void __migrate_enable(void)
  {
  	struct task_struct *p = current;
-@@ -2371,8 +2426,17 @@ static inline void __migrate_enable(void)
+@@ -2369,8 +2424,17 @@ static inline void __migrate_enable(void)
  	 * __set_cpus_allowed_ptr(SCA_MIGRATE_ENABLE) doesn't schedule().
  	 */
  	guard(preempt)();
@@ -373,7 +373,7 @@ index b469878de..020c6a82b 100644
  	/*
  	 * Mustn't clear migration_disabled() until cpus_ptr points back at the
  	 * regular cpus_mask, otherwise things that race (eg.
-@@ -2399,8 +2463,20 @@ static inline void __migrate_disable(void)
+@@ -2397,8 +2461,20 @@ static inline void __migrate_disable(void)
  	}
  
  	guard(preempt)();
@@ -495,7 +495,7 @@ index 45c0022b9..d281dabe4 100644
  #else
  static inline void rebuild_sched_domains_energy(void)
 diff --git a/init/Kconfig b/init/Kconfig
-index cab3ad28c..23a443c6b 100644
+index 3a664a42c..e9666bfe8 100644
 --- a/init/Kconfig
 +++ b/init/Kconfig
 @@ -692,6 +692,7 @@ config TASK_IO_ACCOUNTING
@@ -611,7 +611,7 @@ index a55e21892..05f01ffc3 100644
  	.sched_task_group = &root_task_group,
  #endif
 diff --git a/kernel/Kconfig.preempt b/kernel/Kconfig.preempt
-index da326800c..728036392 100644
+index cf5267cac..3b6c30284 100644
 --- a/kernel/Kconfig.preempt
 +++ b/kernel/Kconfig.preempt
 @@ -147,7 +147,7 @@ config PREEMPT_DYNAMIC
@@ -10347,7 +10347,7 @@ index 41caa22e0..87e292a0d 100644
  __read_mostly bool sched_debug_verbose;
  
  static struct dentry           *sd_dentry;
-@@ -549,9 +553,11 @@ static const struct file_operations fair_server_period_fops = {
+@@ -464,9 +468,11 @@ static const struct file_operations fair_server_period_fops = {
  	.llseek		= seq_lseek,
  	.release	= single_release,
  };
@@ -10359,15 +10359,15 @@ index 41caa22e0..87e292a0d 100644
  static void debugfs_fair_server_init(void)
  {
  	struct dentry *d_fair;
-@@ -593,6 +599,7 @@ static void debugfs_fair_server_init(void)
- 		debugfs_create_file("period", 0644, d_cpu, (void *) cpu, &ext_server_period_fops);
+@@ -487,6 +493,7 @@ static void debugfs_fair_server_init(void)
+ 		debugfs_create_file("period", 0644, d_cpu, (void *) cpu, &fair_server_period_fops);
  	}
  }
 +#endif /* !CONFIG_SCHED_ALT */
  
  static __init int sched_init_debug(void)
  {
-@@ -600,14 +607,17 @@ static __init int sched_init_debug(void)
+@@ -494,14 +501,17 @@ static __init int sched_init_debug(void)
  
  	debugfs_sched = debugfs_create_dir("sched", NULL);
  
@@ -10385,7 +10385,7 @@ index 41caa22e0..87e292a0d 100644
  	debugfs_create_u32("latency_warn_ms", 0644, debugfs_sched, &sysctl_resched_latency_warn_ms);
  	debugfs_create_u32("latency_warn_once", 0644, debugfs_sched, &sysctl_resched_latency_warn_once);
  
-@@ -630,14 +640,19 @@ static __init int sched_init_debug(void)
+@@ -524,13 +534,18 @@ static __init int sched_init_debug(void)
  #endif /* CONFIG_NUMA_BALANCING */
  
  	debugfs_create_file("debug", 0444, debugfs_sched, NULL, &sched_debug_fops);
@@ -10393,7 +10393,6 @@ index 41caa22e0..87e292a0d 100644
  
 +#ifndef CONFIG_SCHED_ALT
  	debugfs_fair_server_init();
- 	debugfs_ext_server_init();
 +#endif /* !CONFIG_SCHED_ALT */
  
  	return 0;
@@ -10405,7 +10404,7 @@ index 41caa22e0..87e292a0d 100644
  static cpumask_var_t		sd_sysctl_cpus;
  
  static int sd_flags_show(struct seq_file *m, void *v)
-@@ -1370,6 +1385,11 @@ void proc_sched_show_task(struct task_struct *p, struct pid_namespace *ns,
+@@ -1263,6 +1278,11 @@ void proc_sched_show_task(struct task_struct *p, struct pid_namespace *ns,
  
  	sched_show_numa(p, m);
  }
@@ -10653,7 +10652,7 @@ index f921302dc..2fade7dab 100644
  
  #endif /* _KERNEL_SCHED_PELT_H */
 diff --git a/kernel/sched/sched.h b/kernel/sched/sched.h
-index 2f8b06b12..139c1cc8f 100644
+index a3f52e493..3578933ca 100644
 --- a/kernel/sched/sched.h
 +++ b/kernel/sched/sched.h
 @@ -5,6 +5,10 @@
@@ -10667,7 +10666,7 @@ index 2f8b06b12..139c1cc8f 100644
  #include <linux/sched/affinity.h>
  #include <linux/sched/autogroup.h>
  #include <linux/sched/cpufreq.h>
-@@ -3919,4 +3923,9 @@ void sched_enq_and_set_task(struct sched_enq_and_set_ctx *ctx);
+@@ -3908,4 +3912,9 @@ void sched_enq_and_set_task(struct sched_enq_and_set_ctx *ctx);
  
  #include "ext.h"
  
@@ -11260,7 +11259,7 @@ index c7a4d2fff..3154ddbdb 100644
  #include <linux/sched/isolation.h>
  #include <linux/bsearch.h>
  #include "sched.h"
-@@ -1502,8 +1503,10 @@ static void asym_cpu_capacity_scan(void)
+@@ -1497,8 +1498,10 @@ static void asym_cpu_capacity_scan(void)
   */
  
  static int default_relax_domain_level = -1;
@@ -11271,7 +11270,7 @@ index c7a4d2fff..3154ddbdb 100644
  static int __init setup_relax_domain_level(char *str)
  {
  	if (kstrtoint(str, 0, &default_relax_domain_level))
-@@ -1728,6 +1731,7 @@ sd_init(struct sched_domain_topology_level *tl,
+@@ -1723,6 +1726,7 @@ sd_init(struct sched_domain_topology_level *tl,
  
  	return sd;
  }
@@ -11279,7 +11278,7 @@ index c7a4d2fff..3154ddbdb 100644
  
  #ifdef CONFIG_SCHED_SMT
  int cpu_smt_flags(void)
-@@ -1805,6 +1809,7 @@ void __init set_sched_topology(struct sched_domain_topology_level *tl)
+@@ -1800,6 +1804,7 @@ void __init set_sched_topology(struct sched_domain_topology_level *tl)
  	sched_domain_topology_saved = NULL;
  }
  
@@ -11287,7 +11286,7 @@ index c7a4d2fff..3154ddbdb 100644
  #ifdef CONFIG_NUMA
  static int cpu_numa_flags(void)
  {
-@@ -2875,3 +2880,31 @@ void partition_sched_domains(int ndoms_new, cpumask_var_t doms_new[],
+@@ -2870,3 +2875,31 @@ void partition_sched_domains(int ndoms_new, cpumask_var_t doms_new[],
  	partition_sched_domains_locked(ndoms_new, doms_new, dattr_new);
  	sched_domains_mutex_unlock();
  }

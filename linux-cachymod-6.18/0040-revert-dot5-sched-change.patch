@@ -36,7 +36,7 @@ diff -uarp a/kernel/sched/core.c b/kernel/sched/core.c
  
  #ifdef CONFIG_SCHED_PROXY_EXEC
  DEFINE_STATIC_KEY_TRUE(__sched_proxy_exec);
-@@ -8595,8 +8594,6 @@ void __init sched_init_smp(void)
+@@ -8587,8 +8586,6 @@ void __init sched_init_smp(void)
  {
  	sched_init_numa(NUMA_NO_NODE);
  
@@ -149,7 +149,7 @@ diff -uarp a/kernel/sched/sched.h b/kernel/sched/sched.h
  #include <linux/sched/affinity.h>
  #include <linux/sched/autogroup.h>
  #include <linux/sched/cpufreq.h>
-@@ -1361,12 +1360,6 @@ static inline bool is_migration_disabled
+@@ -1350,12 +1349,6 @@ static inline bool is_migration_disabled
  }
  
  DECLARE_PER_CPU_SHARED_ALIGNED(struct rq, runqueues);
@@ -165,7 +165,7 @@ diff -uarp a/kernel/sched/sched.h b/kernel/sched/sched.h
 diff -uarp a/kernel/sched/topology.c b/kernel/sched/topology.c
 --- a/kernel/sched/topology.c
 +++ b/kernel/sched/topology.c
-@@ -1667,12 +1667,6 @@ sd_init(struct sched_domain_topology_lev
+@@ -1662,12 +1662,6 @@ sd_init(struct sched_domain_topology_lev
  
  		.last_balance		= jiffies,
  		.balance_interval	= sd_weight,
@@ -180,22 +180,4 @@ diff -uarp a/kernel/sched/topology.c b/kernel/sched/topology.c
  		.child			= child,
 -- 
 2.52.0
-
-Revert also, "sched/fair: Have SD_SERIALIZE affect newidle balancing"
-https://lore.kernel.org/all/20260209142321.917660634@linuxfoundation.org/
-
-diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
---- a/kernel/sched/fair.c
-+++ b/kernel/sched/fair.c
-@@ -11752,7 +11752,7 @@ redo:
- 		goto out_balanced;
- 	}
- 
--	if (!need_unlock && (sd->flags & SD_SERIALIZE)) {
-+	if (!need_unlock && (sd->flags & SD_SERIALIZE) && idle != CPU_NEWLY_IDLE) {
- 		int zero = 0;
- 		if (!atomic_try_cmpxchg_acquire(&sched_balance_running, &zero, 1))
- 			goto out_balanced;
--- 
-2.47.1
 
