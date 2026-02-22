@@ -144,7 +144,7 @@ _stable=${_major}.${_minor}
 
 _srcname=linux-${_stable}
 pkgdesc='CachyMod Linux Kernel with other patches and improvements'
-pkgrel=1
+pkgrel=2
 _kernver="$pkgver-$pkgrel"
 _kernuname="${pkgver}-${_pkgsuffix}"
 arch=('x86_64')
@@ -190,6 +190,9 @@ source=(
     "0310-linux6.18-prjc.patch"       # applied if _cpusched=bmq or pds
     "0320-linux6.18-prjc-s.patch"     # applied if _cpusched=bmq or pds
     "0350-linux6.18-sched-ext.patch"  # not applied if _cpusched=bmq or pds
+
+    # The revert is applied only if a BORE patch is detected via extra_patch_or_url
+    "0360-fair-revert-cachy-mods.patch"
 )
 
 # LLVM makedepends
@@ -233,6 +236,17 @@ fi
 [ -n "$_extra_patch_or_url8" ] && source+=("$_extra_patch_or_url8")
 [ -n "$_extra_patch_or_url9" ] && source+=("$_extra_patch_or_url9")
 
+build_bore=0
+{
+    local src
+    for src in "${source[@]}"; do
+        if [[ $src = *-bore* ]]; then
+            [[ "$_cpusched" =~ ^(eevdf|rt)$ ]] && build_bore=1
+            break
+        fi
+    done
+}
+
 if [ -s "custom.sh" ]; then
     custom_script="$(pwd)/custom.sh"
 else
@@ -270,8 +284,11 @@ prepare() {
         if [[ $src = *-prjc-s.patch ]]; then
             [[ "$_cpusched" =~ ^(bmq|pds)$ && "$_buildtype" != "gcc" ]] || continue
         fi
-        if [[ $src = *-sched-ext.patch ]]; then
+        if [[ $src = *-sched-ext.patch || $src = *-bore* ]]; then
             [[ "$_cpusched" =~ ^(bmq|pds)$ ]] && continue
+        fi
+        if [[ $src = *-revert-cachy-mods.patch ]]; then
+            [[ "$build_bore" -eq 0 ]] && continue
         fi
         echo -e "${_CYAN}Applying patch $src...${_NC}"
         patch -Np1 < "../$src"
@@ -317,6 +334,11 @@ prepare() {
     esac
 
     echo "Selecting '${_cpusched^^}' CPU scheduler..."
+
+    if [ "$build_bore" -eq 1 ]; then
+        echo "Enabling BORE config..."
+        scripts/config -e SCHED_BORE --set-val MIN_BASE_SLICE_NS 1600000
+    fi
 
     ### Select build type
     case "$_buildtype" in

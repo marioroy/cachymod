@@ -1,0 +1,32 @@
+
+Revert CachyOS/CachyMod sched/fair.c modifications
+This is needed before applying official BORE patch
+
+diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -69,17 +69,17 @@
+  *
+  * (default SCHED_TUNABLESCALING_LOG = *(1+ilog(ncpus))
+  */
+-unsigned int sysctl_sched_tunable_scaling = SCHED_TUNABLESCALING_NONE;
++unsigned int sysctl_sched_tunable_scaling = SCHED_TUNABLESCALING_LOG;
+ 
+ /*
+  * Minimal preemption granularity for CPU-bound tasks:
+  *
+  * (default: 0.70 msec * (1 + ilog(ncpus)), units: nanoseconds)
+  */
+-unsigned int sysctl_sched_base_slice			= 800000000ULL / HZ * (HZ > 500? 2: 1);
+-static unsigned int normalized_sysctl_sched_base_slice	= 800000000ULL / HZ * (HZ > 500? 2: 1);
++unsigned int sysctl_sched_base_slice			= 700000ULL;
++static unsigned int normalized_sysctl_sched_base_slice	= 700000ULL;
+ 
+-__read_mostly unsigned int sysctl_sched_migration_cost	= 400000UL;
++__read_mostly unsigned int sysctl_sched_migration_cost	= 500000UL;
+ 
+ static int __init setup_sched_thermal_decay_shift(char *str)
+ {
+-- 
+2.52.0
+
