@@ -386,6 +386,89 @@ index 7cc9d50e3e11..9c1f21d59b5c 100644
 -- 
 2.40.1
 
+processor_idle: Skip dummy wait for processors based on Zen microarchitecture
+https://lore.kernel.org/all/20220921063638.2489-1-kprateek.nayak@amd.com/
+
+diff --git a/drivers/acpi/processor_idle.c b/drivers/acpi/processor_idle.c
+index 2c2dc559e0f8de..48d6b137e8f6ae 100644
+--- a/drivers/acpi/processor_idle.c
++++ b/drivers/acpi/processor_idle.c
+@@ -524,8 +524,11 @@ static __cpuidle void io_idle(unsigned long addr)
+ 	inb(addr);
+ 
+ #ifdef	CONFIG_X86
+-	/* No delay is needed if we are in guest */
+-	if (boot_cpu_has(X86_FEATURE_HYPERVISOR))
++	/*
++	 * No delay is needed if we are in guest or on a processor
++	 * based on the Zen microarchitecture.
++	 */
++	if (boot_cpu_has(X86_FEATURE_HYPERVISOR) || boot_cpu_has(X86_FEATURE_ZEN))
+ 		return;
+ 	/*
+ 	 * Modern (>=Nehalem) Intel systems use ACPI via intel_idle,
+-- 
+2.40.2
+
+rcu: Reduce synchronize_rcu() latency by reporting GP kthread's CPU QS early
+https://lore.kernel.org/all/20251230004124.438070-1-joelagnelf@nvidia.com/
+
+The RCU grace period mechanism uses a two-phase FQS (Force Quiescent
+State) design where the first FQS saves dyntick-idle snapshots and
+the second FQS compares them. This results in long and unnecessary latency
+for synchronize_rcu() on idle systems (two FQS waits of ~3ms each with
+1000HZ) whenever one FQS wait sufficed.
+
+Some investigations showed that the GP kthread's CPU is the holdout CPU
+a lot of times after the first FQS as - it cannot be detected as "idle"
+because it's actively running the FQS scan in the GP kthread.
+
+Therefore, at the end of rcu_gp_init(), immediately report a quiescent
+state for the GP kthread's CPU using rcu_qs() + rcu_report_qs_rdp(). The
+GP kthread cannot be in an RCU read-side critical section while running
+GP initialization, so this is safe and results in significant latency
+improvements.
+
+Reviewed-by: Paul E. McKenney <paulmck@xxxxxxxxxx>
+Tested-by: Uladzislau Rezki (Sony) <urezki@xxxxxxxxxx>
+Signed-off-by: Joel Fernandes <joelagnelf@xxxxxxxxxx>
+---
+ kernel/rcu/tree.c | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)
+
+diff --git a/kernel/rcu/tree.c b/kernel/rcu/tree.c
+index 78c045a5ef03..b7c818cabe44 100644
+--- a/kernel/rcu/tree.c
++++ b/kernel/rcu/tree.c
+@@ -160,6 +160,7 @@ static void rcu_report_qs_rnp(unsigned long mask, struct rcu_node *rnp,
+ 			      unsigned long gps, unsigned long flags);
+ static void invoke_rcu_core(void);
+ static void rcu_report_exp_rdp(struct rcu_data *rdp);
++static void rcu_report_qs_rdp(struct rcu_data *rdp);
+ static void check_cb_ovld_locked(struct rcu_data *rdp, struct rcu_node *rnp);
+ static bool rcu_rdp_is_offloaded(struct rcu_data *rdp);
+ static bool rcu_rdp_cpu_online(struct rcu_data *rdp);
+@@ -1983,6 +1984,17 @@ static noinline_for_stack bool rcu_gp_init(void)
+ 	if (IS_ENABLED(CONFIG_RCU_STRICT_GRACE_PERIOD))
+ 		on_each_cpu(rcu_strict_gp_boundary, NULL, 0);
+ 
++	/*
++	 * Immediately report QS for the GP kthread's CPU. The GP kthread
++	 * cannot be in an RCU read-side critical section while running
++	 * the FQS scan. This eliminates the need for a second FQS wait
++	 * when all CPUs are idle.
++	 */
++	preempt_disable();
++	rcu_qs();
++	rcu_report_qs_rdp(this_cpu_ptr(&rcu_data));
++	preempt_enable();
++
+ 	return true;
+ }
+ 
+-- 
+2.34.1
+
 Bluetooth adapters of many Acer laptops don't work without it
 Add BT support for ASUS TUF Gaming A16 and TX Gaming FA608FM
 
@@ -425,67 +508,6 @@ index 0cf94c7a2c9c..20450f7a0c92 100644
 -- 
 2.40.2
 
-processor_idle: Skip dummy wait for processors based on Zen microarchitecture
-https://lore.kernel.org/all/20220921063638.2489-1-kprateek.nayak@amd.com/
-
-diff --git a/drivers/acpi/processor_idle.c b/drivers/acpi/processor_idle.c
-index 2c2dc559e0f8de..48d6b137e8f6ae 100644
---- a/drivers/acpi/processor_idle.c
-+++ b/drivers/acpi/processor_idle.c
-@@ -524,8 +524,11 @@ static __cpuidle void io_idle(unsigned long addr)
- 	inb(addr);
- 
- #ifdef	CONFIG_X86
--	/* No delay is needed if we are in guest */
--	if (boot_cpu_has(X86_FEATURE_HYPERVISOR))
-+	/*
-+	 * No delay is needed if we are in guest or on a processor
-+	 * based on the Zen microarchitecture.
-+	 */
-+	if (boot_cpu_has(X86_FEATURE_HYPERVISOR) || boot_cpu_has(X86_FEATURE_ZEN))
- 		return;
- 	/*
- 	 * Modern (>=Nehalem) Intel systems use ACPI via intel_idle,
--- 
-2.40.2
-
-rcu: Reduce synchronize_rcu() latency by reporting GP kthread's CPU QS early
-https://lore.kernel.org/all/20251230004124.438070-1-joelagnelf@nvidia.com/
-
-diff --git a/kernel/rcu/tree.c b/kernel/rcu/tree.c
-index 78c045a5ef03..b7c818cabe44 100644
---- a/kernel/rcu/tree.c
-+++ b/kernel/rcu/tree.c
-@@ -160,6 +160,7 @@ static void rcu_report_qs_rnp(unsigned long mask, struct rcu_node *rnp,
- 			      unsigned long gps, unsigned long flags);
- static void invoke_rcu_core(void);
- static void rcu_report_exp_rdp(struct rcu_data *rdp);
-+static void rcu_report_qs_rdp(struct rcu_data *rdp);
- static void check_cb_ovld_locked(struct rcu_data *rdp, struct rcu_node *rnp);
- static bool rcu_rdp_is_offloaded(struct rcu_data *rdp);
- static bool rcu_rdp_cpu_online(struct rcu_data *rdp);
-@@ -1983,6 +1984,17 @@ static noinline_for_stack bool rcu_gp_init(void)
- 	if (IS_ENABLED(CONFIG_RCU_STRICT_GRACE_PERIOD))
- 		on_each_cpu(rcu_strict_gp_boundary, NULL, 0);
- 
-+	/*
-+	 * Immediately report QS for the GP kthread's CPU. The GP kthread
-+	 * cannot be in an RCU read-side critical section while running
-+	 * the FQS scan. This eliminates the need for a second FQS wait
-+	 * when all CPUs are idle.
-+	 */
-+	preempt_disable();
-+	rcu_qs();
-+	rcu_report_qs_rdp(this_cpu_ptr(&rcu_data));
-+	preempt_enable();
-+
- 	return true;
- }
- 
-
--- 
-2.34.1
-
 Subject: [PATCH] ALSA: hda/realtek: Add quirk for Gigabyte G5 KF5 (2023)
 https://github.com/CachyOS/linux/commit/dd90b60b63e88586f1298d8ed1156e94631bf2aa
 
@@ -511,4 +533,35 @@ index 29469e54979149..0a725066ed5d0d 100644
  	SND_PCI_QUIRK(0x1462, 0xb171, "Cubi N 8GL (MS-B171)", ALC283_FIXUP_HEADSET_MIC),
 -- 
 2.34.1
+
+Subject: [PATCH] ALSA: hda/realtek: Add quirk for Acer Aspire V3-572G
+https://lore.kernel.org/all/20260221-fix-detect-mic-v1-1-b6e427b5275d@posteo.net/T/
+
+The Acer Aspire V3-572G has a combo jack (ALC283) but the BIOS
+sets pin 0x19 to 0x411111f0 (not connected), so the headset mic
+is not detected.
+
+Add a quirk to override pin 0x19 as a headset mic and enable
+headset mode.
+
+Suggested-by: Charalampos Mitrodimas <charmitro@xxxxxxxxxx>
+Signed-off-by: Panagiotis Foliadis <pfoliadis@xxxxxxxxxx>
+---
+ sound/hda/codecs/realtek/alc269.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/sound/hda/codecs/realtek/alc269.c b/sound/hda/codecs/realtek/alc269.c
+index 80f0be13b69f5a14e32d7d5ca4bdb848914c241c..1022886e2fa2fd13aca00273979f102cd11a079e 100644
+--- a/sound/hda/codecs/realtek/alc269.c
++++ b/sound/hda/codecs/realtek/alc269.c
+@@ -6239,6 +6239,7 @@ static const struct hda_quirk alc269_fixup_tbl[] = {
+ 	SND_PCI_QUIRK(0x1025, 0x079b, "Acer Aspire V5-573G", ALC282_FIXUP_ASPIRE_V5_PINS),
+ 	SND_PCI_QUIRK(0x1025, 0x080d, "Acer Aspire V5-122P", ALC269_FIXUP_ASPIRE_HEADSET_MIC),
+ 	SND_PCI_QUIRK(0x1025, 0x0840, "Acer Aspire E1", ALC269VB_FIXUP_ASPIRE_E1_COEF),
++	SND_PCI_QUIRK(0x1025, 0x0943, "Acer Aspire V3-572G", ALC269_FIXUP_ASPIRE_HEADSET_MIC),
+ 	SND_PCI_QUIRK(0x1025, 0x100c, "Acer Aspire E5-574G", ALC255_FIXUP_ACER_LIMIT_INT_MIC_BOOST),
+ 	SND_PCI_QUIRK(0x1025, 0x101c, "Acer Veriton N2510G", ALC269_FIXUP_LIFEBOOK),
+ 	SND_PCI_QUIRK(0x1025, 0x102b, "Acer Aspire C24-860", ALC286_FIXUP_ACER_AIO_MIC_NO_PRESENCE),
+-- 
+2.40.2
 
