@@ -84,11 +84,28 @@ uninstall. Then, press the `enter` key.
 
 ## Improving Interactive Performance
 
+Enable TEO (Timer Events Oriented) CPUIdle governor with modern x86-64
+processors. Specifically, Intel 11th Gen (Rocket/Tiger Lake), 12th/13th/14th
+Gen (Alder/Raptor Lake), AMD Ryzen 2000 series "Zen+" and newer are well
+supported.
+
+Do not enable if your CPU lacks the `MWAIT` extension. Ditto with Intel
+10th Gen (Coment Lake), which may not play nice with TEO.
+
+```bash
+lscpu | grep -E 'monitor|mwait'
+
+# Default to TEO via tmpfiles service
+sudo mkdir -p /etc/tmpfiles.d
+
+# Add entry to /etc/tmpfiles.d/tweaks.conf (create file if missing)
+w! /sys/devices/system/cpu/cpuidle/current_governor - - - - teo
+```
+
 If you're running CPU-intensive background tasks or make jobs, refer to
 [linux-cgroup-always](https://github.com/marioroy/linux-cgroup-always)
 for Ghostty-like `linux-cgroup = always` feature with your terminal emulator.
-
-This can be used with EEVDF.
+This can be used with EEVDF/BORE and Real-time (RT) kernels.
 
 ## Developer Notes
 
