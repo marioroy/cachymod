@@ -358,6 +358,202 @@ diff --git a/arch/x86/include/asm/tsc.h b/arch/x86/include/asm/tsc.h
 -- 
 2.43.0
 
+SUNLIGHT: tick-sched: Optimize check_tick_dependency with tracepoint check
+https://github.com/sunlightlinux/linux-sunlight/commit/5301d55d33e2
+
+Description:
+ - Add early return optimization in check_tick_dependency to avoid unnecessary
+   mask checks when tick_stop tracepoint is not enabled, improving performance
+   in the hot path.
+
+Signed-off-by: Ionut Nechita <ionut_n2001@xxxxxxxxxx>
+---
+ kernel/time/tick-sched.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/kernel/time/tick-sched.c b/kernel/time/tick-sched.c
+index 102bca01d62f..8bd9210eadc0 100644
+--- a/kernel/time/tick-sched.c
++++ b/kernel/time/tick-sched.c
+@@ -322,6 +322,9 @@ static bool check_tick_dependency(atomic_t *dep)
+ {
+ 	int val = atomic_read(dep);
+ 
++	if (likely(!tracepoint_enabled(tick_stop)))
++		return !val;
++
+ 	if (val & TICK_DEP_MASK_POSIX_TIMER) {
+ 		trace_tick_stop(0, TICK_DEP_MASK_POSIX_TIMER);
+ 		return true;
+-- 
+2.43.0
+
+SUNLIGHT: sched/core: Further optimize sched_move_task by avoiding
+  lock acquisition when autogroup is enabled
+https://github.com/sunlightlinux/linux-sunlight/commit/cd9f17bf83e7
+
+Description:
+ - Some sched_move_task calls are useless because task_struct->sched_task_group
+   might not change (remains equal to task_group of cpu_cgroup) when the system
+   has autogroup enabled. This patch optimizes the process by:
+
+   1. Splitting sched_change_group() into two functions: one to get the task_group
+   and another to perform the actual group change
+   2. Adding a new sched_needs_group_change() function to check if a change is needed
+   3. Most importantly, performing this check *before* acquiring the runqueue lock
+   to completely avoid lock acquisition when no change is needed
+
+   This approach provides a significant performance improvement over the original
+   patch, reducing the time spent in sched_move_task by 74-96% (compared to the
+   57.4% improvement in the original patch) in test scenarios involving frequent
+   task creation and exit.
+
+Based on the original idea from:
+Link: https://lkml.kernel.org/r/20230321064459.39421-1-wuchi.zero@gmail.com
+Signed-off-by: Ionut Nechita <ionut_n2001@xxxxxxxxxx>
+---
+ kernel/sched/core.c | 27 ++++++++++++++++++++++++---
+ 1 file changed, 24 insertions(+), 3 deletions(-)
+
+diff --git a/kernel/sched/core.c b/kernel/sched/core.c
+index 2e61c9707bea..fa7b0d1e8be6 100644
+--- a/kernel/sched/core.c
++++ b/kernel/sched/core.c
+@@ -9168,7 +9168,7 @@ void sched_release_group(struct task_group *tg)
+ 	spin_unlock_irqrestore(&task_group_lock, flags);
+ }
+ 
+-static void sched_change_group(struct task_struct *tsk)
++static struct task_group *sched_get_task_group(struct task_struct *tsk)
+ {
+ 	struct task_group *tg;
+ 
+@@ -9180,8 +9180,13 @@ static void sched_change_group(struct task_struct *tsk)
+ 	tg = container_of(task_css_check(tsk, cpu_cgrp_id, true),
+ 			  struct task_group, css);
+ 	tg = autogroup_task_group(tsk, tg);
+-	tsk->sched_task_group = tg;
+ 
++	return tg;
++}
++
++static void sched_change_group(struct task_struct *tsk, struct task_group *group)
++{
++	tsk->sched_task_group = group;
+ #ifdef CONFIG_FAIR_GROUP_SCHED
+ 	if (tsk->sched_class->task_change_group)
+ 		tsk->sched_class->task_change_group(tsk);
+@@ -9190,6 +9195,18 @@ static void sched_change_group(struct task_struct *tsk)
+ 		set_task_rq(tsk, task_cpu(tsk));
+ }
+ 
++static struct task_group *sched_needs_group_change(struct task_struct *tsk)
++{
++	struct task_group *new_group;
++
++	new_group = sched_get_task_group(tsk);
++
++	if (likely(new_group == tsk->sched_task_group))
++		return NULL;
++
++	return new_group;
++}
++
+ /*
+  * Change task's runqueue when it moves between groups.
+  *
+@@ -9199,10 +9216,14 @@ static void sched_change_group(struct task_struct *tsk)
+  */
+ void sched_move_task(struct task_struct *tsk, bool for_autogroup)
+ {
++	struct task_group *new_group;
+ 	int queued, running, queue_flags =
+ 		DEQUEUE_SAVE | DEQUEUE_MOVE | DEQUEUE_NOCLOCK;
+ 	struct rq *rq;
+ 
++	if (!(new_group = sched_needs_group_change(tsk)))
++		return;
++
+ 	CLASS(task_rq_lock, rq_guard)(tsk);
+ 	rq = rq_guard.rq;
+ 
+@@ -9216,7 +9237,7 @@ void sched_move_task(struct task_struct *tsk, bool for_autogroup)
+ 	if (running)
+ 		put_prev_task(rq, tsk);
+ 
+-	sched_change_group(tsk);
++	sched_change_group(tsk, new_group);
+ 	if (!for_autogroup)
+ 		scx_cgroup_move_task(tsk);
+ 
+-- 
+2.43.0
+
+cpuidle: Prefer teo over menu governor
+https://lore.kernel.org/all/20240905092645.2885200-3-christian.loehle@arm.com/
+
+Since menu no longer has the interactivity boost teo works better
+overall, so make it the default.
+
+Signed-off-by: Christian Loehle <christian.loehle@xxxxxxxxxx>
+---
+ drivers/cpuidle/Kconfig          | 5 +----
+ drivers/cpuidle/governors/menu.c | 2 +-
+ drivers/cpuidle/governors/teo.c  | 2 +-
+ 3 files changed, 3 insertions(+), 6 deletions(-)
+
+diff --git a/drivers/cpuidle/Kconfig b/drivers/cpuidle/Kconfig
+index cac5997dca50..ae67a464025a 100644
+--- a/drivers/cpuidle/Kconfig
++++ b/drivers/cpuidle/Kconfig
+@@ -5,7 +5,7 @@ config CPU_IDLE
+ 	bool "CPU idle PM support"
+ 	default y if ACPI || PPC_PSERIES
+ 	select CPU_IDLE_GOV_LADDER if (!NO_HZ && !NO_HZ_IDLE)
+-	select CPU_IDLE_GOV_MENU if (NO_HZ || NO_HZ_IDLE) && !CPU_IDLE_GOV_TEO
++	select CPU_IDLE_GOV_TEO if (NO_HZ || NO_HZ_IDLE) && !CPU_IDLE_GOV_MENU
+ 	help
+ 	  CPU idle is a generic framework for supporting software-controlled
+ 	  idle processor power management.  It includes modular cross-platform
+@@ -30,9 +30,6 @@ config CPU_IDLE_GOV_TEO
+ 	  This governor implements a simplified idle state selection method
+ 	  focused on timer events and does not do any interactivity boosting.
+ 
+-	  Some workloads benefit from using it and it generally should be safe
+-	  to use.  Say Y here if you are not happy with the alternatives.
+-
+ config CPU_IDLE_GOV_HALTPOLL
+ 	bool "Haltpoll governor (for virtualized systems)"
+ 	depends on KVM_GUEST
+diff --git a/drivers/cpuidle/governors/menu.c b/drivers/cpuidle/governors/menu.c
+index 28363bfa3e4c..c0ae5e98d6f1 100644
+--- a/drivers/cpuidle/governors/menu.c
++++ b/drivers/cpuidle/governors/menu.c
+@@ -524,7 +524,7 @@ static int menu_enable_device(struct cpuidle_driver *drv,
+ 
+ static struct cpuidle_governor menu_governor = {
+ 	.name =		"menu",
+-	.rating =	20,
++	.rating =	19,
+ 	.enable =	menu_enable_device,
+ 	.select =	menu_select,
+ 	.reflect =	menu_reflect,
+diff --git a/drivers/cpuidle/governors/teo.c b/drivers/cpuidle/governors/teo.c
+index f2992f92d8db..6c3cc39f285d 100644
+--- a/drivers/cpuidle/governors/teo.c
++++ b/drivers/cpuidle/governors/teo.c
+@@ -534,7 +534,7 @@ static int teo_enable_device(struct cpuidle_driver *drv,
+ 
+ static struct cpuidle_governor teo_governor = {
+ 	.name =		"teo",
+-	.rating =	19,
++	.rating =	20,
+ 	.enable =	teo_enable_device,
+ 	.select =	teo_select,
+ 	.reflect =	teo_reflect,
+-- 
+2.34.1
+
 sched/fair: do not scan twice in detach_tasks()
 https://lore.kernel.org/all/20250722102600.25976-1-shijie@os.amperecomputing.com/
 
