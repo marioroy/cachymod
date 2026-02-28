@@ -32,7 +32,7 @@ diff --git a/kernel/sched/core.c b/kernel/sched/core.c
 index 1711e9e501003a..ee7dfbf01792e5 100644
 --- a/kernel/sched/core.c
 +++ b/kernel/sched/core.c
-@@ -7435,14 +7435,11 @@ void rt_mutex_setprio(struct task_struct *p, struct task_struct *pi_task)
+@@ -7439,14 +7439,11 @@ void rt_mutex_setprio(struct task_struct *p, struct task_struct *pi_task)
  
  	check_class_changed(rq, p, prev_class, oldprio);
  out_unlock:
@@ -72,7 +72,7 @@ diff --git a/kernel/sched/core.c b/kernel/sched/core.c
 index fc358c1b6ca987..1711e9e501003a 100644
 --- a/kernel/sched/core.c
 +++ b/kernel/sched/core.c
-@@ -872,7 +872,7 @@ static enum hrtimer_restart hrtick(struct hrtimer *timer)
+@@ -875,7 +875,7 @@ static enum hrtimer_restart hrtick(struct hrtimer *timer)
  
  	rq_lock(rq, &rf);
  	update_rq_clock(rq);
@@ -81,85 +81,6 @@ index fc358c1b6ca987..1711e9e501003a 100644
  	rq_unlock(rq, &rf);
  
  	return HRTIMER_NORESTART;
--- 
-2.47.1
-
-sched/rt: Skip currently executing CPU in rto_next_cpu()
-https://lore.kernel.org/all/177011751498.2495410.2763756834301063916.tip-bot2@tip-bot2/
-
-CPU0 becomes overloaded when hosting a CPU-bound RT task, a non-CPU-bound
-RT task, and a CFS task stuck in kernel space. When other CPUs switch from
-RT to non-RT tasks, RT load balancing (LB) is triggered; with
-HAVE_RT_PUSH_IPI enabled, they send IPIs to CPU0 to drive the execution
-of rto_push_irq_work_func. During push_rt_task on CPU0,
-if next_task->prio < rq->donor->prio, resched_curr() sets NEED_RESCHED
-and after the push operation completes, CPU0 calls rto_next_cpu().
-Since only CPU0 is overloaded in this scenario, rto_next_cpu() should
-ideally return -1 (no further IPI needed).
-
-However, multiple CPUs invoking tell_cpu_to_push() during LB increments
-rd->rto_loop_next. Even when rd->rto_cpu is set to -1, the mismatch between
-rd->rto_loop and rd->rto_loop_next forces rto_next_cpu() to restart its
-search from -1. With CPU0 remaining overloaded (satisfying rt_nr_migratory
-&& rt_nr_total > 1), it gets reselected, causing CPU0 to queue irq_work to
-itself and send self-IPIs repeatedly. As long as CPU0 stays overloaded and
-other CPUs run pull_rt_tasks(), it falls into an infinite self-IPI loop,
-which triggers a CPU hardlockup due to continuous self-interrupts.
-
-The trigging scenario is as follows:
-
-         cpu0                      cpu1                    cpu2
-                                pull_rt_task
-                              tell_cpu_to_push
-                 <------------irq_work_queue_on
-rto_push_irq_work_func
-       push_rt_task
-    resched_curr(rq)                                   pull_rt_task
-    rto_next_cpu                                     tell_cpu_to_push
-                      <-------------------------- atomic_inc(rto_loop_next)
-rd->rto_loop != next
-     rto_next_cpu
-   irq_work_queue_on
-rto_push_irq_work_func
-
-Fix redundant self-IPI by filtering the initiating CPU in rto_next_cpu().
-This solution has been verified to effectively eliminate spurious self-IPIs
-and prevent CPU hardlockup scenarios.
-
-Fixes: 4bdced5c9a29 ("sched/rt: Simplify the IPI based RT balancing logic")
-Suggested-by: Steven Rostedt (Google) <rostedt@xxxxxxxxxx>
-Suggested-by: K Prateek Nayak <kprateek.nayak@xxxxxxxxxx>
-Signed-off-by: Chen Jinghuang <chenjinghuang2@xxxxxxxxxx>
-Signed-off-by: Peter Zijlstra (Intel) <peterz@xxxxxxxxxx>
-Reviewed-by: Steven Rostedt (Google) <rostedt@xxxxxxxxxx>
-Reviewed-by: Valentin Schneider <vschneid@xxxxxxxxxx>
----
- kernel/sched/rt.c | 5 +++++
- 1 file changed, 5 insertions(+)
-
-diff --git a/kernel/sched/rt.c b/kernel/sched/rt.c
-index 0a9b2cd..a768047 100644
---- a/kernel/sched/rt.c
-+++ b/kernel/sched/rt.c
-@@ -2100,6 +2100,7 @@ static void push_rt_tasks(struct rq *rq)
-  */
- static int rto_next_cpu(struct root_domain *rd)
- {
-+	int this_cpu = smp_processor_id();
- 	int next;
- 	int cpu;
- 
-@@ -2123,6 +2124,10 @@ static int rto_next_cpu(struct root_domain *rd)
- 
- 		rd->rto_cpu = cpu;
- 
-+		/* Do not send IPI to self */
-+		if (cpu == this_cpu)
-+			continue;
-+
- 		if (cpu < nr_cpu_ids)
- 			return cpu;
- 
 -- 
 2.47.1
 

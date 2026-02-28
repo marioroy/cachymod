@@ -28,15 +28,15 @@ diff -uarp a/include/linux/sched/topology.h b/include/linux/sched/topology.h
 diff -uarp a/kernel/sched/core.c b/kernel/sched/core.c
 --- a/kernel/sched/core.c
 +++ b/kernel/sched/core.c
-@@ -121,7 +121,6 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(sched_updat
- EXPORT_TRACEPOINT_SYMBOL_GPL(sched_compute_energy_tp);
+@@ -124,7 +124,6 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(sched_updat
+ EXPORT_TRACEPOINT_SYMBOL_GPL(sched_set_need_resched_tp);
  
  DEFINE_PER_CPU_SHARED_ALIGNED(struct rq, runqueues);
 -DEFINE_PER_CPU(struct rnd_state, sched_rnd_state);
  
  #ifdef CONFIG_SCHED_PROXY_EXEC
  DEFINE_STATIC_KEY_TRUE(__sched_proxy_exec);
-@@ -8587,8 +8586,6 @@ void __init sched_init_smp(void)
+@@ -8591,8 +8590,6 @@ void __init sched_init_smp(void)
  {
  	sched_init_numa(NUMA_NO_NODE);
  

@@ -419,7 +419,7 @@ diff --git a/kernel/sched/core.c b/kernel/sched/core.c
 index 2e61c9707bea..fa7b0d1e8be6 100644
 --- a/kernel/sched/core.c
 +++ b/kernel/sched/core.c
-@@ -9168,7 +9168,7 @@ void sched_release_group(struct task_group *tg)
+@@ -9172,7 +9172,7 @@ void sched_release_group(struct task_group *tg)
  	spin_unlock_irqrestore(&task_group_lock, flags);
  }
  
@@ -428,7 +428,7 @@ index 2e61c9707bea..fa7b0d1e8be6 100644
  {
  	struct task_group *tg;
  
-@@ -9180,8 +9180,13 @@ static void sched_change_group(struct task_struct *tsk)
+@@ -9184,8 +9184,13 @@ static void sched_change_group(struct task_struct *tsk)
  	tg = container_of(task_css_check(tsk, cpu_cgrp_id, true),
  			  struct task_group, css);
  	tg = autogroup_task_group(tsk, tg);
@@ -443,7 +443,7 @@ index 2e61c9707bea..fa7b0d1e8be6 100644
  #ifdef CONFIG_FAIR_GROUP_SCHED
  	if (tsk->sched_class->task_change_group)
  		tsk->sched_class->task_change_group(tsk);
-@@ -9190,6 +9195,18 @@ static void sched_change_group(struct task_struct *tsk)
+@@ -9194,6 +9199,18 @@ static void sched_change_group(struct task_struct *tsk)
  		set_task_rq(tsk, task_cpu(tsk));
  }
  
@@ -462,7 +462,7 @@ index 2e61c9707bea..fa7b0d1e8be6 100644
  /*
   * Change task's runqueue when it moves between groups.
   *
-@@ -9199,10 +9216,14 @@ static void sched_change_group(struct task_struct *tsk)
+@@ -9203,10 +9220,14 @@ static void sched_change_group(struct task_struct *tsk)
   */
  void sched_move_task(struct task_struct *tsk, bool for_autogroup)
  {
@@ -477,7 +477,7 @@ index 2e61c9707bea..fa7b0d1e8be6 100644
  	CLASS(task_rq_lock, rq_guard)(tsk);
  	rq = rq_guard.rq;
  
-@@ -9216,7 +9237,7 @@ void sched_move_task(struct task_struct *tsk, bool for_autogroup)
+@@ -9220,7 +9241,7 @@ void sched_move_task(struct task_struct *tsk, bool for_autogroup)
  	if (running)
  		put_prev_task(rq, tsk);
  
@@ -639,32 +639,6 @@ index 0cf94c7a2c9c..20450f7a0c92 100644
 -- 
 2.40.2
 
-Subject: [PATCH] ALSA: hda/realtek: Add quirk for Gigabyte G5 KF5 (2023)
-https://github.com/CachyOS/linux/commit/dd90b60b63e88586f1298d8ed1156e94631bf2aa
-
-Fixes microphone detection when a headset is connected to the audio jack
-using ALC256.
-
-Signed-off-by: Eric Naim <dnaim@cachyos.org>
----
- sound/hda/codecs/realtek/alc269.c | 1 +
- 1 file changed, 1 insertion(+)
-
-diff --git a/sound/hda/codecs/realtek/alc269.c b/sound/hda/codecs/realtek/alc269.c
-index 29469e54979149..0a725066ed5d0d 100644
---- a/sound/hda/codecs/realtek/alc269.c
-+++ b/sound/hda/codecs/realtek/alc269.c
-@@ -6952,6 +6952,7 @@ static const struct hda_quirk alc269_fixup_tbl[] = {
- 	SND_PCI_QUIRK(0x144d, 0xc886, "Samsung Galaxy Book3 Pro (NP964XFG)", ALC298_FIXUP_SAMSUNG_AMP_V2_4_AMPS),
- 	SND_PCI_QUIRK(0x144d, 0xc1ca, "Samsung Galaxy Book3 Pro 360 (NP960QFG)", ALC298_FIXUP_SAMSUNG_AMP_V2_4_AMPS),
- 	SND_PCI_QUIRK(0x144d, 0xc1cc, "Samsung Galaxy Book3 Ultra (NT960XFH)", ALC298_FIXUP_SAMSUNG_AMP_V2_4_AMPS),
-+	SND_PCI_QUIRK(0x1458, 0x900e, "Gigabyte G5 KF5 (2023)", ALC2XX_FIXUP_HEADSET_MIC),
- 	SND_PCI_QUIRK(0x1458, 0xfa53, "Gigabyte BXBT-2807", ALC283_FIXUP_HEADSET_MIC),
- 	SND_PCI_QUIRK(0x1462, 0xb120, "MSI Cubi MS-B120", ALC283_FIXUP_HEADSET_MIC),
- 	SND_PCI_QUIRK(0x1462, 0xb171, "Cubi N 8GL (MS-B171)", ALC283_FIXUP_HEADSET_MIC),
--- 
-2.34.1
-
 Subject: [PATCH] ALSA: hda/realtek: Add quirk for Acer Aspire V3-572G
 https://lore.kernel.org/all/20260221-fix-detect-mic-v1-1-b6e427b5275d@posteo.net/T/
 
@@ -695,4 +669,88 @@ index 80f0be13b69f5a14e32d7d5ca4bdb848914c241c..1022886e2fa2fd13aca00273979f102c
  	SND_PCI_QUIRK(0x1025, 0x102b, "Acer Aspire C24-860", ALC286_FIXUP_ACER_AIO_MIC_NO_PRESENCE),
 -- 
 2.40.2
+
+Revert ACPI: processor: Update cpuidle driver check in __acpi_processor_start()
+https://lore.kernel.org/all/20260225012349.847997484@linuxfoundation.org/
+
+The 6.18.14 release introduced a regression.
+Results, testing with TEO cpuidle governor.
+
+  echo teo |\
+  sudo tee /sys/devices/system/cpu/cpuidle/current_governor
+
+  chameneos-redux 600000
+    6.18.13:  3.0s
+    6.18.14:  4.0s
+
+  lagscope 4 million pings
+    6.18.13:  4.1s
+    6.18.14:  5.0s
+
+diff --git a/drivers/acpi/processor_driver.c b/drivers/acpi/processor_driver.c
+index 65e779be64ffc..7644de24d2faa 100644
+--- a/drivers/acpi/processor_driver.c
++++ b/drivers/acpi/processor_driver.c
+@@ -166,7 +166,7 @@ static int __acpi_processor_start(struct acpi_device *device)
+ 	if (result && !IS_ENABLED(CONFIG_ACPI_CPU_FREQ_PSS))
+ 		dev_dbg(&device->dev, "CPPC data invalid or not present\n");
+ 
+-	if (cpuidle_get_driver() == &acpi_idle_driver)
++	if (!cpuidle_get_driver() || cpuidle_get_driver() == &acpi_idle_driver)
+ 		acpi_processor_power_init(pr);
+ 
+ 	acpi_pss_perf_init(pr);
+-- 
+2.53.0
+
+Revert kbuild: Add objtool to top-level clean target
+https://github.com/CachyOS/linux/commit/f056c340b73962
+
+VirtualBox modules don't build anymore with 6.18.14
+https://lore.kernel.org/all/62d12399-76e5-3d40-126a-7490b4795b17@mailbox.org/
+
+diff --git a/Makefile b/Makefile
+index c4b22ec262784b..bc34a825aba80d 100644
+--- a/Makefile
++++ b/Makefile
+@@ -1444,15 +1444,6 @@ ifneq ($(wildcard $(resolve_btfids_O)),)
+ 	$(Q)$(MAKE) -sC $(srctree)/tools/bpf/resolve_btfids O=$(resolve_btfids_O) clean
+ endif
+ 
+-PHONY += objtool_clean
+-
+-objtool_O = $(abspath $(objtree))/tools/objtool
+-
+-objtool_clean:
+-ifneq ($(wildcard $(objtool_O)),)
+-	$(Q)$(MAKE) -sC $(abs_srctree)/tools/objtool O=$(objtool_O) srctree=$(abs_srctree) clean
+-endif
+-
+ tools/: FORCE
+ 	$(Q)mkdir -p $(objtree)/tools
+ 	$(Q)$(MAKE) O=$(abspath $(objtree)) subdir=tools -C $(srctree)/tools/
+@@ -1617,7 +1608,7 @@ vmlinuxclean:
+ 	$(Q)$(CONFIG_SHELL) $(srctree)/scripts/link-vmlinux.sh clean
+ 	$(Q)$(if $(ARCH_POSTLINK), $(MAKE) -f $(ARCH_POSTLINK) clean)
+ 
+-clean: archclean vmlinuxclean resolve_btfids_clean objtool_clean
++clean: archclean vmlinuxclean resolve_btfids_clean
+ 
+ # mrproper - Delete all generated files, including .config
+ #
+diff --git a/tools/objtool/Makefile b/tools/objtool/Makefile
+index 8c20361dd100ef..99d3897e046c66 100644
+--- a/tools/objtool/Makefile
++++ b/tools/objtool/Makefile
+@@ -7,8 +7,6 @@ srctree := $(patsubst %/,%,$(dir $(CURDIR)))
+ srctree := $(patsubst %/,%,$(dir $(srctree)))
+ endif
+ 
+-RM ?= rm -f
+-
+ LIBSUBCMD_DIR = $(srctree)/tools/lib/subcmd/
+ ifneq ($(OUTPUT),)
+   LIBSUBCMD_OUTPUT = $(abspath $(OUTPUT))/libsubcmd
+-- 
+2.53.0
 

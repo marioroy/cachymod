@@ -5,7 +5,6 @@ https://git.kernel.org/pub/scm/linux/kernel/git/arighi/linux.git/log/?h=scx-6.18
   sched_ext: Exit early on hotplug events during attach
   sched/debug: Fix updating of ppos on server write ops
   sched/debug: Stop and start server based on if it was active
-  sched/deadline: Clear the defer params
   sched/deadline: Return EBUSY if dl_bw_cpus is zero
   sched: Add a server arg to dl_server_update_idle_time()
   sched/deadline: De-couple balance and pick_task
@@ -196,42 +195,6 @@ index 6cf9be6eea49a8..e71f6618c1a6ad 100644
  			dl_server_start(&rq->fair_server);
  
  		if (retval < 0)
--- 
-cgit 1.2.3-korg
-
-
-From a2168eee0954d3b1c29c4f8f789ba992f61914d0 Mon Sep 17 00:00:00 2001
-From: Joel Fernandes <joelagnelf@xxxxxxxxxx>
-Date: Sat, 9 Aug 2025 14:47:48 -0400
-Subject: sched/deadline: Clear the defer params
-
-The defer params were not cleared in __dl_clear_params. Clear them.
-
-Without this is some of my test cases are flaking and the DL timer is
-not starting correctly AFAICS.
-
-Fixes: a110a81c52a9 ("sched/deadline: Deferrable dl server")
-Acked-by: Juri Lelli <juri.lelli@xxxxxxxxxx>
-Reviewed-by: Andrea Righi <arighi@xxxxxxxxxx>
-Signed-off-by: Joel Fernandes <joelagnelf@xxxxxxxxxx>
----
- kernel/sched/deadline.c | 3 +++
- 1 file changed, 3 insertions(+)
-
-diff --git a/kernel/sched/deadline.c b/kernel/sched/deadline.c
-index d3d8f04c7903fd..ceef85c3c18725 100644
---- a/kernel/sched/deadline.c
-+++ b/kernel/sched/deadline.c
-@@ -3591,6 +3591,9 @@ static void __dl_clear_params(struct sched_dl_entity *dl_se)
- 	dl_se->dl_non_contending	= 0;
- 	dl_se->dl_overrun		= 0;
- 	dl_se->dl_server		= 0;
-+	dl_se->dl_defer			= 0;
-+	dl_se->dl_defer_running		= 0;
-+	dl_se->dl_defer_armed		= 0;
- 
- #ifdef CONFIG_RT_MUTEXES
- 	dl_se->pi_se			= dl_se;
 -- 
 cgit 1.2.3-korg
 
@@ -551,7 +514,7 @@ diff --git a/kernel/sched/core.c b/kernel/sched/core.c
 index 900e2a26971560..2a5a3b6b6f72f3 100644
 --- a/kernel/sched/core.c
 +++ b/kernel/sched/core.c
-@@ -5912,15 +5912,23 @@ static void prev_balance(struct rq *rq, struct task_struct *prev,
+@@ -5916,15 +5916,23 @@ static void prev_balance(struct rq *rq, struct task_struct *prev,
  	const struct sched_class *class;
  
  #ifdef CONFIG_SCHED_CLASS_EXT
@@ -582,7 +545,7 @@ index 900e2a26971560..2a5a3b6b6f72f3 100644
  	}
  #endif
  
-@@ -8770,6 +8778,9 @@ void __init sched_init(void)
+@@ -8774,6 +8782,9 @@ void __init sched_init(void)
  		hrtick_rq_init(rq);
  		atomic_set(&rq->nr_iowait, 0);
  		fair_server_init(rq);

@@ -1,7 +1,7 @@
-From dfc5c96ad8b3573e7a236d7a5d2fd26cec77f311 Mon Sep 17 00:00:00 2001
+From fd0c2b0b060da8fde6453f9dc4e924c865799f0c Mon Sep 17 00:00:00 2001
 From: Peter Jung <admin@ptr1337.dev>
 Date: Fri, 6 Feb 2026 18:43:41 +0100
-Subject: [PATCH 06/11] crypto
+Subject: [PATCH] crypto
 
 Signed-off-by: Peter Jung <admin@ptr1337.dev>
 ---
@@ -21,7 +21,7 @@ Signed-off-by: Peter Jung <admin@ptr1337.dev>
  rename arch/x86/crypto/{aes-gcm-avx10-x86_64.S => aes-gcm-vaes-avx512.S} (69%)
 
 diff --git a/arch/x86/crypto/Makefile b/arch/x86/crypto/Makefile
-index 2d30d5d36145..6409e3009524 100644
+index 2d30d5d361458f..6409e3009524ca 100644
 --- a/arch/x86/crypto/Makefile
 +++ b/arch/x86/crypto/Makefile
 @@ -46,8 +46,9 @@ obj-$(CONFIG_CRYPTO_AES_NI_INTEL) += aesni-intel.o
@@ -37,7 +37,7 @@ index 2d30d5d36145..6409e3009524 100644
  obj-$(CONFIG_CRYPTO_GHASH_CLMUL_NI_INTEL) += ghash-clmulni-intel.o
  ghash-clmulni-intel-y := ghash-clmulni-intel_asm.o ghash-clmulni-intel_glue.o
 diff --git a/arch/x86/crypto/aes-gcm-aesni-x86_64.S b/arch/x86/crypto/aes-gcm-aesni-x86_64.S
-index 45940e2883a0..7c8a8a32bd3c 100644
+index 45940e2883a0f7..7c8a8a32bd3c6e 100644
 --- a/arch/x86/crypto/aes-gcm-aesni-x86_64.S
 +++ b/arch/x86/crypto/aes-gcm-aesni-x86_64.S
 @@ -61,15 +61,15 @@
@@ -73,7 +73,7 @@ index 45940e2883a0..7c8a8a32bd3c 100644
  //      faster than schoolbook multiplication in this context if one pshufd and
 diff --git a/arch/x86/crypto/aes-gcm-vaes-avx2.S b/arch/x86/crypto/aes-gcm-vaes-avx2.S
 new file mode 100644
-index 000000000000..5ccbd85383cd
+index 00000000000000..5ccbd85383cddb
 --- /dev/null
 +++ b/arch/x86/crypto/aes-gcm-vaes-avx2.S
 @@ -0,0 +1,1150 @@
@@ -1231,7 +1231,7 @@ diff --git a/arch/x86/crypto/aes-gcm-avx10-x86_64.S b/arch/x86/crypto/aes-gcm-va
 similarity index 69%
 rename from arch/x86/crypto/aes-gcm-avx10-x86_64.S
 rename to arch/x86/crypto/aes-gcm-vaes-avx512.S
-index 02ee11083d4f..06b71314d65c 100644
+index 02ee11083d4f8f..06b71314d65cce 100644
 --- a/arch/x86/crypto/aes-gcm-avx10-x86_64.S
 +++ b/arch/x86/crypto/aes-gcm-vaes-avx512.S
 @@ -1,6 +1,7 @@
@@ -2257,7 +2257,7 @@ index 02ee11083d4f..06b71314d65c 100644
 -SYM_FUNC_END(aes_gcm_dec_final_vaes_avx10)
 +SYM_FUNC_END(aes_gcm_dec_final_vaes_avx512)
 diff --git a/arch/x86/crypto/aesni-intel_glue.c b/arch/x86/crypto/aesni-intel_glue.c
-index d953ac470aae..bb6e2c47ffc6 100644
+index d953ac470aae34..bb6e2c47ffc612 100644
 --- a/arch/x86/crypto/aesni-intel_glue.c
 +++ b/arch/x86/crypto/aesni-intel_glue.c
 @@ -874,8 +874,38 @@ struct aes_gcm_key_aesni {
@@ -2692,7 +2692,7 @@ index d953ac470aae..bb6e2c47ffc6 100644
  #else /* CONFIG_X86_64 */
  static struct aead_alg aes_gcm_algs_aesni[0];
 diff --git a/drivers/md/Kconfig b/drivers/md/Kconfig
-index 104aa5355090..cac4926fc340 100644
+index 104aa53550905d..cac4926fc3401c 100644
 --- a/drivers/md/Kconfig
 +++ b/drivers/md/Kconfig
 @@ -546,6 +546,7 @@ config DM_VERITY
@@ -2704,7 +2704,7 @@ index 104aa5355090..cac4926fc340 100644
  	help
  	  This device-mapper target creates a read-only device that
 diff --git a/drivers/md/dm-verity-fec.c b/drivers/md/dm-verity-fec.c
-index e41bde1d3b15..9b873c0df8f1 100644
+index e41bde1d3b15b8..9b873c0df8f195 100644
 --- a/drivers/md/dm-verity-fec.c
 +++ b/drivers/md/dm-verity-fec.c
 @@ -188,14 +188,13 @@ static int fec_decode_bufs(struct dm_verity *v, struct dm_verity_io *io,
@@ -2772,7 +2772,7 @@ index e41bde1d3b15..9b873c0df8f1 100644
  			goto done;
  	}
 diff --git a/drivers/md/dm-verity-fec.h b/drivers/md/dm-verity-fec.h
-index ec37e607cb3f..c9dce904cd6c 100644
+index ec37e607cb3f09..c9dce904cd6cec 100644
 --- a/drivers/md/dm-verity-fec.h
 +++ b/drivers/md/dm-verity-fec.h
 @@ -65,8 +65,8 @@ struct dm_verity_fec_io {
@@ -2795,7 +2795,7 @@ index ec37e607cb3f..c9dce904cd6c 100644
  {
  	return -EOPNOTSUPP;
 diff --git a/drivers/md/dm-verity-target.c b/drivers/md/dm-verity-target.c
-index c8695c079cfe..c7190885db76 100644
+index c8695c079cfe08..c7190885db766b 100644
 --- a/drivers/md/dm-verity-target.c
 +++ b/drivers/md/dm-verity-target.c
 @@ -117,11 +117,25 @@ static sector_t verity_position_at_level(struct dm_verity *v, sector_t block,
@@ -3197,7 +3197,7 @@ index c8695c079cfe..c7190885db76 100644
  	if (r)
  		goto bad;
 diff --git a/drivers/md/dm-verity.h b/drivers/md/dm-verity.h
-index 6d141abd965c..f975a9e5c5d6 100644
+index 6d141abd965c77..f975a9e5c5d6ba 100644
 --- a/drivers/md/dm-verity.h
 +++ b/drivers/md/dm-verity.h
 @@ -16,6 +16,7 @@
@@ -3292,7 +3292,7 @@ index 6d141abd965c..f975a9e5c5d6 100644
  extern int verity_hash(struct dm_verity *v, struct dm_verity_io *io,
  		       const u8 *data, size_t len, u8 *digest);
 diff --git a/include/linux/rhashtable.h b/include/linux/rhashtable.h
-index 05a221ce79a6..b87a768b955c 100644
+index 05a221ce79a6f5..b87a768b955c26 100644
 --- a/include/linux/rhashtable.h
 +++ b/include/linux/rhashtable.h
 @@ -355,12 +355,25 @@ static inline void rht_unlock(struct bucket_table *tbl,

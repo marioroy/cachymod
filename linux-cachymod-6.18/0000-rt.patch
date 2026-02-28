@@ -1,8 +1,8 @@
-patch-6.18-rc4-rt3
+patch-6.18.13-rt4
 https://cdn.kernel.org/pub/linux/kernel/projects/rt/6.18/
 
 diff --git a/arch/arm/Kconfig b/arch/arm/Kconfig
-index 2e3f93b690f47..84ad4fe11589b 100644
+index 70cd3b5b5a059..b32f85f14c28a 100644
 --- a/arch/arm/Kconfig
 +++ b/arch/arm/Kconfig
 @@ -41,6 +41,7 @@ config ARM
@@ -67,7 +67,7 @@ index 2bc828a1940c0..ad58c1e22a5f9 100644
  	/*
  	 * If we're in an interrupt or have no user
 diff --git a/arch/powerpc/Kconfig b/arch/powerpc/Kconfig
-index e24f4d88885ae..38b2b01455b76 100644
+index 9537a61ebae02..08c7f3dd26557 100644
 --- a/arch/powerpc/Kconfig
 +++ b/arch/powerpc/Kconfig
 @@ -172,6 +172,7 @@ config PPC
@@ -1003,8 +1003,8 @@ index eefb67d9883c2..20ac8a5ac27d7 100644
  };
 diff --git a/localversion-rt b/localversion-rt
 new file mode 100644
-index 0000000000000..1445cd65885cd
+index 0000000000000..ad3da1bcab7e8
 --- /dev/null
 +++ b/localversion-rt
 @@ -0,0 +1 @@
-+-rt3
++-rt4
