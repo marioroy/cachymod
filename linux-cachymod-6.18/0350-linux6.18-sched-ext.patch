@@ -380,7 +380,7 @@ diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
 index 1877cbe4fac3f1..ae176d687a680c 100644
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -8934,7 +8934,7 @@ void fair_server_init(struct rq *rq)
+@@ -8937,7 +8937,7 @@ void fair_server_init(struct rq *rq)
  
  	init_dl_entity(dl_se);
  
