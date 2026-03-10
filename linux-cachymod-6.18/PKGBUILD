@@ -119,7 +119,7 @@ else
     _CYAN= _NC=
 fi
 
-if [[ "$_buildtype" =~ ^(gcc|clang)$ ]]; then
+if [[ "$_buildtype" =~ ^(gcc)$ ]]; then
     _autofdo="no"
     _autofdo_profile_name=""
 fi
@@ -137,7 +137,7 @@ fi
 
 _pkgsuffix=cachymod
 _major=6.18
-_minor=15
+_minor=16
 pkgver=${_major}.${_minor}
 _stable=${_major}.${_minor}
 #_stable=${_major}
@@ -167,12 +167,12 @@ source=(
 
     # CachyOS
     "0001-amd-pstate.patch"
-    "0004-bbr3.patch"
-    "0005-cachy.patch"
-    "0006-crypto.patch"
-    "0007-fixes.patch"
-    "0008-hdmi.patch"
-    "0009-intel-pstate.patch"
+    "0003-bbr3.patch"
+    "0004-cachy.patch"
+    "0005-crypto.patch"
+    "0006-fixes.patch"
+    "0007-hdmi.patch"
+    "0008-intel-pstate.patch"
 
     # CachyMod
     "0040-revert-dot5-sched-change.patch"

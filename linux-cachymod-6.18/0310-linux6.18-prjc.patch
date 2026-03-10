@@ -10347,7 +10347,7 @@ index 41caa22e0..87e292a0d 100644
  __read_mostly bool sched_debug_verbose;
  
  static struct dentry           *sd_dentry;
-@@ -464,9 +468,11 @@ static const struct file_operations fair_server_period_fops = {
+@@ -465,9 +469,11 @@ static const struct file_operations fair_server_period_fops = {
  	.llseek		= seq_lseek,
  	.release	= single_release,
  };
@@ -10359,7 +10359,7 @@ index 41caa22e0..87e292a0d 100644
  static void debugfs_fair_server_init(void)
  {
  	struct dentry *d_fair;
-@@ -487,6 +493,7 @@ static void debugfs_fair_server_init(void)
+@@ -488,6 +494,7 @@ static void debugfs_fair_server_init(void)
  		debugfs_create_file("period", 0644, d_cpu, (void *) cpu, &fair_server_period_fops);
  	}
  }
@@ -10367,7 +10367,7 @@ index 41caa22e0..87e292a0d 100644
  
  static __init int sched_init_debug(void)
  {
-@@ -494,14 +501,17 @@ static __init int sched_init_debug(void)
+@@ -495,14 +502,17 @@ static __init int sched_init_debug(void)
  
  	debugfs_sched = debugfs_create_dir("sched", NULL);
  
@@ -10385,7 +10385,7 @@ index 41caa22e0..87e292a0d 100644
  	debugfs_create_u32("latency_warn_ms", 0644, debugfs_sched, &sysctl_resched_latency_warn_ms);
  	debugfs_create_u32("latency_warn_once", 0644, debugfs_sched, &sysctl_resched_latency_warn_once);
  
-@@ -524,13 +534,18 @@ static __init int sched_init_debug(void)
+@@ -525,13 +535,18 @@ static __init int sched_init_debug(void)
  #endif /* CONFIG_NUMA_BALANCING */
  
  	debugfs_create_file("debug", 0444, debugfs_sched, NULL, &sched_debug_fops);
@@ -10404,7 +10404,7 @@ index 41caa22e0..87e292a0d 100644
  static cpumask_var_t		sd_sysctl_cpus;
  
  static int sd_flags_show(struct seq_file *m, void *v)
-@@ -1263,6 +1278,11 @@ void proc_sched_show_task(struct task_struct *p, struct pid_namespace *ns,
+@@ -1264,6 +1279,11 @@ void proc_sched_show_task(struct task_struct *p, struct pid_namespace *ns,
  
  	sched_show_numa(p, m);
  }

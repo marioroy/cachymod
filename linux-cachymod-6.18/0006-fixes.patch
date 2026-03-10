@@ -1,32 +1,32 @@
-From 2259487839bebd7bd99e7499e0080bf39df64a32 Mon Sep 17 00:00:00 2001
+From 0e7ca62f48a5ce3682387da3fa4b64c26b647f98 Mon Sep 17 00:00:00 2001
 From: Peter Jung <admin@ptr1337.dev>
-Date: Fri, 6 Feb 2026 18:45:27 +0100
+Date: Wed, 4 Mar 2026 15:53:25 +0100
 Subject: [PATCH] fixes
 
 Signed-off-by: Peter Jung <admin@ptr1337.dev>
 ---
- arch/arm/include/asm/mmu_context.h      |  2 +-
- arch/riscv/include/asm/sync_core.h      |  2 +-
- arch/s390/include/asm/mmu_context.h     |  2 +-
- arch/sparc/include/asm/mmu_context_64.h |  2 +-
- arch/x86/include/asm/mmu_context.h      | 23 +++++++++-
- arch/x86/include/asm/sync_core.h        |  2 +-
- arch/x86/kernel/cpu/amd.c               |  6 +++
- arch/x86/mm/tlb.c                       | 21 ---------
- drivers/bluetooth/btusb.c               |  2 +
- drivers/gpu/drm/amd/amdgpu/amdgpu_ids.c | 58 ++++++++-----------------
- drivers/gpu/drm/amd/amdgpu/amdgpu_vm.c  |  7 ---
- drivers/gpu/drm/amd/amdgpu/amdgpu_vm.h  |  4 --
- drivers/gpu/drm/i915/gt/intel_rc6.c     | 13 +++++-
- drivers/usb/core/quirks.c               |  9 ++++
- include/linux/perf_event.h              |  2 +-
- include/linux/sched/mm.h                | 10 ++---
- include/linux/tick.h                    |  4 +-
- include/linux/vtime.h                   |  8 ++--
- kernel/sched/core.c                     | 19 +++-----
- kernel/sched/fair.c                     | 11 ++---
- kernel/sched/sched.h                    | 24 +++++-----
- 21 files changed, 109 insertions(+), 122 deletions(-)
+ arch/arm/include/asm/mmu_context.h         |  2 +-
+ arch/riscv/include/asm/sync_core.h         |  2 +-
+ arch/s390/include/asm/mmu_context.h        |  2 +-
+ arch/sparc/include/asm/mmu_context_64.h    |  2 +-
+ arch/x86/include/asm/mmu_context.h         | 23 ++++++++++++++++++++-
+ arch/x86/include/asm/sync_core.h           |  2 +-
+ arch/x86/kernel/cpu/amd.c                  |  6 ++++++
+ arch/x86/mm/tlb.c                          | 21 -------------------
+ drivers/bluetooth/btusb.c                  |  2 ++
+ drivers/gpu/drm/amd/amdgpu/amdgpu_device.c |  4 ++--
+ drivers/gpu/drm/i915/gt/intel_rc6.c        | 13 +++++++++++-
+ drivers/hid/Makefile                       |  3 ++-
+ drivers/hid/hid-haptic.c                   |  3 +++
+ drivers/usb/core/quirks.c                  |  9 ++++++++
+ include/linux/perf_event.h                 |  2 +-
+ include/linux/sched/mm.h                   | 10 ++++-----
+ include/linux/tick.h                       |  4 ++--
+ include/linux/vtime.h                      |  8 ++++----
+ kernel/sched/core.c                        | 19 +++++++----------
+ kernel/sched/fair.c                        | 11 +++-------
+ kernel/sched/sched.h                       | 24 +++++++++++++---------
+ 21 files changed, 99 insertions(+), 73 deletions(-)
 
 diff --git a/arch/arm/include/asm/mmu_context.h b/arch/arm/include/asm/mmu_context.h
 index db2cb06aa8cf5e..bebde469f81ae6 100644
@@ -185,162 +185,40 @@ index 5d221709353e0a..cb715e8e75e49d 100644
   * Using a temporary mm allows to set temporary mappings that are not accessible
   * by other CPUs. Such mappings are needed to perform sensitive memory writes
 diff --git a/drivers/bluetooth/btusb.c b/drivers/bluetooth/btusb.c
-index a953fa9af85c64..d8798497336fea 100644
+index 7c7955afa8e8aa..688d7aa08610bf 100644
 --- a/drivers/bluetooth/btusb.c
 +++ b/drivers/bluetooth/btusb.c
-@@ -559,6 +559,8 @@ static const struct usb_device_id quirks_table[] = {
+@@ -671,6 +671,8 @@ static const struct usb_device_id quirks_table[] = {
  						     BTUSB_WIDEBAND_SPEECH },
- 	{ USB_DEVICE(0x13d3, 0x3592), .driver_info = BTUSB_REALTEK |
- 						     BTUSB_WIDEBAND_SPEECH },
-+	{ USB_DEVICE(0x0489, 0xe112), .driver_info = BTUSB_REALTEK |
+ 
+ 	/* MediaTek MT7922 Bluetooth devices */
++	{ USB_DEVICE(0x13d3, 0x3625), .driver_info = BTUSB_MEDIATEK |
 +						     BTUSB_WIDEBAND_SPEECH },
- 	{ USB_DEVICE(0x0489, 0xe122), .driver_info = BTUSB_REALTEK |
+ 	{ USB_DEVICE(0x13d3, 0x3585), .driver_info = BTUSB_MEDIATEK |
  						     BTUSB_WIDEBAND_SPEECH },
- 
-diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu_ids.c b/drivers/gpu/drm/amd/amdgpu/amdgpu_ids.c
-index 3ef5bc95642cab..9cab36322c1658 100644
---- a/drivers/gpu/drm/amd/amdgpu/amdgpu_ids.c
-+++ b/drivers/gpu/drm/amd/amdgpu/amdgpu_ids.c
-@@ -201,58 +201,34 @@ static int amdgpu_vmid_grab_idle(struct amdgpu_ring *ring,
- 	struct amdgpu_device *adev = ring->adev;
- 	unsigned vmhub = ring->vm_hub;
- 	struct amdgpu_vmid_mgr *id_mgr = &adev->vm_manager.id_mgr[vmhub];
--	struct dma_fence **fences;
--	unsigned i;
- 
-+	/* If anybody is waiting for a VMID let everybody wait for fairness */
- 	if (!dma_fence_is_signaled(ring->vmid_wait)) {
- 		*fence = dma_fence_get(ring->vmid_wait);
- 		return 0;
- 	}
- 
--	fences = kmalloc_array(id_mgr->num_ids, sizeof(void *), GFP_NOWAIT);
--	if (!fences)
--		return -ENOMEM;
--
- 	/* Check if we have an idle VMID */
--	i = 0;
--	list_for_each_entry((*idle), &id_mgr->ids_lru, list) {
-+	list_for_each_entry_reverse((*idle), &id_mgr->ids_lru, list) {
- 		/* Don't use per engine and per process VMID at the same time */
- 		struct amdgpu_ring *r = adev->vm_manager.concurrent_flush ?
- 			NULL : ring;
- 
--		fences[i] = amdgpu_sync_peek_fence(&(*idle)->active, r);
--		if (!fences[i])
--			break;
--		++i;
-+		*fence = amdgpu_sync_peek_fence(&(*idle)->active, r);
-+		if (!(*fence))
-+			return 0;
- 	}
- 
--	/* If we can't find a idle VMID to use, wait till one becomes available */
--	if (&(*idle)->list == &id_mgr->ids_lru) {
--		u64 fence_context = adev->vm_manager.fence_context + ring->idx;
--		unsigned seqno = ++adev->vm_manager.seqno[ring->idx];
--		struct dma_fence_array *array;
--		unsigned j;
--
--		*idle = NULL;
--		for (j = 0; j < i; ++j)
--			dma_fence_get(fences[j]);
--
--		array = dma_fence_array_create(i, fences, fence_context,
--					       seqno, true);
--		if (!array) {
--			for (j = 0; j < i; ++j)
--				dma_fence_put(fences[j]);
--			kfree(fences);
--			return -ENOMEM;
--		}
--
--		*fence = dma_fence_get(&array->base);
--		dma_fence_put(ring->vmid_wait);
--		ring->vmid_wait = &array->base;
--		return 0;
--	}
--	kfree(fences);
-+	/*
-+	 * If we can't find a idle VMID to use, wait on a fence from the least
-+	 * recently used in the hope that it will be available soon.
-+	 */
-+	*idle = NULL;
-+	dma_fence_put(ring->vmid_wait);
-+	ring->vmid_wait = dma_fence_get(*fence);
- 
-+	/* This is the reference we return */
-+	dma_fence_get(*fence);
- 	return 0;
- }
- 
-@@ -313,7 +289,7 @@ static int amdgpu_vmid_grab_reserved(struct amdgpu_vm *vm,
- 	* user of the VMID.
- 	*/
- 	r = amdgpu_sync_fence(&(*id)->active, &job->base.s_fence->finished,
--			      GFP_NOWAIT);
-+			      GFP_ATOMIC);
- 	if (r)
- 		return r;
- 
-@@ -373,7 +349,7 @@ static int amdgpu_vmid_grab_used(struct amdgpu_vm *vm,
- 		 */
- 		r = amdgpu_sync_fence(&(*id)->active,
- 				      &job->base.s_fence->finished,
--				      GFP_NOWAIT);
-+				      GFP_ATOMIC);
- 		if (r)
- 			return r;
- 
-@@ -426,7 +402,7 @@ int amdgpu_vmid_grab(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
- 			/* Remember this submission as user of the VMID */
- 			r = amdgpu_sync_fence(&id->active,
- 					      &job->base.s_fence->finished,
--					      GFP_NOWAIT);
-+					      GFP_ATOMIC);
- 			if (r)
- 				goto error;
- 
-diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu_vm.c b/drivers/gpu/drm/amd/amdgpu/amdgpu_vm.c
-index 3d2f9d0e2d2397..63e49577a5b2e4 100644
---- a/drivers/gpu/drm/amd/amdgpu/amdgpu_vm.c
-+++ b/drivers/gpu/drm/amd/amdgpu/amdgpu_vm.c
-@@ -2830,8 +2830,6 @@ void amdgpu_vm_fini(struct amdgpu_device *adev, struct amdgpu_vm *vm)
-  */
- void amdgpu_vm_manager_init(struct amdgpu_device *adev)
- {
--	unsigned i;
--
- 	/* Concurrent flushes are only possible starting with Vega10 and
- 	 * are broken on Navi10 and Navi14.
+ 	{ USB_DEVICE(0x13d3, 0x3610), .driver_info = BTUSB_MEDIATEK |
+diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu_device.c b/drivers/gpu/drm/amd/amdgpu/amdgpu_device.c
+index b28ebb44c695d7..7553f7c8069d3b 100644
+--- a/drivers/gpu/drm/amd/amdgpu/amdgpu_device.c
++++ b/drivers/gpu/drm/amd/amdgpu/amdgpu_device.c
+@@ -4991,7 +4991,7 @@ void amdgpu_device_fini_hw(struct amdgpu_device *adev)
+ 	 * before ip_fini_early to prevent kfd locking refcount issues by calling
+ 	 * amdgpu_amdkfd_suspend()
  	 */
-@@ -2840,11 +2838,6 @@ void amdgpu_vm_manager_init(struct amdgpu_device *adev)
- 					      adev->asic_type == CHIP_NAVI14);
- 	amdgpu_vmid_mgr_init(adev);
+-	if (drm_dev_is_unplugged(adev_to_drm(adev)))
++	if (pci_dev_is_disconnected(adev->pdev))
+ 		amdgpu_amdkfd_device_fini_sw(adev);
  
--	adev->vm_manager.fence_context =
--		dma_fence_context_alloc(AMDGPU_MAX_RINGS);
--	for (i = 0; i < AMDGPU_MAX_RINGS; ++i)
--		adev->vm_manager.seqno[i] = 0;
--
- 	spin_lock_init(&adev->vm_manager.prt_lock);
- 	atomic_set(&adev->vm_manager.num_prt_users, 0);
+ 	amdgpu_device_ip_fini_early(adev);
+@@ -5003,7 +5003,7 @@ void amdgpu_device_fini_hw(struct amdgpu_device *adev)
  
-diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu_vm.h b/drivers/gpu/drm/amd/amdgpu/amdgpu_vm.h
-index cf0ec94e8a0754..15d757c016cbbc 100644
---- a/drivers/gpu/drm/amd/amdgpu/amdgpu_vm.h
-+++ b/drivers/gpu/drm/amd/amdgpu/amdgpu_vm.h
-@@ -453,10 +453,6 @@ struct amdgpu_vm_manager {
- 	unsigned int				first_kfd_vmid;
- 	bool					concurrent_flush;
+ 	amdgpu_gart_dummy_page_fini(adev);
  
--	/* Handling of VM fences */
--	u64					fence_context;
--	unsigned				seqno[AMDGPU_MAX_RINGS];
--
- 	uint64_t				max_pfn;
- 	uint32_t				num_level;
- 	uint32_t				block_size;
+-	if (drm_dev_is_unplugged(adev_to_drm(adev)))
++	if (pci_dev_is_disconnected(adev->pdev))
+ 		amdgpu_device_unmap_mmio(adev);
+ 
+ }
 diff --git a/drivers/gpu/drm/i915/gt/intel_rc6.c b/drivers/gpu/drm/i915/gt/intel_rc6.c
 index bf38cc5fe87295..787b3fd2925c9b 100644
 --- a/drivers/gpu/drm/i915/gt/intel_rc6.c
@@ -374,8 +252,36 @@ index bf38cc5fe87295..787b3fd2925c9b 100644
  	if (intel_vgpu_active(i915))
  		return false;
  
+diff --git a/drivers/hid/Makefile b/drivers/hid/Makefile
+index c975f2f1bd54ed..0690975d993b56 100644
+--- a/drivers/hid/Makefile
++++ b/drivers/hid/Makefile
+@@ -4,7 +4,8 @@
+ #
+ hid-y			:= hid-core.o hid-input.o hid-quirks.o
+ hid-$(CONFIG_DEBUG_FS)		+= hid-debug.o
+-hid-$(CONFIG_HID_HAPTIC)	+= hid-haptic.o
++
++obj-$(CONFIG_HID_HAPTIC)	+= hid-haptic.o
+ 
+ obj-$(CONFIG_HID_BPF)		+= bpf/
+ 
+diff --git a/drivers/hid/hid-haptic.c b/drivers/hid/hid-haptic.c
+index fc8a9997f81538..eb9c21dfe38eac 100644
+--- a/drivers/hid/hid-haptic.c
++++ b/drivers/hid/hid-haptic.c
+@@ -10,6 +10,9 @@
+ 
+ #include "hid-haptic.h"
+ 
++MODULE_DESCRIPTION("HID haptic touchpad support");
++MODULE_LICENSE("GPL");
++
+ void hid_haptic_feature_mapping(struct hid_device *hdev,
+ 				struct hid_haptic_device *haptic,
+ 				struct hid_field *field, struct hid_usage *usage)
 diff --git a/drivers/usb/core/quirks.c b/drivers/usb/core/quirks.c
-index c4d85089d19b13..3c09bb61ed411e 100644
+index c4d85089d19b13..ddce45ce9f6c01 100644
 --- a/drivers/usb/core/quirks.c
 +++ b/drivers/usb/core/quirks.c
 @@ -453,6 +453,15 @@ static const struct usb_device_id usb_quirk_list[] = {
@@ -385,7 +291,7 @@ index c4d85089d19b13..3c09bb61ed411e 100644
 +	/* ASUS TUF 4K PRO - BOS descriptor fetch hangs at SuperSpeed Plus */
 +	{ USB_DEVICE(0x0b05, 0x1ab9), .driver_info = USB_QUIRK_NO_BOS },
 +
-+	/* Avermedia Live Gamer Ultra 2.1 (GC553G2) */
++	/* Avermedia Live Gamer Ultra 2.1 (GC553G2) - BOS descriptor fetch hangs at SuperSpeed Plus */
 +	{ USB_DEVICE(0x07ca, 0x2553), .driver_info = USB_QUIRK_NO_BOS },
 +
 +	/* UGREEN 35871 - BOS descriptor fetch hangs at SuperSpeed Plus */
@@ -700,5 +606,5 @@ index f75ded301e071e..a3f52e493b4253 100644
  	raw_spin_rq_unlock(rq);
  	local_irq_enable();
 -- 
-2.53.0
+2.52.0
 

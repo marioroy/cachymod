@@ -1,4 +1,4 @@
-From fd0c2b0b060da8fde6453f9dc4e924c865799f0c Mon Sep 17 00:00:00 2001
+From 9011846704b0a2237407b76d34bf313970d4b03c Mon Sep 17 00:00:00 2001
 From: Peter Jung <admin@ptr1337.dev>
 Date: Fri, 6 Feb 2026 18:43:41 +0100
 Subject: [PATCH] crypto
@@ -2704,7 +2704,7 @@ index 104aa53550905d..cac4926fc3401c 100644
  	help
  	  This device-mapper target creates a read-only device that
 diff --git a/drivers/md/dm-verity-fec.c b/drivers/md/dm-verity-fec.c
-index e41bde1d3b15b8..9b873c0df8f195 100644
+index 5365b3987374a1..b1bbd0abb996f2 100644
 --- a/drivers/md/dm-verity-fec.c
 +++ b/drivers/md/dm-verity-fec.c
 @@ -188,14 +188,13 @@ static int fec_decode_bufs(struct dm_verity *v, struct dm_verity_io *io,
@@ -3437,5 +3437,5 @@ index 05a221ce79a6f5..b87a768b955c26 100644
   * function returns the existing element already in hashes if there is a clash,
   * otherwise it returns an error via ERR_PTR().
 -- 
-2.53.0
+2.52.0
 

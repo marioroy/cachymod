@@ -246,7 +246,7 @@ input_autofdo() {
   local -n varref="$1"; local msg=
   msg+="Opt-in to include the AutoFDO profile when building the kernel.\n"
   msg+="Note: Some folks have reported lesser performance. (YMMV)\n"
-  msg+="This is ignored for the 'clang' and 'gcc' build types.\n"
+  msg+="This is ignored for the 'gcc' build type.\n"
 
   confirm $1 "Build kernel with the AutoFDO profile?" "$msg"
 }

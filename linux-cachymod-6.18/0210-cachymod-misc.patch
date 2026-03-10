@@ -600,26 +600,6 @@ index 78c045a5ef03..b7c818cabe44 100644
 -- 
 2.34.1
 
-Bluetooth adapters of many Acer laptops don't work without it
-Add BT support for ASUS TUF Gaming A16 and TX Gaming FA608FM
-
-diff -uarp a/drivers/bluetooth/btusb.c b/drivers/bluetooth/btusb.c
---- a/drivers/bluetooth/btusb.c
-+++ b/drivers/bluetooth/btusb.c
-@@ -581,6 +581,10 @@ static const struct usb_device_id quirks
- 						     BTUSB_WIDEBAND_SPEECH },
- 	{ USB_DEVICE(0x13d3, 0x3591), .driver_info = BTUSB_REALTEK |
- 						     BTUSB_WIDEBAND_SPEECH },
-+	{ USB_DEVICE(0x13d3, 0x3601), .driver_info = BTUSB_REALTEK |
-+						     BTUSB_WIDEBAND_SPEECH },
-+	{ USB_DEVICE(0x13d3, 0x3612), .driver_info = BTUSB_REALTEK |
-+						     BTUSB_WIDEBAND_SPEECH },
- 	{ USB_DEVICE(0x13d3, 0x3618), .driver_info = BTUSB_REALTEK |
- 						     BTUSB_WIDEBAND_SPEECH },
- 	{ USB_DEVICE(0x0489, 0xe123), .driver_info = BTUSB_REALTEK |
--- 
-2.40.2
-
 Add Logitech C310
 
 diff --git a/drivers/usb/core/quirks.c b/drivers/usb/core/quirks.c
@@ -659,7 +639,7 @@ diff --git a/sound/hda/codecs/realtek/alc269.c b/sound/hda/codecs/realtek/alc269
 index 80f0be13b69f5a14e32d7d5ca4bdb848914c241c..1022886e2fa2fd13aca00273979f102cd11a079e 100644
 --- a/sound/hda/codecs/realtek/alc269.c
 +++ b/sound/hda/codecs/realtek/alc269.c
-@@ -6239,6 +6239,7 @@ static const struct hda_quirk alc269_fixup_tbl[] = {
+@@ -6451,6 +6451,7 @@ static const struct hda_quirk alc269_fixup_tbl[] = {
  	SND_PCI_QUIRK(0x1025, 0x079b, "Acer Aspire V5-573G", ALC282_FIXUP_ASPIRE_V5_PINS),
  	SND_PCI_QUIRK(0x1025, 0x080d, "Acer Aspire V5-122P", ALC269_FIXUP_ASPIRE_HEADSET_MIC),
  	SND_PCI_QUIRK(0x1025, 0x0840, "Acer Aspire E1", ALC269VB_FIXUP_ASPIRE_E1_COEF),
@@ -670,87 +650,97 @@ index 80f0be13b69f5a14e32d7d5ca4bdb848914c241c..1022886e2fa2fd13aca00273979f102c
 -- 
 2.40.2
 
-Revert ACPI: processor: Update cpuidle driver check in __acpi_processor_start()
-https://lore.kernel.org/all/20260225012349.847997484@linuxfoundation.org/
+Input: xpad - add support for EasySMX 05 Pro
+https://github.com/CachyOS/linux/commit/10f42fae6e6b5b1d9fc925bf427c5f66d1f6a75d
 
-The 6.18.14 release introduced a regression.
-Results, testing with TEO cpuidle governor.
-
-  echo teo |\
-  sudo tee /sys/devices/system/cpu/cpuidle/current_governor
-
-  chameneos-redux 600000
-    6.18.13:  3.0s
-    6.18.14:  4.0s
-
-  lagscope 4 million pings
-    6.18.13:  4.1s
-    6.18.14:  5.0s
-
-diff --git a/drivers/acpi/processor_driver.c b/drivers/acpi/processor_driver.c
-index 65e779be64ffc..7644de24d2faa 100644
---- a/drivers/acpi/processor_driver.c
-+++ b/drivers/acpi/processor_driver.c
-@@ -166,7 +166,7 @@ static int __acpi_processor_start(struct acpi_device *device)
- 	if (result && !IS_ENABLED(CONFIG_ACPI_CPU_FREQ_PSS))
- 		dev_dbg(&device->dev, "CPPC data invalid or not present\n");
- 
--	if (cpuidle_get_driver() == &acpi_idle_driver)
-+	if (!cpuidle_get_driver() || cpuidle_get_driver() == &acpi_idle_driver)
- 		acpi_processor_power_init(pr);
- 
- 	acpi_pss_perf_init(pr);
+diff --git a/drivers/input/joystick/xpad.c b/drivers/input/joystick/xpad.c
+index 363d509493866a..cab76608d50892 100644
+--- a/drivers/input/joystick/xpad.c
++++ b/drivers/input/joystick/xpad.c
+@@ -367,6 +367,7 @@ static const struct xpad_device {
+ 	{ 0x20d6, 0x400b, "PowerA FUSION Pro 4 Wired Controller", MAP_SHARE_BUTTON, XTYPE_XBOXONE },
+ 	{ 0x20d6, 0x890b, "PowerA MOGA XP-Ultra Controller", MAP_SHARE_BUTTON, XTYPE_XBOXONE },
+ 	{ 0x2345, 0xe00b, "Machenike G5 Pro Controller", 0, XTYPE_XBOX360 },
++	{ 0x2345, 0xe07a, "EasySMX X05 Pro", 0, XTYPE_XBOX360 },
+ 	{ 0x24c6, 0x5000, "Razer Atrox Arcade Stick", MAP_TRIGGERS_TO_BUTTONS, XTYPE_XBOX360 },
+ 	{ 0x24c6, 0x5300, "PowerA MINI PROEX Controller", 0, XTYPE_XBOX360 },
+ 	{ 0x24c6, 0x5303, "Xbox Airflo wired controller", 0, XTYPE_XBOX360 },
 -- 
-2.53.0
+2.40.2
 
-Revert kbuild: Add objtool to top-level clean target
-https://github.com/CachyOS/linux/commit/f056c340b73962
+kbuild: Leave objtool binary around with 'make clean'
+https://lore.kernel.org/all/20260309174349.1332818-1-sashal@kernel.org/
 
-VirtualBox modules don't build anymore with 6.18.14
+Fixes: VirtualBox modules don't build anymore with 6.18.14
 https://lore.kernel.org/all/62d12399-76e5-3d40-126a-7490b4795b17@mailbox.org/
 
+Split the objtool clean target into mrproper and clean like Kbuild does
+and remove all generated artifacts with 'make clean' except for the
+objtool binary, which is removed with 'make mrproper'.
+
+To avoid a small race when running the objtool clean target through both
+objtool_mrproper and objtool_clean when running 'make mrproper', modify
+objtool's clean up find command to avoid using find's '-delete' command
+by piping the files into 'xargs rm -f' like the rest of Kbuild does.
+
+Tested-by: Nicolas Schier <nsc@xxxxxxxxxx>
+Signed-off-by: Nathan Chancellor <nathan@xxxxxxxxxx>
+Signed-off-by: Sasha Levin <sashal@xxxxxxxxxx>
+---
+ Makefile               | 8 ++++----
+ tools/objtool/Makefile | 8 +++++---
+ 2 files changed, 9 insertions(+), 7 deletions(-)
+
 diff --git a/Makefile b/Makefile
-index c4b22ec262784b..bc34a825aba80d 100644
+index 35c1fcb095717..827d27605b0de 100644
 --- a/Makefile
 +++ b/Makefile
-@@ -1444,15 +1444,6 @@ ifneq ($(wildcard $(resolve_btfids_O)),)
+@@ -1444,13 +1444,13 @@ ifneq ($(wildcard $(resolve_btfids_O)),)
  	$(Q)$(MAKE) -sC $(srctree)/tools/bpf/resolve_btfids O=$(resolve_btfids_O) clean
  endif
  
 -PHONY += objtool_clean
--
--objtool_O = $(abspath $(objtree))/tools/objtool
--
++PHONY += objtool_clean objtool_mrproper
+ 
+ objtool_O = $(abspath $(objtree))/tools/objtool
+ 
 -objtool_clean:
--ifneq ($(wildcard $(objtool_O)),)
++objtool_clean objtool_mrproper:
+ ifneq ($(wildcard $(objtool_O)),)
 -	$(Q)$(MAKE) -sC $(abs_srctree)/tools/objtool O=$(objtool_O) srctree=$(abs_srctree) clean
--endif
--
- tools/: FORCE
- 	$(Q)mkdir -p $(objtree)/tools
- 	$(Q)$(MAKE) O=$(abspath $(objtree)) subdir=tools -C $(srctree)/tools/
-@@ -1617,7 +1608,7 @@ vmlinuxclean:
- 	$(Q)$(CONFIG_SHELL) $(srctree)/scripts/link-vmlinux.sh clean
- 	$(Q)$(if $(ARCH_POSTLINK), $(MAKE) -f $(ARCH_POSTLINK) clean)
- 
--clean: archclean vmlinuxclean resolve_btfids_clean objtool_clean
-+clean: archclean vmlinuxclean resolve_btfids_clean
- 
- # mrproper - Delete all generated files, including .config
- #
-diff --git a/tools/objtool/Makefile b/tools/objtool/Makefile
-index 8c20361dd100ef..99d3897e046c66 100644
---- a/tools/objtool/Makefile
-+++ b/tools/objtool/Makefile
-@@ -7,8 +7,6 @@ srctree := $(patsubst %/,%,$(dir $(CURDIR)))
- srctree := $(patsubst %/,%,$(dir $(srctree)))
++	$(Q)$(MAKE) -sC $(abs_srctree)/tools/objtool O=$(objtool_O) srctree=$(abs_srctree) $(patsubst objtool_%,%,$@)
  endif
  
--RM ?= rm -f
--
- LIBSUBCMD_DIR = $(srctree)/tools/lib/subcmd/
- ifneq ($(OUTPUT),)
-   LIBSUBCMD_OUTPUT = $(abspath $(OUTPUT))/libsubcmd
+ tools/: FORCE
+@@ -1628,7 +1628,7 @@ PHONY += $(mrproper-dirs) mrproper
+ $(mrproper-dirs):
+ 	$(Q)$(MAKE) $(clean)=$(patsubst _mrproper_%,%,$@)
+ 
+-mrproper: clean $(mrproper-dirs)
++mrproper: clean objtool_mrproper $(mrproper-dirs)
+ 	$(call cmd,rmfiles)
+ 	@find . $(RCS_FIND_IGNORE) \
+ 		\( -name '*.rmeta' \) \
+diff --git a/tools/objtool/Makefile b/tools/objtool/Makefile
+index 99d3897e046c6..b436656cd1372 100644
+--- a/tools/objtool/Makefile
++++ b/tools/objtool/Makefile
+@@ -86,10 +86,12 @@ $(LIBSUBCMD)-clean:
+ 	$(Q)$(RM) -r -- $(LIBSUBCMD_OUTPUT)
+ 
+ clean: $(LIBSUBCMD)-clean
+-	$(call QUIET_CLEAN, objtool) $(RM) $(OBJTOOL)
+-	$(Q)find $(OUTPUT) -name '*.o' -delete -o -name '\.*.cmd' -delete -o -name '\.*.d' -delete
++	$(Q)find $(OUTPUT) \( -name '*.o' -o -name '\.*.cmd' -o -name '\.*.d' \) -type f -print | xargs $(RM)
+ 	$(Q)$(RM) $(OUTPUT)arch/x86/lib/inat-tables.c $(OUTPUT)fixdep
+ 
++mrproper: clean
++	$(call QUIET_CLEAN, objtool) $(RM) $(OBJTOOL)
++
+ FORCE:
+ 
+-.PHONY: clean FORCE
++.PHONY: clean mrproper FORCE
 -- 
-2.53.0
+2.51.0
 

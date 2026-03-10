@@ -1,4 +1,4 @@
-From 18e12869540b87bd5e0685df0b4ea0cf48cbf106 Mon Sep 17 00:00:00 2001
+From 312a2e7564c6b63fe0fadedc2b76525f0fa948a4 Mon Sep 17 00:00:00 2001
 From: Peter Jung <admin@ptr1337.dev>
 Date: Fri, 6 Feb 2026 18:43:31 +0100
 Subject: [PATCH] cachy
@@ -229,7 +229,7 @@ index 4d71211fdad8d0..57af938f196975 100644
  unprivileged_userfaultfd
  ========================
 diff --git a/Makefile b/Makefile
-index d166d069509991..bc2e9f9d085cff 100644
+index 35c1fcb0957171..4e1c009bf04002 100644
 --- a/Makefile
 +++ b/Makefile
 @@ -869,11 +869,19 @@ KBUILD_CFLAGS	+= -fno-delete-null-pointer-checks
@@ -2843,10 +2843,10 @@ index abd3b6564373a4..46937e6fa78d43 100644
 +
  endmenu
 diff --git a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c
-index a0077fe79ed269..9be393c36df8f4 100644
+index 7db2d1a3784bd6..9031f8e2e3711a 100644
 --- a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c
 +++ b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c
-@@ -4858,7 +4858,7 @@ static int amdgpu_dm_mode_config_init(struct amdgpu_device *adev)
+@@ -4868,7 +4868,7 @@ static int amdgpu_dm_mode_config_init(struct amdgpu_device *adev)
  		return r;
  	}
  
@@ -2900,7 +2900,7 @@ index 2e7ee77c010e18..b91f84dc4ce86b 100644
  #endif
  	return 0;
 diff --git a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm_plane.c b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm_plane.c
-index 9bb7475e80bad6..0d2e8b73c4f212 100644
+index 2ecebf9a00fa42..fffd589dc270b2 100644
 --- a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm_plane.c
 +++ b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm_plane.c
 @@ -1606,7 +1606,7 @@ static void amdgpu_dm_plane_drm_plane_destroy_state(struct drm_plane *plane,
@@ -7454,10 +7454,10 @@ index 00000000000000..e105e6f5cc91d1
 +MODULE_AUTHOR("Daniel Drake <drake@endlessm.com>");
 +MODULE_LICENSE("GPL v2");
 diff --git a/drivers/pci/quirks.c b/drivers/pci/quirks.c
-index 9e073321b2dd29..a1d6b1d099a5a6 100644
+index d32a47e81fcf3b..69fa2f38f11c8a 100644
 --- a/drivers/pci/quirks.c
 +++ b/drivers/pci/quirks.c
-@@ -3748,6 +3748,106 @@ static void quirk_no_bus_reset(struct pci_dev *dev)
+@@ -3758,6 +3758,106 @@ static void quirk_no_bus_reset(struct pci_dev *dev)
  	dev->dev_flags |= PCI_DEV_FLAGS_NO_BUS_RESET;
  }
  
@@ -7562,9 +7562,9 @@ index 9e073321b2dd29..a1d6b1d099a5a6 100644
 +	return -ENOTTY;
 +}
  /*
-  * Some NVIDIA GPU devices do not work with bus reset, SBR needs to be
-  * prevented for those affected devices.
-@@ -5195,6 +5295,7 @@ static const struct pci_dev_acs_enabled {
+  * After asserting Secondary Bus Reset to downstream devices via a GB10
+  * Root Port, the link may not retrain correctly.
+@@ -5227,6 +5327,7 @@ static const struct pci_dev_acs_enabled {
  	{ PCI_VENDOR_ID_ZHAOXIN, PCI_ANY_ID, pci_quirk_zhaoxin_pcie_ports_acs },
  	/* Wangxun nics */
  	{ PCI_VENDOR_ID_WANGXUN, PCI_ANY_ID, pci_quirk_wangxun_nic_acs },
@@ -9184,7 +9184,7 @@ index 757bc4d3b5b551..2b3ab677d1f898 100644
  EXPORT_SYMBOL_GPL(dirty_writeback_interval);
  
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 623f6e5b583ab6..732a9d0f417bd3 100644
+index d76f0f60f080d3..f22038c6c8b309 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
 @@ -301,7 +301,11 @@ const char * const migratetype_names[MIGRATE_TYPES] = {
@@ -9268,7 +9268,7 @@ index 8989d576752861..b03a92a1dced4e 100644
  
  static int __init init_vm_util_sysctls(void)
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 06071995dacc90..58b510c6153d23 100644
+index 05d9354a59c658..08713b1bb631cc 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
 @@ -147,6 +147,15 @@ struct scan_control {
@@ -9311,7 +9311,7 @@ index 06071995dacc90..58b510c6153d23 100644
  
  #ifdef CONFIG_MEMCG
  
-@@ -1158,6 +1180,10 @@ static unsigned int shrink_folio_list(struct list_head *folio_list,
+@@ -1168,6 +1190,10 @@ static unsigned int shrink_folio_list(struct list_head *folio_list,
  		if (!sc->may_unmap && folio_mapped(folio))
  			goto keep_locked;
  
@@ -9322,7 +9322,7 @@ index 06071995dacc90..58b510c6153d23 100644
  		/*
  		 * The number of dirty pages determines if a node is marked
  		 * reclaim_congested. kswapd will stall and start writing
-@@ -2607,6 +2633,15 @@ static void get_scan_count(struct lruvec *lruvec, struct scan_control *sc,
+@@ -2617,6 +2643,15 @@ static void get_scan_count(struct lruvec *lruvec, struct scan_control *sc,
  		goto out;
  	}
  
@@ -9338,7 +9338,7 @@ index 06071995dacc90..58b510c6153d23 100644
  	/*
  	 * If there is enough inactive page cache, we do not reclaim
  	 * anything from the anonymous working right now to make sure
-@@ -2665,6 +2700,14 @@ static void get_scan_count(struct lruvec *lruvec, struct scan_control *sc,
+@@ -2675,6 +2710,14 @@ static void get_scan_count(struct lruvec *lruvec, struct scan_control *sc,
  			BUG();
  		}
  
@@ -9353,7 +9353,7 @@ index 06071995dacc90..58b510c6153d23 100644
  		nr[lru] = scan;
  	}
  }
-@@ -2685,6 +2728,96 @@ static bool can_age_anon_pages(struct lruvec *lruvec,
+@@ -2695,6 +2738,96 @@ static bool can_age_anon_pages(struct lruvec *lruvec,
  			  lruvec_memcg(lruvec));
  }
  
@@ -9450,7 +9450,7 @@ index 06071995dacc90..58b510c6153d23 100644
  #ifdef CONFIG_LRU_GEN
  
  #ifdef CONFIG_LRU_GEN_ENABLED
-@@ -4668,11 +4801,21 @@ static int get_tier_idx(struct lruvec *lruvec, int type)
+@@ -4678,11 +4811,21 @@ static int get_tier_idx(struct lruvec *lruvec, int type)
  	return tier - 1;
  }
  
@@ -9474,7 +9474,7 @@ index 06071995dacc90..58b510c6153d23 100644
  		return LRU_GEN_FILE;
  
  	if (swappiness >= MAX_SWAPPINESS)
-@@ -4692,7 +4835,7 @@ static int isolate_folios(unsigned long nr_to_scan, struct lruvec *lruvec,
+@@ -4702,7 +4845,7 @@ static int isolate_folios(unsigned long nr_to_scan, struct lruvec *lruvec,
  			  int *type_scanned, struct list_head *list)
  {
  	int i;
@@ -9483,7 +9483,7 @@ index 06071995dacc90..58b510c6153d23 100644
  
  	for_each_evictable_type(i, swappiness) {
  		int scanned;
-@@ -4938,6 +5081,12 @@ static int shrink_one(struct lruvec *lruvec, struct scan_control *sc)
+@@ -4948,6 +5091,12 @@ static int shrink_one(struct lruvec *lruvec, struct scan_control *sc)
  	struct mem_cgroup *memcg = lruvec_memcg(lruvec);
  	struct pglist_data *pgdat = lruvec_pgdat(lruvec);
  
@@ -9496,7 +9496,7 @@ index 06071995dacc90..58b510c6153d23 100644
  	/* lru_gen_age_node() called mem_cgroup_calculate_protection() */
  	if (mem_cgroup_below_min(NULL, memcg))
  		return MEMCG_LRU_YOUNG;
-@@ -6092,6 +6241,8 @@ static void shrink_node(pg_data_t *pgdat, struct scan_control *sc)
+@@ -6102,6 +6251,8 @@ static void shrink_node(pg_data_t *pgdat, struct scan_control *sc)
  
  	prepare_scan_control(pgdat, sc);
  
@@ -9666,10 +9666,10 @@ index 00000000000000..382cebe1ee571c
 +
 +.PHONY: $(PHONY)
 diff --git a/scripts/mod/modpost.c b/scripts/mod/modpost.c
-index 47c8aa2a693925..38f62eb4bd8ba8 100644
+index 133dfa16308a3e..5f477d8f79cd64 100644
 --- a/scripts/mod/modpost.c
 +++ b/scripts/mod/modpost.c
-@@ -1473,13 +1473,22 @@ static void extract_crcs_for_object(const char *object, struct module *mod)
+@@ -1477,13 +1477,22 @@ static void extract_crcs_for_object(const char *object, struct module *mod)
  	char cmd_file[PATH_MAX];
  	char *buf, *p;
  	const char *base;
@@ -9712,5 +9712,5 @@ index 452374d63c2444..08f80d7c5df05a 100644
  	mkdir -p "${builddir}"
  	cp System.map "${builddir}/System.map"
 -- 
-2.53.0
+2.52.0
 

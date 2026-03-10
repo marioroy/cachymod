@@ -1,4 +1,4 @@
-From 0b4b8e14ace4680615988d559b26190d53c58101 Mon Sep 17 00:00:00 2001
+From 86578bdbefabbd0c944e24bd6973916169754a60 Mon Sep 17 00:00:00 2001
 From: Peter Jung <admin@ptr1337.dev>
 Date: Fri, 6 Feb 2026 18:46:58 +0100
 Subject: [PATCH] intel-pstate
@@ -127,5 +127,5 @@ index 8343e3dbfd71f0..87d79e744ca271 100644
  
  	/* Use core scaling on non-hybrid systems. */
 -- 
-2.53.0
+2.52.0
 
