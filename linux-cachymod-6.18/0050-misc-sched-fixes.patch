@@ -106,7 +106,7 @@ diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
 index c16b5fd71b2d..fdc4303ca83a 100644
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -6794,16 +6794,15 @@ static inline void hrtick_update(struct rq *rq)
+@@ -6904,16 +6904,15 @@ static inline void hrtick_update(struct rq *rq)
  
  static inline bool cpu_overutilized(int cpu)
  {
@@ -134,7 +134,7 @@ https://lore.kernel.org/all/20260209142321.917660634@linuxfoundation.org/
 diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -11751,7 +11751,7 @@ redo:
+@@ -11861,7 +11861,7 @@ redo:
  		goto out_balanced;
  	}
  

@@ -27,7 +27,7 @@
 diff -uar a/arch/x86/Kconfig b/arch/x86/Kconfig
 --- a/arch/x86/Kconfig
 +++ b/arch/x86/Kconfig
-@@ -1231,7 +1231,7 @@
+@@ -1232,7 +1232,7 @@
  	default X86_LEGACY_VM86
  
  config X86_16BIT
@@ -36,7 +36,7 @@ diff -uar a/arch/x86/Kconfig b/arch/x86/Kconfig
  	default y
  	depends on MODIFY_LDT_SYSCALL
  	help
-@@ -1249,7 +1249,7 @@ config X86_ESPFIX64
+@@ -1250,7 +1250,7 @@ config X86_ESPFIX64
  	depends on X86_16BIT && X86_64
  
  config X86_VSYSCALL_EMULATION
@@ -45,7 +45,7 @@ diff -uar a/arch/x86/Kconfig b/arch/x86/Kconfig
  	default y
  	depends on X86_64
  	help
-@@ -2305,7 +2305,7 @@
+@@ -2306,7 +2306,7 @@
  	  be set to 'N' under normal conditions.
  
  config MODIFY_LDT_SYSCALL
@@ -106,7 +106,7 @@ diff -uar a/lib/Kconfig.debug b/lib/Kconfig.debug
  	depends on BUG && (GENERIC_BUG || HAVE_DEBUG_BUGVERBOSE)
  	default y
  	help
-@@ -909,7 +909,7 @@
+@@ -910,7 +910,7 @@
  	  regions to be regularly checked for invalid topology.
  
  config DEBUG_MEMORY_INIT

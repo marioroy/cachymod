@@ -137,14 +137,14 @@ fi
 
 _pkgsuffix=cachymod
 _major=6.18
-_minor=16
+_minor=17
 pkgver=${_major}.${_minor}
 _stable=${_major}.${_minor}
 #_stable=${_major}
 
 _srcname=linux-${_stable}
 pkgdesc='CachyMod Linux Kernel with other patches and improvements'
-pkgrel=2
+pkgrel=1
 _kernver="$pkgver-$pkgrel"
 _kernuname="${pkgver}-${_pkgsuffix}"
 arch=('x86_64')
@@ -205,7 +205,18 @@ if [[ "$buildtype" =~ (lto|clang) ]]; then
     CLANG_BIN=$(which clang) ; CLANG_BIN="${CLANG_BIN%clang}"
 
     if [[ "$CLANG_BIN" != "/usr/bin/" && -x "${CLANG_BIN%/}/llvm-strip" ]]; then
-        BUILD_FLAGS+=(LLVM="$CLANG_BIN")
+        BUILD_FLAGS+=(
+            LLVM="$CLANG_BIN"
+            LIBCLANG_PATH="${CLANG_BIN%/}/../lib"
+            AR=llvm-ar
+            AS=llvm-as
+            NM=llvm-nm
+            OBJCOPY=llvm-objcopy
+            OBJDUMP=llvm-objdump
+            RANLIB=llvm-ranlib
+            READELF=llvm-readelf
+            STRIP=llvm-strip
+        )
     else
         BUILD_FLAGS+=(LLVM=1)
     fi

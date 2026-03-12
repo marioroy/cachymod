@@ -5,28 +5,27 @@ Subject: [PATCH] fixes
 
 Signed-off-by: Peter Jung <admin@ptr1337.dev>
 ---
- arch/arm/include/asm/mmu_context.h         |  2 +-
- arch/riscv/include/asm/sync_core.h         |  2 +-
- arch/s390/include/asm/mmu_context.h        |  2 +-
- arch/sparc/include/asm/mmu_context_64.h    |  2 +-
- arch/x86/include/asm/mmu_context.h         | 23 ++++++++++++++++++++-
- arch/x86/include/asm/sync_core.h           |  2 +-
- arch/x86/kernel/cpu/amd.c                  |  6 ++++++
- arch/x86/mm/tlb.c                          | 21 -------------------
- drivers/bluetooth/btusb.c                  |  2 ++
- drivers/gpu/drm/amd/amdgpu/amdgpu_device.c |  4 ++--
- drivers/gpu/drm/i915/gt/intel_rc6.c        | 13 +++++++++++-
- drivers/hid/Makefile                       |  3 ++-
- drivers/hid/hid-haptic.c                   |  3 +++
- drivers/usb/core/quirks.c                  |  9 ++++++++
- include/linux/perf_event.h                 |  2 +-
- include/linux/sched/mm.h                   | 10 ++++-----
- include/linux/tick.h                       |  4 ++--
- include/linux/vtime.h                      |  8 ++++----
- kernel/sched/core.c                        | 19 +++++++----------
- kernel/sched/fair.c                        | 11 +++-------
- kernel/sched/sched.h                       | 24 +++++++++++++---------
- 21 files changed, 99 insertions(+), 73 deletions(-)
+ arch/arm/include/asm/mmu_context.h      |  2 +-
+ arch/riscv/include/asm/sync_core.h      |  2 +-
+ arch/s390/include/asm/mmu_context.h     |  2 +-
+ arch/sparc/include/asm/mmu_context_64.h |  2 +-
+ arch/x86/include/asm/mmu_context.h      | 23 ++++++++++++++++++++++-
+ arch/x86/include/asm/sync_core.h        |  2 +-
+ arch/x86/kernel/cpu/amd.c               |  6 ++++++
+ arch/x86/mm/tlb.c                       | 21 ---------------------
+ drivers/bluetooth/btusb.c               |  2 ++
+ drivers/gpu/drm/i915/gt/intel_rc6.c     | 13 ++++++++++++-
+ drivers/hid/Makefile                    |  3 ++-
+ drivers/hid/hid-haptic.c                |  3 +++
+ drivers/usb/core/quirks.c               |  9 +++++++++
+ include/linux/perf_event.h              |  2 +-
+ include/linux/sched/mm.h                | 10 +++++-----
+ include/linux/tick.h                    |  4 ++--
+ include/linux/vtime.h                   |  8 ++++----
+ kernel/sched/core.c                     | 19 +++++++------------
+ kernel/sched/fair.c                     | 11 +++--------
+ kernel/sched/sched.h                    | 24 ++++++++++++++----------
+ 20 files changed, 97 insertions(+), 71 deletions(-)
 
 diff --git a/arch/arm/include/asm/mmu_context.h b/arch/arm/include/asm/mmu_context.h
 index db2cb06aa8cf5e..bebde469f81ae6 100644
@@ -197,28 +196,6 @@ index 7c7955afa8e8aa..688d7aa08610bf 100644
  	{ USB_DEVICE(0x13d3, 0x3585), .driver_info = BTUSB_MEDIATEK |
  						     BTUSB_WIDEBAND_SPEECH },
  	{ USB_DEVICE(0x13d3, 0x3610), .driver_info = BTUSB_MEDIATEK |
-diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu_device.c b/drivers/gpu/drm/amd/amdgpu/amdgpu_device.c
-index b28ebb44c695d7..7553f7c8069d3b 100644
---- a/drivers/gpu/drm/amd/amdgpu/amdgpu_device.c
-+++ b/drivers/gpu/drm/amd/amdgpu/amdgpu_device.c
-@@ -4991,7 +4991,7 @@ void amdgpu_device_fini_hw(struct amdgpu_device *adev)
- 	 * before ip_fini_early to prevent kfd locking refcount issues by calling
- 	 * amdgpu_amdkfd_suspend()
- 	 */
--	if (drm_dev_is_unplugged(adev_to_drm(adev)))
-+	if (pci_dev_is_disconnected(adev->pdev))
- 		amdgpu_amdkfd_device_fini_sw(adev);
- 
- 	amdgpu_device_ip_fini_early(adev);
-@@ -5003,7 +5003,7 @@ void amdgpu_device_fini_hw(struct amdgpu_device *adev)
- 
- 	amdgpu_gart_dummy_page_fini(adev);
- 
--	if (drm_dev_is_unplugged(adev_to_drm(adev)))
-+	if (pci_dev_is_disconnected(adev->pdev))
- 		amdgpu_device_unmap_mmio(adev);
- 
- }
 diff --git a/drivers/gpu/drm/i915/gt/intel_rc6.c b/drivers/gpu/drm/i915/gt/intel_rc6.c
 index bf38cc5fe87295..787b3fd2925c9b 100644
 --- a/drivers/gpu/drm/i915/gt/intel_rc6.c
@@ -499,7 +476,7 @@ diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
 index 783749e2a2e9f6..43bf12338eb9d8 100644
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -2460,11 +2460,8 @@ static void task_numa_find_cpu(struct task_numa_env *env,
+@@ -2552,11 +2552,8 @@ static void task_numa_find_cpu(struct task_numa_env *env,
  		maymove = !load_too_imbalanced(src_load, dst_load, env);
  	}
  
@@ -513,7 +490,7 @@ index 783749e2a2e9f6..43bf12338eb9d8 100644
  		env->dst_cpu = cpu;
  		if (task_numa_compare(env, taskimp, groupimp, maymove))
  			break;
-@@ -8383,9 +8380,7 @@ static int find_energy_efficient_cpu(struct task_struct *p, int prev_cpu)
+@@ -8493,9 +8490,7 @@ static int find_energy_efficient_cpu(struct task_struct *p, int prev_cpu)
  		int max_spare_cap_cpu = -1;
  		int fits, max_fits = -1;
  

@@ -230,7 +230,7 @@ diff --git a/include/linux/sched.h b/include/linux/sched.h
 index b469878de..020c6a82b 100644
 --- a/include/linux/sched.h
 +++ b/include/linux/sched.h
-@@ -846,7 +846,9 @@ struct task_struct {
+@@ -847,7 +847,9 @@ struct task_struct {
  #endif
  
  	int				on_cpu;
@@ -240,7 +240,7 @@ index b469878de..020c6a82b 100644
  	unsigned int			wakee_flips;
  	unsigned long			wakee_flip_decay_ts;
  	struct task_struct		*last_wakee;
-@@ -860,6 +862,7 @@ struct task_struct {
+@@ -861,6 +863,7 @@ struct task_struct {
  	 */
  	int				recent_used_cpu;
  	int				wake_cpu;
@@ -248,7 +248,7 @@ index b469878de..020c6a82b 100644
  	int				on_rq;
  
  	int				prio;
-@@ -867,6 +870,19 @@ struct task_struct {
+@@ -868,6 +871,19 @@ struct task_struct {
  	int				normal_prio;
  	unsigned int			rt_priority;
  
@@ -268,7 +268,7 @@ index b469878de..020c6a82b 100644
  	struct sched_entity		se;
  	struct sched_rt_entity		rt;
  	struct sched_dl_entity		dl;
-@@ -881,6 +897,7 @@ struct task_struct {
+@@ -882,6 +898,7 @@ struct task_struct {
  	unsigned long			core_cookie;
  	unsigned int			core_occupation;
  #endif
@@ -276,7 +276,7 @@ index b469878de..020c6a82b 100644
  
  #ifdef CONFIG_CGROUP_SCHED
  	struct task_group		*sched_task_group;
-@@ -922,9 +939,13 @@ struct task_struct {
+@@ -923,9 +940,13 @@ struct task_struct {
  	const cpumask_t			*cpus_ptr;
  	cpumask_t			*user_cpus_ptr;
  	cpumask_t			cpus_mask;
@@ -290,7 +290,7 @@ index b469878de..020c6a82b 100644
  
  #ifdef CONFIG_PREEMPT_RCU
  	int				rcu_read_lock_nesting;
-@@ -955,8 +976,10 @@ struct task_struct {
+@@ -956,8 +977,10 @@ struct task_struct {
  	struct sched_info		sched_info;
  
  	struct list_head		tasks;
@@ -301,7 +301,7 @@ index b469878de..020c6a82b 100644
  
  	struct mm_struct		*mm;
  	struct mm_struct		*active_mm;
-@@ -1680,6 +1703,15 @@ static inline bool sched_proxy_exec(void)
+@@ -1681,6 +1704,15 @@ static inline bool sched_proxy_exec(void)
  }
  #endif
  
@@ -317,7 +317,7 @@ index b469878de..020c6a82b 100644
  #define TASK_REPORT_IDLE	(TASK_REPORT + 1)
  #define TASK_REPORT_MAX		(TASK_REPORT_IDLE << 1)
  
-@@ -2249,7 +2281,11 @@ static inline void set_task_cpu(struct task_struct *p, unsigned int cpu)
+@@ -2250,7 +2282,11 @@ static inline void set_task_cpu(struct task_struct *p, unsigned int cpu)
  
  static inline bool task_is_runnable(struct task_struct *p)
  {
@@ -329,7 +329,7 @@ index b469878de..020c6a82b 100644
  }
  
  extern bool sched_task_on_rq(struct task_struct *p);
-@@ -2346,6 +2382,25 @@ DECLARE_PER_CPU_SHARED_ALIGNED(struct rq, runqueues);
+@@ -2347,6 +2383,25 @@ DECLARE_PER_CPU_SHARED_ALIGNED(struct rq, runqueues);
  #endif
  #define this_rq_pinned() (*(unsigned int *)((void *)this_rq_raw() + RQ_nr_pinned))
  
@@ -355,7 +355,7 @@ index b469878de..020c6a82b 100644
  static inline void __migrate_enable(void)
  {
  	struct task_struct *p = current;
-@@ -2369,8 +2424,17 @@ static inline void __migrate_enable(void)
+@@ -2370,8 +2425,17 @@ static inline void __migrate_enable(void)
  	 * __set_cpus_allowed_ptr(SCA_MIGRATE_ENABLE) doesn't schedule().
  	 */
  	guard(preempt)();
@@ -373,7 +373,7 @@ index b469878de..020c6a82b 100644
  	/*
  	 * Mustn't clear migration_disabled() until cpus_ptr points back at the
  	 * regular cpus_mask, otherwise things that race (eg.
-@@ -2397,8 +2461,20 @@ static inline void __migrate_disable(void)
+@@ -2398,8 +2462,20 @@ static inline void __migrate_disable(void)
  	}
  
  	guard(preempt)();

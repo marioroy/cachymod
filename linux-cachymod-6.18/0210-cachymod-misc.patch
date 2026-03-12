@@ -496,7 +496,7 @@ diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
 index 7cc9d50e3e11..9c1f21d59b5c 100644
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -11788,12 +11788,15 @@ static int sched_balance_rq(int this_cpu, struct rq *this_rq,
+@@ -11898,12 +11898,15 @@ static int sched_balance_rq(int this_cpu, struct rq *this_rq,
  		 * still unbalanced. ld_moved simply stays zero, so it is
  		 * correctly treated as an imbalance.
  		 */
@@ -538,6 +538,43 @@ index 2c2dc559e0f8de..48d6b137e8f6ae 100644
  		return;
  	/*
  	 * Modern (>=Nehalem) Intel systems use ACPI via intel_idle,
+-- 
+2.40.2
+
+Add Logitech C310
+
+diff --git a/drivers/usb/core/quirks.c b/drivers/usb/core/quirks.c
+index 0cf94c7a2c9c..20450f7a0c92 100644
+--- a/drivers/usb/core/quirks.c
++++ b/drivers/usb/core/quirks.c
+@@ -268,6 +268,9 @@ static const struct usb_device_id usb_quirk_list[] = {
+ 	/* Logitech Harmony 700-series */
+ 	{ USB_DEVICE(0x046d, 0xc122), .driver_info = USB_QUIRK_DELAY_INIT },
+ 
++	/* Logitech Webcam C310 */
++	{ USB_DEVICE(0x046d, 0x081b), .driver_info = USB_QUIRK_RESET_RESUME },
++
+ 	/* Philips PSC805 audio device */
+ 	{ USB_DEVICE(0x0471, 0x0155), .driver_info = USB_QUIRK_RESET_RESUME },
+ 
+-- 
+2.40.2
+
+Input: xpad - add support for EasySMX 05 Pro
+https://github.com/CachyOS/linux/commit/10f42fae6e6b5b1d9fc925bf427c5f66d1f6a75d
+
+diff --git a/drivers/input/joystick/xpad.c b/drivers/input/joystick/xpad.c
+index 363d509493866a..cab76608d50892 100644
+--- a/drivers/input/joystick/xpad.c
++++ b/drivers/input/joystick/xpad.c
+@@ -367,6 +367,7 @@ static const struct xpad_device {
+ 	{ 0x20d6, 0x400b, "PowerA FUSION Pro 4 Wired Controller", MAP_SHARE_BUTTON, XTYPE_XBOXONE },
+ 	{ 0x20d6, 0x890b, "PowerA MOGA XP-Ultra Controller", MAP_SHARE_BUTTON, XTYPE_XBOXONE },
+ 	{ 0x2345, 0xe00b, "Machenike G5 Pro Controller", 0, XTYPE_XBOX360 },
++	{ 0x2345, 0xe07a, "EasySMX X05 Pro", 0, XTYPE_XBOX360 },
+ 	{ 0x24c6, 0x5000, "Razer Atrox Arcade Stick", MAP_TRIGGERS_TO_BUTTONS, XTYPE_XBOX360 },
+ 	{ 0x24c6, 0x5300, "PowerA MINI PROEX Controller", 0, XTYPE_XBOX360 },
+ 	{ 0x24c6, 0x5303, "Xbox Airflo wired controller", 0, XTYPE_XBOX360 },
 -- 
 2.40.2
 
@@ -599,74 +636,6 @@ index 78c045a5ef03..b7c818cabe44 100644
  
 -- 
 2.34.1
-
-Add Logitech C310
-
-diff --git a/drivers/usb/core/quirks.c b/drivers/usb/core/quirks.c
-index 0cf94c7a2c9c..20450f7a0c92 100644
---- a/drivers/usb/core/quirks.c
-+++ b/drivers/usb/core/quirks.c
-@@ -268,6 +268,9 @@ static const struct usb_device_id usb_quirk_list[] = {
- 	/* Logitech Harmony 700-series */
- 	{ USB_DEVICE(0x046d, 0xc122), .driver_info = USB_QUIRK_DELAY_INIT },
- 
-+	/* Logitech Webcam C310 */
-+	{ USB_DEVICE(0x046d, 0x081b), .driver_info = USB_QUIRK_RESET_RESUME },
-+
- 	/* Philips PSC805 audio device */
- 	{ USB_DEVICE(0x0471, 0x0155), .driver_info = USB_QUIRK_RESET_RESUME },
- 
--- 
-2.40.2
-
-Subject: [PATCH] ALSA: hda/realtek: Add quirk for Acer Aspire V3-572G
-https://lore.kernel.org/all/20260221-fix-detect-mic-v1-1-b6e427b5275d@posteo.net/T/
-
-The Acer Aspire V3-572G has a combo jack (ALC283) but the BIOS
-sets pin 0x19 to 0x411111f0 (not connected), so the headset mic
-is not detected.
-
-Add a quirk to override pin 0x19 as a headset mic and enable
-headset mode.
-
-Suggested-by: Charalampos Mitrodimas <charmitro@xxxxxxxxxx>
-Signed-off-by: Panagiotis Foliadis <pfoliadis@xxxxxxxxxx>
----
- sound/hda/codecs/realtek/alc269.c | 1 +
- 1 file changed, 1 insertion(+)
-
-diff --git a/sound/hda/codecs/realtek/alc269.c b/sound/hda/codecs/realtek/alc269.c
-index 80f0be13b69f5a14e32d7d5ca4bdb848914c241c..1022886e2fa2fd13aca00273979f102cd11a079e 100644
---- a/sound/hda/codecs/realtek/alc269.c
-+++ b/sound/hda/codecs/realtek/alc269.c
-@@ -6451,6 +6451,7 @@ static const struct hda_quirk alc269_fixup_tbl[] = {
- 	SND_PCI_QUIRK(0x1025, 0x079b, "Acer Aspire V5-573G", ALC282_FIXUP_ASPIRE_V5_PINS),
- 	SND_PCI_QUIRK(0x1025, 0x080d, "Acer Aspire V5-122P", ALC269_FIXUP_ASPIRE_HEADSET_MIC),
- 	SND_PCI_QUIRK(0x1025, 0x0840, "Acer Aspire E1", ALC269VB_FIXUP_ASPIRE_E1_COEF),
-+	SND_PCI_QUIRK(0x1025, 0x0943, "Acer Aspire V3-572G", ALC269_FIXUP_ASPIRE_HEADSET_MIC),
- 	SND_PCI_QUIRK(0x1025, 0x100c, "Acer Aspire E5-574G", ALC255_FIXUP_ACER_LIMIT_INT_MIC_BOOST),
- 	SND_PCI_QUIRK(0x1025, 0x101c, "Acer Veriton N2510G", ALC269_FIXUP_LIFEBOOK),
- 	SND_PCI_QUIRK(0x1025, 0x102b, "Acer Aspire C24-860", ALC286_FIXUP_ACER_AIO_MIC_NO_PRESENCE),
--- 
-2.40.2
-
-Input: xpad - add support for EasySMX 05 Pro
-https://github.com/CachyOS/linux/commit/10f42fae6e6b5b1d9fc925bf427c5f66d1f6a75d
-
-diff --git a/drivers/input/joystick/xpad.c b/drivers/input/joystick/xpad.c
-index 363d509493866a..cab76608d50892 100644
---- a/drivers/input/joystick/xpad.c
-+++ b/drivers/input/joystick/xpad.c
-@@ -367,6 +367,7 @@ static const struct xpad_device {
- 	{ 0x20d6, 0x400b, "PowerA FUSION Pro 4 Wired Controller", MAP_SHARE_BUTTON, XTYPE_XBOXONE },
- 	{ 0x20d6, 0x890b, "PowerA MOGA XP-Ultra Controller", MAP_SHARE_BUTTON, XTYPE_XBOXONE },
- 	{ 0x2345, 0xe00b, "Machenike G5 Pro Controller", 0, XTYPE_XBOX360 },
-+	{ 0x2345, 0xe07a, "EasySMX X05 Pro", 0, XTYPE_XBOX360 },
- 	{ 0x24c6, 0x5000, "Razer Atrox Arcade Stick", MAP_TRIGGERS_TO_BUTTONS, XTYPE_XBOX360 },
- 	{ 0x24c6, 0x5300, "PowerA MINI PROEX Controller", 0, XTYPE_XBOX360 },
- 	{ 0x24c6, 0x5303, "Xbox Airflo wired controller", 0, XTYPE_XBOX360 },
--- 
-2.40.2
 
 kbuild: Leave objtool binary around with 'make clean'
 https://lore.kernel.org/all/20260309174349.1332818-1-sashal@kernel.org/
