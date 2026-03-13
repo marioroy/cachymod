@@ -3,6 +3,8 @@ linux-prjc v6.18-r1
 https://gitlab.com/alfredchen/linux-prjc/-/tree/linux-6.18.y-prjc
 https://github.com/CachyOS/kernel-patches/tree/master/6.18/sched
 
+CachyMod: Set base_slice from 4 to 2 msec (2 << 20)
+
 
 From 5227cc6a80b96ef5b9b2d29ddb2b7317f044d9c9 Mon Sep 17 00:00:00 2001
 From: Piotr Gorski <lucjan.lucjanov@gmail.com>
@@ -924,9 +926,9 @@ index 000000000..7b2ac7496
 +
 +/*
 + * Time slice
-+ * (default: 4 msec, units: nanoseconds)
++ * (default: 2 msec, units: nanoseconds)
 + */
-+unsigned int sysctl_sched_base_slice __read_mostly	= (4 << 20);
++unsigned int sysctl_sched_base_slice __read_mostly	= (2 << 20);
 +
 +#include "alt_core.h"
 +#include "alt_topology.h"
