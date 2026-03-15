@@ -22,6 +22,9 @@ https://git.kernel.org/pub/scm/linux/kernel/git/arighi/linux.git/log/?h=scx-6.18
   [PATCH] sched_ext: Fix scx_bpf_dsq_peek() with FIFO DSQs
   https://lore.kernel.org/all/20251024220102.1556384-1-arighi@nvidia.com/
 
+  [PATCH] sched_ext: Reduce DSQ lock contention in consume_dispatch_q()
+  https://lore.kernel.org/all/20260314235231.684671-1-arighi@nvidia.com/
+
 Tested-by: Mario Roy <>
 
 
@@ -2876,6 +2879,87 @@ index c53bc87d50764e..c10fc798bf9cf3 100644
  }
  
  static void dispatch_dequeue(struct rq *rq, struct task_struct *p)
+-- 
+cgit 1.2.3-korg
+
+
+From ed7216942af682701aaf63be792755a8b25d214a Mon Sep 17 00:00:00 2001
+From: Andrea Righi <arighi@xxxxxxxxxx>
+Date: Sun, 15 Mar 2026 01:40:03 -0700
+Subject: sched_ext: Reduce DSQ lock contention in consume_dispatch_q()
+
+Replace raw_spin_lock() with raw_spin_trylock() when taking the DSQ lock
+in consume_dispatch_q(). If the lock is contended, kick the current CPU
+to retry on the next balance instead of spinning.
+
+Under high load multiple CPUs can contend on the same DSQ lock. With a
+spin_lock, waiters spin on the same cache line, wasting cycles and
+increasing cache coherency traffic, which can slow the lock holder. With
+trylock, waiters back off and retry later, so the holder can complete
+faster and the backing-off CPUs have a chance to consume other DSQs or run
+tasks.
+
+When in bypass mode scx_kick_cpu() is suppressed, so just fall back to
+raw_spin_lock() to guarantee forward progress.
+
+Since this slightly changes the behavior of scx_bpf_dsq_move_to_local(),
+update the documentation to clarify that a false return value means no
+eligible task could be consumed from the DSQ. This covers both the case
+of an empty DSQ and any other condition that prevented task consumption.
+
+Benchmarks that generate many enqueue/dispatch events (e.g., schbench)
+show around 2-3x higher throughput with most of the scx schedulers with
+this change applied.
+
+Signed-off-by: Andrea Righi <arighi@xxxxxxxxxx>
+---
+ kernel/sched/ext.c | 19 ++++++++++++++++---
+ 1 file changed, 16 insertions(+), 3 deletions(-)
+
+diff --git a/kernel/sched/ext.c b/kernel/sched/ext.c
+index 2ff7034841c7cb..dd8756e503aa06 100644
+--- a/kernel/sched/ext.c
++++ b/kernel/sched/ext.c
+@@ -1849,6 +1849,7 @@ static bool consume_dispatch_q(struct scx_sched *sch, struct rq *rq,
+ 			       struct scx_dispatch_q *dsq)
+ {
+ 	struct task_struct *p;
++	s32 cpu = cpu_of(rq);
+ retry:
+ 	/*
+ 	 * This retry loop can repeatedly race against scx_bypass() dequeueing
+@@ -1866,7 +1867,19 @@ static bool consume_dispatch_q(struct scx_sched *sch, struct rq *rq,
+ 	if (list_empty(&dsq->list))
+ 		return false;
+ 
+-	raw_spin_lock(&dsq->lock);
++	/*
++	 * Use trylock to avoid spinning on a contended DSQ, if we fail to
++	 * acquire the lock kick the CPU to retry on the next balance.
++	 *
++	 * In bypass mode simply spin to acquire the lock, since
++	 * scx_kick_cpu() is suppressed.
++	 */
++	if (scx_rq_bypassing(rq)) {
++		raw_spin_lock(&dsq->lock);
++	} else if (!raw_spin_trylock(&dsq->lock)) {
++		scx_kick_cpu(sch, cpu, 0);
++		return false;
++	}
+ 
+ 	nldsq_for_each_task(p, dsq) {
+ 		struct rq *task_rq = task_rq(p);
+@@ -5823,8 +5836,8 @@ __bpf_kfunc void scx_bpf_dispatch_cancel(void)
+  * before trying to move from the specified DSQ. It may also grab rq locks and
+  * thus can't be called under any BPF locks.
+  *
+- * Returns %true if a task has been moved, %false if there isn't any task to
+- * move.
++ * Returns %true if a task has been moved, %false if no eligible task could
++ * be consumed from @dsq_id.
+  */
+ __bpf_kfunc bool scx_bpf_dsq_move_to_local(u64 dsq_id)
+ {
 -- 
 cgit 1.2.3-korg
 
