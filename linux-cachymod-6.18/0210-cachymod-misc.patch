@@ -541,6 +541,52 @@ index 2c2dc559e0f8de..48d6b137e8f6ae 100644
 -- 
 2.40.2
 
+The Linux 6.18.17 release introduced a regression
+First bad commit: [2fc623e178545a0805e3387781363f89a113f417]
+
+  Threadripper 9960X CPU (24/48) running vanilla kernel
+  stress-ng -t 30 --metrics-brief --sock 24 --no-rand-seed --sock-zerocopy
+
+  good: ~ 60000 bogo ops/s (real time)
+   bad: ~ 40000
+
+Revert tcp: give up on stronger sk_rcvbuf checks (for now)
+https://lore.kernel.org/all/219f0073b52f1b7f5d3d43aefd90d61e427900d6.1773141555.git.sashal@kernel.org/
+
+diff --git a/net/ipv4/tcp_input.c b/net/ipv4/tcp_input.c
+index 834cd37276d59..87e678903b977 100644
+--- a/net/ipv4/tcp_input.c
++++ b/net/ipv4/tcp_input.c
+@@ -5125,11 +5125,25 @@ static void tcp_ofo_queue(struct sock *sk)
+ static bool tcp_prune_ofo_queue(struct sock *sk, const struct sk_buff *in_skb);
+ static int tcp_prune_queue(struct sock *sk, const struct sk_buff *in_skb);
+ 
++/* Check if this incoming skb can be added to socket receive queues
++ * while satisfying sk->sk_rcvbuf limit.
++ *
++ * In theory we should use skb->truesize, but this can cause problems
++ * when applications use too small SO_RCVBUF values.
++ * When LRO / hw gro is used, the socket might have a high tp->scaling_ratio,
++ * allowing RWIN to be close to available space.
++ * Whenever the receive queue gets full, we can receive a small packet
++ * filling RWIN, but with a high skb->truesize, because most NIC use 4K page
++ * plus sk_buff metadata even when receiving less than 1500 bytes of payload.
++ *
++ * Note that we use skb->len to decide to accept or drop this packet,
++ * but sk->sk_rmem_alloc is the sum of all skb->truesize.
++ */
+ static bool tcp_can_ingest(const struct sock *sk, const struct sk_buff *skb)
+ {
+ 	unsigned int rmem = atomic_read(&sk->sk_rmem_alloc);
+ 
+-	return rmem <= sk->sk_rcvbuf;
++	return rmem + skb->len <= sk->sk_rcvbuf;
+ }
+ 
+ static int tcp_try_rmem_schedule(struct sock *sk, const struct sk_buff *skb,
+-- 
+2.51.0
+
 Add Logitech C310
 
 diff --git a/drivers/usb/core/quirks.c b/drivers/usb/core/quirks.c
