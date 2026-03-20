@@ -24,3 +24,68 @@ diff -uarp a/kernel/sched/alt_core.c b/kernel/sched/alt_core.c
 -- 
 2.52.0
 
+
+PDS version R0 yields better performance than PDS R1. Its roughly 20% difference.
+https://gitlab.com/alfredchen/linux-prjc/-/work_items/117
+
+Revert sched/alt: Rework sched_idle_mask
+
+diff -uarp a/kernel/sched/alt_core.c b/kernel/sched/alt_core.c
+--- a/kernel/sched/alt_core.c
++++ b/kernel/sched/alt_core.c
+@@ -126,9 +126,12 @@ DEFINE_PER_CPU_SHARED_ALIGNED(struct rq,
+ # define finish_arch_post_lock_switch()	do { } while (0)
+ #endif
+ 
+-static cpumask_t sched_preempt_mask[SCHED_QUEUE_BITS] ____cacheline_aligned_in_smp;
++static cpumask_t sched_preempt_mask[SCHED_QUEUE_BITS + 2] ____cacheline_aligned_in_smp;
+ 
+-cpumask_t sched_idle_mask[3] ____cacheline_aligned_in_smp;
++cpumask_t *const sched_idle_mask = &sched_preempt_mask[SCHED_QUEUE_BITS - 1];
++cpumask_t *const sched_sg_idle_mask = &sched_preempt_mask[SCHED_QUEUE_BITS];
++cpumask_t *const sched_pcore_idle_mask = &sched_preempt_mask[SCHED_QUEUE_BITS];
++cpumask_t *const sched_ecore_idle_mask = &sched_preempt_mask[SCHED_QUEUE_BITS + 1];
+ 
+ /* task function */
+ static inline const struct cpumask *task_user_cpus(struct task_struct *p)
+@@ -1945,8 +1948,7 @@ static inline int select_task_rq(struct
+ 
+ #pragma clang diagnostic push
+ #pragma clang diagnostic ignored "-Wuninitialized"
+-	if ((cpumask_intersects(&mask, sched_idle_mask) &&
+-	     static_call(sched_idle_select_func)(&mask, &allow_mask, sched_idle_mask)) ||
++	if (static_call(sched_idle_select_func)(&mask, &allow_mask, sched_idle_mask) ||
+ 	    preempt_mask_check(&mask, &allow_mask, task_sched_prio(p)))
+ 		return best_mask_cpu(task_cpu(p), &mask);
+ #pragma clang diagnostic pop
+diff -uarp a/kernel/sched/alt_core.h b/kernel/sched/alt_core.h
+--- a/kernel/sched/alt_core.h
++++ b/kernel/sched/alt_core.h
+@@ -151,18 +151,17 @@ static inline void alt_sched_debug(void)
+ 
+ extern int sched_yield_type;
+ 
+-extern cpumask_t sched_rq_pending_mask;
++extern cpumask_t sched_rq_pending_mask ____cacheline_aligned_in_smp;
+ 
+ DECLARE_STATIC_KEY_FALSE(sched_smt_present);
+ DECLARE_PER_CPU_ALIGNED(cpumask_t *, sched_cpu_llc_mask);
+ 
+-extern cpumask_t sched_smt_mask;
++extern cpumask_t sched_smt_mask ____cacheline_aligned_in_smp;
+ 
+-extern cpumask_t sched_idle_mask[3];
+-
+-#define sched_sg_idle_mask	(sched_idle_mask + 1)
+-#define sched_pcore_idle_mask	(sched_idle_mask + 1)
+-#define sched_ecore_idle_mask	(sched_idle_mask + 2)
++extern cpumask_t *const sched_idle_mask;
++extern cpumask_t *const sched_sg_idle_mask;
++extern cpumask_t *const sched_pcore_idle_mask;
++extern cpumask_t *const sched_ecore_idle_mask;
+ 
+ extern struct rq *move_queued_task(struct rq *rq, struct task_struct *p, int new_cpu);
+ 
+-- 
+2.52.0
+

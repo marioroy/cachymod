@@ -47,7 +47,7 @@ diff --git a/kernel/sched/ext.c b/kernel/sched/ext.c
 index a677b3abb212c6..aea5b865a1d971 100644
 --- a/kernel/sched/ext.c
 +++ b/kernel/sched/ext.c
-@@ -4552,7 +4552,7 @@ static struct scx_sched *scx_alloc_and_add_sched(struct sched_ext_ops *ops)
+@@ -4550,7 +4550,7 @@ static struct scx_sched *scx_alloc_and_add_sched(struct sched_ext_ops *ops)
  	return ERR_PTR(ret);
  }
  
@@ -56,7 +56,7 @@ index a677b3abb212c6..aea5b865a1d971 100644
  			      const struct sched_ext_ops *ops)
  {
  	unsigned long long global_hotplug_seq;
-@@ -4569,8 +4569,11 @@ static void check_hotplug_seq(struct scx_sched *sch,
+@@ -4567,8 +4567,11 @@ static void check_hotplug_seq(struct scx_sched *sch,
  				 SCX_ECODE_ACT_RESTART | SCX_ECODE_RSN_HOTPLUG,
  				 "expected hotplug seq %llu did not match actual %llu",
  				 ops->hotplug_seq, global_hotplug_seq);
@@ -68,7 +68,7 @@ index a677b3abb212c6..aea5b865a1d971 100644
  }
  
  static int validate_ops(struct scx_sched *sch, const struct sched_ext_ops *ops)
-@@ -4672,7 +4675,11 @@ static int scx_enable(struct sched_ext_ops *ops, struct bpf_link *link)
+@@ -4670,7 +4673,11 @@ static int scx_enable(struct sched_ext_ops *ops, struct bpf_link *link)
  		if (((void (**)(void))ops)[i])
  			set_bit(i, sch->has_op);
  
@@ -254,7 +254,7 @@ diff --git a/kernel/sched/idle.c b/kernel/sched/idle.c
 index dee6e019dcf81f..4097a4fc4834c5 100644
 --- a/kernel/sched/idle.c
 +++ b/kernel/sched/idle.c
-@@ -454,7 +454,7 @@ static void wakeup_preempt_idle(struct rq *rq, struct task_struct *p, int flags)
+@@ -463,7 +463,7 @@ static void wakeup_preempt_idle(struct rq *rq, struct task_struct *p, int flags)
  
  static void put_prev_task_idle(struct rq *rq, struct task_struct *prev, struct task_struct *next)
  {
@@ -527,7 +527,7 @@ index aea5b865a1d971..9139af6c21e0ac 100644
  }
  
  static bool scx_dsq_priq_less(struct rb_node *node_a,
-@@ -1396,6 +1399,15 @@ static void enqueue_task_scx(struct rq *rq, struct task_struct *p, int enq_flags
+@@ -1395,6 +1398,15 @@ static void enqueue_task_scx(struct rq *rq, struct task_struct *p, int enq_flags
  	if (enq_flags & SCX_ENQ_WAKEUP)
  		touch_core_sched(rq, p);
  
@@ -543,7 +543,7 @@ index aea5b865a1d971..9139af6c21e0ac 100644
  	do_enqueue_task(rq, p, enq_flags, sticky_cpu);
  out:
  	rq->scx.flags &= ~SCX_RQ_IN_WAKEUP;
-@@ -1495,6 +1507,11 @@ static bool dequeue_task_scx(struct rq *rq, struct task_struct *p, int deq_flags
+@@ -1494,6 +1506,11 @@ static bool dequeue_task_scx(struct rq *rq, struct task_struct *p, int deq_flags
  	sub_nr_running(rq, 1);
  
  	dispatch_dequeue(rq, p);
@@ -555,7 +555,7 @@ index aea5b865a1d971..9139af6c21e0ac 100644
  	return true;
  }
  
-@@ -3049,6 +3066,15 @@ static void switching_to_scx(struct rq *rq, struct task_struct *p)
+@@ -3048,6 +3065,15 @@ static void switching_to_scx(struct rq *rq, struct task_struct *p)
  static void switched_from_scx(struct rq *rq, struct task_struct *p)
  {
  	scx_disable_task(p);
@@ -571,7 +571,7 @@ index aea5b865a1d971..9139af6c21e0ac 100644
  }
  
  static void wakeup_preempt_scx(struct rq *rq, struct task_struct *p,int wake_flags) {}
-@@ -6447,8 +6473,8 @@ __bpf_kfunc u32 scx_bpf_cpuperf_cur(s32 cpu)
+@@ -6445,8 +6471,8 @@ __bpf_kfunc u32 scx_bpf_cpuperf_cur(s32 cpu)
   * relative scale between 0 and %SCX_CPUPERF_ONE. This determines how the
   * schedutil cpufreq governor chooses the target frequency.
   *
@@ -582,7 +582,7 @@ index aea5b865a1d971..9139af6c21e0ac 100644
   * use. Consult hardware and cpufreq documentation for more information. The
   * current performance level can be monitored using scx_bpf_cpuperf_cur().
   */
-@@ -6820,6 +6846,37 @@ BTF_ID_FLAGS(func, scx_bpf_now)
+@@ -6818,6 +6844,37 @@ BTF_ID_FLAGS(func, scx_bpf_now)
  BTF_ID_FLAGS(func, scx_bpf_events, KF_TRUSTED_ARGS)
  BTF_KFUNCS_END(scx_kfunc_ids_any)
  
@@ -1340,7 +1340,7 @@ diff --git a/kernel/sched/ext.c b/kernel/sched/ext.c
 index 9139af6c21e0ac..0f4aa1bae1691f 100644
 --- a/kernel/sched/ext.c
 +++ b/kernel/sched/ext.c
-@@ -2607,6 +2607,57 @@ static void set_cpus_allowed_scx(struct task_struct *p,
+@@ -2606,6 +2606,57 @@ static void set_cpus_allowed_scx(struct task_struct *p,
  				 p, (struct cpumask *)p->cpus_ptr);
  }
  
@@ -1398,7 +1398,7 @@ index 9139af6c21e0ac..0f4aa1bae1691f 100644
  static void handle_hotplug(struct rq *rq, bool online)
  {
  	struct scx_sched *sch = scx_root;
-@@ -2622,9 +2673,20 @@ static void handle_hotplug(struct rq *rq, bool online)
+@@ -2621,9 +2672,20 @@ static void handle_hotplug(struct rq *rq, bool online)
  	if (unlikely(!sch))
  		return;
  
@@ -1420,7 +1420,7 @@ index 9139af6c21e0ac..0f4aa1bae1691f 100644
  	if (online && SCX_HAS_OP(sch, cpu_online))
  		SCX_CALL_OP(sch, SCX_KF_UNLOCKED, cpu_online, NULL, cpu);
  	else if (!online && SCX_HAS_OP(sch, cpu_offline))
-@@ -3971,6 +4033,7 @@ static void scx_disable_workfn(struct kthread_work *work)
+@@ -3969,6 +4031,7 @@ static void scx_disable_workfn(struct kthread_work *work)
  	struct scx_exit_info *ei = sch->exit_info;
  	struct scx_task_iter sti;
  	struct task_struct *p;
@@ -1428,7 +1428,7 @@ index 9139af6c21e0ac..0f4aa1bae1691f 100644
  	int kind, cpu;
  
  	kind = atomic_read(&sch->exit_kind);
-@@ -4026,6 +4089,22 @@ static void scx_disable_workfn(struct kthread_work *work)
+@@ -4024,6 +4087,22 @@ static void scx_disable_workfn(struct kthread_work *work)
  
  	scx_init_task_enabled = false;
  
@@ -1451,7 +1451,7 @@ index 9139af6c21e0ac..0f4aa1bae1691f 100644
  	scx_task_iter_start(&sti);
  	while ((p = scx_task_iter_next_locked(&sti))) {
  		const struct sched_class *old_class = p->sched_class;
-@@ -4048,15 +4127,6 @@ static void scx_disable_workfn(struct kthread_work *work)
+@@ -4046,15 +4125,6 @@ static void scx_disable_workfn(struct kthread_work *work)
  	scx_task_iter_stop(&sti);
  	percpu_up_write(&scx_fork_rwsem);
  
@@ -1467,7 +1467,7 @@ index 9139af6c21e0ac..0f4aa1bae1691f 100644
  	/* no task is on scx, turn off all the switches and flush in-progress calls */
  	static_branch_disable(&__scx_enabled);
  	bitmap_zero(sch->has_op, SCX_OPI_END);
-@@ -4843,6 +4913,13 @@ static int scx_enable(struct sched_ext_ops *ops, struct bpf_link *link)
+@@ -4841,6 +4911,13 @@ static int scx_enable(struct sched_ext_ops *ops, struct bpf_link *link)
  		put_task_struct(p);
  	}
  	scx_task_iter_stop(&sti);
@@ -2200,7 +2200,7 @@ index 0f4aa1bae1691f..c45e5fc5260944 100644
  	list_del_init(&p->scx.dsq_list.node);
  	dsq_mod_nr(dsq, -1);
  }
-@@ -6340,6 +6359,40 @@ __bpf_kfunc void bpf_iter_scx_dsq_destroy(struct bpf_iter_scx_dsq *it)
+@@ -6338,6 +6357,40 @@ __bpf_kfunc void bpf_iter_scx_dsq_destroy(struct bpf_iter_scx_dsq *it)
  	kit->dsq = NULL;
  }
  
@@ -2241,7 +2241,7 @@ index 0f4aa1bae1691f..c45e5fc5260944 100644
  __bpf_kfunc_end_defs();
  
  static s32 __bstr_format(struct scx_sched *sch, u64 *data_buf, char *line_buf,
-@@ -6897,6 +6950,7 @@ BTF_KFUNCS_START(scx_kfunc_ids_any)
+@@ -6895,6 +6948,7 @@ BTF_KFUNCS_START(scx_kfunc_ids_any)
  BTF_ID_FLAGS(func, scx_bpf_kick_cpu)
  BTF_ID_FLAGS(func, scx_bpf_dsq_nr_queued)
  BTF_ID_FLAGS(func, scx_bpf_destroy_dsq)
@@ -2920,7 +2920,7 @@ diff --git a/kernel/sched/ext.c b/kernel/sched/ext.c
 index 2ff7034841c7cb..dd8756e503aa06 100644
 --- a/kernel/sched/ext.c
 +++ b/kernel/sched/ext.c
-@@ -1849,6 +1849,7 @@ static bool consume_dispatch_q(struct scx_sched *sch, struct rq *rq,
+@@ -1848,6 +1848,7 @@ static bool consume_dispatch_q(struct scx_sched *sch, struct rq *rq,
  			       struct scx_dispatch_q *dsq)
  {
  	struct task_struct *p;
@@ -2928,7 +2928,7 @@ index 2ff7034841c7cb..dd8756e503aa06 100644
  retry:
  	/*
  	 * This retry loop can repeatedly race against scx_bypass() dequeueing
-@@ -1866,7 +1867,19 @@ static bool consume_dispatch_q(struct scx_sched *sch, struct rq *rq,
+@@ -1865,7 +1866,19 @@ static bool consume_dispatch_q(struct scx_sched *sch, struct rq *rq,
  	if (list_empty(&dsq->list))
  		return false;
  
@@ -2949,7 +2949,7 @@ index 2ff7034841c7cb..dd8756e503aa06 100644
  
  	nldsq_for_each_task(p, dsq) {
  		struct rq *task_rq = task_rq(p);
-@@ -5823,8 +5836,8 @@ __bpf_kfunc void scx_bpf_dispatch_cancel(void)
+@@ -5821,8 +5834,8 @@ __bpf_kfunc void scx_bpf_dispatch_cancel(void)
   * before trying to move from the specified DSQ. It may also grab rq locks and
   * thus can't be called under any BPF locks.
   *

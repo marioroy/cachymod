@@ -17,7 +17,7 @@ diff --git a/Makefile b/Makefile
 index 64af72f16125..2333f26cf8ab 100644
 --- a/Makefile
 +++ b/Makefile
-@@ -1244,14 +1244,15 @@ PHONY += vmlinux
+@@ -1245,14 +1245,15 @@ PHONY += vmlinux
  # not for decompressors. LDFLAGS_vmlinux in arch/*/boot/compressed/Makefile is
  # unrelated; the decompressors just happen to have the same base name,
  # arch/*/boot/compressed/vmlinux.

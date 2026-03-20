@@ -104,8 +104,8 @@
 # 5. Build kernel again with _autofdo_profile_name specified
 : ${_autofdo:=no}
 
-# Name for the AutoFDO profile
-: ${_autofdo_profile_name:=cachymod.afdo}
+# Name for the AutoFDO profile e.g. cachymod.afdo (can be any name)
+: ${_autofdo_profile_name:=}
 
 
 # ATTENTION: Do not modify after this line
@@ -137,14 +137,14 @@ fi
 
 _pkgsuffix=cachymod
 _major=6.18
-_minor=18
+_minor=19
 pkgver=${_major}.${_minor}
 _stable=${_major}.${_minor}
 #_stable=${_major}
 
 _srcname=linux-${_stable}
 pkgdesc='CachyMod Linux Kernel with other patches and improvements'
-pkgrel=4
+pkgrel=1
 _kernver="$pkgver-$pkgrel"
 _kernuname="${pkgver}-${_pkgsuffix}"
 arch=('x86_64')
@@ -199,8 +199,13 @@ source=(
 # LLVM makedepends
 if [[ "$buildtype" =~ (lto|clang) ]]; then
     makedepends+=(clang llvm lld)
-    source+=("dkms-clang.patch" "flags-clang.patch")
-    [[ "$_autofdo" =~ ^(yes|y|1)$ ]] && source+=("autofdo.patch")
+    source+=("dkms-clang.patch")
+
+    [[ -z "$_build_debug" || "$_build_debug" =~ ^(no|n|0)$ ]] && \
+        source+=("flags-clang.patch")
+
+    [[ "$_autofdo" =~ ^(yes|y|1)$ ]] && \
+        source+=("autofdo.patch")
 
     BUILD_FLAGS=(CC=clang LD=ld.lld LLVM_IAS=1)
     CLANG_BIN=$(which clang) ; CLANG_BIN="${CLANG_BIN%clang}"

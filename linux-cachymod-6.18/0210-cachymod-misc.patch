@@ -53,7 +53,7 @@ diff -uarp a/Makefile b/Makefile
  KBUILD_USERCFLAGS  := $(KBUILD_USERHOSTCFLAGS) $(USERCFLAGS)
  KBUILD_USERLDFLAGS := $(USERLDFLAGS)
  
-@@ -584,7 +584,7 @@ LINUXINCLUDE    := \
+@@ -585,7 +585,7 @@ LINUXINCLUDE    := \
  KBUILD_AFLAGS   := -D__ASSEMBLY__ -fno-PIE
  
  KBUILD_CFLAGS :=
@@ -593,7 +593,7 @@ diff --git a/drivers/usb/core/quirks.c b/drivers/usb/core/quirks.c
 index 0cf94c7a2c9c..20450f7a0c92 100644
 --- a/drivers/usb/core/quirks.c
 +++ b/drivers/usb/core/quirks.c
-@@ -268,6 +268,9 @@ static const struct usb_device_id usb_quirk_list[] = {
+@@ -272,6 +272,9 @@ static const struct usb_device_id usb_quirk_list[] = {
  	/* Logitech Harmony 700-series */
  	{ USB_DEVICE(0x046d, 0xc122), .driver_info = USB_QUIRK_DELAY_INIT },
  
@@ -621,6 +621,35 @@ index 363d509493866a..cab76608d50892 100644
  	{ 0x24c6, 0x5000, "Razer Atrox Arcade Stick", MAP_TRIGGERS_TO_BUTTONS, XTYPE_XBOX360 },
  	{ 0x24c6, 0x5300, "PowerA MINI PROEX Controller", 0, XTYPE_XBOX360 },
  	{ 0x24c6, 0x5303, "Xbox Airflo wired controller", 0, XTYPE_XBOX360 },
+-- 
+2.40.2
+
+ALSA: hda/realtek: Use ALC287_FIXUP_TXNW2781_I2C for ASUS Strix Gxx5
+https://github.com/CachyOS/linux/commit/20313d767be2e5abdb88295b7c724634e1937a4f
+
+diff --git a/sound/hda/codecs/realtek/alc269.c b/sound/hda/codecs/realtek/alc269.c
+index c1791b13662054..98d29f4cc81b77 100644
+--- a/sound/hda/codecs/realtek/alc269.c
++++ b/sound/hda/codecs/realtek/alc269.c
+@@ -7133,12 +7133,12 @@ static const struct hda_quirk alc269_fixup_tbl[] = {
+ 	SND_PCI_QUIRK(0x1043, 0x3e00, "ASUS G814FH/FM/FP", ALC287_FIXUP_CS35L41_I2C_2),
+ 	SND_PCI_QUIRK(0x1043, 0x3e20, "ASUS G814PH/PM/PP", ALC287_FIXUP_CS35L41_I2C_2),
+ 	SND_PCI_QUIRK(0x1043, 0x3e30, "ASUS TP3607SA", ALC287_FIXUP_TAS2781_I2C),
+-	SND_PCI_QUIRK(0x1043, 0x3ee0, "ASUS Strix G815_JHR_JMR_JPR", ALC287_FIXUP_TAS2781_I2C),
+-	SND_PCI_QUIRK(0x1043, 0x3ef0, "ASUS Strix G635LR_LW_LX", ALC287_FIXUP_TAS2781_I2C),
+-	SND_PCI_QUIRK(0x1043, 0x3f00, "ASUS Strix G815LH_LM_LP", ALC287_FIXUP_TAS2781_I2C),
+-	SND_PCI_QUIRK(0x1043, 0x3f10, "ASUS Strix G835LR_LW_LX", ALC287_FIXUP_TAS2781_I2C),
+-	SND_PCI_QUIRK(0x1043, 0x3f20, "ASUS Strix G615LR_LW", ALC287_FIXUP_TAS2781_I2C),
+-	SND_PCI_QUIRK(0x1043, 0x3f30, "ASUS Strix G815LR_LW", ALC287_FIXUP_TAS2781_I2C),
++	SND_PCI_QUIRK(0x1043, 0x3ee0, "ASUS Strix G815_JHR_JMR_JPR", ALC287_FIXUP_TXNW2781_I2C),
++	SND_PCI_QUIRK(0x1043, 0x3ef0, "ASUS Strix G635LR_LW_LX", ALC287_FIXUP_TXNW2781_I2C),
++	SND_PCI_QUIRK(0x1043, 0x3f00, "ASUS Strix G815LH_LM_LP", ALC287_FIXUP_TXNW2781_I2C),
++	SND_PCI_QUIRK(0x1043, 0x3f10, "ASUS Strix G835LR_LW_LX", ALC287_FIXUP_TXNW2781_I2C),
++	SND_PCI_QUIRK(0x1043, 0x3f20, "ASUS Strix G615LR_LW", ALC287_FIXUP_TXNW2781_I2C),
++	SND_PCI_QUIRK(0x1043, 0x3f30, "ASUS Strix G815LR_LW", ALC287_FIXUP_TXNW2781_I2C),
+ 	SND_PCI_QUIRK(0x1043, 0x3fd0, "ASUS B3605CVA", ALC245_FIXUP_CS35L41_SPI_2),
+ 	SND_PCI_QUIRK(0x1043, 0x3ff0, "ASUS B5405CVA", ALC245_FIXUP_CS35L41_SPI_2),
+ 	SND_PCI_QUIRK(0x1043, 0x831a, "ASUS P901", ALC269_FIXUP_STEREO_DMIC),
 -- 
 2.40.2
 
@@ -682,80 +711,4 @@ index 78c045a5ef03..b7c818cabe44 100644
  
 -- 
 2.34.1
-
-kbuild: Leave objtool binary around with 'make clean'
-https://lore.kernel.org/all/20260309174349.1332818-1-sashal@kernel.org/
-
-Fixes: VirtualBox modules don't build anymore with 6.18.14
-https://lore.kernel.org/all/62d12399-76e5-3d40-126a-7490b4795b17@mailbox.org/
-
-Split the objtool clean target into mrproper and clean like Kbuild does
-and remove all generated artifacts with 'make clean' except for the
-objtool binary, which is removed with 'make mrproper'.
-
-To avoid a small race when running the objtool clean target through both
-objtool_mrproper and objtool_clean when running 'make mrproper', modify
-objtool's clean up find command to avoid using find's '-delete' command
-by piping the files into 'xargs rm -f' like the rest of Kbuild does.
-
-Tested-by: Nicolas Schier <nsc@xxxxxxxxxx>
-Signed-off-by: Nathan Chancellor <nathan@xxxxxxxxxx>
-Signed-off-by: Sasha Levin <sashal@xxxxxxxxxx>
----
- Makefile               | 8 ++++----
- tools/objtool/Makefile | 8 +++++---
- 2 files changed, 9 insertions(+), 7 deletions(-)
-
-diff --git a/Makefile b/Makefile
-index 35c1fcb095717..827d27605b0de 100644
---- a/Makefile
-+++ b/Makefile
-@@ -1444,13 +1444,13 @@ ifneq ($(wildcard $(resolve_btfids_O)),)
- 	$(Q)$(MAKE) -sC $(srctree)/tools/bpf/resolve_btfids O=$(resolve_btfids_O) clean
- endif
- 
--PHONY += objtool_clean
-+PHONY += objtool_clean objtool_mrproper
- 
- objtool_O = $(abspath $(objtree))/tools/objtool
- 
--objtool_clean:
-+objtool_clean objtool_mrproper:
- ifneq ($(wildcard $(objtool_O)),)
--	$(Q)$(MAKE) -sC $(abs_srctree)/tools/objtool O=$(objtool_O) srctree=$(abs_srctree) clean
-+	$(Q)$(MAKE) -sC $(abs_srctree)/tools/objtool O=$(objtool_O) srctree=$(abs_srctree) $(patsubst objtool_%,%,$@)
- endif
- 
- tools/: FORCE
-@@ -1628,7 +1628,7 @@ PHONY += $(mrproper-dirs) mrproper
- $(mrproper-dirs):
- 	$(Q)$(MAKE) $(clean)=$(patsubst _mrproper_%,%,$@)
- 
--mrproper: clean $(mrproper-dirs)
-+mrproper: clean objtool_mrproper $(mrproper-dirs)
- 	$(call cmd,rmfiles)
- 	@find . $(RCS_FIND_IGNORE) \
- 		\( -name '*.rmeta' \) \
-diff --git a/tools/objtool/Makefile b/tools/objtool/Makefile
-index 99d3897e046c6..b436656cd1372 100644
---- a/tools/objtool/Makefile
-+++ b/tools/objtool/Makefile
-@@ -86,10 +86,12 @@ $(LIBSUBCMD)-clean:
- 	$(Q)$(RM) -r -- $(LIBSUBCMD_OUTPUT)
- 
- clean: $(LIBSUBCMD)-clean
--	$(call QUIET_CLEAN, objtool) $(RM) $(OBJTOOL)
--	$(Q)find $(OUTPUT) -name '*.o' -delete -o -name '\.*.cmd' -delete -o -name '\.*.d' -delete
-+	$(Q)find $(OUTPUT) \( -name '*.o' -o -name '\.*.cmd' -o -name '\.*.d' \) -type f -print | xargs $(RM)
- 	$(Q)$(RM) $(OUTPUT)arch/x86/lib/inat-tables.c $(OUTPUT)fixdep
- 
-+mrproper: clean
-+	$(call QUIET_CLEAN, objtool) $(RM) $(OBJTOOL)
-+
- FORCE:
- 
--.PHONY: clean FORCE
-+.PHONY: clean mrproper FORCE
--- 
-2.51.0
 

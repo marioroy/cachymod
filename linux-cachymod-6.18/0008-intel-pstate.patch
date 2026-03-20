@@ -105,7 +105,7 @@ index 8343e3dbfd71f0..87d79e744ca271 100644
  	}
  
  	return 0;
-@@ -2297,18 +2301,14 @@ static int knl_get_turbo_pstate(int cpu)
+@@ -2299,18 +2303,14 @@ static int knl_get_turbo_pstate(int cpu)
  static int hwp_get_cpu_scaling(int cpu)
  {
  	if (hybrid_scaling_factor) {

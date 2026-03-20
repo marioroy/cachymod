@@ -232,7 +232,7 @@ diff --git a/Makefile b/Makefile
 index 35c1fcb0957171..4e1c009bf04002 100644
 --- a/Makefile
 +++ b/Makefile
-@@ -869,11 +869,19 @@ KBUILD_CFLAGS	+= -fno-delete-null-pointer-checks
+@@ -870,11 +870,19 @@ KBUILD_CFLAGS	+= -fno-delete-null-pointer-checks
  ifdef CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE
  KBUILD_CFLAGS += -O2
  KBUILD_RUSTFLAGS += -Copt-level=2
@@ -252,7 +252,7 @@ index 35c1fcb0957171..4e1c009bf04002 100644
  # Always set `debug-assertions` and `overflow-checks` because their default
  # depends on `opt-level` and `debug-assertions`, respectively.
  KBUILD_RUSTFLAGS += -Cdebug-assertions=$(if $(CONFIG_RUST_DEBUG_ASSERTIONS),y,n)
-@@ -1000,10 +1008,10 @@ export CC_FLAGS_SCS
+@@ -1001,10 +1009,10 @@ export CC_FLAGS_SCS
  endif
  
  ifdef CONFIG_LTO_CLANG
@@ -266,7 +266,7 @@ index 35c1fcb0957171..4e1c009bf04002 100644
  endif
  CC_FLAGS_LTO	+= -fvisibility=hidden
  
-@@ -1198,7 +1206,7 @@ export ARCH_DRIVERS	:= $(drivers-y) $(drivers-m)
+@@ -1199,7 +1207,7 @@ export ARCH_DRIVERS	:= $(drivers-y) $(drivers-m)
  KBUILD_VMLINUX_OBJS := built-in.a $(patsubst %/, %/lib.a, $(filter %/, $(libs-y)))
  KBUILD_VMLINUX_LIBS := $(filter-out %/, $(libs-y))
  
@@ -275,7 +275,7 @@ index 35c1fcb0957171..4e1c009bf04002 100644
  export KBUILD_LDS          := arch/$(SRCARCH)/kernel/vmlinux.lds
  
  ifdef CONFIG_TRIM_UNUSED_KSYMS
-@@ -1207,16 +1215,12 @@ ifdef CONFIG_TRIM_UNUSED_KSYMS
+@@ -1208,16 +1216,12 @@ ifdef CONFIG_TRIM_UNUSED_KSYMS
  KBUILD_MODULES := y
  endif
  
@@ -297,7 +297,7 @@ index 35c1fcb0957171..4e1c009bf04002 100644
  
  PHONY += vmlinux_o
  vmlinux_o: vmlinux.a $(KBUILD_VMLINUX_LIBS)
-@@ -1585,6 +1589,7 @@ endif # CONFIG_MODULES
+@@ -1586,6 +1590,7 @@ endif # CONFIG_MODULES
  CLEAN_FILES += vmlinux.symvers modules-only.symvers \
  	       modules.builtin modules.builtin.modinfo modules.nsdeps \
  	       modules.builtin.ranges vmlinux.o.map vmlinux.unstripped \
@@ -305,7 +305,7 @@ index 35c1fcb0957171..4e1c009bf04002 100644
  	       compile_commands.json rust/test \
  	       rust-project.json .vmlinux.objs .vmlinux.export.c \
                 .builtin-dtbs-list .builtin-dtb.S
-@@ -2028,7 +2033,7 @@ clean: $(clean-dirs)
+@@ -2029,7 +2034,7 @@ clean: $(clean-dirs)
  	$(call cmd,rmfiles)
  	@find . $(RCS_FIND_IGNORE) \
  		\( -name '*.[aios]' -o -name '*.rsi' -o -name '*.ko' -o -name '.*.cmd' \
@@ -2778,7 +2778,7 @@ diff --git a/drivers/cpufreq/intel_pstate.c b/drivers/cpufreq/intel_pstate.c
 index 38333f7da40db4..8343e3dbfd71f0 100644
 --- a/drivers/cpufreq/intel_pstate.c
 +++ b/drivers/cpufreq/intel_pstate.c
-@@ -3945,6 +3945,8 @@ static int __init intel_pstate_setup(char *str)
+@@ -3947,6 +3947,8 @@ static int __init intel_pstate_setup(char *str)
  
  	if (!strcmp(str, "disable"))
  		no_load = 1;

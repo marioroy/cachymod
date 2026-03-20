@@ -261,7 +261,7 @@ diff --git a/drivers/usb/core/quirks.c b/drivers/usb/core/quirks.c
 index c4d85089d19b13..ddce45ce9f6c01 100644
 --- a/drivers/usb/core/quirks.c
 +++ b/drivers/usb/core/quirks.c
-@@ -453,6 +453,15 @@ static const struct usb_device_id usb_quirk_list[] = {
+@@ -463,6 +463,15 @@ static const struct usb_device_id usb_quirk_list[] = {
  	/* Elgato 4K X - BOS descriptor fetch hangs at SuperSpeed Plus */
  	{ USB_DEVICE(0x0fd9, 0x009b), .driver_info = USB_QUIRK_NO_BOS },
  
