@@ -137,7 +137,7 @@ fi
 
 _pkgsuffix=cachymod
 _major=6.18
-_minor=19
+_minor=20
 pkgver=${_major}.${_minor}
 _stable=${_major}.${_minor}
 #_stable=${_major}
@@ -163,9 +163,9 @@ source=(
     "config"
     "config.sh"
     "minimal-modprobed.db"  # used if _localmodcfg=yes and _localmodcfg_minimal=yes
-    "0000-rt.patch"
 
     # CachyOS
+    "0001-rt-i915.patch"
     "0001-amd-pstate.patch"
     "0003-bbr3.patch"
     "0004-cachy.patch"

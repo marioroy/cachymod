@@ -10423,7 +10423,7 @@ diff --git a/kernel/sched/idle.c b/kernel/sched/idle.c
 index c39b089d4..9903f1d96 100644
 --- a/kernel/sched/idle.c
 +++ b/kernel/sched/idle.c
-@@ -437,6 +437,7 @@ void cpu_startup_entry(enum cpuhp_state state)
+@@ -449,6 +449,7 @@ void cpu_startup_entry(enum cpuhp_state state)
  		do_idle();
  }
  
@@ -10431,7 +10431,7 @@ index c39b089d4..9903f1d96 100644
  /*
   * idle-task scheduling class.
   */
-@@ -554,3 +555,4 @@ DEFINE_SCHED_CLASS(idle) = {
+@@ -566,3 +567,4 @@ DEFINE_SCHED_CLASS(idle) = {
  	.switched_to		= switched_to_idle,
  	.update_curr		= update_curr_idle,
  };
