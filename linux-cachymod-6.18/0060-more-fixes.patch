@@ -227,51 +227,359 @@ index 2ca990dfbb884f..3a0c0e4b42fff2 100644
 -- 
 2.52.0
 
-wifi: rtw88: validate RX rate to prevent out-of-bound
-https://github.com/CachyOS/linux/commit/b8e395179d4683712ec2c3989f9f348bbf3d99a2
+A commit in 6.18.19 has introduced a bug and a new warning when doing 
+amdgpu driver re-binding. In addition to the bug, the last line of the 
+output below is a new warning re: the thermal alert
+https://lore.kernel.org/all/1df33732-8d66-d669-84a8-259f1b7f3278@absolutedigital.net/
 
-The reported RX rate might be unexpected, causing kernel warns:
+drm/amd/pm: fix amdgpu_irq enabled counter unbalanced on smu v11.0
+https://lore.kernel.org/all/20251120023308.2628705-1-kevinyang.wang@amd.com/
 
-  Rate marked as a VHT rate but data is invalid: MCS: 0, NSS: 0
-  WARNING: net/mac80211/rx.c:5491 at ieee80211_rx_list+0x183/0x1020 [mac80211]
+  v1: fix amdgpu_irq enabled counter unbalanced issue on
+  smu_v11_0_disable_thermal_alert.
 
-As the RX rate can be index of an array under certain conditions, validate
-it to prevent accessing array out-of-bound potentially.
+  v2: re-enable smu thermal alert to make amdgpu irq counter balance for
+  smu v11.0 if in runpm state
 
-Tested on HP Notebook P3S95EA#ACB (kernel 6.19.9-1-cachyos):
-
-  - No WARNING: net/mac80211/rx.c:5491 observed after patch.
-  - System remains fully stable through idle, load, Bluetooth A2DP
-    usage, and multiple suspend/resume cycles.
-  - Zero H2C or LPS errors in dmesg.
-
-Reported-by: Oleksandr Havrylov <goainwo@xxxxxxxxxx>
-Closes: https://lore.kernel.org/linux-wireless/CALdGYqSMUPnPfW-_q1RgYr0_SjoXUejAaJJr-o+jpwCk1S7ndQ@mail.gmail.com/
-Tested-by: Oleksandr Havrylov <goainwo@xxxxxxxxxx>
-Signed-off-by: Ping-Ke Shih <pkshih@xxxxxxxxxx>
+Signed-off-by: Yang Wang <kevinyang.wang@amd.com>
 ---
- drivers/net/wireless/realtek/rtw88/rx.c | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ drivers/gpu/drm/amd/pm/swsmu/amdgpu_smu.c      | 7 +++++--
+ drivers/gpu/drm/amd/pm/swsmu/smu11/smu_v11_0.c | 7 ++++++-
+ 2 files changed, 11 insertions(+), 3 deletions(-)
 
-diff --git a/drivers/net/wireless/realtek/rtw88/rx.c b/drivers/net/wireless/realtek/rtw88/rx.c
-index 8b0afaaffaa0e9..d9e11343d49880 100644
---- a/drivers/net/wireless/realtek/rtw88/rx.c
-+++ b/drivers/net/wireless/realtek/rtw88/rx.c
-@@ -295,6 +295,14 @@ void rtw_rx_query_rx_desc(struct rtw_dev *rtwdev, void *rx_desc8,
- 
- 	pkt_stat->tsf_low = le32_get_bits(rx_desc->w5, RTW_RX_DESC_W5_TSFL);
- 
-+	if (unlikely(pkt_stat->rate >= DESC_RATE_MAX)) {
-+		rtw_dbg(rtwdev, RTW_DBG_UNEXP,
-+			"unexpected RX rate=0x%x\n", pkt_stat->rate);
+diff --git a/drivers/gpu/drm/amd/pm/swsmu/amdgpu_smu.c b/drivers/gpu/drm/amd/pm/swsmu/amdgpu_smu.c
+index 859a17c1f7e4..2aad25dce009 100644
+--- a/drivers/gpu/drm/amd/pm/swsmu/amdgpu_smu.c
++++ b/drivers/gpu/drm/amd/pm/swsmu/amdgpu_smu.c
+@@ -1655,9 +1655,12 @@ static int smu_smc_hw_setup(struct smu_context *smu)
+ 		if (adev->in_suspend && smu_is_dpm_running(smu)) {
+ 			dev_info(adev->dev, "dpm has been enabled\n");
+ 			ret = smu_system_features_control(smu, true);
+-			if (ret)
++			if (ret) {
+ 				dev_err(adev->dev, "Failed system features control!\n");
+-			return ret;
++				return ret;
++			}
 +
-+		pkt_stat->rate = DESC_RATE1M;
-+		pkt_stat->bw = RTW_CHANNEL_WIDTH_20;
-+	}
-+
- 	/* drv_info_sz is in unit of 8-bytes */
- 	pkt_stat->drv_info_sz *= 8;
++			return smu_enable_thermal_alert(smu);
+ 		}
+ 		break;
+ 	default:
+diff --git a/drivers/gpu/drm/amd/pm/swsmu/smu11/smu_v11_0.c b/drivers/gpu/drm/amd/pm/swsmu/smu11/smu_v11_0.c
+index 78e4186d06cc..b0d6487171d7 100644
+--- a/drivers/gpu/drm/amd/pm/swsmu/smu11/smu_v11_0.c
++++ b/drivers/gpu/drm/amd/pm/swsmu/smu11/smu_v11_0.c
+@@ -1022,7 +1022,12 @@ int smu_v11_0_enable_thermal_alert(struct smu_context *smu)
  
+ int smu_v11_0_disable_thermal_alert(struct smu_context *smu)
+ {
+-	return amdgpu_irq_put(smu->adev, &smu->irq_source, 0);
++	int ret = 0;
++
++	if (smu->smu_table.thermal_controller_type)
++		ret = amdgpu_irq_put(smu->adev, &smu->irq_source, 0);
++
++	return ret;
+ }
+ 
+ static uint16_t convert_to_vddc(uint8_t vid)
 -- 
-2.52.0
+2.34.1
+
+[REGRESSION] osnoise, possibly introduced by commit 0c43094f8cc9
+https://lore.kernel.org/all/20260326140058.272854-1-ionut.nechita@windriver.com/
+
+Revert eventpoll: Replace rwlock with spinlock, for now
+https://github.com/CachyOS/linux/commit/0c43094f8cc9
+
+diff -uarp a/fs/eventpoll.c b/fs/eventpoll.c
+--- a/fs/eventpoll.c
++++ b/fs/eventpoll.c
+@@ -46,10 +46,10 @@
+  *
+  * 1) epnested_mutex (mutex)
+  * 2) ep->mtx (mutex)
+- * 3) ep->lock (spinlock)
++ * 3) ep->lock (rwlock)
+  *
+  * The acquire order is the one listed above, from 1 to 3.
+- * We need a spinlock (ep->lock) because we manipulate objects
++ * We need a rwlock (ep->lock) because we manipulate objects
+  * from inside the poll callback, that might be triggered from
+  * a wake_up() that in turn might be called from IRQ context.
+  * So we can't sleep inside the poll callback and hence we need
+@@ -195,7 +195,7 @@ struct eventpoll {
+ 	struct list_head rdllist;
+ 
+ 	/* Lock which protects rdllist and ovflist */
+-	spinlock_t lock;
++	rwlock_t lock;
+ 
+ 	/* RB tree root used to store monitored fd structs */
+ 	struct rb_root_cached rbr;
+@@ -741,10 +741,10 @@ static void ep_start_scan(struct eventpo
+ 	 * in a lockless way.
+ 	 */
+ 	lockdep_assert_irqs_enabled();
+-	spin_lock_irq(&ep->lock);
++	write_lock_irq(&ep->lock);
+ 	list_splice_init(&ep->rdllist, txlist);
+ 	WRITE_ONCE(ep->ovflist, NULL);
+-	spin_unlock_irq(&ep->lock);
++	write_unlock_irq(&ep->lock);
+ }
+ 
+ static void ep_done_scan(struct eventpoll *ep,
+@@ -752,7 +752,7 @@ static void ep_done_scan(struct eventpol
+ {
+ 	struct epitem *epi, *nepi;
+ 
+-	spin_lock_irq(&ep->lock);
++	write_lock_irq(&ep->lock);
+ 	/*
+ 	 * During the time we spent inside the "sproc" callback, some
+ 	 * other events might have been queued by the poll callback.
+@@ -793,7 +793,7 @@ static void ep_done_scan(struct eventpol
+ 			wake_up(&ep->wq);
+ 	}
+ 
+-	spin_unlock_irq(&ep->lock);
++	write_unlock_irq(&ep->lock);
+ }
+ 
+ static void ep_get(struct eventpoll *ep)
+@@ -868,10 +868,10 @@ static bool __ep_remove(struct eventpoll
+ 
+ 	rb_erase_cached(&epi->rbn, &ep->rbr);
+ 
+-	spin_lock_irq(&ep->lock);
++	write_lock_irq(&ep->lock);
+ 	if (ep_is_linked(epi))
+ 		list_del_init(&epi->rdllink);
+-	spin_unlock_irq(&ep->lock);
++	write_unlock_irq(&ep->lock);
+ 
+ 	wakeup_source_unregister(ep_wakeup_source(epi));
+ 	/*
+@@ -1152,7 +1152,7 @@ static int ep_alloc(struct eventpoll **p
+ 		return -ENOMEM;
+ 
+ 	mutex_init(&ep->mtx);
+-	spin_lock_init(&ep->lock);
++	rwlock_init(&ep->lock);
+ 	init_waitqueue_head(&ep->wq);
+ 	init_waitqueue_head(&ep->poll_wait);
+ 	INIT_LIST_HEAD(&ep->rdllist);
+@@ -1240,9 +1240,99 @@ struct file *get_epoll_tfile_raw_ptr(str
+ #endif /* CONFIG_KCMP */
+ 
+ /*
++ * Adds a new entry to the tail of the list in a lockless way, i.e.
++ * multiple CPUs are allowed to call this function concurrently.
++ *
++ * Beware: it is necessary to prevent any other modifications of the
++ *         existing list until all changes are completed, in other words
++ *         concurrent list_add_tail_lockless() calls should be protected
++ *         with a read lock, where write lock acts as a barrier which
++ *         makes sure all list_add_tail_lockless() calls are fully
++ *         completed.
++ *
++ *        Also an element can be locklessly added to the list only in one
++ *        direction i.e. either to the tail or to the head, otherwise
++ *        concurrent access will corrupt the list.
++ *
++ * Return: %false if element has been already added to the list, %true
++ * otherwise.
++ */
++static inline bool list_add_tail_lockless(struct list_head *new,
++					  struct list_head *head)
++{
++	struct list_head *prev;
++
++	/*
++	 * This is simple 'new->next = head' operation, but cmpxchg()
++	 * is used in order to detect that same element has been just
++	 * added to the list from another CPU: the winner observes
++	 * new->next == new.
++	 */
++	if (!try_cmpxchg(&new->next, &new, head))
++		return false;
++
++	/*
++	 * Initially ->next of a new element must be updated with the head
++	 * (we are inserting to the tail) and only then pointers are atomically
++	 * exchanged.  XCHG guarantees memory ordering, thus ->next should be
++	 * updated before pointers are actually swapped and pointers are
++	 * swapped before prev->next is updated.
++	 */
++
++	prev = xchg(&head->prev, new);
++
++	/*
++	 * It is safe to modify prev->next and new->prev, because a new element
++	 * is added only to the tail and new->next is updated before XCHG.
++	 */
++
++	prev->next = new;
++	new->prev = prev;
++
++	return true;
++}
++
++/*
++ * Chains a new epi entry to the tail of the ep->ovflist in a lockless way,
++ * i.e. multiple CPUs are allowed to call this function concurrently.
++ *
++ * Return: %false if epi element has been already chained, %true otherwise.
++ */
++static inline bool chain_epi_lockless(struct epitem *epi)
++{
++	struct eventpoll *ep = epi->ep;
++
++	/* Fast preliminary check */
++	if (epi->next != EP_UNACTIVE_PTR)
++		return false;
++
++	/* Check that the same epi has not been just chained from another CPU */
++	if (cmpxchg(&epi->next, EP_UNACTIVE_PTR, NULL) != EP_UNACTIVE_PTR)
++		return false;
++
++	/* Atomically exchange tail */
++	epi->next = xchg(&ep->ovflist, epi);
++
++	return true;
++}
++
++/*
+  * This is the callback that is passed to the wait queue wakeup
+  * mechanism. It is called by the stored file descriptors when they
+  * have events to report.
++ *
++ * This callback takes a read lock in order not to contend with concurrent
++ * events from another file descriptor, thus all modifications to ->rdllist
++ * or ->ovflist are lockless.  Read lock is paired with the write lock from
++ * ep_start/done_scan(), which stops all list modifications and guarantees
++ * that lists state is seen correctly.
++ *
++ * Another thing worth to mention is that ep_poll_callback() can be called
++ * concurrently for the same @epi from different CPUs if poll table was inited
++ * with several wait queues entries.  Plural wakeup from different CPUs of a
++ * single wait queue is serialized by wq.lock, but the case when multiple wait
++ * queues are used should be detected accordingly.  This is detected using
++ * cmpxchg() operation.
+  */
+ static int ep_poll_callback(wait_queue_entry_t *wait, unsigned mode, int sync, void *key)
+ {
+@@ -1253,7 +1343,7 @@ static int ep_poll_callback(wait_queue_e
+ 	unsigned long flags;
+ 	int ewake = 0;
+ 
+-	spin_lock_irqsave(&ep->lock, flags);
++	read_lock_irqsave(&ep->lock, flags);
+ 
+ 	ep_set_busy_poll_napi_id(epi);
+ 
+@@ -1282,15 +1372,12 @@ static int ep_poll_callback(wait_queue_e
+ 	 * chained in ep->ovflist and requeued later on.
+ 	 */
+ 	if (READ_ONCE(ep->ovflist) != EP_UNACTIVE_PTR) {
+-		if (epi->next == EP_UNACTIVE_PTR) {
+-			epi->next = READ_ONCE(ep->ovflist);
+-			WRITE_ONCE(ep->ovflist, epi);
++		if (chain_epi_lockless(epi))
+ 			ep_pm_stay_awake_rcu(epi);
+-		}
+ 	} else if (!ep_is_linked(epi)) {
+ 		/* In the usual case, add event to ready list. */
+-		list_add_tail(&epi->rdllink, &ep->rdllist);
+-		ep_pm_stay_awake_rcu(epi);
++		if (list_add_tail_lockless(&epi->rdllink, &ep->rdllist))
++			ep_pm_stay_awake_rcu(epi);
+ 	}
+ 
+ 	/*
+@@ -1323,7 +1410,7 @@ static int ep_poll_callback(wait_queue_e
+ 		pwake++;
+ 
+ out_unlock:
+-	spin_unlock_irqrestore(&ep->lock, flags);
++	read_unlock_irqrestore(&ep->lock, flags);
+ 
+ 	/* We have to call this outside the lock */
+ 	if (pwake)
+@@ -1658,7 +1745,7 @@ static int ep_insert(struct eventpoll *e
+ 	}
+ 
+ 	/* We have to drop the new item inside our item list to keep track of it */
+-	spin_lock_irq(&ep->lock);
++	write_lock_irq(&ep->lock);
+ 
+ 	/* record NAPI ID of new item if present */
+ 	ep_set_busy_poll_napi_id(epi);
+@@ -1675,7 +1762,7 @@ static int ep_insert(struct eventpoll *e
+ 			pwake++;
+ 	}
+ 
+-	spin_unlock_irq(&ep->lock);
++	write_unlock_irq(&ep->lock);
+ 
+ 	/* We have to call this outside the lock */
+ 	if (pwake)
+@@ -1739,7 +1826,7 @@ static int ep_modify(struct eventpoll *e
+ 	 * list, push it inside.
+ 	 */
+ 	if (ep_item_poll(epi, &pt, 1)) {
+-		spin_lock_irq(&ep->lock);
++		write_lock_irq(&ep->lock);
+ 		if (!ep_is_linked(epi)) {
+ 			list_add_tail(&epi->rdllink, &ep->rdllist);
+ 			ep_pm_stay_awake(epi);
+@@ -1750,7 +1837,7 @@ static int ep_modify(struct eventpoll *e
+ 			if (waitqueue_active(&ep->poll_wait))
+ 				pwake++;
+ 		}
+-		spin_unlock_irq(&ep->lock);
++		write_unlock_irq(&ep->lock);
+ 	}
+ 
+ 	/* We have to call this outside the lock */
+@@ -2002,7 +2089,7 @@ static int ep_poll(struct eventpoll *ep,
+ 		init_wait(&wait);
+ 		wait.func = ep_autoremove_wake_function;
+ 
+-		spin_lock_irq(&ep->lock);
++		write_lock_irq(&ep->lock);
+ 		/*
+ 		 * Barrierless variant, waitqueue_active() is called under
+ 		 * the same lock on wakeup ep_poll_callback() side, so it
+@@ -2021,7 +2108,7 @@ static int ep_poll(struct eventpoll *ep,
+ 		if (!eavail)
+ 			__add_wait_queue_exclusive(&ep->wq, &wait);
+ 
+-		spin_unlock_irq(&ep->lock);
++		write_unlock_irq(&ep->lock);
+ 
+ 		if (!eavail)
+ 			timed_out = !ep_schedule_timeout(to) ||
+@@ -2037,7 +2124,7 @@ static int ep_poll(struct eventpoll *ep,
+ 		eavail = 1;
+ 
+ 		if (!list_empty_careful(&wait.entry)) {
+-			spin_lock_irq(&ep->lock);
++			write_lock_irq(&ep->lock);
+ 			/*
+ 			 * If the thread timed out and is not on the wait queue,
+ 			 * it means that the thread was woken up after its
+@@ -2048,7 +2135,7 @@ static int ep_poll(struct eventpoll *ep,
+ 			if (timed_out)
+ 				eavail = list_empty(&wait.entry);
+ 			__remove_wait_queue(&ep->wq, &wait);
+-			spin_unlock_irq(&ep->lock);
++			write_unlock_irq(&ep->lock);
+ 		}
+ 	}
+ }
+-- 
+2.50.2
 
