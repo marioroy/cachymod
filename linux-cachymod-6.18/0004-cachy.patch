@@ -304,7 +304,7 @@ index 35c1fcb0957171..4e1c009bf04002 100644
 +	       vmlinux.thinlto-index builtin.order \
  	       compile_commands.json rust/test \
  	       rust-project.json .vmlinux.objs .vmlinux.export.c \
-                .builtin-dtbs-list .builtin-dtb.S
+                .builtin-dtbs-list .builtin-dtbs.S
 @@ -2029,7 +2034,7 @@ clean: $(clean-dirs)
  	$(call cmd,rmfiles)
  	@find . $(RCS_FIND_IGNORE) \
@@ -2846,7 +2846,7 @@ diff --git a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c b/drivers/gpu/drm
 index 7db2d1a3784bd6..9031f8e2e3711a 100644
 --- a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c
 +++ b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c
-@@ -4868,7 +4868,7 @@ static int amdgpu_dm_mode_config_init(struct amdgpu_device *adev)
+@@ -4869,7 +4869,7 @@ static int amdgpu_dm_mode_config_init(struct amdgpu_device *adev)
  		return r;
  	}
  
@@ -2948,7 +2948,7 @@ diff --git a/drivers/gpu/drm/amd/pm/swsmu/amdgpu_smu.c b/drivers/gpu/drm/amd/pm/
 index 244b8c364d45f5..65e04c9fffc46c 100644
 --- a/drivers/gpu/drm/amd/pm/swsmu/amdgpu_smu.c
 +++ b/drivers/gpu/drm/amd/pm/swsmu/amdgpu_smu.c
-@@ -2954,7 +2954,10 @@ int smu_get_power_limit(void *handle,
+@@ -2957,7 +2957,10 @@ int smu_get_power_limit(void *handle,
  			*limit = smu->max_power_limit;
  			break;
  		case SMU_PPT_LIMIT_MIN:
@@ -2960,7 +2960,7 @@ index 244b8c364d45f5..65e04c9fffc46c 100644
  			break;
  		default:
  			return -EINVAL;
-@@ -2978,7 +2981,14 @@ static int smu_set_power_limit(void *handle, uint32_t limit)
+@@ -2981,7 +2984,14 @@ static int smu_set_power_limit(void *handle, uint32_t limit)
  		if (smu->ppt_funcs->set_power_limit)
  			return smu->ppt_funcs->set_power_limit(smu, limit_type, limit);
  
@@ -8781,7 +8781,7 @@ diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
 index e3534d573ebc42..3dd623bccd99cd 100644
 --- a/include/linux/pagemap.h
 +++ b/include/linux/pagemap.h
-@@ -1358,7 +1358,7 @@ struct readahead_control {
+@@ -1347,7 +1347,7 @@ struct readahead_control {
  		._index = i,						\
  	}
  

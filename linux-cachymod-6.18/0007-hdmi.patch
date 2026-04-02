@@ -43,7 +43,7 @@ index 9031f8e2e3711a..8a93b91d195ffe 100644
  	adev->dm.dc->debug.visual_confirm = amdgpu_dc_visual_confirm;
  
  	/* TODO: Remove after DP2 receiver gets proper support of Cable ID feature */
-@@ -7289,7 +7292,7 @@ create_stream_for_sink(struct drm_connector *connector,
+@@ -7290,7 +7293,7 @@ create_stream_for_sink(struct drm_connector *connector,
  	update_stream_signal(stream, sink);
  
  	if (stream->signal == SIGNAL_TYPE_HDMI_TYPE_A)
@@ -52,7 +52,7 @@ index 9031f8e2e3711a..8a93b91d195ffe 100644
  
  	if (stream->signal == SIGNAL_TYPE_DISPLAY_PORT ||
  	    stream->signal == SIGNAL_TYPE_DISPLAY_PORT_MST ||
-@@ -7633,6 +7636,8 @@ amdgpu_dm_connector_atomic_duplicate_state(struct drm_connector *connector)
+@@ -7634,6 +7637,8 @@ amdgpu_dm_connector_atomic_duplicate_state(struct drm_connector *connector)
  	__drm_atomic_helper_connector_duplicate_state(connector, &new_state->base);
  
  	new_state->freesync_capable = state->freesync_capable;
@@ -61,7 +61,7 @@ index 9031f8e2e3711a..8a93b91d195ffe 100644
  	new_state->abm_level = state->abm_level;
  	new_state->scaling = state->scaling;
  	new_state->underscan_enable = state->underscan_enable;
-@@ -8723,6 +8728,7 @@ void amdgpu_dm_connector_init_helper(struct amdgpu_display_manager *dm,
+@@ -8724,6 +8729,7 @@ void amdgpu_dm_connector_init_helper(struct amdgpu_display_manager *dm,
  	aconnector->audio_inst = -1;
  	aconnector->pack_sdp_v1_3 = false;
  	aconnector->as_type = ADAPTIVE_SYNC_TYPE_NONE;
@@ -69,7 +69,7 @@ index 9031f8e2e3711a..8a93b91d195ffe 100644
  	memset(&aconnector->vsdb_info, 0, sizeof(aconnector->vsdb_info));
  	mutex_init(&aconnector->hpd_lock);
  	mutex_init(&aconnector->handle_mst_msg_ready);
-@@ -8808,8 +8814,10 @@ void amdgpu_dm_connector_init_helper(struct amdgpu_display_manager *dm,
+@@ -8809,8 +8815,10 @@ void amdgpu_dm_connector_init_helper(struct amdgpu_display_manager *dm,
  	    connector_type == DRM_MODE_CONNECTOR_eDP) {
  		drm_connector_attach_hdr_output_metadata_property(&aconnector->base);
  
@@ -81,7 +81,7 @@ index 9031f8e2e3711a..8a93b91d195ffe 100644
  
  		if (adev->dm.hdcp_workqueue)
  			drm_connector_attach_content_protection_property(&aconnector->base, true);
-@@ -8913,6 +8921,10 @@ int amdgpu_dm_initialize_hdmi_connector(struct amdgpu_dm_connector *aconnector)
+@@ -8914,6 +8922,10 @@ int amdgpu_dm_initialize_hdmi_connector(struct amdgpu_dm_connector *aconnector)
  	struct drm_device *ddev = aconnector->base.dev;
  	struct device *hdmi_dev = ddev->dev;
  
@@ -92,7 +92,7 @@ index 9031f8e2e3711a..8a93b91d195ffe 100644
  	if (amdgpu_dc_debug_mask & DC_DISABLE_HDMI_CEC) {
  		drm_info(ddev, "HDMI-CEC feature masked\n");
  		return -EINVAL;
-@@ -9380,7 +9392,11 @@ static void update_freesync_state_on_stream(
+@@ -9381,7 +9393,11 @@ static void update_freesync_state_on_stream(
  
  	aconn = (struct amdgpu_dm_connector *)new_stream->dm_stream_context;
  
@@ -105,7 +105,7 @@ index 9031f8e2e3711a..8a93b91d195ffe 100644
  		pack_sdp_v1_3 = aconn->pack_sdp_v1_3;
  
  		if (aconn->vsdb_info.amd_vsdb_version == 1)
-@@ -10599,6 +10615,31 @@ static int amdgpu_dm_atomic_setup_commit(struct drm_atomic_state *state)
+@@ -10600,6 +10616,31 @@ static int amdgpu_dm_atomic_setup_commit(struct drm_atomic_state *state)
  	return 0;
  }
  
@@ -137,7 +137,7 @@ index 9031f8e2e3711a..8a93b91d195ffe 100644
  /**
   * amdgpu_dm_atomic_commit_tail() - AMDgpu DM's commit tail implementation.
   * @state: The atomic state to commit
-@@ -10641,12 +10682,14 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
+@@ -10642,12 +10683,14 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
  	for_each_oldnew_connector_in_state(state, connector, old_con_state, new_con_state, i) {
  		struct dm_connector_state *dm_new_con_state = to_dm_connector_state(new_con_state);
  		struct dm_connector_state *dm_old_con_state = to_dm_connector_state(old_con_state);
@@ -152,7 +152,7 @@ index 9031f8e2e3711a..8a93b91d195ffe 100644
  
  		memset(&stream_update, 0, sizeof(stream_update));
  
-@@ -10676,7 +10719,11 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
+@@ -10677,7 +10720,11 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
  		hdr_changed =
  			!drm_connector_atomic_hdr_metadata_equal(old_con_state, new_con_state);
  
@@ -165,7 +165,7 @@ index 9031f8e2e3711a..8a93b91d195ffe 100644
  			continue;
  
  		stream_update.stream = dm_new_crtc_state->stream;
-@@ -10706,6 +10753,17 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
+@@ -10707,6 +10754,17 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
  			stream_update.hdr_static_metadata = &hdr_packet;
  		}
  
@@ -183,7 +183,7 @@ index 9031f8e2e3711a..8a93b91d195ffe 100644
  		status = dc_stream_get_status(dm_new_crtc_state->stream);
  
  		if (WARN_ON(!status))
-@@ -11085,6 +11143,12 @@ static void get_freesync_config_for_crtc(
+@@ -11086,6 +11144,12 @@ static void get_freesync_config_for_crtc(
  		config.vsif_supported = true;
  		config.btr = true;
  
@@ -196,7 +196,7 @@ index 9031f8e2e3711a..8a93b91d195ffe 100644
  		if (fs_vid_mode) {
  			config.state = VRR_STATE_ACTIVE_FIXED;
  			config.fixed_refresh_in_uhz = new_crtc_state->freesync_config.fixed_refresh_in_uhz;
-@@ -11096,6 +11160,7 @@ static void get_freesync_config_for_crtc(
+@@ -11097,6 +11161,7 @@ static void get_freesync_config_for_crtc(
  		}
  	} else {
  		config.state = VRR_STATE_UNSUPPORTED;
@@ -204,7 +204,7 @@ index 9031f8e2e3711a..8a93b91d195ffe 100644
  	}
  out:
  	new_crtc_state->freesync_config = config;
-@@ -12898,8 +12963,8 @@ static void parse_edid_displayid_vrr(struct drm_connector *connector,
+@@ -12904,8 +12969,8 @@ static void parse_edid_displayid_vrr(struct drm_connector *connector,
  	}
  }
  
@@ -215,7 +215,7 @@ index 9031f8e2e3711a..8a93b91d195ffe 100644
  {
  	u8 *edid_ext = NULL;
  	int i;
-@@ -12915,6 +12980,9 @@ static int parse_amd_vsdb(struct amdgpu_dm_connector *aconnector,
+@@ -12921,6 +12986,9 @@ static int parse_amd_vsdb(struct amdgpu_dm_connector *aconnector,
  			break;
  	}
  
@@ -225,7 +225,7 @@ index 9031f8e2e3711a..8a93b91d195ffe 100644
  	while (j < EDID_LENGTH - sizeof(struct amd_vsdb_block)) {
  		struct amd_vsdb_block *amd_vsdb = (struct amd_vsdb_block *)&edid_ext[j];
  		unsigned int ieeeId = (amd_vsdb->ieee_id[2] << 16) | (amd_vsdb->ieee_id[1] << 8) | (amd_vsdb->ieee_id[0]);
-@@ -12933,13 +13001,13 @@ static int parse_amd_vsdb(struct amdgpu_dm_connector *aconnector,
+@@ -12939,13 +13007,13 @@ static int parse_amd_vsdb(struct amdgpu_dm_connector *aconnector,
  	return false;
  }
  
@@ -241,7 +241,7 @@ index 9031f8e2e3711a..8a93b91d195ffe 100644
  
  	/*----- drm_find_cea_extension() -----*/
  	/* No EDID or EDID extensions */
-@@ -12960,9 +13028,99 @@ static int parse_hdmi_amd_vsdb(struct amdgpu_dm_connector *aconnector,
+@@ -12966,9 +13034,99 @@ static int parse_hdmi_amd_vsdb(struct amdgpu_dm_connector *aconnector,
  	if (edid_ext[0] != CEA_EXT)
  		return -ENODEV;
  
@@ -343,7 +343,7 @@ index 9031f8e2e3711a..8a93b91d195ffe 100644
  }
  
  /**
-@@ -12979,16 +13137,20 @@ static int parse_hdmi_amd_vsdb(struct amdgpu_dm_connector *aconnector,
+@@ -12985,16 +13143,20 @@ static int parse_hdmi_amd_vsdb(struct amdgpu_dm_connector *aconnector,
  void amdgpu_dm_update_freesync_caps(struct drm_connector *connector,
  				    const struct drm_edid *drm_edid)
  {
@@ -366,7 +366,7 @@ index 9031f8e2e3711a..8a93b91d195ffe 100644
  
  	if (!connector->state) {
  		drm_err(adev_to_drm(adev), "%s - Connector has no state", __func__);
-@@ -13016,68 +13178,77 @@ void amdgpu_dm_update_freesync_caps(struct drm_connector *connector,
+@@ -13022,68 +13184,77 @@ void amdgpu_dm_update_freesync_caps(struct drm_connector *connector,
  	if (!adev->dm.freesync_module || !dc_supports_vrr(sink->ctx->dce_version))
  		goto update;
  
@@ -493,7 +493,7 @@ index 9031f8e2e3711a..8a93b91d195ffe 100644
  
  	if (connector->state && amdgpu_dm_connector->dc_link && !freesync_capable &&
  	    amdgpu_dm_connector->dc_link->replay_settings.config.replay_supported) {
-@@ -13086,8 +13257,15 @@ void amdgpu_dm_update_freesync_caps(struct drm_connector *connector,
+@@ -13092,8 +13263,15 @@ void amdgpu_dm_update_freesync_caps(struct drm_connector *connector,
  	}
  
  	if (connector->vrr_capable_property)
@@ -525,7 +525,7 @@ index adcd7ea696719a..9af8634f94618f 100644
  };
  
  static inline void amdgpu_dm_set_mst_status(uint8_t *status,
-@@ -1001,6 +1004,7 @@ struct dm_connector_state {
+@@ -1002,6 +1005,7 @@ struct dm_connector_state {
  	uint8_t underscan_hborder;
  	bool underscan_enable;
  	bool freesync_capable;

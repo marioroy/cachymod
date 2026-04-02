@@ -32,7 +32,7 @@ if [ "$#" -gt 0 ]; then
 
   if [ ! -e ~/.config/cachymod/$conf.conf ]; then
     echo -e "${RED}ERROR:${NC} '~/.config/cachymod/$conf.conf' does not exist."
-    echo -e "Run the ../confmod.sh utility or try again."
+    echo -e "Run the 'confmod.sh' utility and try again."
     echo
     exit 1
   fi

@@ -4,8 +4,8 @@ diff --git a/Documentation/admin-guide/kernel-parameters.txt b/Documentation/adm
 index a1068742a6df..99bd3b31ea63 100644
 --- a/Documentation/admin-guide/kernel-parameters.txt
 +++ b/Documentation/admin-guide/kernel-parameters.txt
-@@ -7939,6 +7939,14 @@
- 					request from 5000 ms to 500 ms);
+@@ -7942,6 +7942,14 @@
+ 					forcing to 1);
  			Example: quirks=0781:5580:bk,0a5c:5834:gij
  
 +	usbcore.interrupt_interval_override=
@@ -206,7 +206,7 @@ index 562a730befda..b6e51182ca5b 100644
  	/* Some buggy low-speed devices have Bulk endpoints, which is
  	 * explicitly forbidden by the USB spec.  In an attempt to make
  	 * them usable, we will try treating them as Interrupt endpoints.
-@@ -1149,3 +1309,11 @@ int usb_get_bos_descriptor(struct usb_device *dev)
+@@ -1153,3 +1313,11 @@ int usb_get_bos_descriptor(struct usb_device *dev)
  	usb_release_bos_descriptor(dev);
  	return ret;
  }

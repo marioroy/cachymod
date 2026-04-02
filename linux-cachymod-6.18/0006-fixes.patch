@@ -17,7 +17,6 @@ Signed-off-by: Peter Jung <admin@ptr1337.dev>
  drivers/gpu/drm/i915/gt/intel_rc6.c     | 13 ++++++++++++-
  drivers/hid/Makefile                    |  3 ++-
  drivers/hid/hid-haptic.c                |  3 +++
- drivers/usb/core/quirks.c               |  9 +++++++++
  include/linux/perf_event.h              |  2 +-
  include/linux/sched/mm.h                | 10 +++++-----
  include/linux/tick.h                    |  4 ++--
@@ -25,7 +24,7 @@ Signed-off-by: Peter Jung <admin@ptr1337.dev>
  kernel/sched/core.c                     | 19 +++++++------------
  kernel/sched/fair.c                     | 11 +++--------
  kernel/sched/sched.h                    | 24 ++++++++++++++----------
- 20 files changed, 97 insertions(+), 71 deletions(-)
+ 19 files changed, 88 insertions(+), 71 deletions(-)
 
 diff --git a/arch/arm/include/asm/mmu_context.h b/arch/arm/include/asm/mmu_context.h
 index db2cb06aa8cf5e..bebde469f81ae6 100644
@@ -257,26 +256,6 @@ index fc8a9997f81538..eb9c21dfe38eac 100644
  void hid_haptic_feature_mapping(struct hid_device *hdev,
  				struct hid_haptic_device *haptic,
  				struct hid_field *field, struct hid_usage *usage)
-diff --git a/drivers/usb/core/quirks.c b/drivers/usb/core/quirks.c
-index c4d85089d19b13..ddce45ce9f6c01 100644
---- a/drivers/usb/core/quirks.c
-+++ b/drivers/usb/core/quirks.c
-@@ -463,6 +463,15 @@ static const struct usb_device_id usb_quirk_list[] = {
- 	/* Elgato 4K X - BOS descriptor fetch hangs at SuperSpeed Plus */
- 	{ USB_DEVICE(0x0fd9, 0x009b), .driver_info = USB_QUIRK_NO_BOS },
- 
-+	/* ASUS TUF 4K PRO - BOS descriptor fetch hangs at SuperSpeed Plus */
-+	{ USB_DEVICE(0x0b05, 0x1ab9), .driver_info = USB_QUIRK_NO_BOS },
-+
-+	/* Avermedia Live Gamer Ultra 2.1 (GC553G2) - BOS descriptor fetch hangs at SuperSpeed Plus */
-+	{ USB_DEVICE(0x07ca, 0x2553), .driver_info = USB_QUIRK_NO_BOS },
-+
-+	/* UGREEN 35871 - BOS descriptor fetch hangs at SuperSpeed Plus */
-+	{ USB_DEVICE(0x2b89, 0x5871), .driver_info = USB_QUIRK_NO_BOS },
-+
- 	/* Sony Xperia XZ1 Compact (lilac) smartphone in fastboot mode */
- 	{ USB_DEVICE(0x0fce, 0x0dde), .driver_info = USB_QUIRK_NO_LPM },
- 
 diff --git a/include/linux/perf_event.h b/include/linux/perf_event.h
 index fd1d91017b99b3..2b1c752af207fa 100644
 --- a/include/linux/perf_event.h
