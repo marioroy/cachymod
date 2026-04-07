@@ -494,3 +494,369 @@ index c1791b13662054..98d29f4cc81b77 100644
 -- 
 2.40.2
 
+rcu: Reduce synchronize_rcu() latency by reporting GP kthread's CPU QS early
+https://lore.kernel.org/all/20251230004124.438070-1-joelagnelf@nvidia.com/
+
+The RCU grace period mechanism uses a two-phase FQS (Force Quiescent
+State) design where the first FQS saves dyntick-idle snapshots and
+the second FQS compares them. This results in long and unnecessary latency
+for synchronize_rcu() on idle systems (two FQS waits of ~3ms each with
+1000HZ) whenever one FQS wait sufficed.
+
+Some investigations showed that the GP kthread's CPU is the holdout CPU
+a lot of times after the first FQS as - it cannot be detected as "idle"
+because it's actively running the FQS scan in the GP kthread.
+
+Therefore, at the end of rcu_gp_init(), immediately report a quiescent
+state for the GP kthread's CPU using rcu_qs() + rcu_report_qs_rdp(). The
+GP kthread cannot be in an RCU read-side critical section while running
+GP initialization, so this is safe and results in significant latency
+improvements.
+
+Reviewed-by: Paul E. McKenney <paulmck@xxxxxxxxxx>
+Tested-by: Uladzislau Rezki (Sony) <urezki@xxxxxxxxxx>
+Signed-off-by: Joel Fernandes <joelagnelf@xxxxxxxxxx>
+---
+ kernel/rcu/tree.c | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)
+
+diff --git a/kernel/rcu/tree.c b/kernel/rcu/tree.c
+index 78c045a5ef03..b7c818cabe44 100644
+--- a/kernel/rcu/tree.c
++++ b/kernel/rcu/tree.c
+@@ -160,6 +160,7 @@ static void rcu_report_qs_rnp(unsigned long mask, struct rcu_node *rnp,
+ 			      unsigned long gps, unsigned long flags);
+ static void invoke_rcu_core(void);
+ static void rcu_report_exp_rdp(struct rcu_data *rdp);
++static void rcu_report_qs_rdp(struct rcu_data *rdp);
+ static void check_cb_ovld_locked(struct rcu_data *rdp, struct rcu_node *rnp);
+ static bool rcu_rdp_is_offloaded(struct rcu_data *rdp);
+ static bool rcu_rdp_cpu_online(struct rcu_data *rdp);
+@@ -1983,6 +1984,17 @@ static noinline_for_stack bool rcu_gp_init(void)
+ 	if (IS_ENABLED(CONFIG_RCU_STRICT_GRACE_PERIOD))
+ 		on_each_cpu(rcu_strict_gp_boundary, NULL, 0);
+ 
++	/*
++	 * Immediately report QS for the GP kthread's CPU. The GP kthread
++	 * cannot be in an RCU read-side critical section while running
++	 * the FQS scan. This eliminates the need for a second FQS wait
++	 * when all CPUs are idle.
++	 */
++	preempt_disable();
++	rcu_qs();
++	rcu_report_qs_rdp(this_cpu_ptr(&rcu_data));
++	preempt_enable();
++
+ 	return true;
+ }
+ 
+-- 
+2.34.1
+
+Subject: [PATCH 1/2] udmabuf: Do not create malformed scatterlists
+Link: https://lore.kernel.org/all/0-v1-42779f29381a+4b9-udmabuf_sg_jgg@nvidia.com/
+
+Using a sg_set_folio() loop for every 4K results in a malformed scatterlist
+because sg_set_folio() has an issue with offsets > PAGE_SIZE and because
+scatterlist expects the creator to build a list which consolidates any
+physical contiguity.
+
+sg_alloc_table_from_pages() creates a valid scatterlist directly from a
+struct page array, so go back to that.
+
+Remove the offsets allocation and just store an array of tail pages as it
+did before the below commit. Everything wants that anyhow.
+
+Fixes: 0c8b91ef5100 ("udmabuf: add back support for mapping hugetlb pages")
+Reported-by: Julian Orth <ju.orth@xxxxxxxxxx>
+Closes: https://lore.kernel.org/all/20260308-scatterlist-v1-1-39c4566b0bba@gmail.com/
+Signed-off-by: Jason Gunthorpe <jgg@xxxxxxxxxx>
+Cherry-picked-for: https://gitlab.archlinux.org/archlinux/packaging/packages/linux/-/issues/183
+---
+ drivers/dma-buf/udmabuf.c | 49 +++++++++++----------------------------
+ 1 file changed, 13 insertions(+), 36 deletions(-)
+
+diff --git a/drivers/dma-buf/udmabuf.c b/drivers/dma-buf/udmabuf.c
+index 40399c26e6be62..2b12583d5767bf 100644
+--- a/drivers/dma-buf/udmabuf.c
++++ b/drivers/dma-buf/udmabuf.c
+@@ -26,10 +26,10 @@ MODULE_PARM_DESC(size_limit_mb, "Max size of a dmabuf, in megabytes. Default is
+ 
+ struct udmabuf {
+ 	pgoff_t pagecount;
+-	struct folio **folios;
++	struct page **pages;
+ 
+ 	/**
+-	 * Unlike folios, pinned_folios is only used for unpin.
++	 * Unlike pages, pinned_folios is only used for unpin.
+ 	 * So, nr_pinned is not the same to pagecount, the pinned_folios
+ 	 * only set each folio which already pinned when udmabuf_create.
+ 	 * Note that, since a folio may be pinned multiple times, each folio
+@@ -41,7 +41,6 @@ struct udmabuf {
+ 
+ 	struct sg_table *sg;
+ 	struct miscdevice *device;
+-	pgoff_t *offsets;
+ };
+ 
+ static vm_fault_t udmabuf_vm_fault(struct vm_fault *vmf)
+@@ -55,8 +54,7 @@ static vm_fault_t udmabuf_vm_fault(struct vm_fault *vmf)
+ 	if (pgoff >= ubuf->pagecount)
+ 		return VM_FAULT_SIGBUS;
+ 
+-	pfn = folio_pfn(ubuf->folios[pgoff]);
+-	pfn += ubuf->offsets[pgoff] >> PAGE_SHIFT;
++	pfn = page_to_pfn(ubuf->pages[pgoff]);
+ 
+ 	ret = vmf_insert_pfn(vma, vmf->address, pfn);
+ 	if (ret & VM_FAULT_ERROR)
+@@ -73,8 +71,7 @@ static vm_fault_t udmabuf_vm_fault(struct vm_fault *vmf)
+ 		if (WARN_ON(pgoff >= ubuf->pagecount))
+ 			break;
+ 
+-		pfn = folio_pfn(ubuf->folios[pgoff]);
+-		pfn += ubuf->offsets[pgoff] >> PAGE_SHIFT;
++		pfn = page_to_pfn(ubuf->pages[pgoff]);
+ 
+ 		/**
+ 		 * If the below vmf_insert_pfn() fails, we do not return an
+@@ -109,22 +106,11 @@ static int mmap_udmabuf(struct dma_buf *buf, struct vm_area_struct *vma)
+ static int vmap_udmabuf(struct dma_buf *buf, struct iosys_map *map)
+ {
+ 	struct udmabuf *ubuf = buf->priv;
+-	struct page **pages;
+ 	void *vaddr;
+-	pgoff_t pg;
+ 
+ 	dma_resv_assert_held(buf->resv);
+ 
+-	pages = kvmalloc_array(ubuf->pagecount, sizeof(*pages), GFP_KERNEL);
+-	if (!pages)
+-		return -ENOMEM;
+-
+-	for (pg = 0; pg < ubuf->pagecount; pg++)
+-		pages[pg] = folio_page(ubuf->folios[pg],
+-				       ubuf->offsets[pg] >> PAGE_SHIFT);
+-
+-	vaddr = vm_map_ram(pages, ubuf->pagecount, -1);
+-	kvfree(pages);
++	vaddr = vm_map_ram(ubuf->pages, ubuf->pagecount, -1);
+ 	if (!vaddr)
+ 		return -EINVAL;
+ 
+@@ -146,22 +132,18 @@ static struct sg_table *get_sg_table(struct device *dev, struct dma_buf *buf,
+ {
+ 	struct udmabuf *ubuf = buf->priv;
+ 	struct sg_table *sg;
+-	struct scatterlist *sgl;
+-	unsigned int i = 0;
+ 	int ret;
+ 
+ 	sg = kzalloc(sizeof(*sg), GFP_KERNEL);
+ 	if (!sg)
+ 		return ERR_PTR(-ENOMEM);
+ 
+-	ret = sg_alloc_table(sg, ubuf->pagecount, GFP_KERNEL);
++	ret = sg_alloc_table_from_pages(sg, ubuf->pages, ubuf->pagecount, 0,
++					ubuf->pagecount << PAGE_SHIFT,
++					GFP_KERNEL);
+ 	if (ret < 0)
+ 		goto err_alloc;
+ 
+-	for_each_sg(sg->sgl, sgl, ubuf->pagecount, i)
+-		sg_set_folio(sgl, ubuf->folios[i], PAGE_SIZE,
+-			     ubuf->offsets[i]);
+-
+ 	ret = dma_map_sgtable(dev, sg, direction, 0);
+ 	if (ret < 0)
+ 		goto err_map;
+@@ -207,12 +189,8 @@ static void unpin_all_folios(struct udmabuf *ubuf)
+ 
+ static __always_inline int init_udmabuf(struct udmabuf *ubuf, pgoff_t pgcnt)
+ {
+-	ubuf->folios = kvmalloc_array(pgcnt, sizeof(*ubuf->folios), GFP_KERNEL);
+-	if (!ubuf->folios)
+-		return -ENOMEM;
+-
+-	ubuf->offsets = kvcalloc(pgcnt, sizeof(*ubuf->offsets), GFP_KERNEL);
+-	if (!ubuf->offsets)
++	ubuf->pages = kvmalloc_array(pgcnt, sizeof(*ubuf->pages), GFP_KERNEL);
++	if (!ubuf->pages)
+ 		return -ENOMEM;
+ 
+ 	ubuf->pinned_folios = kvmalloc_array(pgcnt,
+@@ -227,8 +205,7 @@ static __always_inline int init_udmabuf(struct udmabuf *ubuf, pgoff_t pgcnt)
+ static __always_inline void deinit_udmabuf(struct udmabuf *ubuf)
+ {
+ 	unpin_all_folios(ubuf);
+-	kvfree(ubuf->offsets);
+-	kvfree(ubuf->folios);
++	kvfree(ubuf->pages);
+ }
+ 
+ static void release_udmabuf(struct dma_buf *buf)
+@@ -346,8 +323,8 @@ static long udmabuf_pin_folios(struct udmabuf *ubuf, struct file *memfd,
+ 		ubuf->pinned_folios[nr_pinned++] = folios[cur_folio];
+ 
+ 		for (; subpgoff < fsize; subpgoff += PAGE_SIZE) {
+-			ubuf->folios[upgcnt] = folios[cur_folio];
+-			ubuf->offsets[upgcnt] = subpgoff;
++			ubuf->pages[upgcnt] = folio_page(folios[cur_folio],
++						subpgoff >> PAGE_SHIFT);
+ 			++upgcnt;
+ 
+ 			if (++cur_pgcnt >= pgcnt)
+-- 
+2.52.0
+
+Subject: [PATCH 2/2] iommu: Fix mapping check for 0x0 to avoid re-mapping it
+Link: https://lore.kernel.org/all/20260227080638.208693-1-lkml@antheas.dev/
+
+Commit 789a5913b29c ("iommu/amd: Use the generic iommu page table")
+introduces the shared iommu page table for AMD IOMMU. Some bioses
+contain an identity mapping for address 0x0, which is not parsed
+properly (e.g., certain Strix Halo devices). This causes the DMA
+components of the device to fail to initialize (e.g., the NVMe SSD
+controller), leading to a failed post.
+
+Specifically, on the GPD Win 5, the NVME and SSD GPU fail to mount,
+making collecting errors difficult. While debugging, it was found that
+a -EADDRINUSE error was emitted and its source was traced to
+iommu_iova_to_phys(). After adding some debug prints, it was found that
+phys_addr becomes 0, which causes the code to try to re-map the 0
+address and fail, causing a cascade leading to a failed post. This is
+because the GPD Win 5 contains a 0x0-0x1 identity mapping for DMA
+devices, causing it to be repeated for each device.
+
+The cause of this failure is the following check in
+iommu_create_device_direct_mappings(), where address aliasing is handled
+via the following check:
+
+```
+phys_addr = iommu_iova_to_phys(domain, addr);
+if (!phys_addr) {
+        map_size += pg_size;
+        continue;
+}
+````
+
+Obviously, the iommu_iova_to_phys() signature is faulty and aliases
+unmapped and 0 together, causing the allocation code to try to
+re-allocate the 0 address per device. However, it has too many
+instantiations to fix. Therefore, use a ternary so that when addr
+is 0, the check is done for address 1 instead.
+
+Suggested-by: Robin Murphy <robin.murphy@xxxxxxxxxx>
+Fixes: 789a5913b29c ("iommu/amd: Use the generic iommu page table")
+Signed-off-by: Antheas Kapenekakis <lkml@xxxxxxxxxx>
+Cherry-picked-for: https://gitlab.archlinux.org/archlinux/packaging/packages/linux/-/issues/182
+---
+ drivers/iommu/iommu.c | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/iommu/iommu.c b/drivers/iommu/iommu.c
+index 2ca990dfbb884f..3a0c0e4b42fff2 100644
+--- a/drivers/iommu/iommu.c
++++ b/drivers/iommu/iommu.c
+@@ -1192,7 +1192,11 @@ static int iommu_create_device_direct_mappings(struct iommu_domain *domain,
+ 			if (addr == end)
+ 				goto map_end;
+ 
+-			phys_addr = iommu_iova_to_phys(domain, addr);
++			/*
++			 * Return address by iommu_iova_to_phys for 0 is
++			 * ambiguous. Offset to address 1 if addr is 0.
++			 */
++			phys_addr = iommu_iova_to_phys(domain, addr ? addr : 1);
+ 			if (!phys_addr) {
+ 				map_size += pg_size;
+ 				continue;
+-- 
+2.52.0
+
+sched/rt: Remove a preempt-disable section in rt_mutex_setprio()
+https://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git/commit/?h=sched/urgent&id=22abd832776b1317ae4c3f8a097c8b71bf83fb38
+
+rt_mutex_setprio() has only one caller: rt_mutex_adjust_prio(). It
+expects that task_struct::pi_lock and rt_mutex_base::wait_lock are held.
+Both locks are raw_spinlock_t and are acquired with disabled interrupts.
+
+Nevertheless rt_mutex_setprio() disables preemption while invoking
+__balance_callbacks() and raw_spin_rq_unlock(). Even if one of the
+balance callbacks unlocks the rq then it must not enable interrupts
+because rt_mutex_base::wait_lock is still locked.
+Therefore interrupts should remain disabled and disabling preemption is
+not needed.
+
+Commit 4c9a4bc89a9cc ("sched: Allow balance callbacks for check_class_changed()")
+adds a preempt-disable section to rt_mutex_setprio() and
+__sched_setscheduler(). In __sched_setscheduler() the preemption is
+disabled before rq is unlocked and interrupts enabled but I don't see
+why it makes a difference in rt_mutex_setprio().
+
+Remove the preempt_disable() section from rt_mutex_setprio().
+
+Signed-off-by: Sebastian Andrzej Siewior <bigeasy@xxxxxxxxxx>
+Signed-off-by: Peter Zijlstra (Intel) <peterz@xxxxxxxxxx>
+Signed-off-by: Ingo Molnar <mingo@xxxxxxxxxx>
+---
+ kernel/sched/core.c | 5 +----
+ 1 file changed, 1 insertions(+), 4 deletions(-)
+
+diff --git a/kernel/sched/core.c b/kernel/sched/core.c
+index 1711e9e501003a..ee7dfbf01792e5 100644
+--- a/kernel/sched/core.c
++++ b/kernel/sched/core.c
+@@ -7439,14 +7439,11 @@ void rt_mutex_setprio(struct task_struct *p, struct task_struct *pi_task)
+ 
+ 	check_class_changed(rq, p, prev_class, oldprio);
+ out_unlock:
+-	/* Avoid rq from going away on us: */
+-	preempt_disable();
++	/* Caller holds task_struct::pi_lock, IRQs are still disabled */
+ 
+ 	rq_unpin_lock(rq, &rf);
+ 	__balance_callbacks(rq);
+ 	raw_spin_rq_unlock(rq);
+-
+-	preempt_enable();
+ }
+ #endif /* CONFIG_RT_MUTEXES */
+ 
+-- 
+2.47.1
+
+sched/hrtick: Fix hrtick() vs. scheduling context
+https://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git/commit/?h=sched/urgent&id=e38e5299747b23015b00b0109891815db44a2f30
+
+The sched_class::task_tick() method is called on the donor
+sched_class, and sched_tick() hands it rq->donor as argument,
+which is consistent.
+
+However, while hrtick() uses the donor sched_class, it then passes
+rq->curr, which is inconsistent. Fix it.
+
+Signed-off-by: Peter Zijlstra (Intel) <peterz@xxxxxxxxxx>
+Signed-off-by: Ingo Molnar <mingo@xxxxxxxxxx>
+Acked-by: John Stultz <jstultz@xxxxxxxxxx>
+---
+ kernel/sched/core.c | 2 +-
+ 1 file changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/kernel/sched/core.c b/kernel/sched/core.c
+index fc358c1b6ca987..1711e9e501003a 100644
+--- a/kernel/sched/core.c
++++ b/kernel/sched/core.c
+@@ -875,7 +875,7 @@ static enum hrtimer_restart hrtick(struct hrtimer *timer)
+ 
+ 	rq_lock(rq, &rf);
+ 	update_rq_clock(rq);
+-	rq->donor->sched_class->task_tick(rq, rq->curr, 1);
++	rq->donor->sched_class->task_tick(rq, rq->donor, 1);
+ 	rq_unlock(rq, &rf);
+ 
+ 	return HRTIMER_NORESTART;
+-- 
+2.47.1
+

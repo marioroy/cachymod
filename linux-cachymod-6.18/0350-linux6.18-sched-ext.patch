@@ -430,7 +430,7 @@ index 900e2a26971560..2a5a3b6b6f72f3 100644
  	}
  #endif
  
-@@ -8777,6 +8785,9 @@ void __init sched_init(void)
+@@ -8774,6 +8782,9 @@ void __init sched_init(void)
  		hrtick_rq_init(rq);
  		atomic_set(&rq->nr_iowait, 0);
  		fair_server_init(rq);
