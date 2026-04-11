@@ -455,7 +455,7 @@ diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
 index 783749e2a2e9f6..43bf12338eb9d8 100644
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -2552,11 +2552,8 @@ static void task_numa_find_cpu(struct task_numa_env *env,
+@@ -2553,11 +2553,8 @@ static void task_numa_find_cpu(struct task_numa_env *env,
  		maymove = !load_too_imbalanced(src_load, dst_load, env);
  	}
  
@@ -469,7 +469,7 @@ index 783749e2a2e9f6..43bf12338eb9d8 100644
  		env->dst_cpu = cpu;
  		if (task_numa_compare(env, taskimp, groupimp, maymove))
  			break;
-@@ -8493,9 +8490,7 @@ static int find_energy_efficient_cpu(struct task_struct *p, int prev_cpu)
+@@ -8489,9 +8486,7 @@ static int find_energy_efficient_cpu(struct task_struct *p, int prev_cpu)
  		int max_spare_cap_cpu = -1;
  		int fits, max_fits = -1;
  

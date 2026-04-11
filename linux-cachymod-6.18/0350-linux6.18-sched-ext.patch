@@ -21,8 +21,8 @@ https://git.kernel.org/pub/scm/linux/kernel/git/arighi/linux.git/log/?h=scx-6.18
   [PATCH] sched_ext: Fix scx_bpf_dsq_peek() with FIFO DSQs
   https://lore.kernel.org/all/20251024220102.1556384-1-arighi@nvidia.com/
 
-  [PATCH] sched_ext: Fix stale direct dispatch state in ddsp_dsq_id
-  https://lore.kernel.org/all/20260401215619.1188194-1-arighi@nvidia.com/
+  sched_ext: Reduce DSQ lock contention in consume_dispatch_q()
+  https://lore.kernel.org/all/20260314235231.684671-1-arighi@nvidia.com/
 
 Tested-by: Mario Roy <>
 
@@ -46,7 +46,7 @@ diff --git a/kernel/sched/ext.c b/kernel/sched/ext.c
 index a677b3abb212c6..aea5b865a1d971 100644
 --- a/kernel/sched/ext.c
 +++ b/kernel/sched/ext.c
-@@ -4556,7 +4556,7 @@ static struct scx_sched *scx_alloc_and_add_sched(struct sched_ext_ops *ops)
+@@ -4580,7 +4580,7 @@ static struct scx_sched *scx_alloc_and_add_sched(struct sched_ext_ops *ops)
  	return ERR_PTR(ret);
  }
  
@@ -55,7 +55,7 @@ index a677b3abb212c6..aea5b865a1d971 100644
  			      const struct sched_ext_ops *ops)
  {
  	unsigned long long global_hotplug_seq;
-@@ -4573,8 +4573,11 @@ static void check_hotplug_seq(struct scx_sched *sch,
+@@ -4597,8 +4597,11 @@ static void check_hotplug_seq(struct scx_sched *sch,
  				 SCX_ECODE_ACT_RESTART | SCX_ECODE_RSN_HOTPLUG,
  				 "expected hotplug seq %llu did not match actual %llu",
  				 ops->hotplug_seq, global_hotplug_seq);
@@ -67,7 +67,7 @@ index a677b3abb212c6..aea5b865a1d971 100644
  }
  
  static int validate_ops(struct scx_sched *sch, const struct sched_ext_ops *ops)
-@@ -4688,7 +4691,11 @@ static int scx_enable(struct sched_ext_ops *ops, struct bpf_link *link)
+@@ -4712,7 +4715,11 @@ static int scx_enable(struct sched_ext_ops *ops, struct bpf_link *link)
  		if (((void (**)(void))ops)[i])
  			set_bit(i, sch->has_op);
  
@@ -181,7 +181,7 @@ diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
 index fe9df4fc000a26..1877cbe4fac3f1 100644
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -7071,7 +7071,7 @@ enqueue_task_fair(struct rq *rq, struct task_struct *p, int flags)
+@@ -7067,7 +7067,7 @@ enqueue_task_fair(struct rq *rq, struct task_struct *p, int flags)
  	if (!rq_h_nr_queued && rq->cfs.h_nr_queued) {
  		/* Account for idle runtime */
  		if (!rq->nr_running)
@@ -323,7 +323,7 @@ diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
 index 1877cbe4fac3f1..ae176d687a680c 100644
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -9048,7 +9048,7 @@ void fair_server_init(struct rq *rq)
+@@ -9044,7 +9044,7 @@ void fair_server_init(struct rq *rq)
  
  	init_dl_entity(dl_se);
  
@@ -467,7 +467,7 @@ index aea5b865a1d971..9139af6c21e0ac 100644
  }
  
  static bool scx_dsq_priq_less(struct rb_node *node_a,
-@@ -1394,6 +1397,15 @@ static void enqueue_task_scx(struct rq *rq, struct task_struct *p, int enq_flags
+@@ -1413,6 +1416,15 @@ static void enqueue_task_scx(struct rq *rq, struct task_struct *p, int enq_flags
  	if (enq_flags & SCX_ENQ_WAKEUP)
  		touch_core_sched(rq, p);
  
@@ -483,10 +483,10 @@ index aea5b865a1d971..9139af6c21e0ac 100644
  	do_enqueue_task(rq, p, enq_flags, sticky_cpu);
  out:
  	rq->scx.flags &= ~SCX_RQ_IN_WAKEUP;
-@@ -1493,6 +1505,11 @@ static bool dequeue_task_scx(struct rq *rq, struct task_struct *p, int deq_flags
- 	sub_nr_running(rq, 1);
+@@ -1513,6 +1525,11 @@ static bool dequeue_task_scx(struct rq *rq, struct task_struct *p, int deq_flags
  
  	dispatch_dequeue(rq, p);
+ 	clear_direct_dispatch(p);
 +
 +	/* Stop the server if this was the last task */
 +	if (rq->scx.nr_running == 0)
@@ -495,7 +495,7 @@ index aea5b865a1d971..9139af6c21e0ac 100644
  	return true;
  }
  
-@@ -3047,6 +3064,15 @@ static void switching_to_scx(struct rq *rq, struct task_struct *p)
+@@ -3071,6 +3088,15 @@ static void switching_to_scx(struct rq *rq, struct task_struct *p)
  static void switched_from_scx(struct rq *rq, struct task_struct *p)
  {
  	scx_disable_task(p);
@@ -511,7 +511,7 @@ index aea5b865a1d971..9139af6c21e0ac 100644
  }
  
  static void wakeup_preempt_scx(struct rq *rq, struct task_struct *p,int wake_flags) {}
-@@ -6499,8 +6525,8 @@ __bpf_kfunc u32 scx_bpf_cpuperf_cur(s32 cpu)
+@@ -6523,8 +6549,8 @@ __bpf_kfunc u32 scx_bpf_cpuperf_cur(s32 cpu)
   * relative scale between 0 and %SCX_CPUPERF_ONE. This determines how the
   * schedutil cpufreq governor chooses the target frequency.
   *
@@ -522,7 +522,7 @@ index aea5b865a1d971..9139af6c21e0ac 100644
   * use. Consult hardware and cpufreq documentation for more information. The
   * current performance level can be monitored using scx_bpf_cpuperf_cur().
   */
-@@ -6872,6 +6898,37 @@ BTF_ID_FLAGS(func, scx_bpf_now)
+@@ -6896,6 +6922,37 @@ BTF_ID_FLAGS(func, scx_bpf_now)
  BTF_ID_FLAGS(func, scx_bpf_events, KF_TRUSTED_ARGS)
  BTF_KFUNCS_END(scx_kfunc_ids_any)
  
@@ -1276,7 +1276,7 @@ diff --git a/kernel/sched/ext.c b/kernel/sched/ext.c
 index 9139af6c21e0ac..0f4aa1bae1691f 100644
 --- a/kernel/sched/ext.c
 +++ b/kernel/sched/ext.c
-@@ -2605,6 +2605,57 @@ static void set_cpus_allowed_scx(struct task_struct *p,
+@@ -2627,6 +2627,57 @@ static void set_cpus_allowed_scx(struct task_struct *p,
  				 p, (struct cpumask *)p->cpus_ptr);
  }
  
@@ -1334,7 +1334,7 @@ index 9139af6c21e0ac..0f4aa1bae1691f 100644
  static void handle_hotplug(struct rq *rq, bool online)
  {
  	struct scx_sched *sch = scx_root;
-@@ -2620,9 +2671,20 @@ static void handle_hotplug(struct rq *rq, bool online)
+@@ -2642,9 +2693,20 @@ static void handle_hotplug(struct rq *rq, bool online)
  	if (unlikely(!sch))
  		return;
  
@@ -1356,7 +1356,7 @@ index 9139af6c21e0ac..0f4aa1bae1691f 100644
  	if (online && SCX_HAS_OP(sch, cpu_online))
  		SCX_CALL_OP(sch, SCX_KF_UNLOCKED, cpu_online, NULL, cpu);
  	else if (!online && SCX_HAS_OP(sch, cpu_offline))
-@@ -3948,6 +4010,7 @@ static void scx_disable_workfn(struct kthread_work *work)
+@@ -3972,6 +4034,7 @@ static void scx_disable_workfn(struct kthread_work *work)
  	struct scx_exit_info *ei = sch->exit_info;
  	struct scx_task_iter sti;
  	struct task_struct *p;
@@ -1364,7 +1364,7 @@ index 9139af6c21e0ac..0f4aa1bae1691f 100644
  	int kind, cpu;
  
  	kind = atomic_read(&sch->exit_kind);
-@@ -4004,6 +4067,22 @@ static void scx_disable_workfn(struct kthread_work *work)
+@@ -4028,6 +4091,22 @@ static void scx_disable_workfn(struct kthread_work *work)
  
  	scx_init_task_enabled = false;
  
@@ -1387,7 +1387,7 @@ index 9139af6c21e0ac..0f4aa1bae1691f 100644
  	scx_task_iter_start(&sti);
  	while ((p = scx_task_iter_next_locked(&sti))) {
  		const struct sched_class *old_class = p->sched_class;
-@@ -4026,15 +4105,6 @@ static void scx_disable_workfn(struct kthread_work *work)
+@@ -4050,15 +4129,6 @@ static void scx_disable_workfn(struct kthread_work *work)
  	scx_task_iter_stop(&sti);
  	percpu_up_write(&scx_fork_rwsem);
  
@@ -1403,7 +1403,7 @@ index 9139af6c21e0ac..0f4aa1bae1691f 100644
  	/* no task is on scx, turn off all the switches and flush in-progress calls */
  	static_branch_disable(&__scx_enabled);
  	bitmap_zero(sch->has_op, SCX_OPI_END);
-@@ -4859,6 +4929,13 @@ static int scx_enable(struct sched_ext_ops *ops, struct bpf_link *link)
+@@ -4883,6 +4953,13 @@ static int scx_enable(struct sched_ext_ops *ops, struct bpf_link *link)
  		put_task_struct(p);
  	}
  	scx_task_iter_stop(&sti);
@@ -2122,7 +2122,7 @@ index 0f4aa1bae1691f..c45e5fc5260944 100644
  	}
  
  	/* seq records the order tasks are queued, used by BPF DSQ iterator */
-@@ -1061,6 +1073,13 @@ static void task_unlink_from_dsq(struct task_struct *p,
+@@ -1052,6 +1064,13 @@ static void task_unlink_from_dsq(struct task_struct *p,
  		p->scx.dsq_flags &= ~SCX_TASK_DSQ_ON_PRIQ;
  	}
  
@@ -2136,7 +2136,7 @@ index 0f4aa1bae1691f..c45e5fc5260944 100644
  	list_del_init(&p->scx.dsq_list.node);
  	dsq_mod_nr(dsq, -1);
  }
-@@ -6392,6 +6411,40 @@ __bpf_kfunc void bpf_iter_scx_dsq_destroy(struct bpf_iter_scx_dsq *it)
+@@ -6416,6 +6435,40 @@ __bpf_kfunc void bpf_iter_scx_dsq_destroy(struct bpf_iter_scx_dsq *it)
  	kit->dsq = NULL;
  }
  
@@ -2177,7 +2177,7 @@ index 0f4aa1bae1691f..c45e5fc5260944 100644
  __bpf_kfunc_end_defs();
  
  static s32 __bstr_format(struct scx_sched *sch, u64 *data_buf, char *line_buf,
-@@ -6949,6 +7002,7 @@ BTF_KFUNCS_START(scx_kfunc_ids_any)
+@@ -6973,6 +7026,7 @@ BTF_KFUNCS_START(scx_kfunc_ids_any)
  BTF_ID_FLAGS(func, scx_bpf_kick_cpu)
  BTF_ID_FLAGS(func, scx_bpf_dsq_nr_queued)
  BTF_ID_FLAGS(func, scx_bpf_destroy_dsq)
@@ -2796,7 +2796,7 @@ diff --git a/kernel/sched/ext.c b/kernel/sched/ext.c
 index c53bc87d50764e..c10fc798bf9cf3 100644
 --- a/kernel/sched/ext.c
 +++ b/kernel/sched/ext.c
-@@ -1073,15 +1073,15 @@ static void task_unlink_from_dsq(struct task_struct *p,
+@@ -1064,15 +1064,15 @@ static void task_unlink_from_dsq(struct task_struct *p,
  		p->scx.dsq_flags &= ~SCX_TASK_DSQ_ON_PRIQ;
  	}
  
@@ -2819,108 +2819,83 @@ index c53bc87d50764e..c10fc798bf9cf3 100644
 cgit 1.2.3-korg
 
 
+From ed7216942af682701aaf63be792755a8b25d214a Mon Sep 17 00:00:00 2001
 From: Andrea Righi <arighi@xxxxxxxxxx>
-Date: Wed,  1 Apr 2026 23:56:19 +0200
-Subject: [PATCH] sched_ext: Fix stale direct dispatch state in ddsp_dsq_id
+Date: Sun, 15 Mar 2026 01:40:03 -0700
+Subject: sched_ext: Reduce DSQ lock contention in consume_dispatch_q()
 
- @p->scx.ddsp_dsq_id can be left set (non-SCX_DSQ_INVALID) in three
-scenarios, causing a spurious WARN_ON_ONCE() in mark_direct_dispatch()
-when the next wakeup's ops.select_cpu() calls scx_bpf_dsq_insert():
+Replace raw_spin_lock() with raw_spin_trylock() when taking the DSQ lock
+in consume_dispatch_q(). If the lock is contended, kick the current CPU
+to retry on the next balance instead of spinning.
 
- 1. Deferred dispatch cancellation: when a task is directly dispatched to
-    a remote CPU's local DSQ via ops.select_cpu() or ops.enqueue(), the
-    dispatch is deferred (since we can't lock the remote rq while holding
-    the current one). If the task is dequeued before processing the
-    dispatch in process_ddsp_deferred_locals(), dispatch_dequeue()
-    removes the task from the list leaving a stale direct dispatch state.
+Under high load multiple CPUs can contend on the same DSQ lock. With a
+spin_lock, waiters spin on the same cache line, wasting cycles and
+increasing cache coherency traffic, which can slow the lock holder. With
+trylock, waiters back off and retry later, so the holder can complete
+faster and the backing-off CPUs have a chance to consume other DSQs or run
+tasks.
 
-    Fix: clear ddsp_dsq_id and ddsp_enq_flags in the !list_empty branch
-    of dispatch_dequeue().
+When in bypass mode scx_kick_cpu() is suppressed, so just fall back to
+raw_spin_lock() to guarantee forward progress.
 
- 2. Holding-cpu dispatch race: when dispatch_to_local_dsq() transfers a
-    task to another CPU's local DSQ, it sets holding_cpu and releases
-    DISPATCHING before locking the source rq. If dequeue wins the race
-    and clears holding_cpu, dispatch_enqueue() is never called and
-    ddsp_dsq_id is not cleared.
+Since this slightly changes the behavior of scx_bpf_dsq_move_to_local(),
+update the documentation to clarify that a false return value means no
+eligible task could be consumed from the DSQ. This covers both the case
+of an empty DSQ and any other condition that prevented task consumption.
 
-    Fix: clear ddsp_dsq_id and ddsp_enq_flags when clearing holding_cpu
-    in dispatch_dequeue().
+Benchmarks that generate many enqueue/dispatch events (e.g., schbench)
+show around 2-3x higher throughput with most of the scx schedulers with
+this change applied.
 
- 3. Cross-scheduler-instance stale state: When an SCX scheduler exits,
-    scx_bypass() iterates over all runnable tasks to dequeue/re-enqueue
-    them, but sleeping tasks are not on any runqueue and are not touched.
-    If a sleeping task had a deferred dispatch in flight (ddsp_dsq_id
-    set) at the time the scheduler exited, the state persists. When a new
-    scheduler instance loads and calls scx_enable_task() for all tasks,
-    it does not reset this leftover state. The next wakeup's
-    ops.select_cpu() then sees a non-INVALID ddsp_dsq_id and triggers:
-
-      WARN_ON_ONCE(p->scx.ddsp_dsq_id != SCX_DSQ_INVALID)
-
-    Fix: clear ddsp_dsq_id and ddsp_enq_flags in scx_enable_task() before
-    calling ops.enable(), ensuring each new scheduler instance starts
-    with a clean direct dispatch state per task.
-
-With all the fixes applied the SCX_DSQ_INVALID warning doesn't seem to
-happen anymore.
-
-Fixes: 5b26f7b920f76 ("sched_ext: Allow SCX_DSQ_LOCAL_ON for direct dispatches")
 Signed-off-by: Andrea Righi <arighi@xxxxxxxxxx>
 ---
- kernel/sched/ext.c | 23 +++++++++++++++++++----
- 1 file changed, 19 insertions(+), 4 deletions(-)
+ kernel/sched/ext.c | 19 ++++++++++++++++---
+ 1 file changed, 16 insertions(+), 3 deletions(-)
 
 diff --git a/kernel/sched/ext.c b/kernel/sched/ext.c
-index 26a6ac2f88267..de827ce0ffb74 100644
+index 2ff7034841c7c..dd8756e503aa0 100644
 --- a/kernel/sched/ext.c
 +++ b/kernel/sched/ext.c
-@@ -1092,20 +1092,32 @@ static void dispatch_dequeue(struct rq *rq, struct task_struct *p)
- 	if (!dsq) {
- 		/*
- 		 * If !dsq && on-list, @p is on @rq's ddsp_deferred_locals.
--		 * Unlinking is all that's needed to cancel.
-+		 * Unlink and clear the deferred dispatch state.
- 		 */
--		if (unlikely(!list_empty(&p->scx.dsq_list.node)))
-+		if (unlikely(!list_empty(&p->scx.dsq_list.node))) {
- 			list_del_init(&p->scx.dsq_list.node);
+@@ -1867,6 +1867,7 @@ static bool consume_dispatch_q(struct scx_sched *sch, struct rq *rq,
+ 			       struct scx_dispatch_q *dsq)
+ {
+ 	struct task_struct *p;
++	s32 cpu = cpu_of(rq);
+ retry:
+ 	/*
+ 	 * This retry loop can repeatedly race against scx_bypass() dequeueing
+@@ -1884,7 +1885,19 @@ retry:
+ 	if (list_empty(&dsq->list))
+ 		return false;
  
-+			p->scx.ddsp_dsq_id = SCX_DSQ_INVALID;
-+			p->scx.ddsp_enq_flags = 0;
-+		}
-+
- 		/*
- 		 * When dispatching directly from the BPF scheduler to a local
- 		 * DSQ, the task isn't associated with any DSQ but
- 		 * @p->scx.holding_cpu may be set under the protection of
--		 * %SCX_OPSS_DISPATCHING.
-+		 * %SCX_OPSS_DISPATCHING. If we win the race and clear
-+		 * holding_cpu before dispatch_to_local_dsq() completes, the
-+		 * in-flight dispatch is cancelled and dispatch_enqueue() won't
-+		 * be called. Clear the stale direct dispatch state here so the
-+		 * next wakeup starts clean.
- 		 */
--		if (p->scx.holding_cpu >= 0)
-+		if (p->scx.holding_cpu >= 0) {
- 			p->scx.holding_cpu = -1;
+-	raw_spin_lock(&dsq->lock);
++	/*
++	 * Use trylock to avoid spinning on a contended DSQ, if we fail to
++	 * acquire the lock kick the CPU to retry on the next balance.
++	 *
++	 * In bypass mode simply spin to acquire the lock, since
++	 * scx_kick_cpu() is suppressed.
++	 */
++	if (scx_rq_bypassing(rq)) {
++		raw_spin_lock(&dsq->lock);
++	} else if (!raw_spin_trylock(&dsq->lock)) {
++		scx_kick_cpu(sch, cpu, 0);
++		return false;
++	}
  
-+			p->scx.ddsp_dsq_id = SCX_DSQ_INVALID;
-+			p->scx.ddsp_enq_flags = 0;
-+		}
-+
- 		return;
- 	}
- 
-@@ -2959,6 +2971,9 @@ static void scx_enable_task(struct task_struct *p)
- 
- 	p->scx.weight = sched_weight_to_cgroup(weight);
- 
-+	p->scx.ddsp_dsq_id = SCX_DSQ_INVALID;
-+	p->scx.ddsp_enq_flags = 0;
-+
- 	if (SCX_HAS_OP(sch, enable))
- 		SCX_CALL_OP_TASK(sch, SCX_KF_REST, enable, rq, p);
- 	scx_set_task_state(p, SCX_TASK_ENABLED);
+ 	nldsq_for_each_task(p, dsq) {
+ 		struct rq *task_rq = task_rq(p);
+@@ -5899,8 +5912,8 @@ __bpf_kfunc void scx_bpf_dispatch_cancel(void)
+  * before trying to move from the specified DSQ. It may also grab rq locks and
+  * thus can't be called under any BPF locks.
+  *
+- * Returns %true if a task has been moved, %false if there isn't any task to
+- * move.
++ * Returns %true if a task has been moved, %false if no eligible task could
++ * be consumed from @dsq_id.
+  */
+ __bpf_kfunc bool scx_bpf_dsq_move_to_local(u64 dsq_id)
+ {
 -- 
-2.53.0
+cgit 1.3-korg
 

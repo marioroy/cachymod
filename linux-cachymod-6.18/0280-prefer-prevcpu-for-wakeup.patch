@@ -258,7 +258,7 @@ Signed-off-by: Mario Roy <>
 diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -1130,7 +1130,7 @@ static bool update_deadline(struct cfs_rq *cfs_rq, struct sched_entity *se)
+@@ -1131,7 +1131,7 @@ static bool update_deadline(struct cfs_rq *cfs_rq, struct sched_entity *se)
  
  #include "pelt.h"
  
@@ -267,7 +267,7 @@ diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
  static unsigned long task_h_load(struct task_struct *p);
  static unsigned long capacity_of(int cpu);
  
-@@ -7614,6 +7614,24 @@ static inline int __select_idle_cpu(int cpu, struct task_struct *p)
+@@ -7610,6 +7610,24 @@ static inline int __select_idle_cpu(int cpu, struct task_struct *p)
  DEFINE_STATIC_KEY_FALSE(sched_smt_present);
  EXPORT_SYMBOL_GPL(sched_smt_present);
  
@@ -292,7 +292,7 @@ diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
  static inline void set_idle_cores(int cpu, int val)
  {
  	struct sched_domain_shared *sds;
-@@ -7882,13 +7900,29 @@ static inline bool asym_fits_cpu(unsigned long util,
+@@ -7878,13 +7896,29 @@ static inline bool asym_fits_cpu(unsigned long util,
  /*
   * Try and locate an idle core/thread in the LLC cache domain.
   */
@@ -323,7 +323,7 @@ diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
  	/*
  	 * On asymmetric system, update task utilization because we will check
  	 * that the task fits with CPU's capacity.
-@@ -7905,7 +7939,7 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target)
+@@ -7901,7 +7935,7 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target)
  	 */
  	lockdep_assert_irqs_disabled();
  
@@ -332,7 +332,7 @@ diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
  	    asym_fits_cpu(task_util, util_min, util_max, target))
  		return target;
  
-@@ -7939,24 +7973,6 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target)
+@@ -7935,24 +7969,6 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target)
  		return prev;
  	}
  
@@ -357,7 +357,7 @@ diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
  	/*
  	 * For asymmetric CPU capacity systems, our domain of interest is
  	 * sd_asym_cpucapacity rather than sd_llc.
-@@ -8688,7 +8704,14 @@ select_task_rq_fair(struct task_struct *p, int prev_cpu, int wake_flags)
+@@ -8684,7 +8700,14 @@ select_task_rq_fair(struct task_struct *p, int prev_cpu, int wake_flags)
  		new_cpu = sched_balance_find_dst_cpu(sd, p, cpu, prev_cpu, sd_flag);
  	} else if (wake_flags & WF_TTWU) { /* XXX always ? */
  		/* Fast path */
@@ -373,7 +373,7 @@ diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
  	}
  	rcu_read_unlock();
  
-@@ -10287,7 +10310,7 @@ static bool sched_use_asym_prio(struct sched_domain *sd, int cpu)
+@@ -10283,7 +10306,7 @@ static bool sched_use_asym_prio(struct sched_domain *sd, int cpu)
  	if (!sched_smt_active())
  		return true;
  
