@@ -2,9 +2,9 @@
 diff -uarp a/Makefile b/Makefile
 --- a/Makefile
 +++ b/Makefile
-@@ -888,6 +888,16 @@ KBUILD_CFLAGS += $(call cc-option,-fmodu
- KBUILD_RUSTFLAGS += -Cdebug-assertions=$(if $(CONFIG_RUST_DEBUG_ASSERTIONS),y,n)
- KBUILD_RUSTFLAGS += -Coverflow-checks=$(if $(CONFIG_RUST_OVERFLOW_CHECKS),y,n)
+@@ -896,6 +896,16 @@
+ KBUILD_CFLAGS	+= $(call cc-option,-fno-allow-store-data-races)
+ endif
  
 +ifdef CONFIG_CC_IS_CLANG
 +KBUILD_CFLAGS	+= -fmerge-all-constants \
@@ -16,9 +16,9 @@ diff -uarp a/Makefile b/Makefile
 +endif
 +endif
 +
- # Tell gcc to never replace conditional load with a non-conditional one
- ifdef CONFIG_CC_IS_GCC
- # gcc-10 renamed --param=allow-store-data-races=0 to
+ ifdef CONFIG_READABLE_ASM
+ # Disable optimizations that make assembler listings hard to read.
+ # reorder blocks reorders the control in the function
 -- 
 2.40.2
 
