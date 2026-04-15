@@ -144,7 +144,7 @@ _stable=${_major}.${_minor}
 
 _srcname=linux-${_stable}
 pkgdesc='CachyMod Linux Kernel with other patches and improvements'
-pkgrel=1
+pkgrel=2
 _kernver="$pkgver-$pkgrel"
 _kernuname="${pkgver}-${_pkgsuffix}"
 arch=('x86_64')
@@ -192,6 +192,10 @@ source=(
 
     # The revert is applied only if a BORE patch is detected via extra_patch_or_url
     "0360-fair-revert-cachy-mods.patch"
+
+    # The revert is applied only if omitting BORE patch
+    # Moreover, the patch is not applied if _cpusched=bmq or pds
+    "0370-fair-revert-6d71a9c61604.patch"
 )
 
 # LLVM makedepends
@@ -304,6 +308,10 @@ prepare() {
         fi
         if [[ $src = *-revert-cachy-mods.patch ]]; then
             [[ "$build_bore" -eq 0 ]] && continue
+        fi
+        if [[ $src = *-revert-6d71a9c61604.patch ]]; then
+            [[ "$_cpusched" =~ ^(bmq|pds)$ ]] && continue
+            [[ "$build_bore" -eq 1 ]] && continue
         fi
         echo -e "${_CYAN}Applying patch $src...${_NC}"
         patch -Np1 < "../$src"

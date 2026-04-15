@@ -55,21 +55,21 @@ git pull
 
 Below are the manual steps if needed.
 
-The `d` in `[6dh]` will include the `dbg` package if built.
+The `d` in `[67dh]` will include the `dbg` package if built.
 Adjust the kernel tag to your kernel suffix. Two sets of
 examples are provided for demonstration.
 
 ```bash
-sudo pacman -U linux-cachymod-[6dh]*.zst
-sudo pacman -U linux-cachymod-bmq-[6dh]*.zst
-sudo pacman -U linux-cachymod-pds-[6dh]*.zst
-sudo pacman -U linux-cachymod-rt-[6dh]*.zst
+sudo pacman -U linux-cachymod-[67dh]*.zst
+sudo pacman -U linux-cachymod-bmq-[67dh]*.zst
+sudo pacman -U linux-cachymod-pds-[67dh]*.zst
+sudo pacman -U linux-cachymod-rt-[67dh]*.zst
 
 # with kernel tag
-sudo pacman -U linux-cachymod-618-[6dh]*.zst
-sudo pacman -U linux-cachymod-618-bmq-[6dh]*.zst
-sudo pacman -U linux-cachymod-618-pds-[6dh]*.zst
-sudo pacman -U linux-cachymod-618-rt-[6dh]*.zst
+sudo pacman -U linux-cachymod-618-[67dh]*.zst
+sudo pacman -U linux-cachymod-618-bmq-[67dh]*.zst
+sudo pacman -U linux-cachymod-618-pds-[67dh]*.zst
+sudo pacman -U linux-cachymod-618-rt-[67dh]*.zst
 ```
 
 ## Uninstall
@@ -108,6 +108,9 @@ for Ghostty-like `linux-cgroup = always` feature with your terminal emulator.
 This can be used with EEVDF/BORE and Real-time (RT) kernels.
 
 ## Developer Notes
+
+If adding BORE patch, the official patch may not apply with recent kernels.
+Try `0001-bore.patch` found at <https://github.com/CachyOS/kernel-patches/>.
 
 Custom kernel tuning is possible via `custom.sh`, if it exists.
 Make a copy of the sample provided and edit `custom.sh`. The file
