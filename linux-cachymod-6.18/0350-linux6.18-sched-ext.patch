@@ -201,8 +201,8 @@ index dee6e019dcf81f..4097a4fc4834c5 100644
 -	dl_server_update_idle_time(rq, prev);
 +	dl_server_update_idle_time(rq, prev, &rq->fair_server);
  	scx_update_idle(rq, false, true);
+ 	update_rq_avg_idle(rq);
  }
- 
 diff --git a/kernel/sched/sched.h b/kernel/sched/sched.h
 index 10db4e4cd5f0f4..13b1386eaea3a3 100644
 --- a/kernel/sched/sched.h
@@ -399,7 +399,7 @@ diff --git a/kernel/sched/core.c b/kernel/sched/core.c
 index 900e2a26971560..2a5a3b6b6f72f3 100644
 --- a/kernel/sched/core.c
 +++ b/kernel/sched/core.c
-@@ -5916,15 +5916,23 @@ static void prev_balance(struct rq *rq, struct task_struct *prev,
+@@ -5919,15 +5919,23 @@ static void prev_balance(struct rq *rq, struct task_struct *prev,
  	const struct sched_class *class;
  
  #ifdef CONFIG_SCHED_CLASS_EXT
@@ -430,7 +430,7 @@ index 900e2a26971560..2a5a3b6b6f72f3 100644
  	}
  #endif
  
-@@ -8774,6 +8782,9 @@ void __init sched_init(void)
+@@ -8777,6 +8785,9 @@ void __init sched_init(void)
  		hrtick_rq_init(rq);
  		atomic_set(&rq->nr_iowait, 0);
  		fair_server_init(rq);

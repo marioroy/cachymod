@@ -10276,7 +10276,7 @@ diff --git a/kernel/sched/cputime.c b/kernel/sched/cputime.c
 index 7097de2c8..52b5626ce 100644
 --- a/kernel/sched/cputime.c
 +++ b/kernel/sched/cputime.c
-@@ -127,7 +127,7 @@ void account_user_time(struct task_struct *p, u64 cputime)
+@@ -128,7 +128,7 @@ void account_user_time(struct task_struct *p, u64 cputime)
  	p->utime += cputime;
  	account_group_user_time(p, cputime);
  
@@ -10285,7 +10285,7 @@ index 7097de2c8..52b5626ce 100644
  
  	/* Add user time to cpustat. */
  	task_group_account_field(p, index, cputime);
-@@ -151,7 +151,7 @@ void account_guest_time(struct task_struct *p, u64 cputime)
+@@ -152,7 +152,7 @@ void account_guest_time(struct task_struct *p, u64 cputime)
  	p->gtime += cputime;
  
  	/* Add guest time to cpustat. */
@@ -10294,7 +10294,7 @@ index 7097de2c8..52b5626ce 100644
  		task_group_account_field(p, CPUTIME_NICE, cputime);
  		cpustat[CPUTIME_GUEST_NICE] += cputime;
  	} else {
-@@ -289,7 +289,7 @@ static inline u64 account_other_time(u64 max)
+@@ -290,7 +290,7 @@ static inline u64 account_other_time(u64 max)
  #ifdef CONFIG_64BIT
  static inline u64 read_sum_exec_runtime(struct task_struct *t)
  {
@@ -10303,7 +10303,7 @@ index 7097de2c8..52b5626ce 100644
  }
  #else /* !CONFIG_64BIT: */
  static u64 read_sum_exec_runtime(struct task_struct *t)
-@@ -299,7 +299,7 @@ static u64 read_sum_exec_runtime(struct task_struct *t)
+@@ -300,7 +300,7 @@ static u64 read_sum_exec_runtime(struct task_struct *t)
  	struct rq *rq;
  
  	rq = task_rq_lock(t, &rf);
@@ -10312,7 +10312,7 @@ index 7097de2c8..52b5626ce 100644
  	task_rq_unlock(rq, t, &rf);
  
  	return ns;
-@@ -624,7 +624,7 @@ void cputime_adjust(struct task_cputime *curr, struct prev_cputime *prev,
+@@ -625,7 +625,7 @@ void cputime_adjust(struct task_cputime *curr, struct prev_cputime *prev,
  void task_cputime_adjusted(struct task_struct *p, u64 *ut, u64 *st)
  {
  	struct task_cputime cputime = {
@@ -10431,7 +10431,7 @@ index c39b089d4..9903f1d96 100644
  /*
   * idle-task scheduling class.
   */
-@@ -566,3 +567,4 @@ DEFINE_SCHED_CLASS(idle) = {
+@@ -570,3 +571,4 @@ DEFINE_SCHED_CLASS(idle) = {
  	.switched_to		= switched_to_idle,
  	.update_curr		= update_curr_idle,
  };
@@ -10669,7 +10669,7 @@ index a3f52e493..3578933ca 100644
  #include <linux/sched/affinity.h>
  #include <linux/sched/autogroup.h>
  #include <linux/sched/cpufreq.h>
-@@ -3908,4 +3912,9 @@ void sched_enq_and_set_task(struct sched_enq_and_set_ctx *ctx);
+@@ -3909,4 +3913,9 @@ void sched_enq_and_set_task(struct sched_enq_and_set_ctx *ctx);
  
  #include "ext.h"
  
@@ -11517,7 +11517,7 @@ index 45320e27a..aaf7b3fbc 100644
  	    wq_cpu_intensive_thresh_us * NSEC_PER_USEC)
  		return;
  
-@@ -3210,7 +3221,11 @@ __acquires(&pool->lock)
+@@ -3222,7 +3233,11 @@ __acquires(&pool->lock)
  	worker->current_func = work->func;
  	worker->current_pwq = pwq;
  	if (worker->task)

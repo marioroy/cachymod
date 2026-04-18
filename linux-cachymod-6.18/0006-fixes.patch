@@ -130,7 +130,7 @@ diff --git a/arch/x86/kernel/cpu/amd.c b/arch/x86/kernel/cpu/amd.c
 index a92750f3079af0..0f113c3035d185 100644
 --- a/arch/x86/kernel/cpu/amd.c
 +++ b/arch/x86/kernel/cpu/amd.c
-@@ -1023,6 +1023,7 @@ static void init_amd_zen4(struct cpuinfo_x86 *c)
+@@ -1026,6 +1026,7 @@ static void init_amd_zen4(struct cpuinfo_x86 *c)
  	}
  }
  
@@ -138,7 +138,7 @@ index a92750f3079af0..0f113c3035d185 100644
  static const struct x86_cpu_id zen5_rdseed_microcode[] = {
  	ZEN_MODEL_STEP_UCODE(0x1a, 0x02, 0x1, 0x0b00215a),
  	ZEN_MODEL_STEP_UCODE(0x1a, 0x08, 0x1, 0x0b008121),
-@@ -1044,6 +1045,11 @@ static void init_amd_zen5(struct cpuinfo_x86 *c)
+@@ -1047,6 +1048,11 @@ static void init_amd_zen5(struct cpuinfo_x86 *c)
  		pr_emerg_once("RDSEED32 is broken. Disabling the corresponding CPUID bit.\n");
  	}
  }
