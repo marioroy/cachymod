@@ -564,93 +564,6 @@ index 2aa4251..a821cc8 100644
 -- 
 2.47.1
 
-sched: update rq->avg_idle when a task is moved to an idle CPU (v8)
-https://lore.kernel.org/all/20260121-v8-patch-series-v8-1-b7f1cbee5055@os.amperecomputing.com/
-
-Includes update by @mu at CachyOS community, 2026-04-16
-
-diff --git a/kernel/sched/core.c b/kernel/sched/core.c
-index 045f83ad261e25283d290fd064ad47cd2399dc79..81a841e22c961ff04ad291eeeed81147fd464324 100644
---- a/kernel/sched/core.c
-+++ b/kernel/sched/core.c
-@@ -3681,6 +3681,21 @@ static inline void ttwu_do_wakeup(struct task_struct *p)
- 	trace_sched_wakeup(p);
- }
- 
-+void update_rq_avg_idle(struct rq *rq)
-+{
-+	if (rq->idle_stamp) {
-+		u64 delta = rq_clock(rq) - rq->idle_stamp;
-+		u64 max = 2*rq->max_idle_balance_cost;
-+
-+		update_avg(&rq->avg_idle, delta);
-+
-+		if (rq->avg_idle > max)
-+			rq->avg_idle = max;
-+
-+		rq->idle_stamp = 0;
-+	}
-+}
-+
- static void
- ttwu_do_activate(struct rq *rq, struct task_struct *p, int wake_flags,
- 		 struct rq_flags *rf)
-@@ -3716,18 +3731,6 @@ ttwu_do_activate(struct rq *rq, struct task_struct *p, int wake_flags,
- 		p->sched_class->task_woken(rq, p);
- 		rq_repin_lock(rq, rf);
- 	}
--
--	if (rq->idle_stamp) {
--		u64 delta = rq_clock(rq) - rq->idle_stamp;
--		u64 max = 2*rq->max_idle_balance_cost;
--
--		update_avg(&rq->avg_idle, delta);
--
--		if (rq->avg_idle > max)
--			rq->avg_idle = max;
--
--		rq->idle_stamp = 0;
--	}
- }
- 
- /*
-diff --git a/kernel/sched/idle.c b/kernel/sched/idle.c
-index c174afe1dd177a22535417be0de1fc1b690c0368..36ddc5bcfa0383bd4d07d3c8b732ee5b8567d194 100644
---- a/kernel/sched/idle.c
-+++ b/kernel/sched/idle.c
-@@ -477,6 +477,7 @@ static void put_prev_task_idle(struct rq *rq, struct task_struct *prev, struct t
- {
- 	dl_server_update_idle_time(rq, prev);
- 	scx_update_idle(rq, false, true);
-+	update_rq_avg_idle(rq);
- }
- 
- static void set_next_task_idle(struct rq *rq, struct task_struct *next, bool first)
-@@ -486,6 +487,9 @@ static void set_next_task_idle(struct rq *rq, struct task_struct *next, bool fir
- 	schedstat_inc(rq->sched_goidle);
- 	next->se.exec_start = rq_clock_task(rq);
- 
-+	if (!rq->idle_stamp)
-+		rq->idle_stamp = rq_clock(rq);
-+
- 	/*
- 	 * rq is about to be idle, check if we need to update the
- 	 * lost_idle_time of clock_pelt
-diff --git a/kernel/sched/sched.h b/kernel/sched/sched.h
-index 93fce4bbff5eac1d4719394e89dfae886b74d865..7edf8600f2c3f45afa32bc73db2155ea6e0067f0 100644
---- a/kernel/sched/sched.h
-+++ b/kernel/sched/sched.h
-@@ -1647,6 +1647,7 @@ static inline struct cfs_rq *group_cfs_rq(struct sched_entity *grp)
- 
- #endif /* !CONFIG_FAIR_GROUP_SCHED */
- 
-+extern void update_rq_avg_idle(struct rq *rq);
- extern void update_rq_clock(struct rq *rq);
- 
- /*
--- 
-2.53.0
-
 Input: xpad - add support for EasySMX 05 Pro
 https://github.com/CachyOS/linux/commit/10f42fae6e6b5b1d9fc925bf427c5f66d1f6a75d
 
@@ -1012,7 +925,7 @@ diff --git a/kernel/sched/core.c b/kernel/sched/core.c
 index 1711e9e501003a..ee7dfbf01792e5 100644
 --- a/kernel/sched/core.c
 +++ b/kernel/sched/core.c
-@@ -7442,14 +7442,11 @@ void rt_mutex_setprio(struct task_struct *p, struct task_struct *pi_task)
+@@ -7439,14 +7439,11 @@ void rt_mutex_setprio(struct task_struct *p, struct task_struct *pi_task)
  
  	check_class_changed(rq, p, prev_class, oldprio);
  out_unlock:
