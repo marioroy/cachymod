@@ -1,0 +1,566 @@
+Switch to gnu17, a GCC bug-fix version of the C11 standard.
+
+What is C17 and what changes have been made to the language?
+https://stackoverflow.com/questions/47529854/
+
+Signed-off-by: Mario Roy <...>
+
+diff -uarp a/arch/x86/Makefile b/arch/x86/Makefile
+--- a/arch/x86/Makefile
++++ b/arch/x86/Makefile
+@@ -48,7 +48,7 @@ endif
+ 
+ # How to compile the 16-bit code.  Note we always compile for -march=i386;
+ # that way we can complain to the user if the CPU is insufficient.
+-REALMODE_CFLAGS	:= -std=gnu11 -fms-extensions -m16 -g -Os \
++REALMODE_CFLAGS	:= -std=gnu17 -fms-extensions -m16 -Os \
+ 		   -DDISABLE_BRANCH_PROFILING -D__DISABLE_EXPORTS \
+ 		   -Wall -Wstrict-prototypes -march=i386 -mregparm=3 \
+ 		   -fno-strict-aliasing -fomit-frame-pointer -fno-pic \
+diff -uarp a/arch/x86/boot/compressed/Makefile b/arch/x86/boot/compressed/Makefile
+--- a/arch/x86/boot/compressed/Makefile
++++ b/arch/x86/boot/compressed/Makefile
+@@ -25,7 +25,7 @@ targets := vmlinux vmlinux.bin vmlinux.bin.gz vmlinux.bin.bz2 vmlinux.bin.lzma \
+ # avoid errors with '-march=i386', and future flags may depend on the target to
+ # be valid.
+ KBUILD_CFLAGS := -m$(BITS) -O2 $(CLANG_FLAGS)
+-KBUILD_CFLAGS += -std=gnu11 -fms-extensions
++KBUILD_CFLAGS += -std=gnu17 -fms-extensions
+ KBUILD_CFLAGS += -fno-strict-aliasing -fPIE
+ KBUILD_CFLAGS += -Wundef
+ KBUILD_CFLAGS += -DDISABLE_BRANCH_PROFILING
+diff -uarp a/drivers/firmware/efi/libstub/Makefile b/drivers/firmware/efi/libstub/Makefile
+--- a/drivers/firmware/efi/libstub/Makefile
++++ b/drivers/firmware/efi/libstub/Makefile
+@@ -11,7 +11,7 @@ cflags-y			:= $(KBUILD_CFLAGS)
+ 
+ cflags-$(CONFIG_X86_32)		:= -march=i386
+ cflags-$(CONFIG_X86_64)		:= -mcmodel=small
+-cflags-$(CONFIG_X86)		+= -m$(BITS) -D__KERNEL__ -std=gnu11 -fms-extensions \
++cflags-$(CONFIG_X86)		+= -m$(BITS) -D__KERNEL__ -std=gnu17 -fms-extensions \
+ 				   -fPIC -fno-strict-aliasing -mno-red-zone \
+ 				   -mno-mmx -mno-sse -fshort-wchar \
+ 				   -Wno-pointer-sign \
+diff -uarp a/Makefile b/Makefile
+--- a/Makefile
++++ b/Makefile
+@@ -464,7 +464,7 @@ HOSTRUSTC = rustc
+ export KERNELDOC
+ 
+ KBUILD_USERHOSTCFLAGS := -Wall -Wmissing-prototypes -Wstrict-prototypes \
+-			 -O2 -fomit-frame-pointer -std=gnu11
++			 -O2 -fomit-frame-pointer -std=gnu17
+ KBUILD_USERCFLAGS  := $(KBUILD_USERHOSTCFLAGS) $(USERCFLAGS)
+ KBUILD_USERLDFLAGS := $(USERLDFLAGS)
+ 
+@@ -585,7 +585,7 @@ LINUXINCLUDE    := \
+ KBUILD_AFLAGS   := -D__ASSEMBLY__ -fno-PIE
+ 
+ KBUILD_CFLAGS :=
+-KBUILD_CFLAGS += -std=gnu11
++KBUILD_CFLAGS += -std=gnu17
+ KBUILD_CFLAGS += -fshort-wchar
+ KBUILD_CFLAGS += -funsigned-char
+ KBUILD_CFLAGS += -fno-common
+-- 
+2.30.1
+
+Speed up compression
+
+diff -uarp a/scripts/Makefile.lib b/scripts/Makefile.lib
+--- a/scripts/Makefile.lib
++++ b/scripts/Makefile.lib
+@@ -459,13 +459,13 @@ quiet_cmd_xzmisc = XZMISC  $@
+ # be used because it would require zstd to allocate a 128 MB buffer.
+ 
+ quiet_cmd_zstd = ZSTD    $@
+-      cmd_zstd = cat $(real-prereqs) | $(ZSTD) -19 > $@
++      cmd_zstd = cat $(real-prereqs) | $(ZSTD) -6 > $@
+ 
+ quiet_cmd_zstd22 = ZSTD22  $@
+-      cmd_zstd22 = cat $(real-prereqs) | $(ZSTD) -22 --ultra > $@
++      cmd_zstd22 = cat $(real-prereqs) | $(ZSTD) -6 --ultra > $@
+ 
+ quiet_cmd_zstd22_with_size = ZSTD22  $@
+-      cmd_zstd22_with_size = { cat $(real-prereqs) | $(ZSTD) -22 --ultra; $(size_append); } > $@
++      cmd_zstd22_with_size = { cat $(real-prereqs) | $(ZSTD) -6 --ultra; $(size_append); } > $@
+ 
+ # ASM offsets
+ # ---------------------------------------------------------------------------
+-- 
+2.30.1
+
+Curated patches from ZEN
+https://github.com/zen-kernel/zen-kernel
+
+ZEN: INTERACTIVE: Tune ondemand governor for interactivity
+
+diff --git a/drivers/cpufreq/cpufreq_ondemand.c b/drivers/cpufreq/cpufreq_ondemand.c
+index 0e65d37c923113..b403fe4790dafd 100644
+--- a/drivers/cpufreq/cpufreq_ondemand.c
++++ b/drivers/cpufreq/cpufreq_ondemand.c
+@@ -18,10 +18,10 @@
+ #include "cpufreq_ondemand.h"
+ 
+ /* On-demand governor macros */
+-#define DEF_FREQUENCY_UP_THRESHOLD		(80)
+-#define DEF_SAMPLING_DOWN_FACTOR		(1)
++#define DEF_FREQUENCY_UP_THRESHOLD		(55)
++#define DEF_SAMPLING_DOWN_FACTOR		(5)
+ #define MAX_SAMPLING_DOWN_FACTOR		(100000)
+-#define MICRO_FREQUENCY_UP_THRESHOLD		(95)
++#define MICRO_FREQUENCY_UP_THRESHOLD		(60)
+ #define MIN_FREQUENCY_UP_THRESHOLD		(1)
+ #define MAX_FREQUENCY_UP_THRESHOLD		(100)
+ 
+-- 
+2.30.1
+
+Curated patches from XanMod Linux
+https://gitlab.com/xanmod/linux-patches
+
+# 0007-XANMOD-block-mq-deadline-Increase-write-priority-to-.patch
+
+Subject: [PATCH 07/18] XANMOD: block/mq-deadline: Increase write priority to
+ improve responsiveness
+
+Signed-off-by: Alexandre Frade <kernel@xxxxxxxxxx>
+---
+ block/mq-deadline.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/block/mq-deadline.c b/block/mq-deadline.c
+index 3e3719093aec..185ce8b8c56d 100644
+--- a/block/mq-deadline.c
++++ b/block/mq-deadline.c
+@@ -28,7 +28,7 @@
+  * See Documentation/block/deadline-iosched.rst
+  */
+ static const int read_expire = HZ / 2;  /* max time before a read is submitted. */
+-static const int write_expire = 5 * HZ; /* ditto for writes, these limits are SOFT! */
++static const int write_expire = HZ;     /* ditto for writes, these limits are SOFT! */
+ /*
+  * Time after which to dispatch lower priority requests even if higher
+  * priority requests are pending.
+-- 
+2.47.2
+
+# 0008-XANMOD-block-mq-deadline-Disable-front_merges-by-def.patch
+
+Subject: [PATCH 08/18] XANMOD: block/mq-deadline: Disable front_merges by
+ default
+
+Signed-off-by: Alexandre Frade <kernel@xxxxxxxxxx>
+---
+ block/mq-deadline.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/block/mq-deadline.c b/block/mq-deadline.c
+index 185ce8b8c56d..7ae1f38fc964 100644
+--- a/block/mq-deadline.c
++++ b/block/mq-deadline.c
+@@ -566,7 +566,7 @@ static int dd_init_sched(struct request_queue *q, struct elevator_queue *eq)
+ 	dd->fifo_expire[DD_READ] = read_expire;
+ 	dd->fifo_expire[DD_WRITE] = write_expire;
+ 	dd->writes_starved = writes_starved;
+-	dd->front_merges = 1;
++	dd->front_merges = 0;
+ 	dd->last_dir = DD_WRITE;
+ 	dd->fifo_batch = fifo_batch;
+ 	dd->prio_aging_expire = prio_aging_expire;
+-- 
+2.47.2
+
+# 0009-XANMOD-block-Set-rq_affinity-to-force-complete-I-O-r.patch
+
+Subject: [PATCH 09/18] XANMOD: block: Set rq_affinity to force complete I/O
+ requests on same CPU
+
+Signed-off-by: Alexandre Frade <kernel@xxxxxxxxxx>
+---
+ include/linux/blkdev.h | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/include/linux/blkdev.h b/include/linux/blkdev.h
+index 72e34acd439c..475e3dba80c1 100644
+--- a/include/linux/blkdev.h
++++ b/include/linux/blkdev.h
+@@ -671,7 +671,8 @@ enum {
+ 	QUEUE_FLAG_MAX
+ };
+ 
+-#define QUEUE_FLAG_MQ_DEFAULT	(1UL << QUEUE_FLAG_SAME_COMP)
++#define QUEUE_FLAG_MQ_DEFAULT	((1UL << QUEUE_FLAG_SAME_COMP) |		\
++				 (1UL << QUEUE_FLAG_SAME_FORCE))
+ 
+ void blk_queue_flag_set(unsigned int flag, struct request_queue *q);
+ void blk_queue_flag_clear(unsigned int flag, struct request_queue *q);
+-- 
+2.47.2
+
+# 0010-XANMOD-blk-wbt-Set-wbt_default_latency_nsec-to-2msec.patch
+
+Subject: [PATCH 10/18] XANMOD: blk-wbt: Set wbt_default_latency_nsec() to
+ 2msec
+
+Signed-off-by: Alexandre Frade <kernel@xxxxxxxxxx>
+---
+ block/blk-wbt.c | 10 ++--------
+ 1 file changed, 2 insertions(+), 8 deletions(-)
+
+diff --git a/block/blk-wbt.c b/block/blk-wbt.c
+index 0974875f77bd..fa0352bea492 100644
+--- a/block/blk-wbt.c
++++ b/block/blk-wbt.c
+@@ -743,14 +743,8 @@ EXPORT_SYMBOL_GPL(wbt_enable_default);
+ 
+ u64 wbt_default_latency_nsec(struct request_queue *q)
+ {
+-	/*
+-	 * We default to 2msec for non-rotational storage, and 75msec
+-	 * for rotational storage.
+-	 */
+-	if (blk_queue_nonrot(q))
+-		return 2000000ULL;
+-	else
+-		return 75000000ULL;
++	/* XanMod defaults to 2msec for any type of storage */
++	return 2000000ULL;
+ }
+ 
+ static int wbt_data_dir(const struct request *rq)
+-- 
+2.47.2
+
+# 0012-XANMOD-vfs-Decrease-rate-at-which-vfs-caches-are-rec.patch
+
+Subject: [PATCH 12/18] XANMOD: vfs: Decrease rate at which vfs caches are
+ reclaimed
+
+Signed-off-by: Alexandre Frade <kernel@xxxxxxxxxx>
+---
+ fs/dcache.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/fs/dcache.c b/fs/dcache.c
+index 66dd1bb830d1..c5282281933f 100644
+--- a/fs/dcache.c
++++ b/fs/dcache.c
+@@ -73,7 +73,7 @@
+  * If no ancestor relationship:
+  * arbitrary, since it's serialized on rename_lock
+  */
+-static int sysctl_vfs_cache_pressure __read_mostly = 100;
++static int sysctl_vfs_cache_pressure __read_mostly = 50;
+ static int sysctl_vfs_cache_pressure_denom __read_mostly = 100;
+ 
+ unsigned long vfs_pressure_ratio(unsigned long val)
+-- 
+2.47.2
+
+# 0016-XANMOD-lib-kconfig.debug-disable-default-SYMBOLIC_ER.patch
+
+Subject: [PATCH 16/18] XANMOD: lib/kconfig.debug: disable default
+ SYMBOLIC_ERRNAME and DEBUG_BUGVERBOSE
+
+Signed-off-by: Alexandre Frade <kernel@xxxxxxxxxx>
+---
+ lib/Kconfig.debug | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/lib/Kconfig.debug b/lib/Kconfig.debug
+index ba36939fda79..7af7a25ab023 100644
+--- a/lib/Kconfig.debug
++++ b/lib/Kconfig.debug
+@@ -190,7 +190,7 @@ config DYNAMIC_DEBUG_CORE
+ 
+ config SYMBOLIC_ERRNAME
+ 	bool "Support symbolic error names in printf"
+-	default y if PRINTK
++	default n
+ 	help
+ 	  If you say Y here, the kernel's printf implementation will
+ 	  be able to print symbolic error names such as ENOSPC instead
+@@ -200,7 +200,7 @@ config SYMBOLIC_ERRNAME
+ config DEBUG_BUGVERBOSE
+ 	bool "Verbose BUG() reporting (adds 70K)" if DEBUG_KERNEL
+ 	depends on BUG && (GENERIC_BUG || HAVE_DEBUG_BUGVERBOSE)
+-	default y
++	default n
+ 	help
+ 	  Say Y here to make BUG() panics output the file name and line number
+ 	  of the BUG call as well as the EIP and oops trace.  This aids
+-- 
+2.47.2
+
+Subject: [PATCH 2/2] ZEN: dm-crypt: Disable workqueues for crypto ops
+
+Queueing in dm-crypt for crypto operations reduces performance on modern
+systems.  As discussed in an article from Cloudflare, they discovered
+that queuing was introduced because the crypto subsystem used to be
+synchronous.  Since it's now asynchronous, we get double queueing when
+using the subsystem through dm-crypt.  This is obviously undesirable and
+reduces throughput and increases latency.
+
+Fixes: https://github.com/zen-kernel/zen-kernel/issues/282
+Signed-off-by: Alexandre Frade <kernel@xxxxxxxxxx>
+---
+ drivers/md/dm-crypt.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/drivers/md/dm-crypt.c b/drivers/md/dm-crypt.c
+index 79704fbc523b..2ccc40954c4c 100644
+--- a/drivers/md/dm-crypt.c
++++ b/drivers/md/dm-crypt.c
+@@ -3264,6 +3264,9 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
+ 			goto bad;
+ 	}
+ 
++	set_bit(DM_CRYPT_NO_READ_WORKQUEUE, &cc->flags);
++	set_bit(DM_CRYPT_NO_WRITE_WORKQUEUE, &cc->flags);
++
+ 	ret = crypt_ctr_cipher(ti, argv[0], argv[1]);
+ 	if (ret < 0)
+ 		goto bad;
+-- 
+2.47.2
+
+Curated patches from SUNLIGHT Linux
+https://github.com/sunlightlinux/linux-sunlight/commits/6.19
+
+SUNLIGHT: x86/tsc: Use rdtsc_ordered() when RDTSCP or LFENCE_RDTSC are supported
+https://github.com/sunlightlinux/linux-sunlight/commit/de5cb8da85f8
+
+On AMD processors the TSC has been reported drifting on and off for
+various platforms. This has been root caused to becaused by out of order
+TSC and HPET counter values. When the SoC supports RDTSCP or LFENCE_RDTSC
+use ordered tsc reads instead.
+
+Signed-off-by: Mario Limonciello <mario.limonciello@xxxxxxxxxx>
+Signed-off-by: Ionut Nechita <ionut_n2001@xxxxxxxxxx>
+---
+ arch/x86/include/asm/tsc.h | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/arch/x86/include/asm/tsc.h b/arch/x86/include/asm/tsc.h
+--- a/arch/x86/include/asm/tsc.h
++++ b/arch/x86/include/asm/tsc.h
+@@ -79,6 +79,9 @@ static inline cycles_t get_cycles(void)
+ 	if (!IS_ENABLED(CONFIG_X86_TSC) &&
+ 	    !cpu_feature_enabled(X86_FEATURE_TSC))
+ 		return 0;
++	if (cpu_feature_enabled(X86_FEATURE_LFENCE_RDTSC) ||
++	    cpu_feature_enabled(X86_FEATURE_RDTSCP))
++		return rdtsc_ordered();
+ 	return rdtsc();
+ }
+ #define get_cycles get_cycles
+-- 
+2.43.0
+
+processor_idle: Skip dummy wait for processors based on Zen microarchitecture
+https://lore.kernel.org/all/20220921063638.2489-1-kprateek.nayak@amd.com/
+
+diff --git a/drivers/acpi/processor_idle.c b/drivers/acpi/processor_idle.c
+index 2c2dc559e0f8de..48d6b137e8f6ae 100644
+--- a/drivers/acpi/processor_idle.c
++++ b/drivers/acpi/processor_idle.c
+@@ -524,8 +524,11 @@ static __cpuidle void io_idle(unsigned long addr)
+ 	inb(addr);
+ 
+ #ifdef	CONFIG_X86
+-	/* No delay is needed if we are in guest */
+-	if (boot_cpu_has(X86_FEATURE_HYPERVISOR))
++	/*
++	 * No delay is needed if we are in guest or on a processor
++	 * based on the Zen microarchitecture.
++	 */
++	if (boot_cpu_has(X86_FEATURE_HYPERVISOR) || boot_cpu_has(X86_FEATURE_ZEN))
+ 		return;
+ 	/*
+ 	 * Modern (>=Nehalem) Intel systems use ACPI via intel_idle,
+-- 
+2.40.2
+
+The Linux 6.19.7 release introduced a regression
+First bad commit: [fe7e74e91e5e624e399afc33702afcf65e60eb2d]
+
+  Threadripper 9960X CPU (24/48) running vanilla kernel
+  stress-ng -t 30 --metrics-brief --sock 24 --no-rand-seed --sock-zerocopy
+
+  good: ~ 60000 bogo ops/s (real time)
+   bad: ~ 40000
+
+Revert tcp: give up on stronger sk_rcvbuf checks (for now)
+https://lore.kernel.org/all/c9c6ffc3a954eb305ad8f82b28ee546c7d55e778.1773140655.git.sashal@kernel.org/
+
+diff --git a/net/ipv4/tcp_input.c b/net/ipv4/tcp_input.c
+index adec44313772b..1c9db9a246f71 100644
+--- a/net/ipv4/tcp_input.c
++++ b/net/ipv4/tcp_input.c
+@@ -5141,11 +5141,25 @@ static void tcp_ofo_queue(struct sock *sk)
+ static bool tcp_prune_ofo_queue(struct sock *sk, const struct sk_buff *in_skb);
+ static int tcp_prune_queue(struct sock *sk, const struct sk_buff *in_skb);
+ 
++/* Check if this incoming skb can be added to socket receive queues
++ * while satisfying sk->sk_rcvbuf limit.
++ *
++ * In theory we should use skb->truesize, but this can cause problems
++ * when applications use too small SO_RCVBUF values.
++ * When LRO / hw gro is used, the socket might have a high tp->scaling_ratio,
++ * allowing RWIN to be close to available space.
++ * Whenever the receive queue gets full, we can receive a small packet
++ * filling RWIN, but with a high skb->truesize, because most NIC use 4K page
++ * plus sk_buff metadata even when receiving less than 1500 bytes of payload.
++ *
++ * Note that we use skb->len to decide to accept or drop this packet,
++ * but sk->sk_rmem_alloc is the sum of all skb->truesize.
++ */
+ static bool tcp_can_ingest(const struct sock *sk, const struct sk_buff *skb)
+ {
+ 	unsigned int rmem = atomic_read(&sk->sk_rmem_alloc);
+ 
+-	return rmem <= sk->sk_rcvbuf;
++	return rmem + skb->len <= sk->sk_rcvbuf;
+ }
+ 
+ static int tcp_try_rmem_schedule(struct sock *sk, const struct sk_buff *skb,
+-- 
+2.51.0
+
+Add Logitech C310
+
+diff --git a/drivers/usb/core/quirks.c b/drivers/usb/core/quirks.c
+index 0cf94c7a2c9c..20450f7a0c92 100644
+--- a/drivers/usb/core/quirks.c
++++ b/drivers/usb/core/quirks.c
+@@ -274,6 +274,9 @@ static const struct usb_device_id usb_quirk_list[] = {
+ 	/* Logitech Harmony 700-series */
+ 	{ USB_DEVICE(0x046d, 0xc122), .driver_info = USB_QUIRK_DELAY_INIT },
+ 
++	/* Logitech Webcam C310 */
++	{ USB_DEVICE(0x046d, 0x081b), .driver_info = USB_QUIRK_RESET_RESUME },
++
+ 	/* Philips PSC805 audio device */
+ 	{ USB_DEVICE(0x0471, 0x0155), .driver_info = USB_QUIRK_RESET_RESUME },
+ 
+-- 
+2.40.2
+
+sched/deadline: Use revised wakeup rule for dl_server
+https://lore.kernel.org/all/177564721088.801717.7436439370807667482.tip-bot2@tip-bot2/
+
+diff --git a/kernel/sched/deadline.c b/kernel/sched/deadline.c
+index d08b004..674de6a 100644
+--- a/kernel/sched/deadline.c
++++ b/kernel/sched/deadline.c
+@@ -1027,7 +1027,7 @@ static void update_dl_entity(struct sched_dl_entity *dl_se)
+ 	if (dl_time_before(dl_se->deadline, rq_clock(rq)) ||
+ 	    dl_entity_overflow(dl_se, rq_clock(rq))) {
+ 
+-		if (unlikely(!dl_is_implicit(dl_se) &&
++		if (unlikely((!dl_is_implicit(dl_se) || dl_se->dl_defer) &&
+ 			     !dl_time_before(dl_se->deadline, rq_clock(rq)) &&
+ 			     !is_dl_boosted(dl_se))) {
+ 			update_dl_revised_wakeup(dl_se, rq);
+-- 
+2.40.2
+
+sched/clock: Avoid false sharing for sched_clock_irqtime
+https://lore.kernel.org/all/177011751611.2495410.2667373807222067688.tip-bot2@tip-bot2/
+
+diff --git a/arch/x86/kernel/tsc.c b/arch/x86/kernel/tsc.c
+index 7d3e13e..7be44b5 100644
+--- a/arch/x86/kernel/tsc.c
++++ b/arch/x86/kernel/tsc.c
+@@ -1143,7 +1143,6 @@ static void tsc_cs_mark_unstable(struct clocksource *cs)
+ 	tsc_unstable = 1;
+ 	if (using_native_sched_clock())
+ 		clear_sched_clock_stable();
+-	disable_sched_clock_irqtime();
+ 	pr_info("Marking TSC unstable due to clocksource watchdog\n");
+ }
+ 
+@@ -1213,7 +1212,6 @@ void mark_tsc_unstable(char *reason)
+ 	tsc_unstable = 1;
+ 	if (using_native_sched_clock())
+ 		clear_sched_clock_stable();
+-	disable_sched_clock_irqtime();
+ 	pr_info("Marking TSC unstable due to %s\n", reason);
+ 
+ 	clocksource_mark_unstable(&clocksource_tsc_early);
+diff --git a/kernel/sched/clock.c b/kernel/sched/clock.c
+index f5e6dd6..2ae4fbf 100644
+--- a/kernel/sched/clock.c
++++ b/kernel/sched/clock.c
+@@ -173,6 +173,7 @@ notrace static void __sched_clock_work(struct work_struct *work)
+ 			scd->tick_gtod, __gtod_offset,
+ 			scd->tick_raw,  __sched_clock_offset);
+ 
++	disable_sched_clock_irqtime();
+ 	static_branch_disable(&__sched_clock_stable);
+ }
+ 
+@@ -238,6 +239,8 @@ static int __init sched_clock_init_late(void)
+ 
+ 	if (__sched_clock_stable_early)
+ 		__set_sched_clock_stable();
++	else
++		disable_sched_clock_irqtime();  /* disable if clock unstable. */
+ 
+ 	return 0;
+ }
+diff --git a/kernel/sched/cputime.c b/kernel/sched/cputime.c
+index 4f97896..ff0dfca 100644
+--- a/kernel/sched/cputime.c
++++ b/kernel/sched/cputime.c
+@@ -12,6 +12,8 @@
+ 
+ #ifdef CONFIG_IRQ_TIME_ACCOUNTING
+ 
++DEFINE_STATIC_KEY_FALSE(sched_clock_irqtime);
++
+ /*
+  * There are no locks covering percpu hardirq/softirq time.
+  * They are only modified in vtime_account, on corresponding CPU
+@@ -25,16 +27,15 @@
+  */
+ DEFINE_PER_CPU(struct irqtime, cpu_irqtime);
+ 
+-int sched_clock_irqtime;
+-
+ void enable_sched_clock_irqtime(void)
+ {
+-	sched_clock_irqtime = 1;
++	static_branch_enable(&sched_clock_irqtime);
+ }
+ 
+ void disable_sched_clock_irqtime(void)
+ {
+-	sched_clock_irqtime = 0;
++	if (irqtime_enabled())
++		static_branch_disable(&sched_clock_irqtime);
+ }
+ 
+ static void irqtime_account_delta(struct irqtime *irqtime, u64 delta,
+diff --git a/kernel/sched/sched.h b/kernel/sched/sched.h
+index 2aa4251..a821cc8 100644
+--- a/kernel/sched/sched.h
++++ b/kernel/sched/sched.h
+@@ -3337,11 +3337,11 @@ struct irqtime {
+ };
+ 
+ DECLARE_PER_CPU(struct irqtime, cpu_irqtime);
+-extern int sched_clock_irqtime;
++DECLARE_STATIC_KEY_FALSE(sched_clock_irqtime);
+ 
+ static inline int irqtime_enabled(void)
+ {
+-	return sched_clock_irqtime;
++	return static_branch_likely(&sched_clock_irqtime);
+ }
+ 
+ /*
+-- 
+2.47.1
+
