@@ -20,21 +20,25 @@ sudo pacman -Sy nvidia-dkms
 
 ## Building and Installation
 
-There are no binary packages. One builds the kernel with `build.sh`
+There are no binary packages. One builds the kernel with `build.sh`.
+The demonstrations are given for the 6.18 kernel.
 
 ```bash
 # obtain CachyMod repo
 git clone --depth=1 https://github.com/marioroy/cachymod.git
 cd cachymod
 
-# copy the build configs
+# create the "cachymod" configuration folder
 mkdir -p ~/.config/cachymod
-cp defconfigs/*.conf ~/.config/cachymod/
 
-# the tui tools require the gum package
+# copy the build configs for a specific version or copy all
+cp defconfigs/6.18/*.conf ~/.config/cachymod/
+cp defconfigs/*/*.conf ~/.config/cachymod/
+
+# the TUI tools require the gum package
 sudo pacman -S gum
 
-# make any adjustments with the confmod.sh tui tool
+# make any adjustments with the confmod.sh TUI tool
 cd linux-cachymod-6.18
 ../confmod.sh
 
@@ -106,6 +110,11 @@ If you're running CPU-intensive background tasks or make jobs, refer to
 [linux-cgroup-always](https://github.com/marioroy/linux-cgroup-always)
 for Ghostty-like `linux-cgroup = always` feature with your terminal emulator.
 This can be used with EEVDF/BORE and Real-time (RT) kernels.
+
+There is a custom Piece-Of-Cake (POC) repo to preserve the minimalist v2.1.0
+design by Masahito S. Plus few tricks to run decent with bigger CPUs, as well.
+Refer to [poc-selector-custom](https://github.com/marioroy/poc-selector-custom).
+The POC patch can be added via the `_extra_patch_or_url` build option.
 
 ## Developer Notes
 
