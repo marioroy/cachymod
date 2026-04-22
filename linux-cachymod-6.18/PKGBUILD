@@ -89,7 +89,7 @@
 # clang: Build kernel with clang, auto suffix "-clang"
 # thin:  Build kernel with clang thin-LTO, auto suffix "-lto"
 # full:  Build kernel with clang full-LTO; auto suffix "-lto"
-: ${_buildtype:=thin}
+: ${_buildtype:=clang}
 
 # Enable AUTOFDO_CLANG for the first compilation,
 #  to create a kernel, which can be used for profiling
@@ -137,14 +137,14 @@ fi
 
 _pkgsuffix=cachymod
 _major=6.18
-_minor=23
+_minor=24
 pkgver=${_major}.${_minor}
 _stable=${_major}.${_minor}
 #_stable=${_major}
 
 _srcname=linux-${_stable}
 pkgdesc='CachyMod Linux Kernel with other patches and improvements'
-pkgrel=2
+pkgrel=1
 _kernver="$pkgver-$pkgrel"
 _kernuname="${pkgver}-${_pkgsuffix}"
 arch=('x86_64')
@@ -153,7 +153,8 @@ license=('GPL-2.0-only')
 options=('!strip' '!debug' '!lto')
 
 makedepends=(
-    bc cpio gettext libelf pahole perl python tar xz zstd
+    bc binutils cpio gettext glibc libelf libgcc openssl
+    pahole perl python tar xxhash xz zlib zstd
     rust rust-bindgen rust-src
 )
 
@@ -606,7 +607,10 @@ _package() {
 
 _package-headers() {
     pkgdesc="Headers and scripts for building modules for the $pkgdesc kernel"
-    depends=('pahole' "${pkgbase}")
+    depends=(
+      binutils glibc libelf libgcc openssl
+      pahole xxhash zlib zstd "${pkgbase}"
+    )
 
     if [[ "$buildtype" =~ (lto|clang) ]]; then
         depends+=(clang llvm lld)

@@ -447,25 +447,6 @@ index 0cf94c7a2c9c..20450f7a0c92 100644
 -- 
 2.40.2
 
-sched/deadline: Use revised wakeup rule for dl_server
-https://lore.kernel.org/all/177564721088.801717.7436439370807667482.tip-bot2@tip-bot2/
-
-diff --git a/kernel/sched/deadline.c b/kernel/sched/deadline.c
-index d08b004..674de6a 100644
---- a/kernel/sched/deadline.c
-+++ b/kernel/sched/deadline.c
-@@ -1036,7 +1036,7 @@ static void update_dl_entity(struct sched_dl_entity *dl_se)
- 	if (dl_time_before(dl_se->deadline, rq_clock(rq)) ||
- 	    dl_entity_overflow(dl_se, rq_clock(rq))) {
- 
--		if (unlikely(!dl_is_implicit(dl_se) &&
-+		if (unlikely((!dl_is_implicit(dl_se) || dl_se->dl_defer) &&
- 			     !dl_time_before(dl_se->deadline, rq_clock(rq)) &&
- 			     !is_dl_boosted(dl_se))) {
- 			update_dl_revised_wakeup(dl_se, rq);
--- 
-2.40.2
-
 sched/clock: Avoid false sharing for sched_clock_irqtime
 https://lore.kernel.org/all/177011751611.2495410.2667373807222067688.tip-bot2@tip-bot2/
 
@@ -589,7 +570,7 @@ diff --git a/sound/hda/codecs/realtek/alc269.c b/sound/hda/codecs/realtek/alc269
 index c1791b13662054..98d29f4cc81b77 100644
 --- a/sound/hda/codecs/realtek/alc269.c
 +++ b/sound/hda/codecs/realtek/alc269.c
-@@ -7164,12 +7164,12 @@ static const struct hda_quirk alc269_fixup_tbl[] = {
+@@ -7168,12 +7168,12 @@ static const struct hda_quirk alc269_fixup_tbl[] = {
  	SND_PCI_QUIRK(0x1043, 0x3e00, "ASUS G814FH/FM/FP", ALC287_FIXUP_CS35L41_I2C_2),
  	SND_PCI_QUIRK(0x1043, 0x3e20, "ASUS G814PH/PM/PP", ALC287_FIXUP_CS35L41_I2C_2),
  	SND_PCI_QUIRK(0x1043, 0x3e30, "ASUS TP3607SA", ALC287_FIXUP_TAS2781_I2C),
