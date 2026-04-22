@@ -900,7 +900,7 @@ diff --git a/sound/hda/codecs/realtek/alc269.c b/sound/hda/codecs/realtek/alc269
 index 4c49f1195e1bca..2144865ff29b78 100644
 --- a/sound/hda/codecs/realtek/alc269.c
 +++ b/sound/hda/codecs/realtek/alc269.c
-@@ -7342,12 +7342,12 @@ static const struct hda_quirk alc269_fixup_tbl[] = {
+@@ -7366,12 +7366,12 @@ static const struct hda_quirk alc269_fixup_tbl[] = {
  	SND_PCI_QUIRK(0x1043, 0x3e00, "ASUS G814FH/FM/FP", ALC287_FIXUP_CS35L41_I2C_2),
  	SND_PCI_QUIRK(0x1043, 0x3e20, "ASUS G814PH/PM/PP", ALC287_FIXUP_CS35L41_I2C_2),
  	SND_PCI_QUIRK(0x1043, 0x3e30, "ASUS TP3607SA", ALC287_FIXUP_TAS2781_I2C),

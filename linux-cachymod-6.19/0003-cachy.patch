@@ -2697,7 +2697,7 @@ diff --git a/drivers/ata/ahci.c b/drivers/ata/ahci.c
 index 931d0081169b9c..02ee4c4fa5b782 100644
 --- a/drivers/ata/ahci.c
 +++ b/drivers/ata/ahci.c
-@@ -1672,7 +1672,7 @@ static irqreturn_t ahci_thunderx_irq_handler(int irq, void *dev_instance)
+@@ -1686,7 +1686,7 @@ static irqreturn_t ahci_thunderx_irq_handler(int irq, void *dev_instance)
  }
  #endif
  
@@ -2706,7 +2706,7 @@ index 931d0081169b9c..02ee4c4fa5b782 100644
  		struct ahci_host_priv *hpriv)
  {
  	int i;
-@@ -1685,7 +1685,7 @@ static void ahci_remap_check(struct pci_dev *pdev, int bar,
+@@ -1699,7 +1699,7 @@ static void ahci_remap_check(struct pci_dev *pdev, int bar,
  	    pci_resource_len(pdev, bar) < SZ_512K ||
  	    bar != AHCI_PCI_BAR_STANDARD ||
  	    !(readl(hpriv->mmio + AHCI_VSCAP) & 1))
@@ -2715,7 +2715,7 @@ index 931d0081169b9c..02ee4c4fa5b782 100644
  
  	cap = readq(hpriv->mmio + AHCI_REMAP_CAP);
  	for (i = 0; i < AHCI_MAX_REMAP; i++) {
-@@ -1700,18 +1700,11 @@ static void ahci_remap_check(struct pci_dev *pdev, int bar,
+@@ -1714,18 +1714,11 @@ static void ahci_remap_check(struct pci_dev *pdev, int bar,
  	}
  
  	if (!hpriv->remapped_nvme)
@@ -2738,7 +2738,7 @@ index 931d0081169b9c..02ee4c4fa5b782 100644
  }
  
  static int ahci_get_irq_vector(struct ata_host *host, int port)
-@@ -1975,7 +1968,9 @@ static int ahci_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
+@@ -1989,7 +1982,9 @@ static int ahci_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
  		return -ENOMEM;
  
  	/* detect remapped nvme devices */

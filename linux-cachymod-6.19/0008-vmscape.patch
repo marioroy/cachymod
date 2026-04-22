@@ -366,7 +366,7 @@ diff --git a/arch/x86/kvm/x86.c b/arch/x86/kvm/x86.c
 index 0d731ce4c4e161..f33ca99bdf3dac 100644
 --- a/arch/x86/kvm/x86.c
 +++ b/arch/x86/kvm/x86.c
-@@ -11454,8 +11454,8 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
+@@ -11463,8 +11463,8 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
  	 * set for the CPU that actually ran the guest, and not the CPU that it
  	 * may migrate to.
  	 */

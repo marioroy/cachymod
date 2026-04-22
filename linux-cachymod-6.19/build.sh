@@ -42,7 +42,7 @@ if [ "$#" -gt 0 ]; then
 else
   # Use defaults.
   : ${_cpusched:=eevdf}
-  : ${_buildtype:=thin}
+  : ${_buildtype:=clang}
   : ${_autofdo:=no}
   : ${_autofdo_profile_name:=cachymod.afdo}
   : ${_hugepage:=always}
