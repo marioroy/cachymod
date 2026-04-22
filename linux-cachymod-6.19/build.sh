@@ -1,6 +1,22 @@
 #!/bin/bash
 # CachyMod build and installation script.
 
+# Parse build overrides, key=value parameters.
+ARGS=()
+for ARG in "$@"; do
+  if [[ "$ARG" = *"="* ]]; then
+    KEY="${ARG%%=*}" VALUE="${ARG#*=}"
+    export "$KEY"="$VALUE"
+  else
+    ARGS+=("$ARG")
+  fi
+  shift
+done
+
+# Replace the current positional parameters with a new list.
+set -- "$@" ${ARGS[@]}
+unset ARGS ARG KEY VALUE
+
 if [[ "$#" -gt 0 && "$1" =~ ^(-h|--help|help)$ ]]; then
   echo "Usage: $0 [ confname | list ]"
   exit
