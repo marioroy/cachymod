@@ -10407,7 +10407,7 @@ index 41caa22e0..87e292a0d 100644
  static cpumask_var_t		sd_sysctl_cpus;
  
  static int sd_flags_show(struct seq_file *m, void *v)
-@@ -1264,6 +1279,11 @@ void proc_sched_show_task(struct task_struct *p, struct pid_namespace *ns,
+@@ -1266,6 +1281,11 @@ void proc_sched_show_task(struct task_struct *p, struct pid_namespace *ns,
  
  	sched_show_numa(p, m);
  }

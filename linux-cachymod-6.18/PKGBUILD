@@ -137,7 +137,7 @@ fi
 
 _pkgsuffix=cachymod
 _major=6.18
-_minor=25
+_minor=26
 pkgver=${_major}.${_minor}
 _stable=${_major}.${_minor}
 #_stable=${_major}
@@ -204,8 +204,11 @@ if [[ "$buildtype" =~ (lto|clang) ]]; then
     makedepends+=(clang llvm lld)
     source+=("dkms-clang.patch")
 
-    [[ -z "$_build_debug" || "$_build_debug" =~ ^(no|n|0)$ ]] && \
-        source+=("flags-clang.patch")
+    # Skip the flags-clang patch with older CPUs
+    if [[ $(nproc) -gt 4 && -n $(lscpu 2>/dev/null | grep avx2) ]]; then
+        [[ -z "$_build_debug" || "$_build_debug" =~ ^(no|n|0)$ ]] && \
+            source+=("flags-clang.patch")
+    fi
 
     [[ "$_autofdo" =~ ^(yes|y|1)$ ]] && \
         source+=("autofdo.patch")
