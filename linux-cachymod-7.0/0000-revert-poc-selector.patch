@@ -1,8 +1,11 @@
 
 Revert Piece-Of-Cake (POC) O(1) Idle CPU Selector v2.6.1
 POC official not yet reached POC custom with bigger CPUs
-For now, revert the patch
 
+The POC custom variant can be found here:
+https://github.com/marioroy/poc-selector-custom
+
+For now, revert v2.6.1
 
 diff -uNarp a/include/linux/sched/topology.h b/include/linux/sched/topology.h
 --- a/include/linux/sched/topology.h
