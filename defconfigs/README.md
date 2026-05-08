@@ -5,7 +5,7 @@ Rather, make a copy to your configuration folder.
 
 ```bash
 mkdir -p ~/.config/cachymod
-cp 6.18/*.conf ~/.config/cachymod/
+cp 7.0/*.conf ~/.config/cachymod/
 ```
 
 Changes can be made with the `confmod.sh` utility.

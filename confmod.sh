@@ -65,7 +65,7 @@ new_conf() {
   local conf="$1"
   (
     echo ": \${_cpusched:=eevdf}"
-    echo ": \${_buildtype:=thin}"
+    echo ": \${_buildtype:=clang}"
     echo ": \${_autofdo:=no}"
     echo ": \${_autofdo_profile_name:=cachymod.afdo}"
     echo ": \${_hugepage:=always}"
@@ -77,7 +77,7 @@ new_conf() {
     echo ": \${_makexconfig:=no}"
     echo ": \${_tcp_bbr3:=no}"
     echo ": \${_HZ_ticks:=1000}"
-    echo ": \${_ticktype:=full}"
+    echo ": \${_ticktype:=idle}"
     echo ": \${_preempt:=full}"
     echo ": \${_processor_opt:=native}"
     echo ": \${_prevent_avx2:=no}"
@@ -287,7 +287,7 @@ input_hugepage() {
 input_kernel_suffix() {
   local -n varref="$1"; local msg=
   msg+="Enter a custom kernel suffix?\n"
-  msg+="E.g. { bmq, pds, rt, or 618, 618-bmq, 618-pds, 618-rt }\n"
+  msg+="E.g. { bmq, pds, rt, or 70, 70-bmq, 70-pds, 70-rt }\n"
   msg+="\n"
   msg+="Enter 'auto' for automatic suffix { gcc, clang, lto }.\n"
   msg+="Enter 'blank' to clear the value.\n"
@@ -379,20 +379,32 @@ input_ticktype() {
 }
 
 input_preempt() {
-  local -n varref="$1"; local menu=() selected=
-  menu+=("dynamic:   for runtime selectable none, voluntary, full, or lazy")
-  menu+=("voluntary: for desktop; matching the Clear kernel preemption")
-  menu+=("full:      for low-latency desktop; matching the CachyOS preemption")
-  menu+=("lazy:      for low-latency desktop; for slightly better throughput")
+  local -n varref="$1"; local menu=() selected= msg=
+  msg+="Full preemption benefits desktop interactivity.\n"
+  msg+="Lazy preemption may result in higher FPS with gaming.\n"
+  msg+="\n"
+  msg+="The preemption mode can be changed dynamically at runtime:\n"
+  msg+="echo full | sudo tee /sys/kernel/debug/sched/preempt\n"
+  msg+="echo lazy | sudo tee /sys/kernel/debug/sched/preempt\n"
+
+  menu+=("full: for low-latency desktop")
+  menu+=("lazy: for slightly better throughput")
+
+  # Dynamic/Voluntary preemption selections were dropped on May 8, 2026
+  if [ "$varref" = "dynamic" ]; then
+    menu+=("dynamic: not supported (select another preemption)")
+  elif [ "$varref" = "voluntary" ]; then
+    menu+=("voluntary: not supported (select another preemption)")
+  fi
 
   case "$varref" in
-    dynamic  ) selected="${menu[0]}" ;;
-    voluntary) selected="${menu[1]}" ;;
-    full     ) selected="${menu[2]}" ;;
-    lazy     ) selected="${menu[3]}" ;;
+    full     ) selected="${menu[0]}" ;;
+    lazy     ) selected="${menu[1]}" ;;
+    dynamic  ) selected="${menu[2]}" ;;
+    voluntary) selected="${menu[2]}" ;;
   esac
 
-  choose $1 menu "Choose kernel preemption:" "$selected"
+  choose $1 menu "Choose default kernel preemption:" "$selected" "$msg"
 }
 
 input_processor_opt() {
@@ -713,7 +725,7 @@ main_loop() {
       return # pressed the Esc key or selected "Exit"
     elif [ "$conf" = "New/Open config..." ]; then
       selected="New/Open config..."
-      emsg "Enter new config name? E.g. 618, 618-bmq"
+      emsg "Enter new config name? E.g. 70, 70-bmq"
       emsg "This will open the config if it exists.\n"
 
       conf=$(gum input --placeholder "")

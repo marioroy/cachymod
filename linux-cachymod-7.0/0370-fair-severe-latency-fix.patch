@@ -1,0 +1,53 @@
+
+Sched: Severe scheduling latency (>10s) observed on kernel 6.12 with specific workload
+https://lore.kernel.org/all/CANDhNCo2CfvokRUkH81U+7R-t9rCcv4enWgVZS7ytE2-W36yPw@mail.gmail.com/
+
+See also, https://lore.kernel.org/all/20260324100126.3502-1-willymontaz@gmail.com/
+
+Apply fix, found in BORE 6.6.3 patch, by Masahito S.
+https://github.com/firelzrd/bore-scheduler/tree/main
+
+Signed-off-by: Mario Roy <>
+
+
+diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -3844,11 +3844,17 @@ static void reweight_entity(struct cfs_rq *cfs_rq, struct sched_entity *se,
+ 	bool curr = cfs_rq->curr == se;
+ 	bool rel_vprot = false;
+ 	u64 vprot;
++#ifdef CONFIG_CACHY
++	s64 vlag_unscaled = 0;
++#endif /* !CONFIG_CACHY */
+ 
+ 	if (se->on_rq) {
+ 		/* commit outstanding execution time */
+ 		update_curr(cfs_rq);
+ 		update_entity_lag(cfs_rq, se);
++#ifdef CONFIG_CACHY
++		vlag_unscaled = se->vlag;
++#endif /* !CONFIG_CACHY */
+ 		se->deadline -= se->vruntime;
+ 		se->rel_deadline = 1;
+ 		if (curr && protect_slice(se)) {
+@@ -3884,6 +3890,16 @@ static void reweight_entity(struct cfs_rq *cfs_rq, struct sched_entity *se,
+ 
+ 	enqueue_load_avg(cfs_rq, se);
+ 	if (se->on_rq) {
++#ifdef CONFIG_CACHY
++		if (curr) {
++			se->vruntime += vlag_unscaled - se->vlag;
++			if (se->rel_deadline) {
++				se->deadline += se->vruntime;
++				se->rel_deadline = 0;
++			}
++		}
++		else
++#endif /* !CONFIG_CACHY */
+ 		place_entity(cfs_rq, se, 0);
+ 		if (rel_vprot)
+ 			se->vprot = se->vruntime + vprot;
+-- 
+2.53.0
+
