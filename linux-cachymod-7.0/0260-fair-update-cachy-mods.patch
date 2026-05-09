@@ -1,7 +1,7 @@
 
 Revert Cachy mods
 (1) Set scheduler tunable latencies to unscaled
-(2) Update base_slice, migration_cost and cfs_bandwidth_slice
+(2) Update base_slice and migration_cost
 (3) Decrease the timer_slack_ns default
 
 diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
@@ -39,15 +39,6 @@ diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
  
  static int __init setup_sched_thermal_decay_shift(char *str)
  {
-@@ -131,7 +122,7 @@ int __weak arch_asym_cpu_priority(int cp
-  *
-  * (default: 5 msec, units: microseconds)
-  */
--static unsigned int sysctl_sched_cfs_bandwidth_slice		= 5000UL;
-+static unsigned int sysctl_sched_cfs_bandwidth_slice		= 2500UL;
- #endif
- 
- #ifdef CONFIG_NUMA_BALANCING
 -- 
 2.40.2
 
