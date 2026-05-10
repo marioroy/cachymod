@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# Get/set preemption mode
+# Usage: preemption [ full | lazy ]
+# This requires the kernel built with CONFIG_PREEMPT_DYNAMIC=y
+
+status=0
+
+knob="/sys/kernel/debug/sched/preempt"
+if [ -n "$1" ]; then
+  echo "$1" | sudo tee "$knob" &>/dev/null
+  status=$?
+fi
+
+res=$(sudo cat "$knob" 2>/dev/null)
+if [ -z "$res" ]; then
+  # The path does not exist running BMQ or PDS CPU scheduler
+  echo "cannot access '$knob': No such file"
+  exit 1
+fi
+
+echo "$res"
+exit $status
+

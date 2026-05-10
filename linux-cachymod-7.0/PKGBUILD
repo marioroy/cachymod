@@ -142,7 +142,7 @@ _tagrel=1
 pkgver=${_major}.${_minor}
 
 pkgdesc='CachyMod Linux Kernel with other patches and improvements'
-pkgrel=2
+pkgrel=3
 _srcname=cachyos-${_major}.${_minor}-${_tagrel}
 _kernver="$pkgver-$pkgrel"
 _kernuname="${pkgver}-${_pkgsuffix}"
@@ -163,14 +163,14 @@ source=(
     "config.sh"
     "minimal-modprobed.db"  # used if _localmodcfg=yes and _localmodcfg_minimal=yes
 
-    # CPUIdle governors update
-    "0000-cpuidle-govs-update.patch"
-
-    # mm slab and slub fixes
-    "0000-mm-slab-and-slub-fixes.patch"
+    # mm slub fixes
+    "0000-mm-slub-fixes.patch"
 
     # Revert Piece-Of-Cake (POC) O(1) Idle CPU Selector
     "0000-revert-poc-selector.patch"
+
+    # rseq: Cure refactoring regressions
+    "0000-rseq-cure-regressions.patch"
 
     # CachyOS
     "0001-rt-i915.patch"

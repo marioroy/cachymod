@@ -129,6 +129,15 @@ is ignored from GIT commits.
 cp ../sample/custom.sh.in custom.sh
 ```
 
+The kernel supports dynamic preemption. You can set the default with
+boot option. See also, `preemption` script in the sample folder to
+get/set the preemption mode dynamically.
+
+```text
+preempt=full
+preempt=lazy
+```
+
 ## Acknowledgement
 
 Thank you, CachyOS community with sounding board and testing.
