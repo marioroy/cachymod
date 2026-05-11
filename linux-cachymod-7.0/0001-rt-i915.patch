@@ -55,8 +55,8 @@ index 53378d2dcbec..3c89b9452863 100644
  }
  
  #if IS_ENABLED(CONFIG_DRM_I915_DEBUG_VBLANK_EVADE)
-@@ -750,7 +752,8 @@ void intel_pipe_update_end(struct intel_atomic_state *state,
- 	if (!state->base.legacy_cursor_update)
+@@ -752,7 +754,8 @@ void intel_pipe_update_end(struct intel_atomic_state *state,
+ 	     !new_crtc_state->vrr.enable))
  		intel_vrr_send_push(NULL, new_crtc_state);
  
 -	local_irq_enable();
