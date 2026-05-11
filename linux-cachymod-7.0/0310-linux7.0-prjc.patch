@@ -233,7 +233,7 @@ diff --git a/include/linux/rseq_entry.h b/include/linux/rseq_entry.h
 index c6831c93c..6d2eea8c7 100644
 --- a/include/linux/rseq_entry.h
 +++ b/include/linux/rseq_entry.h
-@@ -722,7 +722,10 @@ static __always_inline void rseq_syscall_exit_to_user_mode(void)
+@@ -726,7 +726,10 @@ static __always_inline void rseq_syscall_exit_to_user_mode(void)
  
  	/* Needed to remove the store for the !lockdep case */
  	if (IS_ENABLED(CONFIG_LOCKDEP)) {
