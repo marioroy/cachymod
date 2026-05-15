@@ -53,7 +53,7 @@ diff -uarp a/Makefile b/Makefile
  KBUILD_USERCFLAGS  := $(KBUILD_USERHOSTCFLAGS) $(USERCFLAGS)
  KBUILD_USERLDFLAGS := $(USERLDFLAGS)
  
-@@ -589,7 +589,7 @@ LINUXINCLUDE    := \
+@@ -591,7 +591,7 @@ LINUXINCLUDE    := \
  KBUILD_AFLAGS   := -D__ASSEMBLY__ -fno-PIE
  
  KBUILD_CFLAGS :=
@@ -537,7 +537,7 @@ Reviewed-by: Andrea Righi <arighi@xxxxxxxxxx>
 diff --git a/kernel/sched/ext.c b/kernel/sched/ext.c
 --- a/kernel/sched/ext.c
 +++ b/kernel/sched/ext.c
-@@ -4005,6 +4005,15 @@ resume:
+@@ -4010,6 +4010,15 @@ resume:
  		if (cpumask_empty(donee_mask))
  			break;
  

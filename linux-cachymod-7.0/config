@@ -1,6 +1,6 @@
 #
 # Automatically generated file; DO NOT EDIT.
-# Linux/x86 7.0.6 Kernel Configuration
+# Linux/x86 7.0.8 Kernel Configuration
 #
 CONFIG_CC_VERSION_TEXT="gcc (GCC) 15.2.1 20260209"
 CONFIG_CC_IS_GCC=y
@@ -6551,6 +6551,7 @@ CONFIG_VIDEO_EM28XX_V4L2=m
 CONFIG_VIDEO_EM28XX_ALSA=m
 CONFIG_VIDEO_EM28XX_DVB=m
 CONFIG_VIDEO_EM28XX_RC=m
+CONFIG_MEDIA_PCI_SUPPORT=y
 
 #
 # Software defined radio USB devices
@@ -6558,7 +6559,6 @@ CONFIG_VIDEO_EM28XX_RC=m
 CONFIG_USB_AIRSPY=m
 CONFIG_USB_HACKRF=m
 # CONFIG_USB_MSI2500 is not set
-CONFIG_MEDIA_PCI_SUPPORT=y
 
 #
 # Media capture support

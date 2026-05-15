@@ -45,7 +45,7 @@ diff --git a/kernel/sched/ext.c b/kernel/sched/ext.c
 index 2ff7034841c7c..dd8756e503aa0 100644
 --- a/kernel/sched/ext.c
 +++ b/kernel/sched/ext.c
-@@ -1915,6 +1915,7 @@ static bool consume_dispatch_q(struct scx_sched *sch, struct rq *rq,
+@@ -1917,6 +1917,7 @@ static bool consume_dispatch_q(struct scx_sched *sch, struct rq *rq,
  			       struct scx_dispatch_q *dsq)
  {
  	struct task_struct *p;
@@ -53,7 +53,7 @@ index 2ff7034841c7c..dd8756e503aa0 100644
  retry:
  	/*
  	 * The caller can't expect to successfully consume a task if the task's
-@@ -1924,7 +1925,19 @@ retry:
+@@ -1926,7 +1927,19 @@ retry:
  	if (list_empty(&dsq->list))
  		return false;
  
@@ -74,7 +74,7 @@ index 2ff7034841c7c..dd8756e503aa0 100644
  
  	nldsq_for_each_task(p, dsq) {
  		struct rq *task_rq = task_rq(p);
-@@ -6254,8 +6267,8 @@ __bpf_kfunc void scx_bpf_dispatch_cancel(void)
+@@ -6259,8 +6272,8 @@ __bpf_kfunc void scx_bpf_dispatch_cancel(void)
   * before trying to move from the specified DSQ. It may also grab rq locks and
   * thus can't be called under any BPF locks.
   *

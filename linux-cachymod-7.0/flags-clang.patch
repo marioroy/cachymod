@@ -2,7 +2,7 @@
 diff -uarp a/Makefile b/Makefile
 --- a/Makefile
 +++ b/Makefile
-@@ -921,6 +921,17 @@
+@@ -923,6 +923,17 @@
  KBUILD_CFLAGS	+= $(call cc-option,-fno-allow-store-data-races)
  endif
  
@@ -10,8 +10,8 @@ diff -uarp a/Makefile b/Makefile
 +KBUILD_CFLAGS	+= \
 +		   -mllvm=-enable-pipeliner \
 +		   -mllvm=-inline-threshold=420 \
-+		   -mllvm=-unroll-threshold=70 \
-+		   -mllvm=-unroll-max-count=10
++		   -mllvm=-unroll-threshold=50 \
++		   -mllvm=-unroll-max-count=8
 +ifdef CONFIG_LTO_CLANG
 +KBUILD_LDFLAGS	+= --lto-O2 --lto-CGO2 --thinlto-jobs=6
 +endif

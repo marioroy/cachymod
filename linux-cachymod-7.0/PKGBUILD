@@ -136,13 +136,13 @@ fi
 
 _pkgsuffix=cachymod
 _major=7.0
-_minor=6
-_tagrel=2
+_minor=8
+_tagrel=1
 #_rcver="rc7"
 pkgver=${_major}.${_minor}
 
 pkgdesc='CachyMod Linux Kernel with other patches and improvements'
-pkgrel=2
+pkgrel=1
 _srcname=cachyos-${_major}.${_minor}-${_tagrel}
 _kernver="$pkgver-$pkgrel"
 _kernuname="${pkgver}-${_pkgsuffix}"
@@ -168,9 +168,6 @@ source=(
 
     # Revert Piece-Of-Cake (POC) O(1) Idle CPU Selector
     "0000-revert-poc-selector.patch"
-
-    # rseq: Cure refactoring regressions
-    "0000-rseq-cure-regressions.patch"
 
     # CachyOS
     "0001-rt-i915.patch"

@@ -15,7 +15,6 @@
 # Patch0128: 0128-itmt_epb-use-epb-to-scale-itmt.patch
 # Patch0130: 0130-itmt2-ADL-fixes.patch
 # Patch0135: 0135-initcall-only-print-non-zero-initcall-debug-to-speed.patch
-# Patch0137: libsgrowdown.patch
 # Patch0141: epp-retune.patch
 # Patch0148: 0002-sched-core-add-some-branch-hints-based-on-gcov-analy.patch
 # Patch0157: scale-net-alloc.patch
@@ -554,23 +553,6 @@ index aa21add5f7c5..715d57f58895 100644
 -- 
 2.39.1
 
-# Patch0137: libsgrowdown.patch
-
-Place libraries right below the binary for PIE binaries, this helps code locality
-(and thus performance).
-
---- linux-5.18.2/fs/binfmt_elf.c~	2022-06-06 06:49:00.000000000 +0000
-+++ linux-5.18.2/fs/binfmt_elf.c	2022-08-10 13:53:04.878633166 +0000
-@@ -1302,6 +1302,8 @@
- 	mm = current->mm;
- 	mm->end_code = end_code;
- 	mm->start_code = start_code;
-+	if (start_code >= ELF_ET_DYN_BASE)
-+		mm->mmap_base = start_code;
- 	mm->start_data = start_data;
- 	mm->end_data = end_data;
- 	mm->start_stack = bprm->p;
-
 # Patch0141: epp-retune.patch
 
 --- linux-6.1/arch/x86/include/asm/msr-index.h~	2022-12-11 22:15:18.000000000 +0000
@@ -616,7 +598,7 @@ index f730b6fe94a7..ee0ec4ab7d1c 100644
  		return;
  	rq->clock += delta;
  
-@@ -6013,7 +6013,7 @@ pick_next_task(struct rq *rq, struct task_struct *prev, struct rq_flags *rf)
+@@ -6016,7 +6016,7 @@ pick_next_task(struct rq *rq, struct task_struct *prev, struct rq_flags *rf)
  	struct rq *rq_i;
  	bool need_sync;
  
@@ -625,7 +607,7 @@ index f730b6fe94a7..ee0ec4ab7d1c 100644
  		return __pick_next_task(rq, prev, rf);
  
  	cpu = cpu_of(rq);
-@@ -7412,7 +7412,7 @@ SYSCALL_DEFINE0(sched_yield)
+@@ -7415,7 +7415,7 @@ SYSCALL_DEFINE0(sched_yield)
  #if !defined(CONFIG_PREEMPTION) || defined(CONFIG_PREEMPT_DYNAMIC)
  int __sched __cond_resched(void)
  {

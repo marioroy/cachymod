@@ -93,7 +93,7 @@ diff -uNarp a/init/Kconfig b/init/Kconfig
 diff -uNarp a/kernel/sched/ext.c b/kernel/sched/ext.c
 --- a/kernel/sched/ext.c
 +++ b/kernel/sched/ext.c
-@@ -4499,9 +4499,6 @@ static void scx_disable_workfn(struct kt
+@@ -4504,9 +4504,6 @@ static void scx_disable_workfn(struct kt
  	mutex_unlock(&scx_enable_mutex);
  
  	WARN_ON_ONCE(scx_set_enable_state(SCX_DISABLED) != SCX_DISABLING);
@@ -103,7 +103,7 @@ diff -uNarp a/kernel/sched/ext.c b/kernel/sched/ext.c
  done:
  	scx_bypass(false);
  }
-@@ -5286,10 +5283,6 @@ static void scx_enable_workfn(struct kth
+@@ -5291,10 +5288,6 @@ static void scx_enable_workfn(struct kth
  	if (!(ops->flags & SCX_OPS_SWITCH_PARTIAL))
  		static_branch_enable(&__scx_switched_all);
  
