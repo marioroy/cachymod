@@ -513,49 +513,6 @@ index 615861d963571e..728965851842e1 100644
 -- 
 2.53.0
 
-sched_ext: Skip tasks with stale task_rq in bypass_lb_cpu()
-https://lore.kernel.org/all/20260512173945.338221208@linuxfoundation.org/
-
-From: Tejun Heo
-
-bypass_lb_cpu() transfers tasks between per-CPU bypass DSQs without
-migrating them - task_cpu() only updates when the donee later consumes the
-task via move_remote_task_to_local_dsq(). If the LB timer fires again before
-consumption and the new DSQ becomes a donor, @p is still on the previous CPU
-and task_rq(@p) != donor_rq. @p can't be moved without its own rq locked.
-
-Skip such tasks.
-
-Fixes: 95d1df610cdc ("sched_ext: Implement load balancer for bypass mode")
-Reported-by: Chris Mason <clm@xxxxxxxxxx>
-Signed-off-by: Tejun Heo <tj@xxxxxxxxxx>
-Reviewed-by: Andrea Righi <arighi@xxxxxxxxxx>
----
- kernel/sched/ext.c |    9 +++++++++
- 1 file changed, 9 insertions(+)
-
-diff --git a/kernel/sched/ext.c b/kernel/sched/ext.c
---- a/kernel/sched/ext.c
-+++ b/kernel/sched/ext.c
-@@ -4010,6 +4010,15 @@ resume:
- 		if (cpumask_empty(donee_mask))
- 			break;
- 
-+		/*
-+		 * If an earlier pass placed @p on @donor_dsq from a different
-+		 * CPU and the donee hasn't consumed it yet, @p is still on the
-+		 * previous CPU and task_rq(@p) != @rq. @p can't be moved
-+		 * without its rq locked. Skip.
-+		 */
-+		if (task_rq(p) != rq)
-+			continue;
-+
- 		donee = cpumask_any_and_distribute(donee_mask, p->cpus_ptr);
- 		if (donee >= nr_cpu_ids)
- 			continue;
--- 
-2.53.0
-
 Add Logitech C310
 
 diff --git a/drivers/usb/core/quirks.c b/drivers/usb/core/quirks.c
