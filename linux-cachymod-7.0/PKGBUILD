@@ -298,6 +298,9 @@ prepare() {
         if [[ $src = *-sched-ext.patch || $src = *-bore* ]]; then
             [[ "$_cpusched" =~ ^(bmq|pds)$ ]] && continue
         fi
+        if [[ $src = *-poc-selector-v* ]]; then
+            [[ "$_cpusched" =~ ^(bmq|pds)$ ]] && continue
+        fi
         if [[ $src = *-revert-cachy-mods.patch ]]; then
             [[ "$build_bore" -eq 0 ]] && continue
         fi
