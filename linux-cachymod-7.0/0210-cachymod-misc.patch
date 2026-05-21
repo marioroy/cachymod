@@ -435,7 +435,7 @@ diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
 index 615861d963571e..728965851842e1 100644
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -1016,7 +1016,7 @@ static inline void cancel_protect_slice(struct sched_entity *se)
+@@ -1017,7 +1017,7 @@ static inline void cancel_protect_slice(struct sched_entity *se)
   *
   * Which allows tree pruning through eligibility.
   */
@@ -444,7 +444,7 @@ index 615861d963571e..728965851842e1 100644
  {
  	struct rb_node *node = cfs_rq->tasks_timeline.rb_root.rb_node;
  	struct sched_entity *se = __pick_first_entity(cfs_rq);
-@@ -1087,11 +1087,6 @@ static struct sched_entity *__pick_eevdf(struct cfs_rq *cfs_rq, bool protect)
+@@ -1088,11 +1088,6 @@ static struct sched_entity *__pick_eevdf(struct cfs_rq *cfs_rq, bool protect)
  	return best;
  }
  
@@ -456,7 +456,7 @@ index 615861d963571e..728965851842e1 100644
  struct sched_entity *__pick_last_entity(struct cfs_rq *cfs_rq)
  {
  	struct rb_node *last = rb_last(&cfs_rq->tasks_timeline.rb_root);
-@@ -5549,11 +5544,11 @@ static int dequeue_entities(struct rq *rq, struct sched_entity *se, int flags);
+@@ -5550,11 +5545,11 @@ static int dequeue_entities(struct rq *rq, struct sched_entity *se, int flags);
   * 4) do not run the "skip" process, if something else is available
   */
  static struct sched_entity *
@@ -470,7 +470,7 @@ index 615861d963571e..728965851842e1 100644
  	if (se->sched_delayed) {
  		dequeue_entities(rq, se, DEQUEUE_SLEEP | DEQUEUE_DELAYED);
  		/*
-@@ -8841,7 +8836,7 @@ static void wakeup_preempt_fair(struct rq *rq, struct task_struct *p, int wake_f
+@@ -8921,7 +8916,7 @@ static void wakeup_preempt_fair(struct rq *rq, struct task_struct *p, int wake_f
  {
  	enum preempt_wakeup_action preempt_action = PREEMPT_WAKEUP_PICK;
  	struct task_struct *donor = rq->donor;
@@ -479,7 +479,7 @@ index 615861d963571e..728965851842e1 100644
  	struct cfs_rq *cfs_rq = task_cfs_rq(donor);
  	int cse_is_idle, pse_is_idle;
  
-@@ -8952,11 +8947,18 @@ static void wakeup_preempt_fair(struct rq *rq, struct task_struct *p, int wake_f
+@@ -9032,11 +9027,18 @@ static void wakeup_preempt_fair(struct rq *rq, struct task_struct *p, int wake_f
  	}
  
  pick:
@@ -501,7 +501,7 @@ index 615861d963571e..728965851842e1 100644
  
  	if (sched_feat(RUN_TO_PARITY))
  		update_protect_slice(cfs_rq, se);
-@@ -8991,7 +8993,7 @@ static struct task_struct *pick_task_fair(struct rq *rq, struct rq_flags *rf)
+@@ -9071,7 +9073,7 @@ static struct task_struct *pick_task_fair(struct rq *rq, struct rq_flags *rf)
  
  		throttled |= check_cfs_rq_runtime(cfs_rq);
  
@@ -539,7 +539,7 @@ diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
 index 353e31ecaadc..964014a74cf9 100644
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -1461,10 +1461,7 @@ update_stats_curr_start(struct cfs_rq *cfs_rq, struct sched_entity *se)
+@@ -1462,10 +1462,7 @@ update_stats_curr_start(struct cfs_rq *cfs_rq, struct sched_entity *se)
  	se->exec_start = rq_clock_task(rq_of(cfs_rq));
  }
  
@@ -551,7 +551,7 @@ index 353e31ecaadc..964014a74cf9 100644
  static inline bool is_core_idle(int cpu)
  {
  #ifdef CONFIG_SCHED_SMT
-@@ -11826,7 +11823,8 @@ static int should_we_balance(struct lb_env *env)
+@@ -11906,7 +11903,8 @@ static int should_we_balance(struct lb_env *env)
  		 * balancing cores, but remember the first idle SMT CPU for
  		 * later consideration.  Find CPU on an idle core first.
  		 */
@@ -584,7 +584,7 @@ diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
 index 964014a74cf9..29fbb5287cfc 100644
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -2162,7 +2162,7 @@ numa_type numa_classify(unsigned int imbalance_pct,
+@@ -2163,7 +2163,7 @@ numa_type numa_classify(unsigned int imbalance_pct,
  static inline bool test_idle_cores(int cpu);
  static inline int numa_idle_core(int idle_core, int cpu)
  {
@@ -597,7 +597,7 @@ diff --git a/kernel/sched/sched.h b/kernel/sched/sched.h
 index e476623a0c2a..ffe77b2b6296 100644
 --- a/kernel/sched/sched.h
 +++ b/kernel/sched/sched.h
-@@ -1656,7 +1656,7 @@ extern void __update_idle_core(struct rq *rq);
+@@ -1660,7 +1660,7 @@ extern void __update_idle_core(struct rq *rq);
  
  static inline void update_idle_core(struct rq *rq)
  {

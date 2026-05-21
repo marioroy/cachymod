@@ -142,7 +142,7 @@ _tagrel=1
 pkgver=${_major}.${_minor}
 
 pkgdesc='CachyMod Linux Kernel with other patches and improvements'
-pkgrel=1
+pkgrel=2
 _srcname=cachyos-${_major}.${_minor}-${_tagrel}
 _kernver="$pkgver-$pkgrel"
 _kernuname="${pkgver}-${_pkgsuffix}"
@@ -165,9 +165,6 @@ source=(
 
     # mm slub fixes
     "0000-mm-slub-fixes.patch"
-
-    # Revert Piece-Of-Cake (POC) O(1) Idle CPU Selector
-    "0000-revert-poc-selector.patch"
 
     # CachyOS
     "0001-rt-i915.patch"

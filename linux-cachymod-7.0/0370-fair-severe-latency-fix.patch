@@ -13,7 +13,7 @@ Signed-off-by: Mario Roy <>
 diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -3841,11 +3841,17 @@ static void reweight_entity(struct cfs_rq *cfs_rq, struct sched_entity *se,
+@@ -3842,11 +3842,17 @@ static void reweight_entity(struct cfs_rq *cfs_rq, struct sched_entity *se,
  	bool curr = cfs_rq->curr == se;
  	bool rel_vprot = false;
  	u64 vprot;
@@ -31,7 +31,7 @@ diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
  		se->deadline -= se->vruntime;
  		se->rel_deadline = 1;
  		if (curr && protect_slice(se)) {
-@@ -3881,6 +3887,16 @@ static void reweight_entity(struct cfs_rq *cfs_rq, struct sched_entity *se,
+@@ -3882,6 +3888,16 @@ static void reweight_entity(struct cfs_rq *cfs_rq, struct sched_entity *se,
  
  	enqueue_load_avg(cfs_rq, se);
  	if (se->on_rq) {

@@ -111,11 +111,6 @@ If you're running CPU-intensive background tasks or make jobs, refer to
 for Ghostty-like `linux-cgroup = always` feature with your terminal emulator.
 This can be used with EEVDF/BORE and Real-time (RT) kernels.
 
-There is a custom Piece-Of-Cake (POC) repo to preserve the minimalist v2.1.0
-design by Masahito S. Plus few tricks to run decent with bigger CPUs, as well.
-Refer to [poc-selector-custom](https://github.com/marioroy/poc-selector-custom).
-The POC patch can be added via the `_extra_patch_or_url` build option.
-
 ## Developer Notes
 
 If adding BORE patch, the official patch may not apply with recent kernels.

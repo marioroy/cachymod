@@ -74,7 +74,7 @@ index 2ff7034841c7c..dd8756e503aa0 100644
  
  	nldsq_for_each_task(p, dsq) {
  		struct rq *task_rq = task_rq(p);
-@@ -6258,8 +6271,8 @@ __bpf_kfunc void scx_bpf_dispatch_cancel(void)
+@@ -6265,8 +6278,8 @@ __bpf_kfunc void scx_bpf_dispatch_cancel(void)
   * before trying to move from the specified DSQ. It may also grab rq locks and
   * thus can't be called under any BPF locks.
   *

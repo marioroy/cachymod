@@ -84,7 +84,7 @@ diff -uar a/fs/Kconfig.binfmt b/fs/Kconfig.binfmt
 diff -uar a/init/Kconfig b/init/Kconfig
 --- a/init/Kconfig
 +++ b/init/Kconfig
-@@ -1690,7 +1690,7 @@
+@@ -1703,7 +1703,7 @@
  	  Only use this if you really know what you are doing.
  
  config UID16

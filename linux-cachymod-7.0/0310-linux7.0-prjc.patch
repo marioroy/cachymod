@@ -502,7 +502,7 @@ diff --git a/include/linux/sched/topology.h b/include/linux/sched/topology.h
 index 45c0022b9..d281dabe4 100644
 --- a/include/linux/sched/topology.h
 +++ b/include/linux/sched/topology.h
-@@ -187,7 +187,8 @@ extern void sched_update_asym_prefer_cpu(int cpu, int old_prio, int new_prio);
+@@ -233,7 +233,8 @@ extern void sched_update_asym_prefer_cpu(int cpu, int old_prio, int new_prio);
  #define SDTL_INIT(maskfn, flagsfn, dname) ((struct sched_domain_topology_level) \
  	    { .mask = maskfn, .sd_flags = flagsfn, .name = #dname })
  
@@ -10597,7 +10597,7 @@ diff --git a/kernel/sched/idle.c b/kernel/sched/idle.c
 index a83be0c83..765823064 100644
 --- a/kernel/sched/idle.c
 +++ b/kernel/sched/idle.c
-@@ -451,6 +451,7 @@ void cpu_startup_entry(enum cpuhp_state state)
+@@ -461,6 +461,7 @@ void cpu_startup_entry(enum cpuhp_state state)
  		do_idle();
  }
  
@@ -10605,7 +10605,7 @@ index a83be0c83..765823064 100644
  /*
   * idle-task scheduling class.
   */
-@@ -588,3 +589,4 @@ DEFINE_SCHED_CLASS(idle) = {
+@@ -598,3 +599,4 @@ DEFINE_SCHED_CLASS(idle) = {
  	.switching_to		= switching_to_idle,
  	.update_curr		= update_curr_idle,
  };
@@ -10843,7 +10843,7 @@ index 1ef9ba480..65e1f4d2e 100644
  #include <linux/sched/affinity.h>
  #include <linux/sched/autogroup.h>
  #include <linux/sched/cpufreq.h>
-@@ -4105,4 +4109,9 @@ DEFINE_CLASS_IS_UNCONDITIONAL(sched_change)
+@@ -4216,4 +4220,9 @@ DEFINE_CLASS_IS_UNCONDITIONAL(sched_change)
  
  #include "ext.h"
  
@@ -11490,7 +11490,7 @@ index 32dcddaea..d5e9c1b84 100644
  static int __init setup_relax_domain_level(char *str)
  {
  	if (kstrtoint(str, 0, &default_relax_domain_level))
-@@ -1735,6 +1738,7 @@ sd_init(struct sched_domain_topology_level *tl,
+@@ -1961,6 +1964,7 @@ sd_init(struct sched_domain_topology_level *tl,
  
  	return sd;
  }
@@ -11498,7 +11498,7 @@ index 32dcddaea..d5e9c1b84 100644
  
  #ifdef CONFIG_SCHED_SMT
  int cpu_smt_flags(void)
-@@ -1812,6 +1816,7 @@ void __init set_sched_topology(struct sched_domain_topology_level *tl)
+@@ -2038,6 +2042,7 @@ void __init set_sched_topology(struct sched_domain_topology_level *tl)
  	sched_domain_topology_saved = NULL;
  }
  
@@ -11506,7 +11506,7 @@ index 32dcddaea..d5e9c1b84 100644
  #ifdef CONFIG_NUMA
  static int cpu_numa_flags(void)
  {
-@@ -2939,3 +2944,31 @@ void partition_sched_domains(int ndoms_new, cpumask_var_t doms_new[],
+@@ -3165,3 +3170,31 @@ void partition_sched_domains(int ndoms_new, cpumask_var_t doms_new[],
  	partition_sched_domains_locked(ndoms_new, doms_new, dattr_new);
  	sched_domains_mutex_unlock();
  }
