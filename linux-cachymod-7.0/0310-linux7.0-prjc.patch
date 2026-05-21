@@ -5,6 +5,7 @@ https://gitlab.com/alfredchen/linux-prjc/-/tree/linux-7.0.y-prjc
 https://github.com/CachyOS/kernel-patches/tree/master/7.0/sched
 
 CachyMod: Set base_slice from 4 to 2 msec (2 << 20)
+Drop the POC additions to sched/idle.c so that BMQ/PDS can be built
 
 
 From 16370a106d4621275b57bb84a68e26fcaf75c23c Mon Sep 17 00:00:00 2001
@@ -11730,6 +11731,38 @@ index c6ea96d5b..b714f480d 100644
  	worker->current_start = jiffies;
  	work_data = *work_data_bits(work);
  	worker->current_color = get_work_color(work_data);
+-- 
+2.53.0
+
+Drop the POC additions to sched/idle.c so that BMQ/PDS can be built
+
+diff -uarp a/kernel/sched/idle.c b/kernel/sched/idle.c
+--- a/kernel/sched/idle.c
++++ b/kernel/sched/idle.c
+@@ -297,11 +297,6 @@ static void do_idle(void)
+ 	__current_set_polling();
+ 	tick_nohz_idle_enter();
+ 
+-#ifdef CONFIG_SCHED_POC_SELECTOR
+-	/* POC Selector: mark CPU as idle */
+-	set_cpu_idle_state_poc(cpu, 1);
+-#endif /* CONFIG_SCHED_POC_SELECTOR */
+-
+ 	while (!need_resched()) {
+ 
+ 		/*
+@@ -360,11 +355,6 @@ static void do_idle(void)
+ 		arch_cpu_idle_exit();
+ 	}
+ 
+-#ifdef CONFIG_SCHED_POC_SELECTOR
+-	/* POC Selector: mark CPU as busy */
+-	set_cpu_idle_state_poc(cpu, 0);
+-#endif /* CONFIG_SCHED_POC_SELECTOR */
+-
+ 	/*
+ 	 * Since we fell out of the loop above, we know TIF_NEED_RESCHED must
+ 	 * be set, propagate it into PREEMPT_NEED_RESCHED.
 -- 
 2.53.0
 
