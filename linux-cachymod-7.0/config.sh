@@ -255,9 +255,6 @@ if [[ $(uname -m) = *"x86"* ]]; then
     ### Disable the general notification queue.
     scripts/config -d WATCH_QUEUE
 
-    ### Disable Watchdog Timer Support.
-    scripts/config -d WATCHDOG
-
     ### Disable PCI Express ASPM L0s and L1, even if the BIOS enabled them.
     scripts/config -d PCIEASPM_DEFAULT -e PCIEASPM_PERFORMANCE
 

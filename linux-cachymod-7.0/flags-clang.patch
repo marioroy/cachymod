@@ -2,7 +2,7 @@
 diff -uarp a/Makefile b/Makefile
 --- a/Makefile
 +++ b/Makefile
-@@ -923,6 +923,17 @@
+@@ -925,6 +925,17 @@
  KBUILD_CFLAGS	+= $(call cc-option,-fno-allow-store-data-races)
  endif
  
@@ -39,7 +39,7 @@ Signed-off-by: Mario Roy <>
 diff -uarp a/kernel/time/hrtimer.c b/kernel/time/hrtimer.c
 --- a/kernel/time/hrtimer.c
 +++ b/kernel/time/hrtimer.c
-@@ -2113,7 +2113,7 @@ int nanosleep_copyout(struct restart_blo
+@@ -2118,7 +2118,7 @@ int nanosleep_copyout(struct restart_blo
  	return -ERESTART_RESTARTBLOCK;
  }
  

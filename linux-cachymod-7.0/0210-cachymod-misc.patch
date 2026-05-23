@@ -212,7 +212,7 @@ diff --git a/block/blk-wbt.c b/block/blk-wbt.c
 index 0974875f77bd..fa0352bea492 100644
 --- a/block/blk-wbt.c
 +++ b/block/blk-wbt.c
-@@ -797,13 +797,8 @@ EXPORT_SYMBOL_GPL(wbt_enable_default);
+@@ -798,13 +798,8 @@ EXPORT_SYMBOL_GPL(wbt_enable_default);
  
  static u64 wbt_default_latency_nsec(struct request_queue *q)
  {
@@ -397,7 +397,7 @@ diff --git a/net/ipv4/tcp_input.c b/net/ipv4/tcp_input.c
 index adec44313772b..1c9db9a246f71 100644
 --- a/net/ipv4/tcp_input.c
 +++ b/net/ipv4/tcp_input.c
-@@ -5402,11 +5402,25 @@ static void tcp_ofo_queue(struct sock *sk)
+@@ -5408,11 +5408,25 @@ static void tcp_ofo_queue(struct sock *sk)
  static bool tcp_prune_ofo_queue(struct sock *sk, const struct sk_buff *in_skb);
  static int tcp_prune_queue(struct sock *sk, const struct sk_buff *in_skb);
  
@@ -426,92 +426,6 @@ index adec44313772b..1c9db9a246f71 100644
  static int tcp_try_rmem_schedule(struct sock *sk, const struct sk_buff *skb,
 -- 
 2.51.0
-
-sched/fair: Fix wakeup_preempt_fair() vs delayed dequeue + fix
-https://lore.kernel.org/all/20260422093400.319251-1-vincent.guittot@linaro.org/
-https://lore.kernel.org/all/20260503104503.1732682-1-vincent.guittot@linaro.org/
-
-diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
-index 615861d963571e..728965851842e1 100644
---- a/kernel/sched/fair.c
-+++ b/kernel/sched/fair.c
-@@ -1017,7 +1017,7 @@ static inline void cancel_protect_slice(struct sched_entity *se)
-  *
-  * Which allows tree pruning through eligibility.
-  */
--static struct sched_entity *__pick_eevdf(struct cfs_rq *cfs_rq, bool protect)
-+static struct sched_entity *pick_eevdf(struct cfs_rq *cfs_rq, bool protect)
- {
- 	struct rb_node *node = cfs_rq->tasks_timeline.rb_root.rb_node;
- 	struct sched_entity *se = __pick_first_entity(cfs_rq);
-@@ -1088,11 +1088,6 @@ static struct sched_entity *__pick_eevdf(struct cfs_rq *cfs_rq, bool protect)
- 	return best;
- }
- 
--static struct sched_entity *pick_eevdf(struct cfs_rq *cfs_rq)
--{
--	return __pick_eevdf(cfs_rq, true);
--}
--
- struct sched_entity *__pick_last_entity(struct cfs_rq *cfs_rq)
- {
- 	struct rb_node *last = rb_last(&cfs_rq->tasks_timeline.rb_root);
-@@ -5550,11 +5545,11 @@ static int dequeue_entities(struct rq *rq, struct sched_entity *se, int flags);
-  * 4) do not run the "skip" process, if something else is available
-  */
- static struct sched_entity *
--pick_next_entity(struct rq *rq, struct cfs_rq *cfs_rq)
-+pick_next_entity(struct rq *rq, struct cfs_rq *cfs_rq, bool protect)
- {
- 	struct sched_entity *se;
- 
--	se = pick_eevdf(cfs_rq);
-+	se = pick_eevdf(cfs_rq, protect);
- 	if (se->sched_delayed) {
- 		dequeue_entities(rq, se, DEQUEUE_SLEEP | DEQUEUE_DELAYED);
- 		/*
-@@ -8921,7 +8916,7 @@ static void wakeup_preempt_fair(struct rq *rq, struct task_struct *p, int wake_f
- {
- 	enum preempt_wakeup_action preempt_action = PREEMPT_WAKEUP_PICK;
- 	struct task_struct *donor = rq->donor;
--	struct sched_entity *se = &donor->se, *pse = &p->se;
-+	struct sched_entity *nse, *se = &donor->se, *pse = &p->se;
- 	struct cfs_rq *cfs_rq = task_cfs_rq(donor);
- 	int cse_is_idle, pse_is_idle;
- 
-@@ -9032,11 +9027,18 @@ static void wakeup_preempt_fair(struct rq *rq, struct task_struct *p, int wake_f
- 	}
- 
- pick:
-+	nse = pick_next_entity(rq, cfs_rq, preempt_action != PREEMPT_WAKEUP_SHORT);
-+	/* If @p has become the most eligible task, force preemption */
-+	if (nse == pse)
-+		goto preempt;
-+
- 	/*
--	 * If @p has become the most eligible task, force preemption.
-+	 * Because p is enqueued, nse being null can only mean that we
-+	 * dequeued a delayed task. If there are still entities queued in
-+	 * cfs, check if the next one will be p.
- 	 */
--	if (__pick_eevdf(cfs_rq, preempt_action != PREEMPT_WAKEUP_SHORT) == pse)
--		goto preempt;
-+	if (!nse && cfs_rq->nr_queued)
-+		goto pick;
- 
- 	if (sched_feat(RUN_TO_PARITY))
- 		update_protect_slice(cfs_rq, se);
-@@ -9071,7 +9073,7 @@ static struct task_struct *pick_task_fair(struct rq *rq, struct rq_flags *rf)
- 
- 		throttled |= check_cfs_rq_runtime(cfs_rq);
- 
--		se = pick_next_entity(rq, cfs_rq);
-+		se = pick_next_entity(rq, cfs_rq, true);
- 		if (!se)
- 			goto again;
- 		cfs_rq = group_cfs_rq(se);
--- 
-2.53.0
 
 Add Logitech C310
 

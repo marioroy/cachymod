@@ -136,13 +136,13 @@ fi
 
 _pkgsuffix=cachymod
 _major=7.0
-_minor=9
-_tagrel=1
+_minor=10
+_tagrel=2
 #_rcver="rc7"
 pkgver=${_major}.${_minor}
 
 pkgdesc='CachyMod Linux Kernel with other patches and improvements'
-pkgrel=2
+pkgrel=1
 _srcname=cachyos-${_major}.${_minor}-${_tagrel}
 _kernver="$pkgver-$pkgrel"
 _kernuname="${pkgver}-${_pkgsuffix}"
@@ -163,8 +163,9 @@ source=(
     "config.sh"
     "minimal-modprobed.db"  # used if _localmodcfg=yes and _localmodcfg_minimal=yes
 
-    # mm slub fixes
+    # mm slub and sched fixes
     "0000-mm-slub-fixes.patch"
+    "0000-sched-fixes.patch"
 
     # CachyOS
     "0001-rt-i915.patch"
@@ -293,9 +294,6 @@ prepare() {
             [[ "$_cpusched" =~ ^(bmq|pds)$ ]] || continue
         fi
         if [[ $src = *-sched-ext.patch || $src = *-bore* ]]; then
-            [[ "$_cpusched" =~ ^(bmq|pds)$ ]] && continue
-        fi
-        if [[ $src = *-poc-selector-v* ]]; then
             [[ "$_cpusched" =~ ^(bmq|pds)$ ]] && continue
         fi
         if [[ $src = *-revert-cachy-mods.patch ]]; then
