@@ -1,5 +1,8 @@
 #!/bin/bash
 # Set extra kernel options.
+#
+# SPDX-License-Identifier: GPL-2.0
+# Copyright (C) 2025-2026 Mario Roy <marioeroy@gmail.com>
 
 ### Exit immediately on error.
 set -e

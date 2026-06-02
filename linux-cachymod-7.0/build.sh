@@ -1,10 +1,8 @@
 #!/bin/bash
 # CachyMod build and installation script.
-
-#export KCFLAGS="-O3 -march=znver5 -mtune=znver5 -mavx2 -flto -ffat-lto-objects -fno-plt -pipe -mbmi2 -mprefer-vector-width=256"
-#export KCFLAGS="-mbmi2 -mprefer-vector-width=128"
- export KCFLAGS="-mbmi2 -mprefer-vector-width=256"
-#export PATH="/opt/llvm22/bin:$PATH"
+#
+# SPDX-License-Identifier: GPL-2.0
+# Copyright (C) 2025-2026 Mario Roy <marioeroy@gmail.com>
 
 # Parse build overrides, key=value parameters.
 ARGS=()

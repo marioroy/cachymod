@@ -1,8 +1,9 @@
 
-Revert Cachy mods
+Revert Cachy mods + improve prefer-idle-core
 (1) Set scheduler tunable latencies to unscaled
 (2) Update base_slice and migration_cost
 (3) Decrease the timer_slack_ns default
+(4) Improve prefer-idle-core and sched-idle policy
 
 diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
 --- a/kernel/sched/fair.c
@@ -58,4 +59,34 @@ diff -uarp a/init/init_task.c b/init/init_task.c
  #ifdef CONFIG_AUDIT
 -- 
 2.47.1
+
+Improve prefer-idle-core and sched-idle policy
+
+  This patch improves the CachyMod 6.18 0280 patch
+  0280-prefer-prevcpu-for-wakeup.patch (included in CachyOS 7.0)
+  https://github.com/CachyOS/linux/commit/376f0e652af46c
+
+diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -1460,8 +1460,6 @@ static inline bool is_core_idle(int cpu)
+ 	int sibling;
+ 
+ 	for_each_cpu(sibling, cpu_smt_mask(cpu)) {
+-		if (cpu == sibling)
+-			continue;
+ 
+ 		if (!idle_cpu(sibling))
+ 			return false;
+@@ -10436,7 +10434,7 @@ static bool sched_use_asym_prio(struct s
+ 	if (!sched_smt_active())
+ 		return true;
+ 
+-	return sd->flags & SD_SHARE_CPUCAPACITY || is_idle_core(cpu);
++	return sd->flags & SD_SHARE_CPUCAPACITY || is_core_idle(cpu);
+ }
+ 
+ static inline bool sched_asym(struct sched_domain *sd, int dst_cpu, int src_cpu)
+-- 
+2.53.0
 

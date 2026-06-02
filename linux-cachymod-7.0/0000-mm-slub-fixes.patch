@@ -452,7 +452,7 @@ index 0baa906f39ab..a7bd929bcb26 100644
  	spin_unlock_irqrestore(&n->list_lock, flags);
 
  	return object;
-@@ -4317,44 +4333,41 @@ static unsigned int alloc_from_new_slab(struct kmem_cache *s, struct slab *slab,
+@@ -4318,44 +4334,41 @@ static unsigned int alloc_from_new_slab(struct kmem_cache *s, struct slab *slab,
  		void **p, unsigned int count, bool allow_spin)
  {
  	unsigned int allocated = 0;
@@ -516,7 +516,7 @@ index 0baa906f39ab..a7bd929bcb26 100644
  		}
  		add_partial(n, slab, ADD_TO_HEAD);
  		spin_unlock_irqrestore(&n->list_lock, flags);
-@@ -4425,15 +4438,13 @@ static void *___slab_alloc(struct kmem_cache *s, gfp_t gfpflags, int node,
+@@ -4426,15 +4439,13 @@ static void *___slab_alloc(struct kmem_cache *s, gfp_t gfpflags, int node,
  	stat(s, ALLOC_SLAB);
 
  	if (IS_ENABLED(CONFIG_SLUB_TINY) || kmem_cache_debug(s)) {
@@ -534,7 +534,7 @@ index 0baa906f39ab..a7bd929bcb26 100644
  			return object;
  	}
 
-@@ -7182,10 +7193,6 @@ refill_objects(struct kmem_cache *s, void **p, gfp_t gfp, unsigned int min,
+@@ -7183,10 +7194,6 @@ refill_objects(struct kmem_cache *s, void **p, gfp_t gfp, unsigned int min,
 
  	stat(s, ALLOC_SLAB);
 
@@ -545,7 +545,7 @@ index 0baa906f39ab..a7bd929bcb26 100644
  	refilled += alloc_from_new_slab(s, slab, p + refilled, max - refilled,
  					/* allow_spin = */ true);
 
-@@ -7519,6 +7526,7 @@ static void early_kmem_cache_node_alloc(int node)
+@@ -7520,6 +7527,7 @@ static void early_kmem_cache_node_alloc(int node)
  {
  	struct slab *slab;
  	struct kmem_cache_node *n;
@@ -553,7 +553,7 @@ index 0baa906f39ab..a7bd929bcb26 100644
 
  	BUG_ON(kmem_cache_node->size < sizeof(struct kmem_cache_node));
 
-@@ -7530,14 +7538,18 @@ static void early_kmem_cache_node_alloc(int node)
+@@ -7531,14 +7539,18 @@ static void early_kmem_cache_node_alloc(int node)
  		pr_err("SLUB: Allocating a useless per node structure in order to be able to continue\n");
  	}
 
@@ -584,7 +584,7 @@ Link: https://lore.kernel.org/all/abI9DKxuwl_4Gasj@hyeyoo/
 diff -uarp a/mm/slub.c b/mm/slub.c
 --- a/mm/slub.c
 +++ b/mm/slub.c
-@@ -7649,13 +7649,13 @@ static unsigned int calculate_sheaf_capa
+@@ -7650,13 +7650,13 @@ static unsigned int calculate_sheaf_capa
  	 * should result in similar lock contention (barn or list_lock)
  	 */
  	if (s->size >= PAGE_SIZE)

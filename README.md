@@ -137,6 +137,10 @@ preempt=lazy
 
 Thank you, CachyOS community with sounding board and testing.
 
+The `PKGBUILD` is based on CachyOS's `PKGBUILD` file.
+
+The `minimal-modprobed.db` is from [linux-tkg](https://github.com/Frogging-Family/linux-tkg), used for making a diet kernel { `_localmodcfg=y` and `_localmodcfg_minimal=y` }.
+
 ## LICENSE
 
 ```text

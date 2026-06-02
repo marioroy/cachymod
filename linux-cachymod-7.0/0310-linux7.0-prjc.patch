@@ -321,7 +321,7 @@ index 5a5d3dbc9..7127af44a 100644
  
  	struct mm_struct		*mm;
  	struct mm_struct		*active_mm;
-@@ -1666,6 +1689,15 @@ static inline bool sched_proxy_exec(void)
+@@ -1672,6 +1695,15 @@ static inline bool sched_proxy_exec(void)
  }
  #endif
  
@@ -337,7 +337,7 @@ index 5a5d3dbc9..7127af44a 100644
  #define TASK_REPORT_IDLE	(TASK_REPORT + 1)
  #define TASK_REPORT_MAX		(TASK_REPORT_IDLE << 1)
  
-@@ -2283,7 +2315,11 @@ static inline void set_task_cpu(struct task_struct *p, unsigned int cpu)
+@@ -2289,7 +2321,11 @@ static inline void set_task_cpu(struct task_struct *p, unsigned int cpu)
  
  static inline bool task_is_runnable(struct task_struct *p)
  {
@@ -349,7 +349,7 @@ index 5a5d3dbc9..7127af44a 100644
  }
  
  extern bool sched_task_on_rq(struct task_struct *p);
-@@ -2404,6 +2440,25 @@ DECLARE_PER_CPU_SHARED_ALIGNED(struct rq, runqueues);
+@@ -2410,6 +2446,25 @@ DECLARE_PER_CPU_SHARED_ALIGNED(struct rq, runqueues);
  #endif
  #define this_rq_pinned() (*(unsigned int *)((void *)this_rq_raw() + RQ_nr_pinned))
  
@@ -375,7 +375,7 @@ index 5a5d3dbc9..7127af44a 100644
  static inline void __migrate_enable(void)
  {
  	struct task_struct *p = current;
-@@ -2427,8 +2482,17 @@ static inline void __migrate_enable(void)
+@@ -2433,8 +2488,17 @@ static inline void __migrate_enable(void)
  	 * __set_cpus_allowed_ptr(SCA_MIGRATE_ENABLE) doesn't schedule().
  	 */
  	guard(preempt)();
@@ -393,7 +393,7 @@ index 5a5d3dbc9..7127af44a 100644
  	/*
  	 * Mustn't clear migration_disabled() until cpus_ptr points back at the
  	 * regular cpus_mask, otherwise things that race (eg.
-@@ -2455,8 +2519,20 @@ static inline void __migrate_disable(void)
+@@ -2461,8 +2525,20 @@ static inline void __migrate_disable(void)
  	}
  
  	guard(preempt)();

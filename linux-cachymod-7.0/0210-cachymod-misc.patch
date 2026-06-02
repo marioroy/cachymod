@@ -185,7 +185,7 @@ diff --git a/include/linux/blkdev.h b/include/linux/blkdev.h
 index 72e34acd439c..475e3dba80c1 100644
 --- a/include/linux/blkdev.h
 +++ b/include/linux/blkdev.h
-@@ -671,7 +671,8 @@ enum {
+@@ -677,7 +677,8 @@ enum {
  	QUEUE_FLAG_MAX
  };
  
@@ -522,4 +522,66 @@ index e476623a0c2a..ffe77b2b6296 100644
  
 -- 
 2.47.3
+
+sched/fair: use rq_clock() in update_tg_load_avg() rate-limit
+https://lore.kernel.org/all/20260527110250.6a91718d@fangorn/
+
+diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
+index 3ebec186f982..37b39bdf5ef9 100644
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -4179,7 +4179,7 @@ static inline void update_tg_load_avg(struct cfs_rq *cfs_rq)
+ 	 * For migration heavy workloads, access to tg->load_avg can be
+ 	 * unbound. Limit the update rate to at most once per ms.
+ 	 */
+-	now = sched_clock_cpu(cpu_of(rq_of(cfs_rq)));
++	now = rq_clock(rq_of(cfs_rq));
+ 	if (now - cfs_rq->last_update_tg_load_avg < NSEC_PER_MSEC)
+ 		return;
+ 
+@@ -4202,7 +4202,7 @@ static inline void clear_tg_load_avg(struct cfs_rq *cfs_rq)
+ 	if (cfs_rq->tg == &root_task_group)
+ 		return;
+ 
+-	now = sched_clock_cpu(cpu_of(rq_of(cfs_rq)));
++	now = rq_clock(rq_of(cfs_rq));
+ 	delta = 0 - cfs_rq->tg_load_avg_contrib;
+ 	atomic_long_add(delta, &cfs_rq->tg->load_avg);
+ 	cfs_rq->tg_load_avg_contrib = 0;
+-- 
+2.54.0
+
+sched/fair: Rebuild load weight when switching to fair
+https://lore.kernel.org/all/20260528131238.3879110-1-quzicheng315@gmail.com/
+
+diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
+index 3ebec186f982..3a21ceefcadf 100644
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -13660,6 +13660,15 @@ static void switched_from_fair(struct rq *rq, struct task_struct *p)
+ 	detach_task_cfs_rq(p);
+ }
+ 
++static void switching_to_fair(struct rq *rq, struct task_struct *p)
++{
++	/*
++	 * Tasks may come from classes that don't keep se.load up to date.
++	 * Rebuild it before the task is enqueued.
++	 */
++	set_load_weight(p, false);
++}
++
+ static void switched_to_fair(struct rq *rq, struct task_struct *p)
+ {
+ 	WARN_ON_ONCE(p->se.sched_delayed);
+@@ -14056,6 +14065,7 @@ DEFINE_SCHED_CLASS(fair) = {
+ 	.prio_changed		= prio_changed_fair,
+ 	.switching_from		= switching_from_fair,
+ 	.switched_from		= switched_from_fair,
++	.switching_to		= switching_to_fair,
+ 	.switched_to		= switched_to_fair,
+ 
+ 	.get_rr_interval	= get_rr_interval_fair,
+-- 
+2.53.0
 

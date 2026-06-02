@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # CachyMod customization utility.
 # The config files are saved in the ~/.config/cachymod/ folder.
+#
+# SPDX-License-Identifier: GPL-2.0
+# Copyright (C) 2025-2026 Mario Roy <marioeroy@gmail.com>
 
 FG="#06989A" RED= CYAN= NC=
 if [ -x /usr/bin/tput ] && tput setaf 1 >&/dev/null; then
