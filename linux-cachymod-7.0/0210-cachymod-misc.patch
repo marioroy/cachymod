@@ -585,3 +585,37 @@ index 3ebec186f982..3a21ceefcadf 100644
 -- 
 2.53.0
 
+sched/fair: Don't trigger active lb if src_rq->curr is CFS and not on_rq
+https://lore.kernel.org/all/20260613073228.1951105-1-jackzxcui1989@163.com/
+
+diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
+index b5819c489..cba6dc6da 100644
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -12173,7 +12173,9 @@ static int sched_balance_rq(int this_cpu, struct rq *this_rq,
+ 			 * if the curr task on busiest CPU can't be
+ 			 * moved to this_cpu:
+ 			 */
+-			if (!cpumask_test_cpu(this_cpu, busiest->curr->cpus_ptr)) {
++			if (!cpumask_test_cpu(this_cpu, busiest->curr->cpus_ptr) ||
++				(busiest->curr->sched_class == &fair_sched_class &&
++				!busiest->curr->on_rq)) {
+ 				raw_spin_rq_unlock_irqrestore(busiest, flags);
+ 				goto out_one_pinned;
+ 			}
+@@ -12205,10 +12207,8 @@ static int sched_balance_rq(int this_cpu, struct rq *this_rq,
+ 		sd->nr_balance_failed = 0;
+ 	}
+ 
+-	if (likely(!active_balance) || need_active_balance(&env)) {
+-		/* We were unbalanced, so reset the balancing interval */
+-		sd->balance_interval = sd->min_interval;
+-	}
++	/* We were unbalanced, so reset the balancing interval */
++	sd->balance_interval = sd->min_interval;
+ 
+ 	goto out;
+ 
+-- 
+2.34.1
+

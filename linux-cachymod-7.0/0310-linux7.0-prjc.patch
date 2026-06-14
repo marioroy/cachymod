@@ -4,9 +4,9 @@ https://gitlab.com/alfredchen/projectc
 https://gitlab.com/alfredchen/linux-prjc/-/tree/linux-7.0.y-prjc
 https://github.com/CachyOS/kernel-patches/tree/master/7.0/sched
 
-CachyMod: Set base_slice from 4 to 2 msec (2 << 20)
-Drop the POC code in sched/idle.c so that BMQ/PDS can be built
-Silent build warning in cgroup/cpuset.c
+ 1. CachyMod: Set base_slice from 4 to 2 msec (2 << 20)
+ 2. Drop the POC code in sched/idle.c so that BMQ/PDS can be built
+ 3. Silent build warning in cgroup/cpuset.c
 
 
 From 16370a106d4621275b57bb84a68e26fcaf75c23c Mon Sep 17 00:00:00 2001
