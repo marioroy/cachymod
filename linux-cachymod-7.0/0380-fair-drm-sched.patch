@@ -5108,7 +5108,7 @@ diff --git a/drivers/gpu/drm/v3d/v3d_sched.c b/drivers/gpu/drm/v3d/v3d_sched.c
 index 1855ef5b3b5f..c01fa90def4c 100644
 --- a/drivers/gpu/drm/v3d/v3d_sched.c
 +++ b/drivers/gpu/drm/v3d/v3d_sched.c
-@@ -855,7 +855,6 @@ v3d_queue_sched_init(struct v3d_dev *v3d, const struct drm_sched_backend_ops *op
+@@ -866,7 +866,6 @@ v3d_queue_sched_init(struct v3d_dev *v3d, const struct drm_sched_backend_ops *op
  		     enum v3d_queue queue, const char *name)
  {
  	struct drm_sched_init_args args = {

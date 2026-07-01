@@ -585,25 +585,54 @@ index 3ebec186f982..3a21ceefcadf 100644
 -- 
 2.53.0
 
+[PATCH v5 0/2] sched/fair: Optimize some active balance logic
+https://lore.kernel.org/all/20260617072151.1173416-1-jackzxcui1989@163.com/
+
 sched/fair: Don't trigger active lb if src_rq->curr is CFS and not on_rq
-https://lore.kernel.org/all/20260613073228.1951105-1-jackzxcui1989@163.com/
+https://lore.kernel.org/all/20260617072151.1173416-2-jackzxcui1989@163.com/
 
 diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
-index b5819c489..cba6dc6da 100644
+index b5819c489..2b9653623 100644
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -12173,7 +12173,9 @@ static int sched_balance_rq(int this_cpu, struct rq *this_rq,
- 			 * if the curr task on busiest CPU can't be
- 			 * moved to this_cpu:
+@@ -12186,12 +12186,21 @@ static int sched_balance_rq(int this_cpu, struct rq *this_rq,
+ 			 * ->active_balance_work.  Once set, it's cleared
+ 			 * only after active load balance is finished.
  			 */
--			if (!cpumask_test_cpu(this_cpu, busiest->curr->cpus_ptr)) {
-+			if (!cpumask_test_cpu(this_cpu, busiest->curr->cpus_ptr) ||
-+				(busiest->curr->sched_class == &fair_sched_class &&
-+				!busiest->curr->on_rq)) {
- 				raw_spin_rq_unlock_irqrestore(busiest, flags);
- 				goto out_one_pinned;
- 			}
-@@ -12205,10 +12207,8 @@ static int sched_balance_rq(int this_cpu, struct rq *this_rq,
+-			if (!busiest->active_balance) {
+-				busiest->active_balance = 1;
+-				busiest->push_cpu = this_cpu;
+-				active_balance = 1;
+-			}
++			if (busiest->active_balance)
++				goto no_active_balance;
++
++			/*
++			 * @busiest dropped its rq_lock in the middle of
++			 * scheduling out its ->curr task (->on_rq := 0), no
++			 * need to forcefully punt it away with active balance.
++			 */
++			if (!busiest->curr->on_rq)
++				goto no_active_balance;
+ 
++			busiest->active_balance = 1;
++			busiest->push_cpu = this_cpu;
++			active_balance = 1;
++no_active_balance:
+ 			preempt_disable();
+ 			raw_spin_rq_unlock_irqrestore(busiest, flags);
+ 			if (active_balance) {
+-- 
+2.34.1
+
+sched/fair: Simplify balance_interval reset logic in sched_balance_rq()
+https://lore.kernel.org/all/20260617072151.1173416-3-jackzxcui1989@163.com/
+
+diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
+index 2b9653623..9c78241e9 100644
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -12214,10 +12214,8 @@ static int sched_balance_rq(int this_cpu, struct rq *this_rq,
  		sd->nr_balance_failed = 0;
  	}
  
@@ -618,4 +647,121 @@ index b5819c489..cba6dc6da 100644
  
 -- 
 2.34.1
+
+From: Yuri Andriaccio <>
+Date: Thu, 30 Apr 2026 23:38:25 +0200
+Subject: sched/rt: Update default bandwidth for real-time tasks to ONE
+Link: https://lore.kernel.org/all/20260608121546.69910-3-yurand2000@gmail.com/
+
+Set the default total bandwidth for SCHED_DEADLINE tasks and servers
+to ONE.  FIFO/RR tasks are already throttled by fair-servers and
+ext-servers, and the sysctl_sched_rt_runtime parameter now only
+defines the total bw that is allowed to deadline entities.
+
+Signed-off-by: Yuri Andriaccio <>
+Signed-off-by: Peter Zijlstra (Intel) <>
+---
+ kernel/sched/rt.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/kernel/sched/rt.c b/kernel/sched/rt.c
+index 4ee8faf01441a..e6ea728f519ee 100644
+--- a/kernel/sched/rt.c
++++ b/kernel/sched/rt.c
+@@ -19,9 +19,9 @@ int sysctl_sched_rt_period = 1000000;
+ 
+ /*
+  * part of the period that we allow rt tasks to run in us.
+- * default: 0.95s
++ * default: 1s
+  */
+-int sysctl_sched_rt_runtime = 950000;
++int sysctl_sched_rt_runtime = 1000000;
+ 
+ #ifdef CONFIG_SYSCTL
+ static int sysctl_sched_rr_timeslice = (MSEC_PER_SEC * RR_TIMESLICE) / HZ;
+-- 
+cgit 1.3-korg
+
+From: Yuri Andriaccio <>
+Date: Thu, 30 Apr 2026 23:38:05 +0200
+Subject: sched/deadline: Fix replenishment logic for non-deferred servers
+Link: https://lore.kernel.org/all/20260608121546.69910-2-yurand2000@gmail.com/
+
+Enqueue and replenish non-deferred deadline servers when their runtime is
+exhausted and the replenishment timer could not be started because it is
+too close to the wake-up instant.
+
+Signed-off-by: Yuri Andriaccio <>
+Signed-off-by: Peter Zijlstra (Intel) <>
+Link: https://patch.msgid.link/20260430213835.62217-2-yurand2000@gmail.com
+---
+ kernel/sched/deadline.c | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/kernel/sched/deadline.c b/kernel/sched/deadline.c
+index edca7849b165d..b60e2df8ff9da 100644
+--- a/kernel/sched/deadline.c
++++ b/kernel/sched/deadline.c
+@@ -1523,8 +1523,12 @@ throttle:
+ 
+ 		if (unlikely(is_dl_boosted(dl_se) || !start_dl_timer(dl_se))) {
+ 			if (dl_server(dl_se)) {
+-				replenish_dl_new_period(dl_se, rq);
+-				start_dl_timer(dl_se);
++				if (dl_se->dl_defer) {
++					replenish_dl_new_period(dl_se, rq);
++					start_dl_timer(dl_se);
++				} else {
++					enqueue_dl_entity(dl_se, ENQUEUE_REPLENISH);
++				}
+ 			} else {
+ 				enqueue_task_dl(rq, dl_task_of(dl_se), ENQUEUE_REPLENISH);
+ 			}
+-- 
+cgit 1.3-korg
+
+From: "Guanyou.Chen" <>
+Date: Fri, 22 May 2026 21:09:59 +0800
+Subject: sched: restore timer_slack_ns when resetting RT policy on fork
+Link: https://lore.kernel.org/all/20260522131000.1664983-2-chenguanyou@xiaomi.com/
+
+Commit ed4fb6d7ef68 ("hrtimer: Use and report correct timerslack values
+for realtime tasks") sets timer_slack_ns to 0 for RT tasks in
+__setscheduler_params(). However, when an RT task with SCHED_RESET_ON_FORK
+creates child threads, the children inherit timer_slack_ns=0 from the
+parent. sched_fork() resets the child's policy to SCHED_NORMAL but does
+not restore timer_slack_ns, leaving the child permanently running with
+zero slack.
+
+Fix this by restoring timer_slack_ns from default_timer_slack_ns in
+sched_fork() when resetting from RT/DL to NORMAL policy, matching the
+existing behavior in __setscheduler_params().
+
+Note: this fix alone requires a correct default_timer_slack_ns to be
+effective. See the following patch for that fix.
+
+Fixes: ed4fb6d7ef68 ("hrtimer: Use and report correct timerslack values for realtime tasks")
+Reported-by: Qiaoting.Lin <>
+Signed-off-by: Guanyou.Chen <>
+Signed-off-by: Chunhui.Li <>
+Signed-off-by: Peter Zijlstra (Intel) <>
+---
+ kernel/sched/core.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/kernel/sched/core.c b/kernel/sched/core.c
+index 5a317f62a516f..2cfe8932d5dbe 100644
+--- a/kernel/sched/core.c
++++ b/kernel/sched/core.c
+@@ -4647,6 +4647,7 @@ int sched_fork(u64 clone_flags, struct task_struct *p)
+ 			p->policy = SCHED_NORMAL;
+ 			p->static_prio = NICE_TO_PRIO(0);
+ 			p->rt_priority = 0;
++			p->timer_slack_ns = p->default_timer_slack_ns;
+ 		} else if (PRIO_TO_NICE(p->static_prio) < 0)
+ 			p->static_prio = NICE_TO_PRIO(0);
+ 
+-- 
+cgit 1.3-korg
 

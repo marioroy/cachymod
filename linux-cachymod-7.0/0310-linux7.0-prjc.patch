@@ -1,12 +1,11 @@
 
-linux-prjc v7.0-r2
+linux-prjc v7.0-r3
 https://gitlab.com/alfredchen/projectc
 https://gitlab.com/alfredchen/linux-prjc/-/tree/linux-7.0.y-prjc
 https://github.com/CachyOS/kernel-patches/tree/master/7.0/sched
 
  1. CachyMod: Set base_slice from 4 to 2 msec (2 << 20)
  2. Drop the POC code in sched/idle.c so that BMQ/PDS can be built
- 3. Silent build warning in cgroup/cpuset.c
 
 
 From 16370a106d4621275b57bb84a68e26fcaf75c23c Mon Sep 17 00:00:00 2001
@@ -29,7 +28,7 @@ Signed-off-by: Piotr Gorski <lucjan.lucjanov@gmail.com>
  init/Kconfig                                |   34 +-
  init/init_task.c                            |   20 +
  kernel/Kconfig.preempt                      |    4 +-
- kernel/cgroup/cpuset.c                      |   10 +-
+ kernel/cgroup/cpuset.c                      |   15 +-
  kernel/delayacct.c                          |    2 +-
  kernel/exit.c                               |    6 +-
  kernel/locking/rtmutex.c                    |   16 +-
@@ -61,7 +60,7 @@ Signed-off-by: Piotr Gorski <lucjan.lucjanov@gmail.com>
  kernel/trace/trace_osnoise.c                |    4 +
  kernel/trace/trace_selftest.c               |    5 +
  kernel/workqueue.c                          |   15 +
- 45 files changed, 10212 insertions(+), 34 deletions(-)
+ 45 files changed, 10216 insertions(+), 35 deletions(-)
  create mode 100644 Documentation/scheduler/sched-BMQ.txt
  create mode 100644 kernel/sched/alt_core.c
  create mode 100644 kernel/sched/alt_core.h
@@ -235,7 +234,7 @@ diff --git a/include/linux/rseq_entry.h b/include/linux/rseq_entry.h
 index c6831c93c..6d2eea8c7 100644
 --- a/include/linux/rseq_entry.h
 +++ b/include/linux/rseq_entry.h
-@@ -718,7 +718,10 @@ static __always_inline void rseq_syscall_exit_to_user_mode(void)
+@@ -719,7 +719,10 @@ static __always_inline void rseq_syscall_exit_to_user_mode(void)
  
  	/* Needed to remove the store for the !lockdep case */
  	if (IS_ENABLED(CONFIG_LOCKDEP)) {
@@ -683,7 +682,19 @@ index 1335e4370..ac66026ce 100644
  void rebuild_sched_domains_locked(void)
  {
  }
-@@ -3038,18 +3038,21 @@ static int cpuset_can_attach(struct cgroup_taskset *tset)
+@@ -2995,7 +2995,10 @@ static int cpuset_can_attach(struct cgroup_taskset *tset)
+ 	struct cpuset *cs, *oldcs;
+ 	struct task_struct *task;
+ 	bool setsched_check;
+-	int cpu, ret;
++	int ret;
++#ifndef CONFIG_SCHED_ALT
++	int cpu;
++#endif
+ 
+ 	/* used later by cpuset_attach() */
+ 	cpuset_attach_old_cs = task_cs(cgroup_taskset_first(tset, &css));
+@@ -3039,18 +3039,21 @@ static int cpuset_can_attach(struct cgroup_taskset *tset)
  				goto out_unlock;
  		}
  
@@ -705,7 +716,7 @@ index 1335e4370..ac66026ce 100644
  	if (!cs->sum_migrate_dl_bw)
  		goto out_success;
  
-@@ -3066,6 +3069,7 @@ static int cpuset_can_attach(struct cgroup_taskset *tset)
+@@ -3067,6 +3070,7 @@ static int cpuset_can_attach(struct cgroup_taskset *tset)
  	cs->dl_bw_cpu = cpu;
  
  out_success:
@@ -713,7 +724,7 @@ index 1335e4370..ac66026ce 100644
  	/*
  	 * Mark attach is in progress.  This makes validate_change() fail
  	 * changes which zero cpus/mems_allowed.
-@@ -3090,11 +3094,13 @@ static void cpuset_cancel_attach(struct cgroup_taskset *tset)
+@@ -3091,11 +3095,13 @@ static void cpuset_cancel_attach(struct cgroup_taskset *tset)
  	mutex_lock(&cpuset_mutex);
  	dec_attach_in_progress_locked(cs);
  
@@ -957,7 +968,7 @@ index 000000000..768365bd2
 +__read_mostly int sysctl_resched_latency_warn_ms = 100;
 +__read_mostly int sysctl_resched_latency_warn_once = 1;
 +
-+#define ALT_SCHED_VERSION "v7.0-r2"
++#define ALT_SCHED_VERSION "v7.0-r3"
 +
 +#define STOP_PRIO		(MAX_RT_PRIO - 1)
 +
@@ -11769,26 +11780,6 @@ diff -uarp a/kernel/sched/idle.c b/kernel/sched/idle.c
  	/*
  	 * Since we fell out of the loop above, we know TIF_NEED_RESCHED must
  	 * be set, propagate it into PREEMPT_NEED_RESCHED.
--- 
-2.53.0
-
-Silent build warning in cgroup/cpuset.c
-
-diff -uarp a/kernel/cgroup/cpuset.c b/kernel/cgroup/cpuset.c
---- a/kernel/cgroup/cpuset.c
-+++ b/kernel/cgroup/cpuset.c
-@@ -2994,7 +2994,11 @@ static int cpuset_can_attach(struct cgro
- 	struct cpuset *cs, *oldcs;
- 	struct task_struct *task;
- 	bool setsched_check;
-+#ifndef CONFIG_SCHED_ALT
- 	int cpu, ret;
-+#else
-+	int ret;
-+#endif
- 
- 	/* used later by cpuset_attach() */
- 	cpuset_attach_old_cs = task_cs(cgroup_taskset_first(tset, &css));
 -- 
 2.53.0
 
