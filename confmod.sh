@@ -139,7 +139,7 @@ save_conf() {
 
 emsg() {
   # Output message to standard error.
-  echo -e "${CYAN}$1${NC}" >&2
+  echo -e "\r${CYAN}$1${NC}" >&2
 }
 
 choose() {
@@ -258,18 +258,16 @@ input_autofdo_profile_name() {
   local -n varref="$1"; local oldval="$varref" num="$2" msg= ans=
   msg+="Enter the name for the AutoFDO profile?\n"
   msg+="\n"
-  msg+="Enter 'blank' to clear the value.\n"
-  msg+="Enter 'file' to choose a profile. The profile must reside in\n"
-  msg+="the same folder as the PKGBUILD file.\n"
+  msg+="Enter 'blank' to clear the value or 'file' to choose a profile.\n"
+  msg+="The profile must reside in the same folder as the PKGBUILD file.\n"
 
   input $1 "$msg" 1
   if [ "$varref" = "file" ]; then
-    # TODO: gum file does not respect the height value
-    # v0.17.0 version makes gum file command fail to correctly display
+    # gum version v0.17.0 file command displays incorrectly
     # https://github.com/charmbracelet/gum/issues/969
     ans=$(gum file . --padding="2 0" --height=$((LINES - 6)) --file)
     [ $? -gt 1 ] && exit # received a signal e.g. Ctrl-C
-    [ "$ans" = "no file selected" ] && ans="$oldval"
+    [[ -z "$ans" || "$ans" = "no file selected" ]] && ans="$oldval"
     varref="${ans##*/}" # basename
   fi
 }
@@ -452,18 +450,16 @@ input_patch_or_url() {
   local -n varref="$1"; local oldval="$varref" num="$2" msg= ans=
   msg+="Enter the patch name or paste the URL for item $num?\n"
   msg+="\n"
-  msg+="Enter 'blank' to clear the value.\n"
-  msg+="Enter 'file' to choose a patch. The patch must reside in\n"
-  msg+="the same folder as the PKGBUILD file.\n"
+  msg+="Enter 'blank' to clear the value or 'file' to choose a patch.\n"
+  msg+="The patch must reside in the same folder as the PKGBUILD file.\n"
 
   input $1 "$msg" 1
   if [ "$varref" = "file" ]; then
-    # TODO: gum file does not respect the height value
-    # v0.17.0 version makes gum file command fail to correctly display
+    # gum version v0.17.0 file command displays incorrectly
     # https://github.com/charmbracelet/gum/issues/969
     ans=$(gum file . --padding="2 0" --height=$((LINES - 6)) --file)
     [ $? -gt 1 ] && exit # received a signal e.g. Ctrl-C
-    [ "$ans" = "no file selected" ] && ans="$oldval"
+    [[ -z "$ans" || "$ans" = "no file selected" ]] && ans="$oldval"
     varref="${ans##*/}" # basename
   fi
 }
