@@ -47,11 +47,11 @@ kernels=$(
 if [ $? -ne 0 ]; then
   exit # pressed the Esc key or received a signal
 elif [ -z "$kernels" ]; then
-  echo "nothing selected"
+  echo -e "\rnothing selected"
   exit
 fi
 
-echo -e "${CYAN}checking package list...${NC}"
+echo -e "\r${CYAN}checking package list...${NC}"
 
 packages=()
 for kernel in $kernels; do
