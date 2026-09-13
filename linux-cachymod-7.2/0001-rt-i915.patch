@@ -69,7 +69,7 @@ diff --git a/drivers/gpu/drm/i915/display/intel_cursor.c b/drivers/gpu/drm/i915/
 index 2c5d917fbd7e..3477b2cebbe3 100644
 --- a/drivers/gpu/drm/i915/display/intel_cursor.c
 +++ b/drivers/gpu/drm/i915/display/intel_cursor.c
-@@ -919,13 +919,15 @@ intel_legacy_cursor_update(struct drm_plane *_plane,
+@@ -924,13 +924,15 @@ intel_legacy_cursor_update(struct drm_plane *_plane,
  		 */
  		intel_psr_wait_for_idle_locked(crtc_state);
  
@@ -87,7 +87,7 @@ index 2c5d917fbd7e..3477b2cebbe3 100644
  	}
  
  	if (new_plane_state->uapi.visible) {
-@@ -935,7 +937,8 @@ intel_legacy_cursor_update(struct drm_plane *_plane,
+@@ -940,7 +942,8 @@ intel_legacy_cursor_update(struct drm_plane *_plane,
  		intel_plane_disable_arm(NULL, plane, crtc_state);
  	}
  

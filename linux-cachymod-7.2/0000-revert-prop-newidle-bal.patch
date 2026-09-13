@@ -138,7 +138,7 @@ diff -uarp a/kernel/sched/core.c b/kernel/sched/core.c
  
  #ifdef CONFIG_SCHED_PROXY_EXEC
  DEFINE_STATIC_KEY_TRUE(__sched_proxy_exec);
-@@ -8893,8 +8892,6 @@ void __init sched_init_smp(void)
+@@ -8909,8 +8908,6 @@ void __init sched_init_smp(void)
  {
  	sched_init_numa(NUMA_NO_NODE);
  

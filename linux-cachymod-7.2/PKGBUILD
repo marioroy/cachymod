@@ -135,7 +135,7 @@ fi
 
 _pkgsuffix=cachymod
 _major=7.2
-_minor=4
+_minor=5
 _tagrel=1
 #_rcver="rc7"
 pkgver=${_major}.${_minor}
