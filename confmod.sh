@@ -204,19 +204,19 @@ input_cpusched() {
   local -n varref="$1"; local menu=() selected=
   menu+=("eevdf: EEVDF Scheduler (use with linux-cgroup-always repo, optional)")
   menu+=("rt:    EEVDF Scheduler with real-time preemption enabled")
-  menu+=("bmq:   BitMap Queue Scheduler")
-  menu+=("pds:   Priority and Deadline based Skip list multiple queue scheduler")
 
-  if [ "$varref" = "bore" ]; then
-    menu+=("bore:  Patch dropped since CachyMod 6.18.8-2 (select another scheduler)")
+  if [ "$varref" = "bmq" ]; then
+    menu+=("bmq:   BMQ support dropped since CachyMod 7.2")
+  elif [ "$varref" = "pds" ]; then
+    menu+=("pds:   PDS support dropped since CachyMod 7.2")
+  elif [ "$varref" = "bore" ]; then
+    menu+=("bore:  BORE patch dropped since CachyMod 6.18.8-2")
   fi
 
   case "$varref" in
-    eevdf) selected="${menu[0]}" ;;
-    rt   ) selected="${menu[1]}" ;;
-    bmq  ) selected="${menu[2]}" ;;
-    pds  ) selected="${menu[3]}" ;;
-    bore ) selected="${menu[4]}" ;;
+    eevdf    ) selected="${menu[0]}" ;;
+    rt       ) selected="${menu[1]}" ;;
+    "$varref") selected="${menu[2]}" ;;
   esac
 
   choose $1 menu "Choose a CPU scheduler:" "$selected"
@@ -288,7 +288,7 @@ input_hugepage() {
 input_kernel_suffix() {
   local -n varref="$1"; local msg=
   msg+="Enter a custom kernel suffix?\n"
-  msg+="E.g. { bmq, pds, rt, or 70, 70-bmq, 70-pds, 70-rt }\n"
+  msg+="E.g. { 72, 72-rt }\n"
   msg+="\n"
   msg+="Enter 'auto' for automatic suffix { gcc, clang, lto }.\n"
   msg+="Enter 'blank' to clear the value.\n"
@@ -724,7 +724,7 @@ main_loop() {
       return # pressed the Esc key or selected "Exit"
     elif [ "$conf" = "New/Open config..." ]; then
       selected="New/Open config..."
-      emsg "Enter new config name? E.g. 70, 70-bmq"
+      emsg "Enter new config name? E.g. 72, 72-rt"
       emsg "This will open the config if it exists.\n"
 
       conf=$(gum input --placeholder "")

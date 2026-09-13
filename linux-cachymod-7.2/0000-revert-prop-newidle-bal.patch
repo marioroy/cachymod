@@ -1,0 +1,285 @@
+
+The 6.18.5 update introduced a scheduling regression and can be seen
+with easyWave testing https://openbenchmarking.org/test/pts/easywave
+
+  At the Model time = 04:50:00 mark...
+  6.18.4 kernel  2.196s
+  6.18.5 kernel 10.457s
+
+The issue persists with 7.1-rc, though not as bad. There are pauses
+running the easyWave demonstration.
+
+Signed-off-by: Mario Roy <>
+
+Revert the "sched/fair: More complex proportional newidle balance" change
+https://lore.kernel.org/all/20260127151748.GA1079264@noisy.programming.kicks-ass.net/
+
+diff --git a/include/linux/sched/topology.h b/include/linux/sched/topology.h
+index 45c0022..a1e1032 100644
+--- a/include/linux/sched/topology.h
++++ b/include/linux/sched/topology.h
+@@ -159,7 +159,6 @@ struct sched_domain {
+ 	unsigned int newidle_call;
+ 	unsigned int newidle_success;
+ 	unsigned int newidle_ratio;
+-	u64 newidle_stamp;
+ 	u64 max_newidle_lb_cost;
+ 	unsigned long last_decay_max_lb_cost;
+ 
+diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
+index bf948db..66afa0a 100644
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -13826,30 +13826,7 @@ static inline void update_newidle_stats(struct sched_domain *sd, unsigned int su
+ 	sd->newidle_success += success;
+ 
+ 	if (sd->newidle_call >= 1024) {
+-		u64 now = sched_clock();
+-		s64 delta = now - sd->newidle_stamp;
+-		sd->newidle_stamp = now;
+-		int ratio = 0;
+-
+-		if (delta < 0)
+-			delta = 0;
+-
+-		if (sched_feat(NI_RATE)) {
+-			/*
+-			 * ratio  delta   freq
+-			 *
+-			 * 1024 -  4  s -  128 Hz
+-			 *  512 -  2  s -  256 Hz
+-			 *  256 -  1  s -  512 Hz
+-			 *  128 - .5  s - 1024 Hz
+-			 *   64 - .25 s - 2048 Hz
+-			 */
+-			ratio = delta >> 22;
+-		}
+-
+-		ratio += sd->newidle_success;
+-
+-		sd->newidle_ratio = min(1024, ratio);
++		sd->newidle_ratio = sd->newidle_success;
+ 		sd->newidle_call /= 2;
+ 		sd->newidle_success /= 2;
+ 	}
+@@ -14545,7 +14522,7 @@ static int sched_balance_newidle(struct rq *this_rq, struct rq_flags *rf)
+ 		if (sd->flags & SD_BALANCE_NEWIDLE) {
+ 			unsigned int weight = 1;
+ 
+-			if (sched_feat(NI_RANDOM) && sd->newidle_ratio < 1024) {
++			if (sched_feat(NI_RANDOM)) {
+ 				/*
+ 				 * Throw a 1k sided dice; and only run
+ 				 * newidle_balance according to the success
+diff --git a/kernel/sched/features.h b/kernel/sched/features.h
+index 136a658..37d5928 100644
+--- a/kernel/sched/features.h
++++ b/kernel/sched/features.h
+@@ -141,4 +141,3 @@ SCHED_FEAT(LATENCY_WARN, false)
+  * Do newidle balancing proportional to its success rate using randomization.
+  */
+ SCHED_FEAT(NI_RANDOM, true)
+-SCHED_FEAT(NI_RATE, true)
+diff --git a/kernel/sched/topology.c b/kernel/sched/topology.c
+index 32dcdda..061f8c8 100644
+--- a/kernel/sched/topology.c
++++ b/kernel/sched/topology.c
+@@ -4,7 +4,6 @@
+  */
+ 
+ #include <linux/sched/isolation.h>
+-#include <linux/sched/clock.h>
+ #include <linux/bsearch.h>
+ #include "sched.h"
+ 
+@@ -1938,7 +1937,6 @@ sd_init(struct sched_domain_topology_level *tl,
+ 	struct sched_domain *sd = *per_cpu_ptr(sdd->sd, cpu);
+ 	int sd_id, sd_weight, sd_flags = 0;
+ 	struct cpumask *sd_span;
+-	u64 now = sched_clock();
+ 
+ 	sd_span = sched_domain_span(sd);
+ 	cpumask_and(sd_span, cpu_map, tl->mask(tl, cpu));
+@@ -1980,7 +1978,6 @@ sd_init(struct sched_domain_topology_level *tl,
+ 		.newidle_call		= 512,
+ 		.newidle_success	= 256,
+ 		.newidle_ratio		= 512,
+-		.newidle_stamp		= now,
+ 
+ 		.max_newidle_lb_cost	= 0,
+ 		.last_decay_max_lb_cost	= jiffies,
+-- 
+2.52.0
+
+Revert the "sched/fair: Proportional newidle balance" change
+https://lore.kernel.org/all/20260109111950.513989719@linuxfoundation.org/
+
+diff -uarp a/include/linux/sched/topology.h b/include/linux/sched/topology.h
+--- a/include/linux/sched/topology.h
++++ b/include/linux/sched/topology.h
+@@ -156,9 +156,6 @@ struct sched_domain {
+ 	unsigned int nr_balance_failed; /* initialise to 0 */
+ 
+ 	/* idle_balance() stats */
+-	unsigned int newidle_call;
+-	unsigned int newidle_success;
+-	unsigned int newidle_ratio;
+ 	u64 max_newidle_lb_cost;
+ 	unsigned long last_decay_max_lb_cost;
+ 
+diff -uarp a/kernel/sched/core.c b/kernel/sched/core.c
+--- a/kernel/sched/core.c
++++ b/kernel/sched/core.c
+@@ -129,7 +129,6 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(sched_updat
+ EXPORT_TRACEPOINT_SYMBOL_GPL(sched_dl_server_stop_tp);
+ 
+ DEFINE_PER_CPU_SHARED_ALIGNED(struct rq, runqueues);
+-DEFINE_PER_CPU(struct rnd_state, sched_rnd_state);
+ 
+ #ifdef CONFIG_SCHED_PROXY_EXEC
+ DEFINE_STATIC_KEY_TRUE(__sched_proxy_exec);
+@@ -8893,8 +8892,6 @@ void __init sched_init_smp(void)
+ {
+ 	sched_init_numa(NUMA_NO_NODE);
+ 
+-	prandom_init_once(&sched_rnd_state);
+-
+ 	/*
+ 	 * There's no userspace yet to cause hotplug operations; hence all the
+ 	 * CPU masks are stable and all blatant races in the below code cannot
+diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -13820,27 +13820,11 @@ void update_max_interval(void)
+ 	max_load_balance_interval = HZ*num_online_cpus()/10;
+ }
+ 
+-static inline void update_newidle_stats(struct sched_domain *sd, unsigned int success)
+-{
+-	sd->newidle_call++;
+-	sd->newidle_success += success;
+-
+-	if (sd->newidle_call >= 1024) {
+-		sd->newidle_ratio = sd->newidle_success;
+-		sd->newidle_call /= 2;
+-		sd->newidle_success /= 2;
+-	}
+-}
+-
+-static inline bool
+-update_newidle_cost(struct sched_domain *sd, u64 cost, unsigned int success)
++static inline bool update_newidle_cost(struct sched_domain *sd, u64 cost)
+ {
+ 	unsigned long next_decay = sd->last_decay_max_lb_cost + HZ;
+ 	unsigned long now = jiffies;
+ 
+-	if (cost)
+-		update_newidle_stats(sd, success);
+-
+ 	if (cost > sd->max_newidle_lb_cost) {
+ 		/*
+ 		 * Track max cost of a domain to make sure to not delay the
+@@ -13888,7 +13872,7 @@ static void sched_balance_domains(struct
+ 		 * Decay the newidle max times here because this is a regular
+ 		 * visit to all the domains.
+ 		 */
+-		need_decay = update_newidle_cost(sd, 0, 0);
++		need_decay = update_newidle_cost(sd, 0);
+ 		max_cost += sd->max_newidle_lb_cost;
+ 
+ 		/*
+@@ -14520,22 +14504,6 @@ static int sched_balance_newidle(struct
+ 			break;
+ 
+ 		if (sd->flags & SD_BALANCE_NEWIDLE) {
+-			unsigned int weight = 1;
+-
+-			if (sched_feat(NI_RANDOM)) {
+-				/*
+-				 * Throw a 1k sided dice; and only run
+-				 * newidle_balance according to the success
+-				 * rate.
+-				 */
+-				u32 d1k = sched_rng() % 1024;
+-				weight = 1 + sd->newidle_ratio;
+-				if (d1k > weight) {
+-					update_newidle_stats(sd, 0);
+-					continue;
+-				}
+-				weight = (1024 + weight/2) / weight;
+-			}
+ 
+ 			pulled_task = sched_balance_rq(this_cpu, this_rq,
+ 						   sd, CPU_NEWLY_IDLE,
+@@ -14543,14 +14511,10 @@ static int sched_balance_newidle(struct
+ 
+ 			t1 = sched_clock_cpu(this_cpu);
+ 			domain_cost = t1 - t0;
++			update_newidle_cost(sd, domain_cost);
++
+ 			curr_cost += domain_cost;
+ 			t0 = t1;
+-
+-			/*
+-			 * Track max cost of a domain to make sure to not delay the
+-			 * next wakeup on the CPU.
+-			 */
+-			update_newidle_cost(sd, domain_cost, weight * !!pulled_task);
+ 		}
+ 
+ 		/*
+diff -uarp a/kernel/sched/features.h b/kernel/sched/features.h
+--- a/kernel/sched/features.h
++++ b/kernel/sched/features.h
+@@ -136,8 +136,3 @@ SCHED_FEAT(WA_BIAS, true)
+ SCHED_FEAT(UTIL_EST, true)
+ 
+ SCHED_FEAT(LATENCY_WARN, false)
+-
+-/*
+- * Do newidle balancing proportional to its success rate using randomization.
+- */
+-SCHED_FEAT(NI_RANDOM, true)
+diff -uarp a/kernel/sched/sched.h b/kernel/sched/sched.h
+--- a/kernel/sched/sched.h
++++ b/kernel/sched/sched.h
+@@ -5,7 +5,6 @@
+ #ifndef _KERNEL_SCHED_SCHED_H
+ #define _KERNEL_SCHED_SCHED_H
+ 
+-#include <linux/prandom.h>
+ #include <linux/sched/affinity.h>
+ #include <linux/sched/autogroup.h>
+ #include <linux/sched/cpufreq.h>
+@@ -1410,12 +1409,6 @@ static inline bool is_migration_disabled
+ }
+ 
+ DECLARE_PER_CPU_SHARED_ALIGNED(struct rq, runqueues);
+-DECLARE_PER_CPU(struct rnd_state, sched_rnd_state);
+-
+-static inline u32 sched_rng(void)
+-{
+-	return prandom_u32_state(this_cpu_ptr(&sched_rnd_state));
+-}
+ 
+ static __always_inline struct rq *__this_rq(void)
+ {
+diff -uarp a/kernel/sched/topology.c b/kernel/sched/topology.c
+--- a/kernel/sched/topology.c
++++ b/kernel/sched/topology.c
+@@ -1973,12 +1973,6 @@ sd_init(struct sched_domain_topology_lev
+ 
+ 		.last_balance		= jiffies,
+ 		.balance_interval	= sd_weight,
+-
+-		/* 50% success rate */
+-		.newidle_call		= 512,
+-		.newidle_success	= 256,
+-		.newidle_ratio		= 512,
+-
+ 		.max_newidle_lb_cost	= 0,
+ 		.last_decay_max_lb_cost	= jiffies,
+ 		.child			= child,
+-- 
+2.52.0
+

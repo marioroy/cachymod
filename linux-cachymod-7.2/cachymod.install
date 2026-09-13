@@ -1,0 +1,26 @@
+
+# post_remove: runs after the package is removed
+post_remove() {
+    local package_version="$1"
+    local boot_entries="/boot/loader/entries"
+
+    if [ -d "$boot_entries" ]; then
+        local pcmd=$(pgrep --list-full -u root pacman)
+        local part
+
+        # convert the space-delimited string to an array
+        pcmd=(${pcmd// / })
+
+        # remove kernel boot configuration file
+        echo "==> Removing the kernel boot entry"
+        for part in "${pcmd[@]}"; do
+            [[ "$part" != "linux-"* ]] && continue
+            [[ "$part"  = "linux-"*"-dbg" ]] && continue
+            [[ "$part"  = "linux-"*"-headers" ]] && continue
+            if [ -e "${boot_entries}/${part}.conf" ]; then
+                 rm "${boot_entries}/${part}.conf"
+            fi
+        done
+    fi
+}
+
