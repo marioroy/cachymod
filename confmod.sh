@@ -304,11 +304,13 @@ input_localmodcfg() {
   msg+="\n"
   msg+="  Installation:\n"
   msg+="    sudo pacman -S modprobed-db\n"
-  msg+="    sudo modprobed-db store  (creates ~/.config/modprobed-db.conf)\n"
+  msg+="    sudo modprobed-db store\n"
+  msg+="    (creates ~/.local/share/modprobed-db/modprobed.db)\n"
+  msg+="          or ~/.config/modprobed.db\n"
   msg+="\n"
   msg+="  Run 'store' from a stock CachyOS kernel at least once.\n"
   msg+="  Run subsequently to store any new module(s) to the database.\n"
-  msg+="    sudo modprobed-db store  (refreshes ~/.config/modprobed.db)\n"
+  msg+="    sudo modprobed-db store  (refreshes modprobed.db)\n"
 
   confirm $1 "Enable localmodcfg?" "$msg"
 }
@@ -316,7 +318,8 @@ input_localmodcfg() {
 input_localmodcfg_path() {
   local -n varref="$1"; local msg=
   msg+="Enter the localmod dbname (e.g. modprobed.db) or the full path?\n"
-  msg+="The list of used modules can be found in the ~/.config/ folder.\n"
+  msg+="The list of used modules can be found in the ~/.config/ or\n"
+  msg+="~/.local/share/modprobed-db/ folder.\n"
   msg+="\n"
   msg+="Enter 'blank' to clear the value.\n"
 

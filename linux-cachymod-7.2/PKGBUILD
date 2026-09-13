@@ -42,7 +42,8 @@
 : ${_localmodcfg:=no}
 
 # The localmod db name (e.g. modprobed.db) or full path
-# The list of used modules can be found in the ~/.config/ folder
+# The list of used modules can be found in ~/.local/share/modprobed-db/
+# or the ~/.config/ folder
 : ${_localmodcfg_path:=modprobed.db}
 
 # Include the modules in minimal-modprobed.db (use with _localmodcfg)
@@ -461,8 +462,13 @@ prepare() {
     if [[ "$_localmodcfg" =~ ^(yes|y|1)$ ]]; then
         echo "Running Steven Rostedt's make localmodconfig now"
 
-        [[ ! "$_localmodcfg_path" = "/"* ]] && \
+        if [[ ! "$_localmodcfg_path" = "/"* ]]; then
+          if [[ -e "$HOME/.local/share/modprobed-db/$_localmodcfg_path" ]]; then
+            _localmodcfg_path="$HOME/.local/share/modprobed-db/$_localmodcfg_path"
+          else
             _localmodcfg_path="$HOME/.config/$_localmodcfg_path"
+          fi
+        fi
 
         [[ ! -e "$_localmodcfg_path" ]] && _die "No modprobed.db data found"
 
