@@ -72,8 +72,15 @@
 : ${_preempt:=full}
 
 # Select CPU compiler optimization
-# { generic, generic_v1, generic_v2, generic_v3, generic_v4, native, zen4 }
+# { generic, generic_v1, generic_v2, generic_v3, generic_v4, native, other }
+# { westmere, haswell, skylake, raptorlake, meteorlake, k10, zen2, zen3, zen4, zen5 }
+# For the "other" selection, set the processor UARCH via custom.sh or makenconfig
+# Example custom.sh line: scripts/config -d GENERIC_CPU -e MTIGERLAKE
 : ${_processor_opt:=native}
+
+# Builds the r8125 module and package it into its own package
+# Replaces requirement for r8125-dkms
+: "${_build_r8125:=no}"
 
 # Build a debug package with non-stripped vmlinux
 : ${_build_debug:=no}
@@ -135,7 +142,7 @@ fi
 
 _pkgsuffix=cachymod
 _major=7.2
-_minor=5
+_minor=6
 _tagrel=1
 #_rcver="rc7"
 pkgver=${_major}.${_minor}
@@ -170,12 +177,16 @@ source=(
     # CachyOS
     "0001-rt-i915.patch"
 
+    # XanMod
+    "0002-x86-kconfig-more-uarches.patch"
+
     # CachyMod
     "0100-kconfig-add-800Hz.patch"
     "0200-clearlinux-extras.patch"
     "0210-cachymod-misc.patch"
     "0260-fair-update-cachy-mods.patch"
     "0280-prefer-idle-core.patch"
+    "0290-poc-selector-v2.1.10.patch"
 
     # Clear Linux default
     "0300-x86-prevent-avx2-vector.patch"  # applied if _prevent_avx2=yes
@@ -227,6 +238,10 @@ if [[ "$_autofdo" =~ ^(yes|y|1)$ && -n "$_autofdo_profile_name" ]]; then
     else
         _die "Failed to find file ${_autofdo_profile_name}"
     fi
+fi
+
+if [[ "$_build_r8125" =~ ^(yes|y|1)$ ]]; then
+    source+=("git+https://github.com/aravance/r8125.git")
 fi
 
 # Append extra sources in build.sh
@@ -299,7 +314,9 @@ prepare() {
     ### Select CPU optimization (default Generic)
     if [ -n "$_processor_opt" ]; then
         MARCH="${_processor_opt^^}"
-        if [ "$MARCH" != "GENERIC" ]; then
+        if [ "$MARCH" = "OTHER" ]; then
+            echo "Selecting CPU (MARCH) : OTHER via custom.sh or makenconfig"
+        elif [ "$MARCH" != "GENERIC" ]; then
             if [[ "$MARCH" =~ GENERIC_V[1-4] ]]; then
                 X86_64_LEVEL="${MARCH//GENERIC_V}"
                 echo "Selecting CPU (X86_64_VERSION) : ${X86_64_LEVEL}"
@@ -308,9 +325,9 @@ prepare() {
             elif [ "$MARCH" = "NATIVE" ]; then
                 echo "Selecting CPU (MARCH) : ${MARCH}"
                 scripts/config -d GENERIC_CPU -d MZEN4 -e X86_NATIVE_CPU
-            elif [ "$MARCH" = "ZEN4" ]; then
+            else
                 echo "Selecting CPU (MARCH) : ${MARCH}"
-                scripts/config -d GENERIC_CPU -e MZEN4 -d X86_NATIVE_CPU
+                scripts/config -d GENERIC_CPU -e "M${MARCH}" -d X86_NATIVE_CPU
             fi
         fi
     else
@@ -525,6 +542,27 @@ prepare() {
     cat .config > "${basedir}/config-${pkgver}-${pkgrel}${pkgbase#linux}"
 }
 
+_sign_modules() {
+    msg2 "Signing modules in $1"
+    local sign_script="${srcdir}/${_srcname}/scripts/sign-file"
+    local sign_key="$(grep -Po 'CONFIG_MODULE_SIG_KEY="\K[^"]*' "${srcdir}/${_srcname}/.config")"
+    if [[ ! "$sign_key" =~ ^/ ]]; then
+        sign_key="${srcdir}/${_srcname}/${sign_key}"
+    fi
+    local sign_cert="${srcdir}/${_srcname}/certs/signing_key.x509"
+    local hash_algo="$(grep -Po 'CONFIG_MODULE_SIG_HASH="\K[^"]*' "${srcdir}/${_srcname}/.config")"
+
+    if [ "$buildtype" = "lto" ]; then
+        local strip_bin="llvm-strip"
+    else
+        local strip_bin="strip"
+    fi
+
+    find "$1" -type f -name '*.ko' -print \
+        -exec "${strip_bin}" --strip-debug '{}' \; \
+        -exec "${sign_script}" "${hash_algo}" "${sign_key}" "${sign_cert}" '{}' \;
+}
+
 build() {
     cd "$_srcname"
 
@@ -542,6 +580,18 @@ build() {
     ### system toolchain for auto-detecting system features
     env PATH="/usr/bin:$PATH" make -C tools/bpf/bpftool vmlinux.h feature-clang-bpf-co-re=1 | \
        grep -Ev '^  (AS|AR|CC|LD|BT|CE|CO|GE|HO|IN|IP|MK|OB|PA|PE|PO|RE|ST|TA|TE|UN|UP|VD|WR|X32)'
+
+    local MODULE_FLAGS=(
+       KERNEL_UNAME="${_kernuname}"
+       IGNORE_PREEMPT_RT_PRESENCE=1
+       SYSSRC="${srcdir}/${_srcname}"
+       SYSOUT="${srcdir}/${_srcname}"
+    )
+
+    if [[ "$_build_r8125" =~ ^(yes|y|1)$ ]]; then
+        cd "${srcdir}/r8125"
+        make "${BUILD_FLAGS[@]}" KERNELDIR="$srcdir/$_srcname" modules
+    fi
 }
 
 _package() {
@@ -694,9 +744,30 @@ _package-dbg(){
     install -Dt "$pkgdir/usr/src/debug/${pkgbase}" -m644 vmlinux
 }
 
+_package-r8125() {
+    pkgdesc="r8125 modules for the $pkgbase kernel"
+    depends=("$pkgbase=$_kernver")
+    license=('GPL-2.0-only')
+
+    cd "$_srcname"
+    local modulesdir="$pkgdir/usr/lib/modules/$(<version)/extramodules"
+
+    cd "${srcdir}/r8125"
+    install -dm755 "${modulesdir}"
+    install -m644 src/*.ko "${modulesdir}"
+
+    _sign_modules "${modulesdir}"
+    find "$pkgdir" -name '*.ko' -exec zstd --rm -6 -T0 {} +
+
+    # Blacklist r8169 so that r8125 is used instead
+    install -dm755 "${pkgdir}/usr/lib/modprobe.d"
+    echo "install r8169 /usr/bin/modprobe r8125 || /usr/bin/modprobe --ignore-install r8169" > "${pkgdir}/usr/lib/modprobe.d/${pkgname}.conf"
+}
+
 pkgname=("$pkgbase")
 [[ "$_build_debug" =~ ^(yes|y|1)$ ]] && pkgname+=("$pkgbase-dbg")
 pkgname+=("$pkgbase-headers")
+[[ "$_build_r8125" =~ ^(yes|y|1)$ ]] && pkgname+=("$pkgbase-r8125")
 for _p in "${pkgname[@]}"; do
     eval "package_$_p() {
     $(declare -f "_package${_p#$pkgbase}")

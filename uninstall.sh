@@ -62,6 +62,9 @@ for kernel in $kernels; do
   if pacman -Q "${kernel}-dbg" &>/dev/null; then
     packages+=("${kernel}-dbg")
   fi
+  if pacman -Q "${kernel}-r8125" &>/dev/null; then
+    packages+=("${kernel}-r8125")
+  fi
 done
 
 sudo pacman -Rsn ${packages[@]}

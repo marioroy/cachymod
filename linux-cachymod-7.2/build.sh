@@ -77,6 +77,7 @@ else
   : ${_preempt:=full}
   : ${_processor_opt:=native}
   : ${_prevent_avx2:=no}
+  : ${_build_r8125:=no}
   : ${_build_debug:=no}
   : ${_extra_patch_or_url0:=}
   : ${_extra_patch_or_url1:=}
@@ -93,7 +94,7 @@ fi
 export _cpusched _buildtype _autofdo _hugepage _kernel_suffix
 export _localmodcfg _localmodcfg_path _localmodcfg_minimal
 export _makenconfig _makexconfig _tcp_bbr3 _HZ_ticks _ticktype
-export _preempt _processor_opt _prevent_avx2 _build_debug
+export _preempt _processor_opt _prevent_avx2 _build_r8125 _build_debug
 export _extra_patch_or_url0 _extra_patch_or_url1 _extra_patch_or_url2
 export _extra_patch_or_url3 _extra_patch_or_url4 _extra_patch_or_url5
 export _extra_patch_or_url6 _extra_patch_or_url7 _extra_patch_or_url8

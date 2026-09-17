@@ -39,7 +39,7 @@ Signed-off-by: Mario Roy <>
 diff -uarp a/kernel/time/hrtimer.c b/kernel/time/hrtimer.c
 --- a/kernel/time/hrtimer.c
 +++ b/kernel/time/hrtimer.c
-@@ -2387,7 +2387,7 @@ int nanosleep_copyout(struct restart_blo
+@@ -2389,7 +2389,7 @@ int nanosleep_copyout(struct restart_blo
  	return -ERESTART_RESTARTBLOCK;
  }
  
@@ -58,7 +58,7 @@ Signed-off-by: Mario Roy <>
 diff -uarp a/net/core/net_namespace.c b/net/core/net_namespace.c
 --- a/net/core/net_namespace.c
 +++ b/net/core/net_namespace.c
-@@ -433,7 +433,7 @@ static __net_init void preinit_net(struc
+@@ -426,7 +426,7 @@ static __net_init void preinit_net(struc
  /*
   * setup_net runs the initializers for the network namespace object.
   */

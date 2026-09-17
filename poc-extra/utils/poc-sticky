@@ -1,0 +1,48 @@
+#!/bin/bash
+# Multi-function wrapper script for Piece-Of-Cake (POC) Custom
+# Get/set sysctl option, or set+run command and restore the old value.
+# Prerequisite: Add NOPASSWD entry to /etc/sudoers.d/90-poc-custom file.
+#
+# Author: https://github.com/marioroy/cachymod
+
+kopt="kernel.sched_poc_target_sticky"   # prefer L1/TLB cache affinity (1)
+SYSCTL_BIN="/usr/bin/sysctl"
+SUDO_BIN="/usr/bin/sudo"
+
+curr=$($SYSCTL_BIN -e $kopt 2>/dev/null)
+curr=${curr##* }
+
+if [[ "$1" =~ ^(-d|--disable)$ ]]; then
+    val=0 ; shift
+elif [[ "$1" =~ ^(-e|--enable)$ ]]; then
+    val=1 ; shift
+elif [[ "$1" = "-"* ]]; then
+    echo "Synopsis: ${0##*/} [-d|--disable|-e|--enable] [command [args]]"
+    exit 0
+else
+    val=
+fi
+
+if [ -z "$1" ]; then
+    # Display or set the POC kernel option
+    if [ -n "$curr" ]; then
+        if [ -z "$val" ]; then
+            $SYSCTL_BIN $kopt
+        else
+            $SUDO_BIN $SYSCTL_BIN $kopt=$val
+        fi
+    else
+        echo "$kopt does not exist" >&2
+        exit 1
+    fi
+elif [ -n "$curr" ]; then
+    # Set option, execute the command, and restore the old value
+    [ -z "$val" ] && val=1  # default: enable
+    trap '$SUDO_BIN $SYSCTL_BIN $kopt=$curr &>/dev/null' EXIT
+    $SUDO_BIN $SYSCTL_BIN $kopt=$val &>/dev/null
+    "$@"
+else
+    # Execute the command if the POC option doesn't exist
+    "$@"
+fi
+

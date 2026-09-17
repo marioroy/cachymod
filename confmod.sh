@@ -84,6 +84,7 @@ new_conf() {
     echo ": \${_preempt:=full}"
     echo ": \${_processor_opt:=native}"
     echo ": \${_prevent_avx2:=no}"
+    echo ": \${_build_r8125:=no}"
     echo ": \${_build_debug:=no}"
     echo ": \${_extra_patch_or_url0:=}"
     echo ": \${_extra_patch_or_url1:=}"
@@ -119,6 +120,7 @@ save_conf() {
     echo ": \${_preempt:=${_preempt}}"
     echo ": \${_processor_opt:=${_processor_opt}}"
     echo ": \${_prevent_avx2:=${_prevent_avx2}}"
+    echo ": \${_build_r8125:=${_build_r8125}}"
     echo ": \${_build_debug:=${_build_debug}}"
     echo ": \${_extra_patch_or_url0:=${_extra_patch_or_url0}}"
     echo ": \${_extra_patch_or_url1:=${_extra_patch_or_url1}}"
@@ -412,26 +414,49 @@ input_preempt() {
 }
 
 input_processor_opt() {
-  local -n varref="$1"; local menu=() selected=
-  menu+=("generic:    Build for generic x86-64 CPU")
-  menu+=("generic_v1: Build for generic x86-64 version 1 CPU")
-  menu+=("generic_v2: Build for generic x86-64 version 2 CPU")
-  menu+=("generic_v3: Build for generic x86-64 version 3 CPU")
-  menu+=("generic_v4: Build for generic x86-64 version 4 CPU")
+  local -n varref="$1"; local menu=() selected= msg=
+  msg+="Refer to the config file for your processor UARCH string\n"
+  msg+="Example custom.sh line: scripts/config -d GENERIC_CPU -e MTIGERLAKE\n"
+
+  menu+=("generic:    Build for generic x86-64")
+  menu+=("generic_v1: Build for generic x86-64 v1; SSE2 baseline")
+  menu+=("generic_v2: Build for generic x86-64 v2; SSE4.2 baseline")
+  menu+=("generic_v3: Build for generic x86-64 v3; AVX2 baseline")
+  menu+=("generic_v4: Build for generic x86-64 v4; AVX-512 baseline")
   menu+=("native:     Build and optimize for local/native CPU")
-  menu+=("zen4:       Build and optimize for AMD Ryzen 4 CPU")
+  menu+=("westmere:   Build for Intel Westmere; pre-AVX / SSE4.2")
+  menu+=("haswell:    Build for Intel Haswell; AVX2 / FMA3")
+  menu+=("skylake:    Build for Intel Skylake; AVX2 mainstream")
+  menu+=("raptorlake: Build for Intel Raptor Lake; AVX2 / Hybrid")
+  menu+=("meteorlake: Build for Intel Meteor Lake; AVX2 / NPU")
+  menu+=("k10:        Build for AMD K10; pre-AVX / SSE4A")
+  menu+=("zen2:       Build for AMD Zen 2; AVX2 mainstream")
+  menu+=("zen3:       Build for AMD Zen 3; AVX2 optimized")
+  menu+=("zen4:       Build for AMD Zen 4; AVX-512")
+  menu+=("zen5:       Build for AMD Zen 5; AVX-512 full-width")
+  menu+=("other:      Set UARCH via custom.sh or makenconfig")
 
   case "$varref" in
-    generic   ) selected="${menu[0]}" ;;
-    generic_v1) selected="${menu[1]}" ;;
-    generic_v2) selected="${menu[2]}" ;;
-    generic_v3) selected="${menu[3]}" ;;
-    generic_v4) selected="${menu[4]}" ;;
-    native    ) selected="${menu[5]}" ;;
-    zen4      ) selected="${menu[6]}" ;;
+    generic   ) selected="${menu[ 0]}" ;;
+    generic_v1) selected="${menu[ 1]}" ;;
+    generic_v2) selected="${menu[ 2]}" ;;
+    generic_v3) selected="${menu[ 3]}" ;;
+    generic_v4) selected="${menu[ 4]}" ;;
+    native    ) selected="${menu[ 5]}" ;;
+    westmere  ) selected="${menu[ 6]}" ;;
+    haswell   ) selected="${menu[ 7]}" ;;
+    skylake   ) selected="${menu[ 8]}" ;;
+    raptorlake) selected="${menu[ 9]}" ;;
+    meteorlake) selected="${menu[10]}" ;;
+    k10       ) selected="${menu[11]}" ;;
+    zen2      ) selected="${menu[12]}" ;;
+    zen3      ) selected="${menu[13]}" ;;
+    zen4      ) selected="${menu[14]}" ;;
+    zen5      ) selected="${menu[15]}" ;;
+    other     ) selected="${menu[16]}" ;;
   esac
 
-  choose $1 menu "Choose CPU compiler optimization:" "$selected"
+  choose $1 menu "Choose CPU compiler optimization:" "$selected" "$msg"
 }
 
 input_prevent_avx2() {
@@ -441,6 +466,12 @@ input_prevent_avx2() {
   msg+="on some Intel CPUs, due to power and thermal constraints.\n"
 
   confirm $1 "Prevent AVX2 floating-point instructions?" "$msg"
+}
+
+input_build_r8125() {
+  local -n varref="$1"
+
+  confirm $1 "Build the r8125 module and package it into its own package?"
 }
 
 input_build_debug() {
@@ -479,7 +510,7 @@ edit_conf() {
     local _cpusched= _buildtype= _autofdo= _hugepage= _kernel_suffix=
     local _localmodcfg= _localmodcfg_path= _localmodcfg_minimal=
     local _makenconfig= _makexconfig= _tcp_bbr3= _HZ_ticks= _ticktype=
-    local _preempt= _processor_opt= _prevent_avx2= _build_debug=
+    local _preempt= _processor_opt= _prevent_avx2= _build_r8125= _build_debug=
     local _extra_patch_or_url0= _extra_patch_or_url1= _extra_patch_or_url2=
     local _extra_patch_or_url3= _extra_patch_or_url4= _extra_patch_or_url5=
     local _extra_patch_or_url6= _extra_patch_or_url7= _extra_patch_or_url8=
@@ -632,6 +663,11 @@ edit_conf() {
         input_prevent_avx2 _prevent_avx2
         selected=": \${_prevent_avx2:=$_prevent_avx2}"
         [ "$_prevent_avx2" = "$oldval" ] && continue ;;
+
+      ': ${_build_r8125:='*)
+        input_build_r8125 _build_r8125
+        selected=": \${_build_r8125:=$_build_r8125}"
+        [ "$_build_r8125" = "$oldval" ] && continue ;;
 
       ': ${_build_debug:='*)
         input_build_debug _build_debug
