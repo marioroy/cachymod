@@ -135,13 +135,17 @@ preempt=lazy
 
 ## 📜 Acknowledgement & Credits
 
-*   The **`PKGBUILD`** is based on CachyOS's `PKGBUILD` file. Thank you, CachyOS community with sounding board and testing.
+*   **Upstream Focus:** Special thanks to the **CachyOS Team** for providing the incredible base Linux distribution and core patches that make these optimizations possible.
+
+*   Thank you, CachyOS community with sounding board and testing.
 
 *   **Piece-Of-Cake (POC) Custom Patch:** The core O(1) bitmask-driven idle CPU selector patch integrated into CachyMod is a customized variant based on the official **[POC v2.1.0](https://github.com/firelzrd/poc-selector)** by [firelzrd](https://github.com/firelzrd). This variant has been streamlined to maintain a minimalist architecture, operating as a complementary layer to the original `0280 prefer-idle-core` patch to help minimize EEVDF placement anomalies.
 
 *   The **`minimal-modprobed.db`** is from [linux-tkg](https://github.com/Frogging-Family/linux-tkg), used for making a diet kernel { `_localmodcfg=y` and `_localmodcfg_minimal=y` }.
 
 *   **Documentation & Tooling Design:** Technical documentation layouts, Markdown formatting optimizations, and scripting structural refinements for the `poc-extra` module were developed with collaborative assistance from Google's **Gemini**.
+
+*   **CachyMod Core & Tooling:** This project, including the custom interactive configuration TUI (`confmod.sh`), the automated compilation framework (`build.sh`), and the removal tools (`uninstall.sh`), is original standalone work developed by **Mario Roy** (@marioroy) to streamline custom kernel building on CachyOS.
 
 *   **Utility Wrappers:** The management tools, automation logic, installation scripts, and execution wrapper frameworks in this directory are original works developed for the **CachyMod** repository.
 
