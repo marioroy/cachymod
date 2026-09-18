@@ -517,3 +517,38 @@ diff -uarp a/fs/ntfs3/run.c b/fs/ntfs3/run.c
 -- 
 2.53.0
 
+x86/fred: Reconstruct the #GP context for rejected INT instructions
+https://lore.kernel.org/all/20260917230907.2080792-2-matthew.schwartz@linux.dev/
+
+diff --git a/arch/x86/entry/entry_fred.c b/arch/x86/entry/entry_fred.c
+index fb3594ddf731..854899bfec5d 100644
+--- a/arch/x86/entry/entry_fred.c
++++ b/arch/x86/entry/entry_fred.c
+@@ -10,6 +10,7 @@
+ #include <asm/desc.h>
+ #include <asm/fred.h>
+ #include <asm/idtentry.h>
++#include <asm/processor-flags.h>
+ #include <asm/syscall.h>
+ #include <asm/trapnr.h>
+ #include <asm/traps.h>
+@@ -71,7 +72,15 @@ static noinstr void fred_intx(struct pt_regs *regs)
+ #endif
+ 
+ 	default:
+-		return exc_general_protection(regs, 0);
++		/*
++		 * Reconstruct the #GP fault state that IDT delivery would produce.
++		 * Clear the software event flag so ERETU with TF set does not trap
++		 * before the resumed instruction. See prevent_single_step_upon_eretu().
++		 */
++		regs->ip -= regs->fred_ss.insnlen;
++		regs->flags |= X86_EFLAGS_RF;
++		regs->fred_ss.swevent = 0;
++		return exc_general_protection(regs, (regs->fred_ss.vector << 3) | 2);
+ 	}
+ }
+ 
+-- 
+2.55.0
+

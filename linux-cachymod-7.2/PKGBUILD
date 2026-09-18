@@ -80,7 +80,7 @@
 
 # Builds the r8125 module and package it into its own package
 # Replaces requirement for r8125-dkms
-: "${_build_r8125:=no}"
+: ${_build_r8125:=no}
 
 # Build a debug package with non-stripped vmlinux
 : ${_build_debug:=no}
@@ -148,7 +148,7 @@ _tagrel=1
 pkgver=${_major}.${_minor}
 
 pkgdesc='CachyMod Linux Kernel with other patches and improvements'
-pkgrel=1
+pkgrel=2
 _srcname=cachyos-${_major}.${_minor}-${_tagrel}
 _kernver="$pkgver-$pkgrel"
 _kernuname="${pkgver}-${_pkgsuffix}"
