@@ -148,7 +148,7 @@ _tagrel=1
 pkgver=${_major}.${_minor}
 
 pkgdesc='CachyMod Linux Kernel with other patches and improvements'
-pkgrel=2
+pkgrel=3
 _srcname=cachyos-${_major}.${_minor}-${_tagrel}
 _kernver="$pkgver-$pkgrel"
 _kernuname="${pkgver}-${_pkgsuffix}"
@@ -358,7 +358,7 @@ prepare() {
             scripts/config -e LTO -e LTO_CLANG -e ARCH_SUPPORTS_LTO_CLANG -e ARCH_SUPPORTS_LTO_CLANG_THIN -e HAS_LTO_CLANG -d LTO_NONE -e LTO_CLANG_FULL -d LTO_CLANG_THIN -d LTO_CLANG_THIN_DIST -e HAVE_GCC_PLUGINS
             ;;
         thin)
-            scripts/config -e LTO -e LTO_CLANG -e ARCH_SUPPORTS_LTO_CLANG -e ARCH_SUPPORTS_LTO_CLANG_THIN -e HAS_LTO_CLANG -d LTO_NONE -d LTO_CLANG_FULL -d LTO_CLANG_THIN -e LTO_CLANG_THIN_DIST -e HAVE_GCC_PLUGINS
+            scripts/config -e LTO -e LTO_CLANG -e ARCH_SUPPORTS_LTO_CLANG -e ARCH_SUPPORTS_LTO_CLANG_THIN -e HAS_LTO_CLANG -d LTO_NONE -d LTO_CLANG_FULL -e LTO_CLANG_THIN -d LTO_CLANG_THIN_DIST -e HAVE_GCC_PLUGINS
             ;;
         clang)
             scripts/config -e LTO -e LTO_CLANG -e ARCH_SUPPORTS_LTO_CLANG -e ARCH_SUPPORTS_LTO_CLANG_THIN -e HAS_LTO_CLANG -e LTO_NONE -d LTO_CLANG_FULL -d LTO_CLANG_THIN -d LTO_CLANG_THIN_DIST -e HAVE_GCC_PLUGINS

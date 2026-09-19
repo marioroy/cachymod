@@ -2,19 +2,31 @@
 diff -uarp a/Makefile b/Makefile
 --- a/Makefile
 +++ b/Makefile
-@@ -959,6 +959,17 @@
+@@ -959,6 +959,29 @@
  KBUILD_CFLAGS	+= $(call cc-option,-fno-allow-store-data-races)
  endif
  
 +ifdef CONFIG_CC_IS_CLANG
-+KBUILD_CFLAGS	+= \
-+		   -mllvm=-enable-pipeliner \
-+		   -mllvm=-inline-threshold=420 \
-+		   -mllvm=-unroll-threshold=50 \
-+		   -mllvm=-unroll-max-count=8
-+ifdef CONFIG_LTO_CLANG
-+KBUILD_LDFLAGS	+= --lto-O2 --lto-CGO2 --thinlto-jobs=6
-+endif
++    # =========================================================
++    # Base Clang (No LTO / Pure AutoFDO Setup)
++    # =========================================================
++    KBUILD_CFLAGS += \
++        -mllvm=-enable-pipeliner \
++        -mllvm=-unroll-threshold=50 \
++        -mllvm=-unroll-max-count=8
++
++    ifndef CONFIG_LTO_CLANG
++        KBUILD_CFLAGS += -mllvm=-inline-threshold=420
++    endif
++
++    # =========================================================
++    # LTO-Enabled Environments
++    # Optimized inline ceiling to prevent I-cache thrashing
++    # =========================================================
++    ifdef CONFIG_LTO_CLANG
++        KBUILD_LDFLAGS += --lto-O2 --lto-CGO2 --thinlto-jobs=6
++        KBUILD_CFLAGS += -mllvm=-inline-threshold=320
++    endif
 +endif
 +
  ifdef CONFIG_READABLE_ASM
