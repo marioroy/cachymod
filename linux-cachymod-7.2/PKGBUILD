@@ -148,7 +148,7 @@ _tagrel=1
 pkgver=${_major}.${_minor}
 
 pkgdesc='CachyMod Linux Kernel with other patches and improvements'
-pkgrel=3
+pkgrel=4
 _srcname=cachyos-${_major}.${_minor}-${_tagrel}
 _kernver="$pkgver-$pkgrel"
 _kernuname="${pkgver}-${_pkgsuffix}"
@@ -182,6 +182,7 @@ source=(
 
     # CachyMod
     "0100-kconfig-add-800Hz.patch"
+    "0110-rt-lift-thp-restriction.patch"
     "0200-clearlinux-extras.patch"
     "0210-cachymod-misc.patch"
     "0260-fair-update-cachy-mods.patch"
