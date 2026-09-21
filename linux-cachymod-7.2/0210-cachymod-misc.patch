@@ -408,7 +408,7 @@ diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
 index 3ebec186f982..3a21ceefcadf 100644
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -14962,6 +14962,15 @@ static void switched_from_fair(struct rq *rq, struct task_struct *p)
+@@ -14970,6 +14970,15 @@ static void switched_from_fair(struct rq *rq, struct task_struct *p)
  	detach_task_cfs_rq(p);
  }
  
@@ -424,7 +424,7 @@ index 3ebec186f982..3a21ceefcadf 100644
  static void switched_to_fair(struct rq *rq, struct task_struct *p)
  {
  	WARN_ON_ONCE(p->se.sched_delayed);
-@@ -15339,6 +15348,7 @@ DEFINE_SCHED_CLASS(fair) = {
+@@ -15347,6 +15356,7 @@ DEFINE_SCHED_CLASS(fair) = {
  	.prio_changed		= prio_changed_fair,
  	.switching_from		= switching_from_fair,
  	.switched_from		= switched_from_fair,
@@ -445,7 +445,7 @@ diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
 index b5819c489..2b9653623 100644
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -13500,12 +13500,21 @@ static int sched_balance_rq(int this_cpu, struct rq *this_rq,
+@@ -13508,12 +13508,21 @@ static int sched_balance_rq(int this_cpu, struct rq *this_rq,
  			 * ->active_balance_work.  Once set, it's cleared
  			 * only after active load balance is finished.
  			 */
@@ -482,7 +482,7 @@ diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
 index 2b9653623..9c78241e9 100644
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -13528,10 +13528,8 @@ static int sched_balance_rq(int this_cpu, struct rq *this_rq,
+@@ -13536,10 +13536,8 @@ static int sched_balance_rq(int this_cpu, struct rq *this_rq,
  		sd->nr_balance_failed = 0;
  	}
  
@@ -549,6 +549,191 @@ index fb3594ddf731..854899bfec5d 100644
  	}
  }
  
+-- 
+2.55.0
+
+sched/core: Skip rq->avg_idle update without a valid idle_stamp
+https://lore.kernel.org/all/20260917151355.337887258@linuxfoundation.org/
+
+diff -uarp a/kernel/sched/core.c b/kernel/sched/core.c
+--- a/kernel/sched/core.c
++++ b/kernel/sched/core.c
+@@ -3742,14 +3742,17 @@ static inline void ttwu_do_wakeup(struct
+ 
+ void update_rq_avg_idle(struct rq *rq)
+ {
+-	if (!rq->idle_stamp)
++	u64 idle_stamp = rq->idle_stamp;
++	u64 delta, max;
++
++	if (!idle_stamp)
+ 		return;
+ 
+-	u64 delta = rq_clock(rq) - rq->idle_stamp;
+-	u64 max = 2*rq->max_idle_balance_cost;
++	delta = rq_clock(rq) - idle_stamp;
+ 
+ 	update_avg(&rq->avg_idle, delta);
+ 
++	max = 2 * rq->max_idle_balance_cost;
+ 	if (rq->avg_idle > max)
+ 		rq->avg_idle = max;
+ 	rq->idle_stamp = 0;
+-- 
+2.53.0
+
+drm/amd/display: Atomize GLOBAL_SYNC_STATUS read/modify/write ops
+https://gitlab.freedesktop.org/drm/amd/-/work_items/5616#note_3631449
+
+[Why]
+
+The OTG_GLOBAL_SYNC_STATUS register controls various HW IRQ sources for
+the output timing generator (OTG). VUPDATE_NO_LOCK is one of them.
+
+To enable the IRQ, driver sets to the VUPDATE_NO_LOCK_EN bit in the
+GLOBAL_SYNC_STATUS register.
+
+To ack the IRQ after it fires, the driver sets 1 to the
+VUPDATE_NO_LOCK_CLEAR bit in the same GLOBAL_SYNC_STATUS register.
+
+The bit sets are done through read/modify/write operations, which are
+not atomic. The set path is atomized via the adev->irq.lock, but not so
+for the ack path from the IRQ handler. Thus, the following race is
+possible:
+
+    Thread A:                       IRQ handler:
+                                    *HW IRQ fires*
+    # IRQ disable
+    val = read(GLOBAL_SYNC_STATUS)
+    unset(val, VUPDATE_NO_LOCK_EN)
+    write(val, GLOBAL_SYNC_STATUS)
+                                    # ACK reads VUPDATE_NO_LOCK_EN unset
+                                    val1 = read(GLOBAL_SYNC_STATUS)
+                                    set(val1, VUPDATE_NO_LOCK_CLEAR)
+    # IRQ enable
+    val = read(GLOBAL_SYNC_STATUS)
+    set(val, VUPDATE_NO_LOCK_EN)
+    write(val, GLOBAL_SYNC_STATUS)
+                                    # BAD! clears VUPDATE_NO_LOCK_EN
+                                    write(val1, GLOBAL_SYNC_STATUS)
+
+[How]
+
+Atomize the rmw ops via a spinlock.
+
+Signed-off-by: Leo Li <sunpeng.li@amd.com>
+---
+ .../gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.h |  9 +++
+ .../drm/amd/display/amdgpu_dm/amdgpu_dm_irq.c | 55 ++++++++++++++++---
+ 2 files changed, 56 insertions(+), 8 deletions(-)
+
+diff --git a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.h b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.h
+index 33839f0e095f9..a1338207cb567 100644
+--- a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.h
++++ b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.h
+@@ -550,6 +550,15 @@ struct amdgpu_display_manager {
+ 	struct common_irq_params
+ 	vupdate_params[DC_IRQ_SOURCE_VUPDATE6 - DC_IRQ_SOURCE_VUPDATE1 + 1];
+ 
++	/**
++	 * @vupdate_irq_lock:
++	 *
++	 * Atomizes the read-modify-writes of the same per-OTG
++	 * OTG_GLOBAL_SYNC_STATUS register.
++	 */
++	spinlock_t
++	vupdate_irq_lock[DC_IRQ_SOURCE_VUPDATE6 - DC_IRQ_SOURCE_VUPDATE1 + 1];
++
+ 	/**
+ 	 * @dmub_trace_params:
+ 	 *
+diff --git a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm_irq.c b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm_irq.c
+index e49803a90edad..99dac0387923a 100644
+--- a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm_irq.c
++++ b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm_irq.c
+@@ -425,6 +425,9 @@ int amdgpu_dm_irq_init(struct amdgpu_device *adev)
+ 
+ 	spin_lock_init(&adev->dm.irq_handler_list_table_lock);
+ 
++	for (src = 0; src < ARRAY_SIZE(adev->dm.vupdate_irq_lock); src++)
++		spin_lock_init(&adev->dm.vupdate_irq_lock[src]);
++
+ 	for (src = 0; src < DAL_IRQ_SOURCES_NUMBER; src++) {
+ 		/* low context handler list init */
+ 		lh = &adev->dm.irq_handler_list_low_tab[src];
+@@ -675,6 +678,35 @@ static int amdgpu_dm_irq_handler(struct amdgpu_device *adev,
+ 	return 0;
+ }
+ 
++/*
++ * The VUPDATE_NO_LOCK enable and clear bits share one OTG_GLOBAL_SYNC_STATUS
++ * register that DC updates with an unlocked read-modify-write. Make sure it's
++ * done atomically via the CRTC's vupdate_irq_lock.
++ */
++static int amdgpu_dm_vupdate_irq_handler(struct amdgpu_device *adev,
++					 struct amdgpu_irq_src *source,
++					 struct amdgpu_iv_entry *entry)
++{
++	enum dc_irq_source src =
++		dc_interrupt_to_irq_source(
++			adev->dm.dc,
++			entry->src_id,
++			entry->src_data[0]);
++	int otg_inst = src - DC_IRQ_SOURCE_VUPDATE1;
++
++	if (otg_inst < 0 ||
++	    otg_inst >= (int)ARRAY_SIZE(adev->mode_info.crtcs))
++		return -EINVAL;
++
++	scoped_guard(spinlock_irqsave, &adev->dm.vupdate_irq_lock[otg_inst])
++		dc_interrupt_ack(adev->dm.dc, src);
++
++	amdgpu_dm_irq_immediate_work(adev, src);
++	amdgpu_dm_irq_schedule_work(adev, src);
++
++	return 0;
++}
++
+ static enum dc_irq_source amdgpu_dm_hpd_to_dal_irq_source(unsigned int type)
+ {
+ 	switch (type) {
+@@ -800,13 +832,20 @@ static int amdgpu_dm_set_vupdate_irq_state(struct amdgpu_device *adev,
+ 					   unsigned int crtc_id,
+ 					   enum amdgpu_interrupt_state state)
+ {
+-	return dm_irq_state(
+-		adev,
+-		source,
+-		crtc_id,
+-		state,
+-		IRQ_TYPE_VUPDATE,
+-		__func__);
++	struct amdgpu_crtc *acrtc = adev->mode_info.crtcs[crtc_id];
++	int r;
++
++	if (!acrtc || acrtc->otg_inst < 0 ||
++	    acrtc->otg_inst >= (int)ARRAY_SIZE(adev->mode_info.crtcs))
++		return -EINVAL;
++
++	scoped_guard(spinlock_irqsave,
++		     &adev->dm.vupdate_irq_lock[acrtc->otg_inst]) {
++		r = dm_irq_state(adev, source, crtc_id, state,
++				 IRQ_TYPE_VUPDATE, __func__);
++	}
++
++	return r;
+ }
+ 
+ static int amdgpu_dm_set_dmub_trace_irq_state(struct amdgpu_device *adev,
+@@ -838,7 +877,7 @@ static const struct amdgpu_irq_src_funcs dm_dmub_outbox_irq_funcs = {
+ 
+ static const struct amdgpu_irq_src_funcs dm_vupdate_irq_funcs = {
+ 	.set = amdgpu_dm_set_vupdate_irq_state,
+-	.process = amdgpu_dm_irq_handler,
++	.process = amdgpu_dm_vupdate_irq_handler,
+ };
+ 
+ static const struct amdgpu_irq_src_funcs dm_dmub_trace_irq_funcs = {
 -- 
 2.55.0
 

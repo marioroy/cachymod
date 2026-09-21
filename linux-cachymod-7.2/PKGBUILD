@@ -24,12 +24,12 @@
 : ${_makexconfig:=no}
 
 # Transparent Hugepages
-# ATTENTION: one of two predefined values should be selected!
+# 'auto' - default always for non-RT or madvise for RT
 # 'always'  - always enable THP
 # 'madvise' - madvise, prevent applications from allocating more memory resources than necessary
 # More infos here:
 # https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/7/html/performance_tuning_guide/sect-red_hat_enterprise_linux-performance_tuning_guide-configuring_transparent_huge_pages
-: ${_hugepage:=always}
+: ${_hugepage:=auto}
 
 # Compile ONLY used modules to VASTLY reduce the number of modules built
 # and the build time.
@@ -124,6 +124,11 @@ else
     _CYAN= _NC=
 fi
 
+if [[ "$_hugepage" = "auto" ]]; then
+    [ "$_cpusched" != "rt" ] && _hugepage="always"
+    [ "$_cpusched"  = "rt" ] && _hugepage="madvise"
+fi
+
 if [[ "$_buildtype" =~ ^(gcc)$ ]]; then
     _autofdo="no"
     _autofdo_profile_name=""
@@ -142,14 +147,15 @@ fi
 
 _pkgsuffix=cachymod
 _major=7.2
-_minor=6
+_minor=7
 _tagrel=1
 #_rcver="rc7"
 pkgver=${_major}.${_minor}
 
 pkgdesc='CachyMod Linux Kernel with other patches and improvements'
-pkgrel=4
-_srcname=cachyos-${_major}.${_minor}-${_tagrel}
+pkgrel=1
+#_srcname=cachyos-${_major}.${_minor}-${_tagrel}
+_srcname=cachyos-${_major}.6-${_tagrel}
 _kernver="$pkgver-$pkgrel"
 _kernuname="${pkgver}-${_pkgsuffix}"
 arch=('x86_64')
@@ -169,8 +175,11 @@ source=(
     "config.sh"
     "minimal-modprobed.db"  # used if _localmodcfg=yes and _localmodcfg_minimal=yes
 
-    # Revert proportional newidle balance, POC, and gaming-sched
-    "0000-revert-prop-newidle-bal.patch"
+    # Incremental bump
+    "0000-linux7.2.6-7.patch"
+
+    # Revert newidle balance, POC, and gaming-sched
+    "0000-revert-newidle-bal.patch"
     "0000-revert-poc.patch"
     "0000-revert-gaming-sched.patch"
 
@@ -191,6 +200,9 @@ source=(
 
     # Clear Linux default
     "0300-x86-prevent-avx2-vector.patch"  # applied if _prevent_avx2=yes
+
+    # The credit-sleep feature is applied unless detected BORE patch
+    "0350-bore-credit-sleep-7.0.0.patch"
 
     # This revert is applied only if a BORE patch is detected via extra_patch_or_url
     "0360-fair-revert-cachy-mods.patch"
@@ -261,7 +273,7 @@ build_bore=0
 {
     local src
     for src in "${source[@]}"; do
-        if [[ $src = *-bore* ]]; then
+        if [[ $src = *-bore* && $src != 0350-bore-credit-sleep* ]]; then
             [[ "$_cpusched" =~ ^(eevdf|rt)$ ]] && build_bore=1
             break
         fi
@@ -298,6 +310,9 @@ prepare() {
         [[ $src = *.patch ]] || continue
         if [[ $src = *-prevent-avx2* ]]; then
             [[ "$_prevent_avx2" =~ ^(yes|y|1)$ ]] || continue
+        fi
+        if [[ $src = 0350-bore-credit-sleep* ]]; then
+            [[ "$build_bore" -eq 1 ]] && continue
         fi
         if [[ $src = *-revert-cachy-mods.patch ]]; then
             [[ "$build_bore" -eq 0 ]] && continue

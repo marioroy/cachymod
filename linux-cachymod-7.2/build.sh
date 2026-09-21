@@ -64,7 +64,7 @@ else
   : ${_buildtype:=clang}
   : ${_autofdo:=no}
   : ${_autofdo_profile_name:=cachymod.afdo}
-  : ${_hugepage:=always}
+  : ${_hugepage:=auto}
   : ${_kernel_suffix:=}
   : ${_localmodcfg:=no}
   : ${_localmodcfg_path:=modprobed.db}

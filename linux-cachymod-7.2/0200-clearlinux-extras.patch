@@ -375,7 +375,7 @@ index 57027bfed25f..596fd7fb7847 100644
  
  /* Boolean to track if system has ITMT capabilities */
  static bool __read_mostly sched_itmt_capable;
-@@ -167,7 +168,12 @@ void sched_clear_itmt_support(void)
+@@ -163,7 +164,12 @@ void sched_clear_itmt_support(void)
  
  int arch_asym_cpu_priority(int cpu)
  {
@@ -389,7 +389,7 @@ index 57027bfed25f..596fd7fb7847 100644
  }
  
  /**
-@@ -188,3 +194,24 @@ void sched_set_itmt_core_prio(int prio, int core_cpu)
+@@ -184,3 +190,24 @@ void sched_set_itmt_core_prio(int prio, int core_cpu)
  {
  	per_cpu(sched_core_priority, cpu) = prio;
  }
@@ -478,7 +478,7 @@ diff --git a/init/main.c b/init/main.c
 index aa21add5f7c5..715d57f58895 100644
 --- a/init/main.c
 +++ b/init/main.c
-@@ -1284,10 +1284,13 @@ static __init_or_module void
+@@ -1289,10 +1289,13 @@ static __init_or_module void
  trace_initcall_finish_cb(void *data, initcall_t fn, int ret)
  {
  	ktime_t rettime, *calltime = data;

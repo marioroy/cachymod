@@ -134,7 +134,7 @@ index c4d098bdb..d309809ec 100644
  
  #include <asm/switch_to.h>
  
-@@ -1240,7 +1239,7 @@ static bool update_deadline(struct cfs_rq *cfs_rq, struct sched_entity *se)
+@@ -1250,7 +1249,7 @@ static bool update_deadline(struct cfs_rq *cfs_rq, struct sched_entity *se)
  
  #include "pelt.h"
  
@@ -143,7 +143,7 @@ index c4d098bdb..d309809ec 100644
  static unsigned long task_h_load(struct task_struct *p);
  static unsigned long capacity_of(int cpu);
  
-@@ -8544,20 +8543,6 @@ void __update_idle_core(struct rq *rq)
+@@ -8552,20 +8551,6 @@ void __update_idle_core(struct rq *rq)
  	rcu_read_unlock();
  }
  
@@ -164,7 +164,7 @@ index c4d098bdb..d309809ec 100644
  /*
   * Scan the entire LLC domain for idle cores; this dynamically switches off if
   * there are no idle cores left in the system; tracked through
-@@ -8885,38 +8870,16 @@ static inline bool asym_fits_cpu(unsigned long util,
+@@ -8893,38 +8878,16 @@ static inline bool asym_fits_cpu(unsigned long util,
  	return true;
  }
  
@@ -204,7 +204,7 @@ index c4d098bdb..d309809ec 100644
  	/*
  	 * On asymmetric system, update task utilization because we will check
  	 * that the task fits with CPU's capacity.
-@@ -8933,13 +8896,23 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target, int
+@@ -8941,13 +8904,23 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target, int
  	 */
  	lockdep_assert_irqs_disabled();
  
@@ -233,7 +233,7 @@ index c4d098bdb..d309809ec 100644
  
  	/*
  	 * Allow a per-cpu kthread to stack with the wakee if the
-@@ -8957,6 +8930,24 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target, int
+@@ -8965,6 +8938,24 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target, int
  		return prev;
  	}
  
@@ -258,7 +258,7 @@ index c4d098bdb..d309809ec 100644
  	/*
  	 * For asymmetric CPU capacity systems, our domain of interest is
  	 * sd_asym_cpucapacity rather than sd_llc.
-@@ -8981,74 +8972,6 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target, int
+@@ -8989,74 +8980,6 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target, int
  	if (!sd)
  		return target;
  
@@ -333,7 +333,7 @@ index c4d098bdb..d309809ec 100644
  	if (sched_smt_active()) {
  		has_idle_core = test_idle_cores(target);
  
-@@ -9063,9 +8986,6 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target, int
+@@ -9071,9 +8994,6 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target, int
  	if ((unsigned)i < nr_cpumask_bits)
  		return i;
  
@@ -343,7 +343,7 @@ index c4d098bdb..d309809ec 100644
  	/*
  	 * For cluster machines which have lower sharing cache like L2 or
  	 * LLC Tag, we tend to find an idle CPU in the target's cluster
-@@ -9077,13 +8997,6 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target, int
+@@ -9085,13 +9005,6 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target, int
  	if ((unsigned int)recent_used_cpu < nr_cpumask_bits)
  		return recent_used_cpu;
  
@@ -357,7 +357,7 @@ index c4d098bdb..d309809ec 100644
  	return target;
  }
  
-@@ -9766,7 +9679,7 @@ select_task_rq_fair(struct task_struct *p, int prev_cpu, int wake_flags)
+@@ -9774,7 +9687,7 @@ select_task_rq_fair(struct task_struct *p, int prev_cpu, int wake_flags)
  
  	/* Fast path */
  	if (wake_flags & WF_TTWU)

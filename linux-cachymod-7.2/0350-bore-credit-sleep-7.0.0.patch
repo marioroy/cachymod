@@ -1,0 +1,249 @@
+
+BORE-Lite: Credit-sleep feature from official BORE 7.0.0
+https://github.com/firelzrd/bore-scheduler
+
+A mini-patch crafted for use with CachyMod EEVDF
+https://github.com/marioroy/cachymod
+
+Signed-off-by: Mario Roy <>
+
+
+diff -uNarp a/include/linux/sched/bore.h b/include/linux/sched/bore.h
+--- a/include/linux/sched/bore.h
++++ b/include/linux/sched/bore.h
+@@ -0,0 +1,23 @@
++#ifndef _KERNEL_SCHED_BORE_H
++#define _KERNEL_SCHED_BORE_H
++
++#include <linux/sched.h>
++#include <linux/sched/cputime.h>
++
++#define SCHED_BORE_AUTHOR   "Masahito Suzuki"
++#define SCHED_BORE_PROGNAME "BORE-Lite CPU Scheduler modification"
++
++#define SCHED_BORE_VERSION  "7.0.0"
++
++extern uint __read_mostly sched_credit_cap_us;
++DECLARE_STATIC_KEY_TRUE(sched_credit_key);
++
++extern void bore_note_sleep(struct task_struct *p, u64 now);
++extern u64  bore_credit_ns(struct task_struct *p);
++
++extern void sched_init_bore(void);
++
++extern int  sched_credit_cap_us_update_handler(const struct ctl_table *table,
++	int write, void __user *buffer, size_t *lenp, loff_t *ppos);
++
++#endif /* _KERNEL_SCHED_BORE_H */
+diff -uNarp a/include/linux/sched.h b/include/linux/sched.h
+--- a/include/linux/sched.h
++++ b/include/linux/sched.h
+@@ -834,6 +834,12 @@ struct task_ipi_mask {
+ struct task_ipi_mask { };
+ #endif
+ 
++#ifdef CONFIG_CACHY
++struct bore_ctx {
++	u64		credit_sleep;
++};
++#endif /* CONFIG_CACHY */
++
+ struct task_struct {
+ #ifdef CONFIG_THREAD_INFO_IN_TASK
+ 	/*
+@@ -895,6 +901,9 @@ struct task_struct {
+ #ifdef CONFIG_SCHED_CLASS_EXT
+ 	struct sched_ext_entity		scx;
+ #endif
++#ifdef CONFIG_CACHY
++	struct bore_ctx			bore;
++#endif /* CONFIG_CACHY */
+ 	const struct sched_class	*sched_class;
+ 
+ #ifdef CONFIG_SCHED_CORE
+diff -uNarp a/kernel/sched/bore.c b/kernel/sched/bore.c
+--- a/kernel/sched/bore.c
++++ b/kernel/sched/bore.c
+@@ -0,0 +1,83 @@
++/*
++ *  Burst-Oriented Response Enhancer (BORE-Lite) CPU Scheduler
++ *  Copyright (C) 2021-2026 Masahito Suzuki <firelzrd@gmail.com>
++ */
++
++#include <linux/cpuset.h>
++#include <linux/sched/task.h>
++#include <linux/sched/bore.h>
++#include "sched.h"
++
++#ifdef CONFIG_CACHY
++uint __read_mostly sched_credit_cap_us	= 20000;
++
++static int __maybe_unused maxval_1_million = 1000000;
++
++DEFINE_STATIC_KEY_TRUE(sched_credit_key);
++
++void bore_note_sleep(struct task_struct *p, u64 now)
++{
++	p->bore.credit_sleep = now;
++}
++
++u64 bore_credit_ns(struct task_struct *p)
++{
++	u64 cap = (u64)sched_credit_cap_us * 1000ULL;
++	u64 slept = 0, credit = 0;
++
++	if (p->bore.credit_sleep) {
++		slept = rq_clock(task_rq(p)) - p->bore.credit_sleep;
++		if ((s64)slept > 0) {
++			p->bore.credit_sleep = 0;
++			credit = slept < cap ? slept : cap;
++		} else {
++			slept = 0;
++		}
++	}
++
++	return credit;
++}
++
++void __init sched_init_bore(void) {
++	printk(KERN_INFO "%s %s by %s\n",
++		SCHED_BORE_PROGNAME, SCHED_BORE_VERSION, SCHED_BORE_AUTHOR);
++
++	if (sched_credit_cap_us)
++		static_branch_enable(&sched_credit_key);
++}
++
++int sched_credit_cap_us_update_handler(const struct ctl_table *table,
++		int write, void __user *buffer, size_t *lenp, loff_t *ppos) {
++	int ret = proc_douintvec_minmax(table, write, buffer, lenp, ppos);
++	if (ret || !write)
++		return ret;
++
++	if (sched_credit_cap_us)
++		static_branch_enable(&sched_credit_key);
++	else
++		static_branch_disable(&sched_credit_key);
++
++	return 0;
++}
++
++#ifdef CONFIG_SYSCTL
++static struct ctl_table sched_bore_sysctls[] = {
++	{
++		.procname	= "sched_credit_cap_us",
++		.data		= &sched_credit_cap_us,
++		.maxlen		= sizeof(uint),
++		.mode		= 0644,
++		.proc_handler	= sched_credit_cap_us_update_handler,
++		.extra1		= SYSCTL_ZERO,
++		.extra2		= &maxval_1_million,
++	},
++};
++
++static int __init sched_bore_sysctl_init(void) {
++	register_sysctl_init("kernel", sched_bore_sysctls);
++	return 0;
++}
++late_initcall(sched_bore_sysctl_init);
++
++#endif /* CONFIG_SYSCTL */
++#endif /* CONFIG_CACHY */
+diff -uNarp a/kernel/sched/build_utility.c b/kernel/sched/build_utility.c
+--- a/kernel/sched/build_utility.c
++++ b/kernel/sched/build_utility.c
+@@ -54,6 +54,10 @@
+ #include "stats.h"
+ #include "autogroup.h"
+ 
++#ifdef CONFIG_CACHY
++#include <linux/sched/bore.h>
++#endif /* CONFIG_CACHY */
++
+ #include "clock.c"
+ 
+ #ifdef CONFIG_CGROUP_CPUACCT
+diff -uNarp a/kernel/sched/core.c b/kernel/sched/core.c
+--- a/kernel/sched/core.c
++++ b/kernel/sched/core.c
+@@ -100,6 +100,10 @@
+ #include "../smpboot.h"
+ #include "../locking/mutex.h"
+ 
++#ifdef CONFIG_CACHY
++#include <linux/sched/bore.h>
++#endif /* CONFIG_CACHY */
++
+ EXPORT_TRACEPOINT_SYMBOL_GPL(ipi_send_cpu);
+ EXPORT_TRACEPOINT_SYMBOL_GPL(ipi_send_cpumask);
+ 
+@@ -8979,6 +8983,10 @@ void __init sched_init(void)
+ 	BUG_ON(!sched_class_above(&ext_sched_class, &idle_sched_class));
+ #endif
+ 
++#ifdef CONFIG_CACHY
++	sched_init_bore();
++#endif /* CONFIG_CACHY */
++
+ 	wait_bit_init();
+ 
+ #ifdef CONFIG_FAIR_GROUP_SCHED
+diff -uNarp a/kernel/sched/fair.c b/kernel/sched/fair.c
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -58,6 +58,10 @@
+ #include "stats.h"
+ #include "autogroup.h"
+ 
++#ifdef CONFIG_CACHY
++#include <linux/sched/bore.h>
++#endif /* CONFIG_CACHY */
++
+ /*
+  * The initial- and re-scaling of tunables is configurable
+  *
+@@ -6116,6 +6120,16 @@ place_entity(struct cfs_rq *cfs_rq, stru
+ 	 * EEVDF: vd_i = ve_i + r_i/w_i
+ 	 */
+ 	se->deadline = se->vruntime + vslice;
++
++#ifdef CONFIG_CACHY
++	if (static_branch_likely(&sched_credit_key) &&
++			entity_is_task(se) && (flags & ENQUEUE_WAKEUP)) {
++		u64 credit = bore_credit_ns(task_of(se));
++
++		if (credit && se->deadline > credit)
++			se->deadline -= credit;
++	}
++#endif /* CONFIG_CACHY */
+ }
+ 
+ static void check_enqueue_throttle(struct cfs_rq *cfs_rq);
+@@ -8063,6 +8077,17 @@ static bool dequeue_task_fair(struct rq
+ 	if (!p->se.sched_delayed)
+ 		util_est_dequeue(&rq->cfs, p);
+ 
++#ifdef CONFIG_CACHY
++	if (flags & DEQUEUE_SLEEP) {
++		struct sched_entity *se = &p->se;
++		if (entity_is_task(se)) {
++			struct cfs_rq *cfs_rq = cfs_rq_of(se);
++			if (cfs_rq->curr == se)
++				update_curr(cfs_rq);
++			bore_note_sleep(p, rq_clock(rq));
++		}
++	}
++#endif /* CONFIG_CACHY */
+ 	if (dequeue_entities(rq, &p->se, flags) < 0)
+ 		return false;
+ 
+diff -uNarp a/kernel/sched/Makefile b/kernel/sched/Makefile
+--- a/kernel/sched/Makefile
++++ b/kernel/sched/Makefile
+@@ -40,3 +40,4 @@ obj-y += core.o
+ obj-y += fair.o
+ obj-y += build_policy.o
+ obj-y += build_utility.o
++obj-$(CONFIG_CACHY) += bore.o
+-- 
+2.55.0
+

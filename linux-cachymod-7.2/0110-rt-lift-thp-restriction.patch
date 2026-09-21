@@ -1,5 +1,5 @@
 
-Lift the THP restriction with the CachyMod RT kernel.
+Lift the THP restriction for the CachyMod RT variant.
 
 > Users get the best of both worlds—uncompromised real-time
 > predictability by default, but the raw speed of Huge Pages

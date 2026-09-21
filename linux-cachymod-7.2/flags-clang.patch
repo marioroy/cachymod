@@ -2,7 +2,7 @@
 diff -uarp a/Makefile b/Makefile
 --- a/Makefile
 +++ b/Makefile
-@@ -959,6 +959,29 @@
+@@ -959,6 +959,30 @@
  KBUILD_CFLAGS	+= $(call cc-option,-fno-allow-store-data-races)
  endif
  
@@ -16,7 +16,7 @@ diff -uarp a/Makefile b/Makefile
 +        -mllvm=-unroll-max-count=8
 +
 +    ifndef CONFIG_LTO_CLANG
-+        KBUILD_CFLAGS += -mllvm=-inline-threshold=420
++    KBUILD_CFLAGS += -mllvm=-inline-threshold=420
 +    endif
 +
 +    # =========================================================
@@ -24,8 +24,9 @@ diff -uarp a/Makefile b/Makefile
 +    # Optimized inline ceiling to prevent I-cache thrashing
 +    # =========================================================
 +    ifdef CONFIG_LTO_CLANG
-+        KBUILD_LDFLAGS += --lto-O2 --lto-CGO2 --thinlto-jobs=6
-+        KBUILD_CFLAGS += -mllvm=-inline-threshold=320
++    THINLTO_JOBS := $(shell nproc | awk '{print ($$1 > 16) ? 12 : 6}')
++    KBUILD_LDFLAGS += --lto-O2 --lto-CGO2 --thinlto-jobs=$(THINLTO_JOBS)
++    KBUILD_CFLAGS += -mllvm=-inline-threshold=320
 +    endif
 +endif
 +
@@ -51,7 +52,7 @@ Signed-off-by: Mario Roy <>
 diff -uarp a/kernel/time/hrtimer.c b/kernel/time/hrtimer.c
 --- a/kernel/time/hrtimer.c
 +++ b/kernel/time/hrtimer.c
-@@ -2389,7 +2389,7 @@ int nanosleep_copyout(struct restart_blo
+@@ -2396,7 +2396,7 @@ int nanosleep_copyout(struct restart_blo
  	return -ERESTART_RESTARTBLOCK;
  }
  

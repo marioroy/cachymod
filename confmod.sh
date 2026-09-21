@@ -71,7 +71,7 @@ new_conf() {
     echo ": \${_buildtype:=clang}"
     echo ": \${_autofdo:=no}"
     echo ": \${_autofdo_profile_name:=cachymod.afdo}"
-    echo ": \${_hugepage:=always}"
+    echo ": \${_hugepage:=auto}"
     echo ": \${_kernel_suffix:=${conf// /-}}"
     echo ": \${_localmodcfg:=no}"
     echo ": \${_localmodcfg_path:=modprobed.db}"
@@ -276,12 +276,14 @@ input_autofdo_profile_name() {
 
 input_hugepage() {
   local -n varref="$1"; local menu=() selected=
+  menu+=("auto:    Default always for non-RT or madvise for RT")
   menu+=("always:  Always enable THP")
   menu+=("madvise: Applications explicitly request THP")
 
   case "$varref" in
-    always ) selected="${menu[0]}" ;;
-    madvise) selected="${menu[1]}" ;;
+    auto   ) selected="${menu[0]}" ;;
+    always ) selected="${menu[1]}" ;;
+    madvise) selected="${menu[2]}" ;;
   esac
 
   choose $1 menu "Choose Transparent Huge Pages (THP):" "$selected"
