@@ -23,7 +23,7 @@ sudo pacman -Sy nvidia-dkms
 ## 🛠️ Building and Installation
 
 There are no binary packages. One builds the kernel with `build.sh`.
-The demonstrations are given for the 7.2 kernel.
+The demonstrations are given for the 7.3 kernel.
 
 ```bash
 # obtain CachyMod repo
@@ -34,19 +34,19 @@ cd cachymod
 mkdir -p ~/.config/cachymod
 
 # copy the build configs for a specific version or copy all
-cp defconfigs/7.2/*.conf ~/.config/cachymod/
+cp defconfigs/7.3/*.conf ~/.config/cachymod/
 cp defconfigs/*/*.conf ~/.config/cachymod/
 
 # the TUI tools require the gum package
 sudo pacman -S gum
 
 # make any adjustments with the confmod.sh TUI tool
-cd linux-cachymod-7.2
+cd linux-cachymod-7.3
 ../confmod.sh
 
 # build CachyMod kernel (includes installation)
 ./build.sh list  # to get a list of build configs
-./build.sh 72    # build kernel using the 72 config
+./build.sh 73    # build kernel using the 73 config
 ```
 
 To update, fetch the changes to automatically merge them into
@@ -72,8 +72,8 @@ sudo pacman -U linux-cachymod-[67dh]*.zst
 sudo pacman -U linux-cachymod-rt-[67dh]*.zst
 
 # with kernel tag
-sudo pacman -U linux-cachymod-72-[67dh]*.zst
-sudo pacman -U linux-cachymod-72-rt-[67dh]*.zst
+sudo pacman -U linux-cachymod-73-[67dh]*.zst
+sudo pacman -U linux-cachymod-73-rt-[67dh]*.zst
 ```
 
 ### Uninstall
