@@ -118,9 +118,39 @@ REFERENCES
 
 Signed-off-by: Alexandre Frade <kernel@xanmod.org>
 ---
- arch/x86/Kconfig.cpu | 385 +++++++++++++++++++++++++++++++++++++++++-
+ arch/x86/Kconfig.cpu | 395 +++++++++++++++++++++++++++++++++++++++++-
  arch/x86/Makefile    | 195 ++++++++++++++++++++-
- 2 files changed, 565 insertions(+), 15 deletions(-)
+ 2 files changed, 565 insertions(+), 25 deletions(-)
+
+diff -uar a/arch/x86/Kconfig.cpu b/arch/x86/Kconfig.cpu
+--- a/arch/x86/Kconfig.cpu
++++ b/arch/x86/Kconfig.cpu
+@@ -204,15 +204,6 @@
+ 	# usage warnings that only appear wth '-march=native'.
+ 	depends on CC_IS_GCC || CLANG_VERSION >= 190100
+ 
+-config RUSTC_HAS_APXF
+-	# The kernel isn't ready for in-kernel APX instructions. Without
+-	# explicit frontend gating of APX, the backend may emit those
+-	# instructions in native builds.
+-	#
+-	# Rust 1.88 added the `apxf` feature option, but versions before 1.93
+-	# emit an `apxf` target attribute that only LLVM 23+ can interpret.
+-	def_bool (RUSTC_VERSION >= 108800 && RUSTC_LLVM_MAJOR_VERSION >= 23) || \
+-		 RUSTC_VERSION >= 109300
+ 
+ choice
+ 	prompt "x86_64 Compiler Build Optimization"
+@@ -222,7 +213,6 @@
+ 	bool "Build and optimize for local/native CPU"
+ 	depends on X86_64
+ 	depends on CC_HAS_MARCH_NATIVE
+-	depends on !RUST || RUSTC_HAS_APXF
+ 	help
+ 	  Optimize for the current CPU used to compile the kernel.
+ 	  Use this option if you intend to build the kernel for your
+-- 
+2.47.3
 
 diff --git a/arch/x86/Kconfig.cpu b/arch/x86/Kconfig.cpu
 index e4654388d794..c08a681171e1 100644
@@ -589,7 +619,7 @@ diff --git a/arch/x86/Makefile b/arch/x86/Makefile
 index 0a1ad711dedc..8f430aee36d3 100644
 --- a/arch/x86/Makefile
 +++ b/arch/x86/Makefile
-@@ -164,11 +164,206 @@ ifdef CONFIG_X86_NATIVE_CPU
+@@ -169,11 +169,206 @@ ifdef CONFIG_X86_NATIVE_CPU
          KBUILD_RUSTFLAGS += -Ctarget-cpu=native
  endif
  

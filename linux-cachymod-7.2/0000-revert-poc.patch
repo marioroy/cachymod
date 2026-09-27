@@ -111,7 +111,7 @@ index e0132294b..18183062f 100644
  done:
  	scx_bypass(sch, false);
  }
-@@ -7580,10 +7577,6 @@ static void scx_root_enable_workfn(struct kthread_work *work)
+@@ -7582,10 +7579,6 @@ static void scx_root_enable_workfn(struct kthread_work *work)
  		}
  	}
  

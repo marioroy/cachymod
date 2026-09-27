@@ -1,5 +1,5 @@
 
-Minimalist POC v2.1.10 variant, based on POC v2.1.0 by @firelzrd
+Minimalist POC v2.1.11 variant, based on POC v2.1.0 by @firelzrd
   This applies fewer changes to kernel/sched/fair to help minimize EEVDF
   placement anomalies. Includes awareness patch for sched_ext.
 
@@ -17,18 +17,18 @@ Signed-off-by: Mario Roy <>
 
 From 7d942075abcf26c09f7effabce68c1f50d200cb1 Mon Sep 17 00:00:00 2001
 From: Masahito S <firelzrd@gmail.com>
-Date: Sun, 13 Sep 2026 15:00:00 +0900
-Subject: [PATCH] 7.2-poc-selector-v2.1.10
+Date: Fri, 25 Sep 2026 01:00:00 +0900
+Subject: [PATCH] 7.2-poc-selector-v2.1.11
 
 ---
  include/linux/sched/topology.h |   28 +
  init/Kconfig                   |   13 +
  kernel/sched/fair.c            |   58 +
  kernel/sched/idle.c            |   10 +
- kernel/sched/poc_selector.c    | 1066 ++++++++++++++++++++++++++++++++
+ kernel/sched/poc_selector.c    | 1076 ++++++++++++++++++++++++++++++++
  kernel/sched/sched.h           |  100 +++
  kernel/sched/topology.c        |    3 +
- 7 files changed, 1278 insertions(+), 0 deletion(-)
+ 7 files changed, 1288 insertions(+), 0 deletion(-)
  create mode 100644 kernel/sched/poc_selector.c
 
 diff --git a/include/linux/sched/topology.h b/include/linux/sched/topology.h
@@ -220,7 +220,7 @@ new file mode 100644
 index 0000000000..77da6e5bda
 --- /dev/null
 +++ b/kernel/sched/poc_selector.c
-@@ -0,0 +1,1066 @@
+@@ -0,0 +1,1076 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
 + * Piece-Of-Cake (POC) CPU Selector
@@ -260,7 +260,7 @@ index 0000000000..77da6e5bda
 +#define SCHED_POC_SELECTOR_AUTHOR   "Masahito Suzuki"
 +#define SCHED_POC_SELECTOR_PROGNAME "Piece-Of-Cake (POC) CPU Selector"
 +
-+#define SCHED_POC_SELECTOR_VERSION  "2.1.10"
++#define SCHED_POC_SELECTOR_VERSION  "2.1.11"
 +
 +/**************************************************************
 + * Static keys:
@@ -549,6 +549,7 @@ index 0000000000..77da6e5bda
 + * Returns: idle CPU number if found, -1 otherwise
 + */
 +static __always_inline int poc_find_idle_smt_sibling(
++	struct task_struct *p, struct sched_domain_shared *sd_share,
 +	int base, int tgt_bit, u64 tgt_mask, u64 cpu_mask, u64 smt_mask)
 +{
 +	/* Check target first for cache locality */
@@ -557,8 +558,17 @@ index 0000000000..77da6e5bda
 +
 +	u64 idle_sibs = cpu_mask & smt_mask;
 +
-+	if (idle_sibs)
-+		return base + POC_CTZ64(idle_sibs);
++	if (idle_sibs) {
++		int smt_bit = POC_CTZ64(idle_sibs);
++		int smt_cpu = base + smt_bit;
++		if (choose_idle_cpu(smt_cpu, p))
++			return smt_cpu;
++		smt_mask = 1ULL << smt_bit;
++		if ((u64)READ_ONCE(sd_share->poc_idle_cpus_mask.counter) & smt_mask) {
++			atomic64_andnot(smt_mask, &sd_share->poc_idle_cpus_mask);
++			smp_mb__after_atomic();
++		}
++	}
 +
 +	return -1;
 +}
@@ -659,7 +669,7 @@ index 0000000000..77da6e5bda
 +		} else {
 +			/* Level 4: target/sibling */
 +			int smt_cpu = poc_find_idle_smt_sibling(
-+				base, tgt_bit, tgt_mask, cpu_mask, smt_mask);
++				p, sd_share, base, tgt_bit, tgt_mask, cpu_mask, smt_mask);
 +			if (smt_cpu >= 0) {
 +				//poc_count(POC_LV4);
 +				return smt_cpu;
@@ -1457,7 +1467,7 @@ diff -uarp a/kernel/sched/ext/ext.c b/kernel/sched/ext/ext.c
  	cpus_read_unlock();
  
  	/*
-@@ -7515,6 +7530,14 @@ static void scx_enable_workfn(struct kthread_work *work)
+@@ -7517,6 +7532,14 @@ static void scx_enable_workfn(struct kthread_work *work)
  	scx_cgroup_unlock();
  	percpu_up_write(&scx_fork_rwsem);
  

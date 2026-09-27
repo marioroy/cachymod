@@ -88,7 +88,7 @@ diff --git a/kernel/sched/core.c b/kernel/sched/core.c
 index edd1a3fc7..e55a8f257 100644
 --- a/kernel/sched/core.c
 +++ b/kernel/sched/core.c
-@@ -5670,8 +5670,11 @@ EXPORT_PER_CPU_SYMBOL(kernel_cpustat);
+@@ -5680,8 +5680,11 @@ EXPORT_PER_CPU_SYMBOL(kernel_cpustat);
   */
  static inline void prefetch_curr_exec_start(struct task_struct *p)
  {
