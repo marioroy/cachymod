@@ -153,7 +153,7 @@ _tagrel=2
 pkgver=${_major}.${_rcver}
 
 pkgdesc='CachyMod Linux Kernel with other patches and improvements'
-pkgrel=2
+pkgrel=3
 _stable=${_major}-${_rcver}
 _srctag=cachyos-${_major}-${_rcver}-${_tagrel}
 _srcname=${_srctag}                                  
@@ -195,7 +195,7 @@ source=(
     "0210-cachymod-misc.patch"
     "0260-fair-update-cachy-mods.patch"
     "0280-prefer-idle-core.patch"
-    "0290-poc-selector-v2.1.11.patch"
+    "0290-poc-selector-v2.1.12.patch"
 
     # Clear Linux default
     "0300-x86-prevent-avx2-vector.patch"  # applied if _prevent_avx2=yes
