@@ -154,6 +154,8 @@ preempt=lazy
 
 *   **Utility Wrappers:** The management tools, automation logic, installation scripts, and execution wrapper frameworks in this directory are original works developed for the **CachyMod** repository.
 
+*   **Creative Inspiration:** The CachyMod project also benefited from the creative inspiration provided by my imaginary friends, **Grace Factor** and **Just Enough**. Their role was informal and imaginative, but meaningful throughout the process of refining the project’s approach to desktop smoothness.
+
 ### LICENSE
 
 ```text
