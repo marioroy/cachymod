@@ -103,7 +103,7 @@ diff -uNarp a/Documentation/admin-guide/cgroup-v2.rst b/Documentation/admin-guid
 diff -uNarp a/Documentation/admin-guide/kernel-parameters.txt b/Documentation/admin-guide/kernel-parameters.txt
 --- a/Documentation/admin-guide/kernel-parameters.txt
 +++ b/Documentation/admin-guide/kernel-parameters.txt
-@@ -8408,13 +8408,6 @@ Kernel parameters
+@@ -8409,13 +8409,6 @@ Kernel parameters
  			force		- force vulnerability detection even on
  					  unaffected processors
  
@@ -375,7 +375,7 @@ diff -uNarp a/include/linux/zswap.h b/include/linux/zswap.h
 diff -uNarp a/MAINTAINERS b/MAINTAINERS
 --- a/MAINTAINERS
 +++ b/MAINTAINERS
-@@ -17408,7 +17408,6 @@ F:	mm/swap.h
+@@ -17411,7 +17411,6 @@ F:	mm/swap.h
  F:	mm/swap_table.h
  F:	mm/swap_state.c
  F:	mm/swapfile.c

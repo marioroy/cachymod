@@ -60,6 +60,7 @@ if [ "$#" -gt 0 ]; then
 
 else
   # Use defaults.
+  : ${_use_bore:=no}
   : ${_cpusched:=eevdf}
   : ${_buildtype:=clang}
   : ${_autofdo:=no}
@@ -91,7 +92,7 @@ else
   : ${_extra_patch_or_url9:=}
 fi
 
-export _cpusched _buildtype _autofdo _hugepage _kernel_suffix
+export _use_bore _cpusched _buildtype _autofdo _hugepage _kernel_suffix
 export _localmodcfg _localmodcfg_path _localmodcfg_minimal
 export _makenconfig _makexconfig _tcp_bbr3 _HZ_ticks _ticktype
 export _preempt _processor_opt _prevent_avx2 _build_r8125 _build_debug

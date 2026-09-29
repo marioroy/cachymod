@@ -201,7 +201,7 @@ diff -uNarp a/kernel/sched/fair.c b/kernel/sched/fair.c
  /*
   * The initial- and re-scaling of tunables is configurable
   *
-@@ -6189,6 +6193,16 @@ place_entity(struct cfs_rq *cfs_rq, stru
+@@ -6386,6 +6390,16 @@ place_entity(struct cfs_rq *cfs_rq, stru
  	 * EEVDF: vd_i = ve_i + r_i/w_i
  	 */
  	se->deadline = se->vruntime + vslice;
@@ -218,7 +218,7 @@ diff -uNarp a/kernel/sched/fair.c b/kernel/sched/fair.c
  }
  
  static void check_enqueue_throttle(struct cfs_rq *cfs_rq);
-@@ -8145,6 +8159,17 @@ static bool dequeue_task_fair(struct rq
+@@ -8361,6 +8375,17 @@ static bool dequeue_task_fair(struct rq
  	if (!p->se.sched_delayed)
  		util_est_dequeue(&rq->cfs, p);
  

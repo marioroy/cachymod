@@ -5,7 +5,7 @@ This is needed before applying the official BORE patch
 diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -69,17 +69,17 @@
+@@ -69,15 +69,15 @@
   *
   * (default SCHED_TUNABLESCALING_LOG = *(1+ilog(ncpus))
   */
@@ -22,11 +22,8 @@ diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
 +unsigned int sysctl_sched_base_slice			= 700000ULL;
 +static unsigned int normalized_sysctl_sched_base_slice	= 700000ULL;
  
--__read_mostly unsigned int sysctl_sched_migration_cost	= 400000UL;
-+__read_mostly unsigned int sysctl_sched_migration_cost	= 500000UL;
+ __read_mostly unsigned int sysctl_sched_migration_cost	= 500000UL;
  
- static int __init setup_sched_thermal_decay_shift(char *str)
- {
 -- 
 2.52.0
 

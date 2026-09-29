@@ -1,8 +1,8 @@
 
 Revert Cachy mods + improve smoothness
 (1) Set scheduler tunable latencies to unscaled
-(2) Update base_slice and migration_cost
-(3) Decrease the timer_slack_ns default
+(2) Compute sched_base_slice
+(3) Decrease timer_slack_ns default
 
 diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
 --- a/kernel/sched/fair.c
@@ -33,8 +33,7 @@ diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
 -#ifdef CONFIG_CACHY
 -__read_mostly unsigned int sysctl_sched_migration_cost	= 400000UL;
 -#else
--__read_mostly unsigned int sysctl_sched_migration_cost	= 500000UL;
-+__read_mostly unsigned int sysctl_sched_migration_cost	= 400000UL;
+ __read_mostly unsigned int sysctl_sched_migration_cost	= 500000UL;
 -#endif
  
  static int __init setup_sched_thermal_decay_shift(char *str)

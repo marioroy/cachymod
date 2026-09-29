@@ -5,6 +5,9 @@
 ### BUILD OPTIONS
 # Set these variables to ANYTHING that is not null or choose proper variable to enable them
 
+# Enable the official BORE scheduler patch
+: ${_use_bore:=no}
+
 # Select CPU scheduler { eevdf, rt }
 # eevdf: EEVDF Scheduler (use with the linux-cgroup-always repo, optional)
 # rt:    EEVDF Scheduler with real-time preemption enabled
@@ -148,12 +151,12 @@ fi
 _pkgsuffix=cachymod
 _major=7.3
 _minor=0
-_rcver="rc4"
-_tagrel=2
+_rcver="rc5"
+_tagrel=1
 pkgver=${_major}.${_rcver}
 
 pkgdesc='CachyMod Linux Kernel with other patches and improvements'
-pkgrel=3
+pkgrel=1
 _stable=${_major}-${_rcver}
 _srctag=cachyos-${_major}-${_rcver}-${_tagrel}
 _srcname=${_srctag}                                  
@@ -193,19 +196,26 @@ source=(
     "0110-rt-lift-thp-restriction.patch"
     "0200-clearlinux-extras.patch"
     "0210-cachymod-misc.patch"
+    "0220-more-fixes.patch"
+    "0230-nap-0.5.0.patch"
     "0260-fair-update-cachy-mods.patch"
     "0280-prefer-idle-core.patch"
     "0290-poc-selector-v2.1.12.patch"
 
-    # Clear Linux default
-    "0300-x86-prevent-avx2-vector.patch"  # applied if _prevent_avx2=yes
+    # Clear Linux default, applied if _prevent_avx2=yes
+    "0300-x86-prevent-avx2-vector.patch"
 
     # The credit-sleep feature is applied unless detected BORE patch
     "0350-bore-credit-sleep-7.0.0.patch"
 
-    # This revert is applied only if a BORE patch is detected via extra_patch_or_url
+    # This revert is applied only if detected a BORE patch
     "0360-fair-revert-cachy-mods.patch"
 )
+
+# Use BORE
+if [[ "$_use_bore" =~ ^(yes|y|1)$ ]]; then
+    source+=("0370-bore-7.0.0.patch")
+fi
 
 # LLVM makedepends
 if [[ "$buildtype" =~ (lto|clang) ]]; then

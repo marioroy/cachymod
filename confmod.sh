@@ -67,6 +67,7 @@ new_conf() {
   # Write a new configuration to file.
   local conf="$1"
   (
+    echo ": \${_use_bore:=no}"
     echo ": \${_cpusched:=eevdf}"
     echo ": \${_buildtype:=clang}"
     echo ": \${_autofdo:=no}"
@@ -103,6 +104,7 @@ save_conf() {
   # Write the configuration to file.
   local conf="$1"
   (
+    echo ": \${_use_bore:=${_use_bore}}"
     echo ": \${_cpusched:=${_cpusched}}"
     echo ": \${_buildtype:=${_buildtype}}"
     echo ": \${_autofdo:=${_autofdo}}"
@@ -200,6 +202,16 @@ input() {
   [ "$ans" = "blank" ] && ans=""
 
   varref="$ans"
+}
+
+input_use_bore() {
+  local -n varref="$1"; local msg=
+  msg+="The Burst-Oriented Response Enhancer (BORE) shifts scheduling\n"
+  msg+="globally to favor interactive tasks, which is helpful when\n"
+  msg+="CPU-intensive workloads and the desktop are placed in the\n"
+  msg+="same cgroup hierarchy.\n"
+
+  confirm $1 "Enable the official BORE scheduler patch?" "$msg"
 }
 
 input_cpusched() {
@@ -509,7 +521,7 @@ edit_conf() {
   local selected="Main menu"
 
   while true; do
-    local _cpusched= _buildtype= _autofdo= _hugepage= _kernel_suffix=
+    local _use_bore= _cpusched= _buildtype= _autofdo= _hugepage= _kernel_suffix=
     local _localmodcfg= _localmodcfg_path= _localmodcfg_minimal=
     local _makenconfig= _makexconfig= _tcp_bbr3= _HZ_ticks= _ticktype=
     local _preempt= _processor_opt= _prevent_avx2= _build_r8125= _build_debug=
@@ -581,6 +593,11 @@ edit_conf() {
     # update the selected variable
     # continue if the same value
     case "$ans" in
+      ': ${_use_bore:='*)
+        input_use_bore _use_bore
+        selected=": \${_use_bore:=$_use_bore}"
+        [ "$_use_bore" = "$oldval" ] && continue ;;
+
       ': ${_cpusched:='*)
         input_cpusched _cpusched
         selected=": \${_cpusched:=$_cpusched}"

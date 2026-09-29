@@ -1,6 +1,11 @@
 # CachyMod
 
-Run a custom kernel on [CachyOS](https://cachyos.org/).
+Run a custom kernel on [CachyOS](https://cachyos.org). This repository is primarily for my personal use, where **smoothness is preferred over raw performance**.
+
+> [!TIP]
+> One of the best things about CachyMod is how modular it is! If you are looking for specific hardware tweaks or unique EEVDF customizations, you can easily plug them right into your own build using the `_extra_patch_or_url` options. 
+>
+> *Note: The official BORE scheduler is built-in and can be enabled via the `_use_bore` option.*
 
 > [!IMPORTANT]
 > If running NVIDIA graphics, first switch to DKMS for future proof CachyOS updating the NVIDIA stack to a later release.
