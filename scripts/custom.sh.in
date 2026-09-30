@@ -25,6 +25,11 @@ set -e
 # https://www.reddit.com/r/linuxquestions/comments/1b6bijd/downsides_to_kerneltask_delayacct/
 #scripts/config -d TASK_DELAY_ACCT
 
+# Disable legacy vsyscall, ioperm, and iopl emulation.
+# Do not disable if running VMware closed-source host modules (vmmon and vmnet).
+#scripts/config -d X86_VSYSCALL_EMULATION
+#scripts/config -d X86_IOPL_IOPERM
+
 # Disable staging drivers
 # Drivers that are not of the "normal" Linux kernel quality level
 #scripts/config -d STAGING

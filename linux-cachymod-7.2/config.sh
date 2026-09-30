@@ -77,13 +77,6 @@ scripts/config -d KEXEC_HANDOVER
 ### Disable check for low memory corruption.
 scripts/config -d X86_CHECK_BIOS_CORRUPTION
 
-### Disable legacy vsyscall, ioperm, and iopl emulation.
-# Confirmation from shelter at CachyOS discord channel:
-# The VMware network service fails to start without it.
-# The vm itself also crashes when attempting to start.
-#scripts/config -d X86_VSYSCALL_EMULATION
-#scripts/config -d X86_IOPL_IOPERM
-
 ### Disable detect hung tasks.
 scripts/config -d DETECT_HUNG_TASK
 scripts/config -d HARDLOCKUP_DETECTOR
