@@ -6,7 +6,7 @@ CachyMod Sauce:
 
 min_base_slice_ns = 1600000
 base_slice_ns = 800000000/HZ * DIV_ROUNDUP(min_base_slice_ns, 800000000/HZ)
-sched_burst_penalty_scale = 2048
+sched_burst_cache_lifetime = 25000000
 sched_credit_cap_us = 20000
 
 Signed-off-by: Mario Roy <>
@@ -315,8 +315,8 @@ index 0000000000..9d75c476a8
 +u8   __read_mostly sched_burst_protect_slice_lv = 1;
 +u8   __read_mostly sched_burst_smoothness       = 1;
 +u8   __read_mostly sched_burst_penalty_offset   = 24;
-+uint __read_mostly sched_burst_penalty_scale    = 2048;
-+uint __read_mostly sched_burst_cache_lifetime   = 75000000;
++uint __read_mostly sched_burst_penalty_scale    = 1536;
++uint __read_mostly sched_burst_cache_lifetime   = 25000000;
 +
 +uint __read_mostly sched_credit_cap_us = 20000;
 +
