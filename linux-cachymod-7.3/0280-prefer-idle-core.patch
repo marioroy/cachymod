@@ -382,7 +382,7 @@ index 23596398abca9e..0d2ce4bfac8322 100644
  
  	return new_cpu;
  }
-@@ -11945,7 +11969,7 @@ static bool sched_use_asym_prio(struct sched_domain *sd, int cpu)
+@@ -11945,7 +11967,7 @@ static bool sched_use_asym_prio(struct sched_domain *sd, int cpu)
  	if (!sched_smt_active())
  		return true;
  
