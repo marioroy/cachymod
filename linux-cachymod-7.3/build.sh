@@ -5,11 +5,13 @@
 # Copyright (C) 2025-2026 Mario Roy <marioeroy@gmail.com>
 
 # Parse build overrides, key=value parameters.
-ARGS=()
+ARGS=(); NOINSTALL=0
 for ARG in "$@"; do
   if [[ "$ARG" = *"="* ]]; then
     KEY="${ARG%%=*}" VALUE="${ARG#*=}"
     export "$KEY"="$VALUE"
+  elif [[ "$ARG" = "--noinstall" ]]; then
+    NOINSTALL=1
   else
     ARGS+=("$ARG")
   fi
@@ -21,7 +23,8 @@ set -- "$@" ${ARGS[@]}
 unset ARGS ARG KEY VALUE
 
 if [[ "$#" -gt 0 && "$1" =~ ^(-h|--help|help)$ ]]; then
-  echo "Usage: $0 [ confname | list ]"
+  echo "Usage: $0 [ confname [--noinstall] ]"
+  echo "       $0 [ help | list ]"
   exit
 fi
 
@@ -101,9 +104,15 @@ export _extra_patch_or_url3 _extra_patch_or_url4 _extra_patch_or_url5
 export _extra_patch_or_url6 _extra_patch_or_url7 _extra_patch_or_url8
 export _extra_patch_or_url9 _autofdo_profile_name
 
-# Build and install the CachyMod kernel.
-time nice -n 15 ionice -n 1 \
-  makepkg -Ascif --cleanbuild --skipinteg --noconfirm || exit 1
+if [[ "$NOINSTALL" -eq 0 ]]; then
+  # Build and install the CachyMod kernel.
+  time nice -n 15 ionice -n 1 \
+    makepkg -Ascif --cleanbuild --skipinteg --noconfirm || exit 1
+else
+  # Build the CachyMod kernel.
+  time nice -n 15 ionice -n 1 \
+    makepkg -Ascf --cleanbuild --skipinteg --noconfirm || exit 1
+fi
 
 sync
 

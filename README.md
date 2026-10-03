@@ -52,6 +52,7 @@ cd linux-cachymod-7.3
 # build CachyMod kernel (includes installation)
 ./build.sh list  # to get a list of build configs
 ./build.sh 73    # build kernel using the 73 config
+./build.sh 73 --noinstall   # skip installation
 ```
 
 To update, fetch the changes to automatically merge them into
