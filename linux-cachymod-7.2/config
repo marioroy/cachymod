@@ -1,6 +1,6 @@
 #
 # Automatically generated file; DO NOT EDIT.
-# Linux/x86 7.2.8 Kernel Configuration
+# Linux/x86 7.2.9 Kernel Configuration
 #
 CONFIG_CC_VERSION_TEXT="gcc (GCC) 16.1.1 20260625"
 CONFIG_CC_IS_GCC=y
@@ -808,6 +808,7 @@ CONFIG_CPU_FREQ_GOV_USERSPACE=y
 CONFIG_CPU_FREQ_GOV_ONDEMAND=y
 CONFIG_CPU_FREQ_GOV_CONSERVATIVE=y
 CONFIG_CPU_FREQ_GOV_SCHEDUTIL=y
+CONFIG_CPU_FREQ_GOV_REFLEX=y
 
 #
 # CPU frequency scaling drivers

@@ -408,7 +408,7 @@ diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
 index 3ebec186f982..3a21ceefcadf 100644
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -14970,6 +14970,15 @@ static void switched_from_fair(struct rq *rq, struct task_struct *p)
+@@ -15051,6 +15051,15 @@ static void switched_from_fair(struct rq *rq, struct task_struct *p)
  	detach_task_cfs_rq(p);
  }
  
@@ -424,7 +424,7 @@ index 3ebec186f982..3a21ceefcadf 100644
  static void switched_to_fair(struct rq *rq, struct task_struct *p)
  {
  	WARN_ON_ONCE(p->se.sched_delayed);
-@@ -15347,6 +15356,7 @@ DEFINE_SCHED_CLASS(fair) = {
+@@ -15428,6 +15437,7 @@ DEFINE_SCHED_CLASS(fair) = {
  	.prio_changed		= prio_changed_fair,
  	.switching_from		= switching_from_fair,
  	.switched_from		= switched_from_fair,
@@ -445,7 +445,7 @@ diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
 index b5819c489..2b9653623 100644
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -13508,12 +13508,21 @@ static int sched_balance_rq(int this_cpu, struct rq *this_rq,
+@@ -13589,12 +13589,21 @@ static int sched_balance_rq(int this_cpu, struct rq *this_rq,
  			 * ->active_balance_work.  Once set, it's cleared
  			 * only after active load balance is finished.
  			 */
@@ -482,7 +482,7 @@ diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
 index 2b9653623..9c78241e9 100644
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -13536,10 +13536,8 @@ static int sched_balance_rq(int this_cpu, struct rq *this_rq,
+@@ -13617,10 +13617,8 @@ static int sched_balance_rq(int this_cpu, struct rq *this_rq,
  		sd->nr_balance_failed = 0;
  	}
  

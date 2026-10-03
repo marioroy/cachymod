@@ -150,13 +150,13 @@ fi
 
 _pkgsuffix=cachymod
 _major=7.2
-_minor=8
-_tagrel=1
+_minor=9
+_tagrel=2
 #_rcver="rc7"
 pkgver=${_major}.${_minor}
 
 pkgdesc='CachyMod Linux Kernel with other patches and improvements'
-pkgrel=5
+pkgrel=1
 _srcname=cachyos-${_major}.${_minor}-${_tagrel}
 _kernver="$pkgver-$pkgrel"
 _kernuname="${pkgver}-${_pkgsuffix}"
@@ -195,6 +195,7 @@ source=(
     "0210-cachymod-misc.patch"
     "0220-more-fixes.patch"
     "0230-nap-0.5.0.patch"
+    "0240-reflex-0.4.0.patch"
     "0260-fair-update-cachy-mods.patch"
     "0280-prefer-idle-core.patch"
     "0290-poc-selector-v2.1.12.patch"

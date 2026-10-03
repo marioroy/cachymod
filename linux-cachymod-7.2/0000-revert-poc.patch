@@ -101,7 +101,7 @@ diff --git a/kernel/sched/ext/ext.c b/kernel/sched/ext/ext.c
 index e0132294b..18183062f 100644
 --- a/kernel/sched/ext/ext.c
 +++ b/kernel/sched/ext/ext.c
-@@ -6363,9 +6363,6 @@ static void scx_root_disable(struct scx_sched *sch)
+@@ -6368,9 +6368,6 @@ static void scx_root_disable(struct scx_sched *sch)
  	mutex_unlock(&scx_enable_mutex);
  
  	WARN_ON_ONCE(scx_set_enable_state(SCX_DISABLED) != SCX_DISABLING);
@@ -111,7 +111,7 @@ index e0132294b..18183062f 100644
  done:
  	scx_bypass(sch, false);
  }
-@@ -7582,10 +7579,6 @@ static void scx_root_enable_workfn(struct kthread_work *work)
+@@ -7587,10 +7584,6 @@ static void scx_root_enable_workfn(struct kthread_work *work)
  		}
  	}
  
@@ -143,7 +143,7 @@ index c4d098bdb..d309809ec 100644
  static unsigned long task_h_load(struct task_struct *p);
  static unsigned long capacity_of(int cpu);
  
-@@ -8552,20 +8551,6 @@ void __update_idle_core(struct rq *rq)
+@@ -8628,20 +8627,6 @@ void __update_idle_core(struct rq *rq)
  	rcu_read_unlock();
  }
  
@@ -164,7 +164,7 @@ index c4d098bdb..d309809ec 100644
  /*
   * Scan the entire LLC domain for idle cores; this dynamically switches off if
   * there are no idle cores left in the system; tracked through
-@@ -8893,38 +8878,16 @@ static inline bool asym_fits_cpu(unsigned long util,
+@@ -8969,38 +8954,16 @@ static inline bool asym_fits_cpu(unsigned long util,
  	return true;
  }
  
@@ -204,7 +204,7 @@ index c4d098bdb..d309809ec 100644
  	/*
  	 * On asymmetric system, update task utilization because we will check
  	 * that the task fits with CPU's capacity.
-@@ -8941,13 +8904,23 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target, int
+@@ -9017,13 +8980,23 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target, int
  	 */
  	lockdep_assert_irqs_disabled();
  
@@ -233,7 +233,7 @@ index c4d098bdb..d309809ec 100644
  
  	/*
  	 * Allow a per-cpu kthread to stack with the wakee if the
-@@ -8965,6 +8938,24 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target, int
+@@ -9041,6 +9014,24 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target, int
  		return prev;
  	}
  
@@ -258,7 +258,7 @@ index c4d098bdb..d309809ec 100644
  	/*
  	 * For asymmetric CPU capacity systems, our domain of interest is
  	 * sd_asym_cpucapacity rather than sd_llc.
-@@ -8989,74 +8980,6 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target, int
+@@ -9065,74 +9056,6 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target, int
  	if (!sd)
  		return target;
  
@@ -333,7 +333,7 @@ index c4d098bdb..d309809ec 100644
  	if (sched_smt_active()) {
  		has_idle_core = test_idle_cores(target);
  
-@@ -9071,9 +8994,6 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target, int
+@@ -9147,9 +9070,6 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target, int
  	if ((unsigned)i < nr_cpumask_bits)
  		return i;
  
@@ -343,7 +343,7 @@ index c4d098bdb..d309809ec 100644
  	/*
  	 * For cluster machines which have lower sharing cache like L2 or
  	 * LLC Tag, we tend to find an idle CPU in the target's cluster
-@@ -9085,13 +9005,6 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target, int
+@@ -9161,13 +9081,6 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target, int
  	if ((unsigned int)recent_used_cpu < nr_cpumask_bits)
  		return recent_used_cpu;
  
@@ -357,7 +357,7 @@ index c4d098bdb..d309809ec 100644
  	return target;
  }
  
-@@ -9774,7 +9687,7 @@ select_task_rq_fair(struct task_struct *p, int prev_cpu, int wake_flags)
+@@ -9850,7 +9763,7 @@ select_task_rq_fair(struct task_struct *p, int prev_cpu, int wake_flags)
  
  	/* Fast path */
  	if (wake_flags & WF_TTWU)
@@ -2585,7 +2585,7 @@ diff --git a/kernel/sched/topology.c b/kernel/sched/topology.c
 index 339d505c8..622e2e019 100644
 --- a/kernel/sched/topology.c
 +++ b/kernel/sched/topology.c
-@@ -3161,9 +3161,6 @@ build_sched_domains(const struct cpumask *cpu_map, struct sched_domain_attr *att
+@@ -3165,9 +3165,6 @@ build_sched_domains(const struct cpumask *cpu_map, struct sched_domain_attr *att
  
  		if (sd->flags & SD_SHARE_LLC) {
  			init_sched_domain_shared(&d, sd, SD_SHARE_LLC);

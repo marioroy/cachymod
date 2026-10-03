@@ -98,7 +98,7 @@ diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
 index 967ca52fb2..042327d822 100644
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -2164,6 +2164,11 @@ update_stats_curr_start(struct cfs_rq *cfs_rq, struct sched_entity *se)
+@@ -2235,6 +2235,11 @@ update_stats_curr_start(struct cfs_rq *cfs_rq, struct sched_entity *se)
  	se->exec_start = rq_clock_task(rq_of(cfs_rq));
  }
  
@@ -110,7 +110,7 @@ index 967ca52fb2..042327d822 100644
  /* Check sched_smt_active before calling this to avoid overheads in fastpaths */
  static inline bool is_core_idle(int cpu)
  {
-@@ -2170,6 +2175,12 @@ static inline bool is_core_idle(int cpu)
+@@ -2241,6 +2246,12 @@ static inline bool is_core_idle(int cpu)
  	int sibling;
  
  	for_each_cpu(sibling, cpu_smt_mask(cpu)) {
@@ -123,7 +123,7 @@ index 967ca52fb2..042327d822 100644
  
  		if (!idle_cpu(sibling))
  			return false;
-@@ -8435,7 +8446,13 @@ static bool is_idle_core(int cpu, struct task_struct *p)
+@@ -8511,7 +8522,13 @@ static bool is_idle_core(int cpu, struct task_struct *p)
  {
  	int sibling;
  
@@ -137,7 +137,7 @@ index 967ca52fb2..042327d822 100644
  		return choose_idle_cpu(cpu, p);
  
  	for_each_cpu(sibling, cpu_smt_mask(cpu))
-@@ -8921,6 +8938,39 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target, int sync)
+@@ -8997,6 +9014,39 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target, int sync)
  	if (!sd)
  		return target;
  
@@ -177,7 +177,7 @@ index 967ca52fb2..042327d822 100644
  	if (sched_smt_active()) {
  		has_idle_core = test_idle_cores(target);
  
-@@ -8941,6 +8991,9 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target, int sync)
+@@ -9017,6 +9067,9 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target, int sync)
  	 * first. But prev_cpu or recent_used_cpu may also be a good candidate,
  	 * use them if possible when no idle CPU found in select_idle_cpu().
  	 */
@@ -1338,7 +1338,7 @@ diff --git a/kernel/sched/topology.c b/kernel/sched/topology.c
 index 444bdfdab7..d21a8153db 100644
 --- a/kernel/sched/topology.c
 +++ b/kernel/sched/topology.c
-@@ -3161,6 +3161,9 @@ build_sched_domains(const struct cpumask *cpu_map, struct sched_domain_attr *att
+@@ -3165,6 +3165,9 @@ build_sched_domains(const struct cpumask *cpu_map, struct sched_domain_attr *att
  
  		if (sd->flags & SD_SHARE_LLC) {
  			init_sched_domain_shared(&d, sd, SD_SHARE_LLC);
@@ -1377,7 +1377,7 @@ diff -uarp a/kernel/sched/ext/ext.c b/kernel/sched/ext/ext.c
  /*
   * NOTE: sched_ext is in the process of growing multiple scheduler support and
   * scx_root usage is in a transitional state. Naked dereferences are safe if the
-@@ -6345,6 +6351,15 @@ static void scx_root_disable(struct scx_sched *sch)
+@@ -6350,6 +6356,15 @@ static void scx_root_disable(struct scx_sched *sch)
  	 */
  	cpus_read_lock();
  	RCU_INIT_POINTER(scx_root, NULL);
@@ -1393,7 +1393,7 @@ diff -uarp a/kernel/sched/ext/ext.c b/kernel/sched/ext/ext.c
  	cpus_read_unlock();
  
  	/*
-@@ -7517,6 +7532,14 @@ static void scx_enable_workfn(struct kthread_work *work)
+@@ -7522,6 +7537,14 @@ static void scx_enable_workfn(struct kthread_work *work)
  	scx_cgroup_unlock();
  	percpu_up_write(&scx_fork_rwsem);
  

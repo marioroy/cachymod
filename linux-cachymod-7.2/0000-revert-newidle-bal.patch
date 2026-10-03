@@ -30,7 +30,7 @@ diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
 index bf948db..66afa0a 100644
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -13838,30 +13838,7 @@ static inline void update_newidle_stats(struct sched_domain *sd, unsigned int su
+@@ -13919,30 +13919,7 @@ static inline void update_newidle_stats(struct sched_domain *sd, unsigned int su
  	sd->newidle_success += success;
  
  	if (sd->newidle_call >= 1024) {
@@ -62,7 +62,7 @@ index bf948db..66afa0a 100644
  		sd->newidle_call /= 2;
  		sd->newidle_success /= 2;
  	}
-@@ -14557,7 +14534,7 @@ static int sched_balance_newidle(struct rq *this_rq, struct rq_flags *rf)
+@@ -14638,7 +14615,7 @@ static int sched_balance_newidle(struct rq *this_rq, struct rq_flags *rf)
  		if (sd->flags & SD_BALANCE_NEWIDLE) {
  			unsigned int weight = 1;
  
@@ -92,7 +92,7 @@ index 32dcdda..061f8c8 100644
  #include <linux/bsearch.h>
  #include "sched.h"
  
-@@ -1938,7 +1937,6 @@ sd_init(struct sched_domain_topology_level *tl,
+@@ -1942,7 +1941,6 @@ sd_init(struct sched_domain_topology_level *tl,
  	struct sched_domain *sd = *per_cpu_ptr(sdd->sd, cpu);
  	int sd_id, sd_weight, sd_flags = 0;
  	struct cpumask *sd_span;
@@ -100,7 +100,7 @@ index 32dcdda..061f8c8 100644
  
  	sd_span = sched_domain_span(sd);
  	cpumask_and(sd_span, cpu_map, tl->mask(tl, cpu));
-@@ -1980,7 +1978,6 @@ sd_init(struct sched_domain_topology_level *tl,
+@@ -1984,7 +1982,6 @@ sd_init(struct sched_domain_topology_level *tl,
  		.newidle_call		= 512,
  		.newidle_success	= 256,
  		.newidle_ratio		= 512,
@@ -150,7 +150,7 @@ diff -uarp a/kernel/sched/core.c b/kernel/sched/core.c
 diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -13832,27 +13832,11 @@ void update_max_interval(void)
+@@ -13913,27 +13913,11 @@ void update_max_interval(void)
  	max_load_balance_interval = HZ*num_online_cpus()/10;
  }
  
@@ -179,7 +179,7 @@ diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
  	if (cost > sd->max_newidle_lb_cost) {
  		/*
  		 * Track max cost of a domain to make sure to not delay the
-@@ -13900,7 +13884,7 @@ static void sched_balance_domains(struct
+@@ -13981,7 +13965,7 @@ static void sched_balance_domains(struct
  		 * Decay the newidle max times here because this is a regular
  		 * visit to all the domains.
  		 */
@@ -188,7 +188,7 @@ diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
  		max_cost += sd->max_newidle_lb_cost;
  
  		/*
-@@ -14532,22 +14516,6 @@ static int sched_balance_newidle(struct
+@@ -14613,22 +14597,6 @@ static int sched_balance_newidle(struct
  			break;
  
  		if (sd->flags & SD_BALANCE_NEWIDLE) {
@@ -211,7 +211,7 @@ diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
  
  			pulled_task = sched_balance_rq(this_cpu, this_rq,
  						   sd, CPU_NEWLY_IDLE,
-@@ -14555,14 +14523,10 @@ static int sched_balance_newidle(struct
+@@ -14636,14 +14604,10 @@ static int sched_balance_newidle(struct
  
  			t1 = sched_clock_cpu(this_cpu);
  			domain_cost = t1 - t0;
@@ -267,7 +267,7 @@ diff -uarp a/kernel/sched/sched.h b/kernel/sched/sched.h
 diff -uarp a/kernel/sched/topology.c b/kernel/sched/topology.c
 --- a/kernel/sched/topology.c
 +++ b/kernel/sched/topology.c
-@@ -1973,12 +1973,6 @@ sd_init(struct sched_domain_topology_lev
+@@ -1977,12 +1977,6 @@ sd_init(struct sched_domain_topology_lev
  
  		.last_balance		= jiffies,
  		.balance_interval	= sd_weight,
