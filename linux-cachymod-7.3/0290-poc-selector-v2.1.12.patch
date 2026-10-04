@@ -1,5 +1,5 @@
 
-Minimalist POC v2.1.12 variant, based on POC v2.1.0 by @firelzrd
+Minimalist POC v2.1.12 (rev2) variant, based on POC v2.1.0 by @firelzrd
   This applies fewer changes to kernel/sched/fair to help minimize EEVDF
   placement anomalies. Includes awareness patch for sched_ext.
 
@@ -17,15 +17,15 @@ Signed-off-by: Mario Roy <>
 
 From 7d942075abcf26c09f7effabce68c1f50d200cb1 Mon Sep 17 00:00:00 2001
 From: Masahito S <firelzrd@gmail.com>
-Date: Sun, 27 Sep 2026 09:00:00 +0900
-Subject: [PATCH] 7.3-poc-selector-v2.1.12
+Date: Sun, 04 Oct 2026 09:00:00 +0900
+Subject: [PATCH] 7.3-poc-selector-v2.1.12 (rev2)
 
 ---
  include/linux/sched/topology.h |   28 +
  init/Kconfig                   |   13 +
- kernel/sched/fair.c            |   58 +
+ kernel/sched/fair.c            |   59 +
  kernel/sched/idle.c            |   10 +
- kernel/sched/poc_selector.c    | 1003 ++++++++++++++++++++++++++++++++
+ kernel/sched/poc_selector.c    | 1002 ++++++++++++++++++++++++++++++++
  kernel/sched/sched.h           |   99 +++
  kernel/sched/topology.c        |    3 +
  7 files changed, 1214 insertions(+), 0 deletion(-)
@@ -137,7 +137,15 @@ index 967ca52fb2..042327d822 100644
  		return choose_idle_cpu(cpu, p);
  
  	for_each_cpu(sibling, cpu_smt_mask(cpu))
-@@ -9219,6 +9236,39 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target, int sync)
+@@ -9139,6 +9156,7 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target, int sync)
+ 	    cpumask_test_cpu(recent_used_cpu, p->cpus_ptr)) {
+ 
+ 		if ((unsigned int)recent_used_cpu < nr_cpumask_bits &&
++		    !static_branch_unlikely(&sched_poc_prefer_idle_smt) &&
+ 		    is_idle_core(recent_used_cpu, p))
+ 			return recent_used_cpu;
+ 	} else {
+@@ -9219,6 +9237,39 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target, int sync)
  	if (!sd)
  		return target;
  
@@ -177,7 +185,7 @@ index 967ca52fb2..042327d822 100644
  	if (sched_smt_active()) {
  		has_idle_core = test_idle_cores(target);
  
-@@ -9239,6 +9289,9 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target, int sync)
+@@ -9239,6 +9290,9 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target, int sync)
  	 * first. But prev_cpu or recent_used_cpu may also be a good candidate,
  	 * use them if possible when no idle CPU found in select_idle_cpu().
  	 */
@@ -220,7 +228,7 @@ new file mode 100644
 index 0000000000..77da6e5bda
 --- /dev/null
 +++ b/kernel/sched/poc_selector.c
-@@ -0,0 +1,1003 @@
+@@ -0,0 +1,1002 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
 + * Piece-Of-Cake (POC) CPU Selector
@@ -615,7 +623,7 @@ index 0000000000..77da6e5bda
 +
 +		int shift = sd_share->poc_smt_shift;
 +		u64 pmask = cpu_mask & sd_share->poc_primary_mask;
-+		u64 core_mask, smt_mask;
++		u64 core_mask, smt_mask = sd_share->poc_smt_mask[tgt_bit];
 +
 +		/* Select the physical full-idle cores (first siblings) */
 +		pmask &= (cpu_mask & (sd_share->poc_primary_mask << shift)) >> shift;
@@ -631,7 +639,6 @@ index 0000000000..77da6e5bda
 +		}
 +
 +		/* Level 1: target CPU's core is idle → return it */
-+		smt_mask = sd_share->poc_smt_mask[tgt_bit];
 +		if (core_mask & smt_mask) {
 +			//poc_count(POC_LV1);
 +			return target;
