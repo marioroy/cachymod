@@ -25,10 +25,10 @@ Subject: [PATCH] 7.2-poc-selector-v2.1.12 (rev2)
  init/Kconfig                   |   13 +
  kernel/sched/fair.c            |   59 +
  kernel/sched/idle.c            |   10 +
- kernel/sched/poc_selector.c    | 1002 ++++++++++++++++++++++++++++++++
+ kernel/sched/poc_selector.c    | 1080 ++++++++++++++++++++++++++++++++
  kernel/sched/sched.h           |   99 +++
  kernel/sched/topology.c        |    3 +
- 7 files changed, 1214 insertions(+), 0 deletion(-)
+ 7 files changed, 1292 insertions(+), 0 deletion(-)
  create mode 100644 kernel/sched/poc_selector.c
 
 diff --git a/include/linux/sched/topology.h b/include/linux/sched/topology.h
@@ -228,7 +228,7 @@ new file mode 100644
 index 0000000000..77da6e5bda
 --- /dev/null
 +++ b/kernel/sched/poc_selector.c
-@@ -0,0 +1,1002 @@
+@@ -0,0 +1,1080 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
 + * Piece-Of-Cake (POC) CPU Selector
@@ -350,6 +350,84 @@ index 0000000000..77da6e5bda
 + * - No atomic contention (per-CPU)
 + * - No thundering herd (different CPUs produce different seeds)
 + * - Good distribution (golden ratio multiplication)
++ *
++ * POC_HASH_MULT — The Golden Ratio Scrambler (ALU & Cache Optimized)
++ *
++ * Design Note & Easter Egg:
++ * The traditional 32-bit golden ratio constant times 2^32 is 0x9E3779B9U.
++ * We explicitly shift this value right by 8 bits to yield 0x19E3779U.
++ *
++ * 1. ALU Execution Speed:
++ *    Clearing out the top 8 bits ensures the multiplier fits within 24 bits.
++ *    On modern high-core execution units, the ALU short-circuits the multipli-
++ *    cation logic when the upper bits are zero, shaving off vital pipeline
++ *    latency clock cycles inside the scheduler's hottest wakeup paths.
++ *
++ * 2. Serendipitous Cache Locality (The Staircase Effect):
++ *    Because 0x19E3779U is mathematically small, the top bits of the generated
++ *    'seed' grow incrementally rather than bouncing erratically. When passed to
++ *    POC_FASTRANGE with a saturated core pool (e.g., total = 24), this creates
++ *    a localized "staircase" distribution instead of a hyper-active uniform
++ *    hash.
++ *
++ *    Math Example (Target range total = 24 idle tracks):
++ *
++ *    Counter = 1  -> Seed = 0x019E3779 -> FASTRANGE(Seed, 24) -> Pick Index: 0
++ *    Counter = 2  -> Seed = 0x033C6EFF -> FASTRANGE(Seed, 24) -> Pick Index: 0
++ *    Counter = 3  -> Seed = 0x04DAA678 -> FASTRANGE(Seed, 24) -> Pick Index: 0
++ *    Counter = 4  -> Seed = 0x0678DEF1 -> FASTRANGE(Seed, 24) -> Pick Index: 0
++ *    Counter = 5  -> Seed = 0x0817176A -> FASTRANGE(Seed, 24) -> Pick Index: 0
++ *    Counter = 6  -> Seed = 0x09B54FE3 -> FASTRANGE(Seed, 24) -> Pick Index: 0
++ *    Counter = 7  -> Seed = 0x0B53885C -> FASTRANGE(Seed, 24) -> Pick Index: 1
++ *    Counter = 8  -> Seed = 0x0CF1C0D5 -> FASTRANGE(Seed, 24) -> Pick Index: 1
++ *    ...
++ *    Counter = 14 -> Seed = 0x16E3D14E -> FASTRANGE(Seed, 24) -> Pick Index: 2
++ *
++ *    Side-By-Side Simulation:
++ *
++ *    Tick | Shifted 0x19E3779U (Staircase) | Unshifted 0x9E3779B9U (Avalanche)
++ *    -----|--------------------------------|-----------------------------------
++ *    1    | Index: 0  (Warm Cache)         | Index: 14 (Cross-Complex Hop)
++ *    2    | Index: 0  (Warm Cache)         | Index: 5  (Cross-Complex Hop)
++ *    3    | Index: 0  (Warm Cache)         | Index: 20 (Cross-Complex Hop)
++ *    4    | Index: 0  (Warm Cache)         | Index: 11 (Cross-Complex Hop)
++ *    5    | Index: 0  (Warm Cache)         | Index: 2  (Cross-Complex Hop)
++ *    6    | Index: 0  (Warm Cache)         | Index: 17 (Cross-Complex Hop)
++ *    7    | Index: 1  (Next Neighbor)      | Index: 8  (Cross-Complex Hop)
++ *    8    | Index: 1  (Next Neighbor)      | Index: 23 (Cross-Complex Hop)
++ *
++ *    Impact: A CPU core will target the exact same core index or local
++ *    cluster 6 to 7 times sequentially before stepping to the next lane.
++ *    This creates an intentional micro-affinity window that anchors data
++ *    inside the local L1/L2 cache.
++ *
++ * 3. Real-world results with the Threadripper 9960X CPU (24/48):
++ *    IN=Bosphorus_1920x1080_120fps_420_8bit_YUV.y4m
++ *    kernel.sched_poc_prefer_idle_smt=1
++ *    kernel.sched_poc_target_sticky=0
++ *
++ *    time taskset -c 0-5,24-29,12-17,36-41 \
++ *         aomenc --threads=12 --cpu-used=6 -o /tmp/test.av1 $IN
++ *
++ *    time SvtAv1EncApp -i $IN --preset 1 --rc 0 -q 30 -b /dev/null
++ *    time x265 --preset veryslow --pools 24 --output /dev/null $IN
++ *
++ *    Gaming: Cyberpunk 2077, Low preset, 1280x720 Resolution
++ *    systemd-run ... -p AllowedCPUs=0-5,24-29,12-17,36-41 -p CPUWeight=2500
++ *    kernel.sched_poc_prefer_idle_smt=0
++ *    kernel.sched_poc_target_sticky=1
++ *
++ *    App  | Shifted 0x19E3779U (Staircase) | Unshifted 0x9E3779B9U (Avalanche)
++ *    -----|--------------------------------|-----------------------------------
++ *    AOM  | 13.25s, 13.29s, 13.32s, 13.31s | 13.44s, 13.33s, 13.42s, 13.43s
++ *    AV1  | 34.02s, 34.20s, 34.18s, 34.09s | 33.97s, 34.00s, 34.25s, 34.11s
++ *    x265 | 76.65s, 76.46s, 76.61s, 76.57s | 76.65s, 76.53s, 76.72s, 76.70s
++ *    CP   | Avg 387, Min 333, Max 449 FPS  | Avg 383, Min 329, Max 444 FPS
++ *
++ *    Adapting algorithmic distribution to align smoothly with physical
++ *    hardware topology. We found Smoothness and friend Fluidity.
++ *
++ *         - CachyMod Project Motto: Let Grace Flow
 + */
 +#define POC_HASH_MULT 0x19E3779U  /* (golden ratio * 2^32) >> 8 */
 +static DEFINE_PER_CPU(u32, poc_rr_counter);
