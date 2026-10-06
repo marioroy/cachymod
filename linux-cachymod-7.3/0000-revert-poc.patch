@@ -77,7 +77,7 @@ diff --git a/init/Kconfig b/init/Kconfig
 index 2cd2ab2d7..8937400a3 100644
 --- a/init/Kconfig
 +++ b/init/Kconfig
-@@ -1505,19 +1505,6 @@ config SCHED_AUTOGROUP
+@@ -1510,19 +1510,6 @@ config SCHED_AUTOGROUP
  	  desktop applications.  Task group autogeneration is currently based
  	  upon task session.
  

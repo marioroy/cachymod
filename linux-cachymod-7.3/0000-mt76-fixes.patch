@@ -1,0 +1,821 @@
+
+mt76 fixes for 7.3
+https://lore.kernel.org/all/897a86ce-a8ba-436b-9564-085932423487@nbd.name/
+https://github.com/nbd168/wireless/compare/mt76...mt76-fixes
+
+
+From f5e0b20f6c6d548d985acdd620c5110776c915c2 Mon Sep 17 00:00:00 2001
+From: Felix Fietkau <>
+Date: Tue, 18 Aug 2026 12:58:21 +0000
+Subject: [PATCH 01/12] wifi: mt76: mt7996: program a link again if the driver
+ holds it
+
+The firmware needs the driver to remove active links from the BSSINFO table
+when it destroys the interface. A link therefore stays registered from its
+first chanctx assignment until the interface goes away. If the driver holds
+the link already, a second add does nothing.
+
+mac80211 gives a non-AP MLD a new address each time it sets a link up. A link
+that comes back after a failed attempt thus carries an address that the
+hardware does not know, on a BSS that the driver never programs again. The
+station then authenticates from an address that nothing answers. The failure
+repeats until the driver tears the interface down for good.
+
+Program the address and the BSS again. This is the pair that the initial add
+sets up. For a station it does what mt7996_mcu_mld_link_oper() does for an AP.
+
+Fixes: 08813703ac41 ("wifi: mt76: mt7996: Destroy vif active links in mt7996_remove_interface()")
+Link: https://patch.msgid.link/20260818125825.395538-1-nbd@nbd.name
+Signed-off-by: Felix Fietkau <>
+---
+ drivers/net/wireless/mediatek/mt76/mt7996/main.c | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/net/wireless/mediatek/mt76/mt7996/main.c b/drivers/net/wireless/mediatek/mt76/mt7996/main.c
+index e218856b0c45..d17d1dbb2038 100644
+--- a/drivers/net/wireless/mediatek/mt76/mt7996/main.c
++++ b/drivers/net/wireless/mediatek/mt76/mt7996/main.c
+@@ -310,7 +310,14 @@ int mt7996_vif_link_add(struct mt76_phy *mphy, struct ieee80211_vif *vif,
+ 		if (vif->type == NL80211_IFTYPE_AP)
+ 			return mt7996_mcu_mld_link_oper(dev, link_conf, link,
+ 							true);
+-		return 0;
++
++		/* update the link address */
++		ret = mt7996_mcu_add_dev_info(phy, vif, link_conf, mlink, true);
++		if (ret)
++			return ret;
++
++		return mt7996_mcu_add_bss_info(phy, vif, link_conf, mlink,
++					       msta_link, true);
+ 	}
+ 
+ 	mlink->idx = __ffs64(~dev->mt76.vif_mask);
+
+From 0ec14f8c8c5da1c9c314bce4f0bf53c009fbc998 Mon Sep 17 00:00:00 2001
+From: Felix Fietkau <>
+Date: Tue, 18 Aug 2026 12:58:23 +0000
+Subject: [PATCH 02/12] wifi: mt76: mt7996: take over connection monitoring
+
+mt76 runs its own beacon monitor. mt76_beacon_mon_check() counts a miss
+for each affiliated link of an MLD, and it stops the count while the phy
+is off channel. mt7996 supplies it through mt76_rx_beacon(), but it does
+not set CONNECTION_MONITOR. Therefore mac80211 also starts its legacy
+monitor.
+
+The legacy monitor knows one interface, not a set of links. It also
+counts while the radio serves a different link. After seven beacon
+intervals it removes an association that still carries traffic on the
+other links.
+
+Set the CONNECTION_MONITOR flag to disable the legacy monitor.
+
+Fixes: 4df75606ece5 ("wifi: mt76: add per-link beacon monitoring for MLO")
+Link: https://patch.msgid.link/20260818125825.395538-3-nbd@nbd.name
+Signed-off-by: Felix Fietkau <>
+---
+ drivers/net/wireless/mediatek/mt76/mt7996/init.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/drivers/net/wireless/mediatek/mt76/mt7996/init.c b/drivers/net/wireless/mediatek/mt76/mt7996/init.c
+index fb635a092584..2db63c3be9d1 100644
+--- a/drivers/net/wireless/mediatek/mt76/mt7996/init.c
++++ b/drivers/net/wireless/mediatek/mt76/mt7996/init.c
+@@ -540,6 +540,7 @@ mt7996_init_wiphy(struct ieee80211_hw *hw, struct mtk_wed_device *wed)
+ 	ieee80211_hw_set(hw, NO_VIRTUAL_MONITOR);
+ 	ieee80211_hw_set(hw, SUPPORTS_MULTI_BSSID);
+ 	ieee80211_hw_set(hw, CHANCTX_STA_CSA);
++	ieee80211_hw_set(hw, CONNECTION_MONITOR);
+ 
+ 	hw->max_tx_fragments = 4;
+ 	wiphy->txq_memory_limit = 32 << 20; /* 32 MiB */
+
+From 752770d7a58c821c17909c3ca67f9f14ab146a40 Mon Sep 17 00:00:00 2001
+From: Felix Fietkau <>
+Date: Tue, 18 Aug 2026 12:58:25 +0000
+Subject: [PATCH 03/12] wifi: mt76: account non-AQL frames per peer rather than
+ per link
+
+The driver increments wcid->non_aql_packets when a frame goes to the
+hardware queue. The completion path decrements the counter again.
+
+For an MLO peer, the hardware reports the completion on the link that it
+used for the transmission. This link can differ from the link that the
+driver queued the frame on. In that case, the increment and the
+decrement go to different link wcids, and the count drifts upwards until
+it blocks the station.
+
+Keep the count on the wcid of the primary link, like the other peer-wide
+state.
+
+Fixes: 86c051f2c418 ("wifi: mt76: mt7925: enabling MLO when the firmware supports it")
+Link: https://patch.msgid.link/20260818125825.395538-5-nbd@nbd.name
+Signed-off-by: Felix Fietkau <>
+---
+ drivers/net/wireless/mediatek/mt76/mt76.h |  7 +++++++
+ drivers/net/wireless/mediatek/mt76/tx.c   | 11 ++++++++---
+ 2 files changed, 15 insertions(+), 3 deletions(-)
+
+diff --git a/drivers/net/wireless/mediatek/mt76/mt76.h b/drivers/net/wireless/mediatek/mt76/mt76.h
+index 62b41c8bb7c0..2ade848fe3bb 100644
+--- a/drivers/net/wireless/mediatek/mt76/mt76.h
++++ b/drivers/net/wireless/mediatek/mt76/mt76.h
+@@ -1426,6 +1426,13 @@ mtxq_to_txq(struct mt76_txq *mtxq)
+ 	return container_of(ptr, struct ieee80211_txq, drv_priv);
+ }
+ 
++/* peer-wide state uses the wcid of the primary link */
++static inline struct mt76_wcid *
++mt76_wcid_primary(struct mt76_wcid *wcid)
++{
++	return wcid->def_wcid ? wcid->def_wcid : wcid;
++}
++
+ static inline struct ieee80211_sta *
+ wcid_to_sta(struct mt76_wcid *wcid)
+ {
+diff --git a/drivers/net/wireless/mediatek/mt76/tx.c b/drivers/net/wireless/mediatek/mt76/tx.c
+index 3707ee19e4ae..b1e894b19cbd 100644
+--- a/drivers/net/wireless/mediatek/mt76/tx.c
++++ b/drivers/net/wireless/mediatek/mt76/tx.c
+@@ -234,6 +234,8 @@ mt76_tx_check_non_aql(struct mt76_dev *dev, struct mt76_wcid *wcid,
+ 	if (!wcid || info->tx_time_est)
+ 		return;
+ 
++	wcid = mt76_wcid_primary(wcid);
++
+ 	pending = atomic_dec_return(&wcid->non_aql_packets);
+ 	if (pending < 0)
+ 		atomic_cmpxchg(&wcid->non_aql_packets, pending, 0);
+@@ -344,7 +346,8 @@ __mt76_tx_queue_skb(struct mt76_phy *phy, int qid, struct sk_buff *skb,
+ 	if (!non_aql)
+ 		return idx;
+ 
+-	pending = atomic_inc_return(&wcid->non_aql_packets);
++	/* the hardware can report the completion on a different link */
++	pending = atomic_inc_return(&mt76_wcid_primary(wcid)->non_aql_packets);
+ 	if (stop && pending >= MT_MAX_NON_AQL_PKT)
+ 		*stop = true;
+ 
+@@ -506,7 +509,8 @@ mt76_txq_send_burst(struct mt76_phy *phy, struct mt76_queue *q,
+ 			return 0;
+ 	}
+ 
+-	if (atomic_read(&wcid->non_aql_packets) >= MT_MAX_NON_AQL_PKT)
++	if (atomic_read(&mt76_wcid_primary(wcid)->non_aql_packets) >=
++	    MT_MAX_NON_AQL_PKT)
+ 		return 0;
+ 
+ 	skb = mt76_txq_dequeue(phy, mtxq);
+@@ -603,7 +607,8 @@ mt76_txq_schedule_list(struct mt76_phy *phy, enum mt76_txq_id qid)
+ 			continue;
+ 		}
+ 
+-		if (atomic_read(&wcid->non_aql_packets) >= MT_MAX_NON_AQL_PKT)
++		if (atomic_read(&mt76_wcid_primary(wcid)->non_aql_packets) >=
++		    MT_MAX_NON_AQL_PKT)
+ 			continue;
+ 		if (dev->queue_ops->tx_cleanup &&
+ 		    q->queued + 2 * MT_TXQ_FREE_THR >= q->ndesc) {
+
+From 7c2e6b43c3082c2242ecfa5875b2b4b2cd06140f Mon Sep 17 00:00:00 2001
+From: Felix Fietkau <>
+Date: Tue, 1 Sep 2026 11:22:32 +0200
+Subject: [PATCH 04/12] wifi: mt76: use ALTX queue for packets to disassociated
+ stations
+
+Running these packets through regular buffering queues could cause them
+to hang, especially when the packets were for stations that in disassoc
+state.
+
+Fixes: dedf2ec30fe4 ("wifi: mt76: fix queue assignment for deauth packets")
+Acked-by: Lorenzo Bianconi <>
+Link: https://patch.msgid.link/20260901092232.461379-1-nbd@nbd.name
+Signed-off-by: Felix Fietkau <>
+---
+ drivers/net/wireless/mediatek/mt76/mt7915/main.c | 2 ++
+ drivers/net/wireless/mediatek/mt76/mt7996/main.c | 1 +
+ drivers/net/wireless/mediatek/mt76/tx.c          | 3 ++-
+ 3 files changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/net/wireless/mediatek/mt76/mt7915/main.c b/drivers/net/wireless/mediatek/mt76/mt7915/main.c
+index a8286f8becf9..a03d89aabe80 100644
+--- a/drivers/net/wireless/mediatek/mt76/mt7915/main.c
++++ b/drivers/net/wireless/mediatek/mt76/mt7915/main.c
+@@ -805,6 +805,7 @@ __mt7915_drop_sta(void *ptr, u8 *mac, struct ieee80211_vif *vif)
+ 
+ 	msta = (struct mt7915_sta *)sta->drv_priv;
+ 	mt7915_mcu_add_sta(data->dev, vif, sta, CONN_STATE_DISCONNECT, false);
++	msta->wcid.tx_info &= ~MT_WCID_TX_INFO_SET;
+ 	msta->wcid.sta_disabled = 1;
+ 	msta->wcid.sta = 0;
+ }
+@@ -871,6 +872,7 @@ int mt7915_mac_sta_event(struct mt76_dev *mdev, struct ieee80211_vif *vif,
+ 		mutex_unlock(&dev->mt76.mutex);
+ 
+ 		mt7915_mcu_add_sta(dev, vif, sta, CONN_STATE_DISCONNECT, false);
++		msta->wcid.tx_info &= ~MT_WCID_TX_INFO_SET;
+ 		msta->wcid.sta_disabled = 1;
+ 		msta->wcid.sta = 0;
+ 		return 0;
+diff --git a/drivers/net/wireless/mediatek/mt76/mt7996/main.c b/drivers/net/wireless/mediatek/mt76/mt7996/main.c
+index d17d1dbb2038..dd7a01c02a7c 100644
+--- a/drivers/net/wireless/mediatek/mt76/mt7996/main.c
++++ b/drivers/net/wireless/mediatek/mt76/mt7996/main.c
+@@ -1433,6 +1433,7 @@ mt7996_mac_sta_event(struct mt7996_dev *dev, struct ieee80211_vif *vif,
+ 			else if (sta->mlo && links == BIT(link_id)) /* last link */
+ 				mt7996_mcu_teardown_mld_sta(dev, link,
+ 							    msta_link);
++			msta_link->wcid.tx_info &= ~MT_WCID_TX_INFO_SET;
+ 			msta_link->wcid.sta_disabled = 1;
+ 			msta_link->wcid.sta = 0;
+ 			links = links & ~BIT(link_id);
+diff --git a/drivers/net/wireless/mediatek/mt76/tx.c b/drivers/net/wireless/mediatek/mt76/tx.c
+index b1e894b19cbd..3c623df2e741 100644
+--- a/drivers/net/wireless/mediatek/mt76/tx.c
++++ b/drivers/net/wireless/mediatek/mt76/tx.c
+@@ -680,7 +680,8 @@ mt76_txq_schedule_pending_wcid(struct mt76_phy *phy, struct mt76_wcid *wcid,
+ 		if ((dev->drv->drv_flags & MT_DRV_HW_MGMT_TXQ) &&
+ 		    !(info->flags & IEEE80211_TX_CTL_HW_80211_ENCAP) &&
+ 		    !ieee80211_is_data_present(hdr->frame_control) &&
+-		    (!ieee80211_is_bufferable_mmpdu(skb) ||
++		    (!(wcid->tx_info & MT_WCID_TX_INFO_SET) ||
++		     !ieee80211_is_bufferable_mmpdu(skb) ||
+ 		     ieee80211_is_deauth(hdr->frame_control) ||
+ 		     ieee80211_is_disassoc(hdr->frame_control) ||
+ 		     head == &wcid->tx_offchannel))
+
+From 8f9e5807671ee97cacf1957f4a09e43f4f1017a9 Mon Sep 17 00:00:00 2001
+From: Aaron Ma <>
+Date: Wed, 26 Aug 2026 12:36:58 +0800
+Subject: [PATCH 05/12] wifi: mt76: mt7925: restore the legacy BSS after MLO
+ teardown
+
+Removing the last link of an MLD interface leaves the firmware with the
+MLD BSS and DEV entry: the removal loop skips the deflink, and the
+hweight16(mvif->valid_links) fallback reads the stale pre-update
+valid_links, which is still non-zero. The entry keeps the per-link MAC
+address, so every subsequent legacy association fails authentication
+until the interface is removed or the module is reloaded.
+
+Remove the deflink BSS and add it back as a legacy BSS on the transition
+to zero links.
+
+Fixes: 69acd6d910b0 ("wifi: mt76: mt7925: add mt7925_change_vif_links")
+Signed-off-by: Aaron Ma <>
+Link: https://patch.msgid.link/20260826043658.2255553-1-aaron.ma@canonical.com
+Signed-off-by: Felix Fietkau <>
+---
+ drivers/net/wireless/mediatek/mt76/mt7925/main.c | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)
+
+diff --git a/drivers/net/wireless/mediatek/mt76/mt7925/main.c b/drivers/net/wireless/mediatek/mt76/mt7925/main.c
+index 5993b31e1aae..549f9c06b363 100644
+--- a/drivers/net/wireless/mediatek/mt76/mt7925/main.c
++++ b/drivers/net/wireless/mediatek/mt76/mt7925/main.c
+@@ -2294,6 +2294,18 @@ mt7925_change_vif_links(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+ 
+ 	mvif->valid_links = new_links;
+ 
++	/* Restore the legacy BSS after disabling MLO */
++	if (old_links && !new_links) {
++		mt792x_mac_link_bss_remove(dev, &mvif->bss_conf,
++					   &mvif->sta.deflink);
++		err = mt7925_mac_link_bss_add(dev, &vif->bss_conf,
++					      &mvif->sta.deflink);
++		if (err < 0) {
++			mt792x_mutex_release(dev);
++			return err;
++		}
++	}
++
+ 	mt792x_mutex_release(dev);
+ 
+ 	return 0;
+
+From 9c9e4e4c8b45873e53774ab8207825b37b7565ec Mon Sep 17 00:00:00 2001
+From: Tao Gong <>
+Date: Sun, 23 Aug 2026 05:37:39 +0000
+Subject: [PATCH 06/12] wifi: mt76: mt7996: fix struct
+ mt7996_mcu_wed_rro_ba_delete_event layout
+
+Correct the definition of struct mt7996_mcu_wed_rro_ba_delete_event to
+match the 12-byte event record layout observed from firmware.
+
+The event TLV sent by firmware is 12 bytes in length rather than 8 bytes.
+It contains an additional 4 bytes that appear to be wlan_id and tid.
+For example, a captured batch deletion of sessions 8, 9, and 10 (TIDs 6,
+0, and 1) shows:
+
+  00000000: 02 00 0c 00 08 00 01 00 06 00 00 00 02 00 0c 00
+  00000010: 09 00 01 00 00 00 00 00 02 00 0c 00 0a 00 01 00
+  00000020: 01 00 00 00
+
+The previous 8-byte structure corrupts the parsing of subsequent TLVs,
+leading to unhandled delete events and erroneous session deletions.
+Consequently, clients that create and tear down BA sessions in batches
+(such as Apple Wi-Fi clients) fail to properly clean up stale sessions,
+causing HW_RRO to be lost upon subsequent reassociations.
+
+Fixes: a5d028d66836 ("wifi: mt76: mt7996: add wed rro delete session garbage collector")
+Signed-off-by: Tao Gong <>
+Link: https://patch.msgid.link/20260823053739.186748-1-gongtao0607@gmail.com
+Signed-off-by: Felix Fietkau <>
+---
+ drivers/net/wireless/mediatek/mt76/mt7996/mcu.h | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/drivers/net/wireless/mediatek/mt76/mt7996/mcu.h b/drivers/net/wireless/mediatek/mt76/mt7996/mcu.h
+index 74b70fb6da3d..1b272e904100 100644
+--- a/drivers/net/wireless/mediatek/mt76/mt7996/mcu.h
++++ b/drivers/net/wireless/mediatek/mt76/mt7996/mcu.h
+@@ -284,6 +284,9 @@ struct mt7996_mcu_wed_rro_ba_delete_event {
+ 	__le16 len;
+ 
+ 	__le16 session_id;
++	__le16 wlan_id;
++	u8 tid;
++	u8 __rsv1;
+ 	u8 __rsv2[2];
+ } __packed;
+ 
+
+From 916c484d29d82f45c281da2786fcd6a1284430ce Mon Sep 17 00:00:00 2001
+From: Nicolas Cavallari <>
+Date: Mon, 10 Aug 2026 17:45:10 +0200
+Subject: [PATCH 07/12] wifi: mt76: mt7915: disable rx napi when removing
+ device
+
+Unloading the mt7915e module with a MT7916 triggers multiples WARN in
+__netif_napi_del_locked() and in page_pool_disable_direct_recycling()
+because the driver does not disable the napi before destroying it.
+
+This is troublesome since on MT7916 it is required to unload the module
+and reinsert it with a different enable_6ghz parameter to change the
+frequency.  The system generally becomes unstable after reinserting the
+module.
+
+Fix it by disabling rx napi inside mt7915e itself, even through napi rx is
+enabled in the mt76 generic code.  Disabling it in the mt76 generic code
+was previously attempted and reverted because napi was disabled too
+late and rx handlers could access freed structures.  Note that the tx
+side is enabled and disabled by the mt76 generic code.
+
+It is disabled in mt7915_stop_hardware() since, unlike
+mt7915_unregister_device(), is it also called in the probe path if an
+error happens after rx napi is enabled.
+
+Fixes: e57b7901469f ("mt76: add mac80211 driver for MT7915 PCIe-based chipsets")
+Signed-off-by: Nicolas Cavallari <>
+Link: https://patch.msgid.link/20260810154923.32546-1-nicolas.cavallari@green-communications.fr
+Signed-off-by: Felix Fietkau <>
+---
+ drivers/net/wireless/mediatek/mt76/mt7915/init.c | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/drivers/net/wireless/mediatek/mt76/mt7915/init.c b/drivers/net/wireless/mediatek/mt76/mt7915/init.c
+index ca46a203aa48..c8e389db63a7 100644
+--- a/drivers/net/wireless/mediatek/mt76/mt7915/init.c
++++ b/drivers/net/wireless/mediatek/mt76/mt7915/init.c
+@@ -1238,6 +1238,12 @@ static void mt7915_unregister_ext_phy(struct mt7915_dev *dev)
+ 
+ static void mt7915_stop_hardware(struct mt7915_dev *dev)
+ {
++	int i;
++
++	mt76_for_each_q_rx(&dev->mt76, i) {
++		if (!mt76_queue_is_wed_rro(&dev->mt76.q_rx[i]))
++			napi_disable(&dev->mt76.napi[i]);
++	}
+ 	mt7915_mcu_exit(dev);
+ 	mt76_connac2_tx_token_put(&dev->mt76);
+ 	mt7915_dma_cleanup(dev);
+
+From 5796b2bf9ff718342773ac760d86eb126c112a4f Mon Sep 17 00:00:00 2001
+From: Devin Wittmayer <>
+Date: Thu, 10 Sep 2026 19:44:28 -0700
+Subject: [PATCH 08/12] wifi: mt76: mt7925: don't put the band auto marker in
+ TGID
+
+band_idx starts out as 0xff, which tells the firmware to pick the band on
+its own. A remain-on-channel grant normally writes a real index over it
+before anything else looks. Two cases never see that: an MLD station
+throws the grant away, and an AP has no association to trigger one.
+
+The TX descriptor reads the same field into a two-bit slot, so the marker
+comes out as 3. Every data frame from those two goes out tagged band 3.
+Beacons are fine, they reach the firmware separately and never build a
+descriptor.
+
+Same numbers on an MT7925 and on a Netgear A9000:
+
+                        stock         patched
+  station, one link     0x00000001    0x00000001
+  station, two links    0x00003001    0x00000001
+  AP                    0x00003013    0x00000013
+  real band index, STA  0x00001001    0x00001001
+  real band index, AP   0x00001013    0x00001013
+
+Only the marker cases move.
+
+Fixes: 0cb349d742d1 ("wifi: mt76: mt7925: update mt7925_mac_link_bss_add for MLO")
+Signed-off-by: Devin Wittmayer <>
+Link: https://patch.msgid.link/20260911024428.65244-1-lucid_duck@justthetip.ca
+Signed-off-by: Felix Fietkau <>
+---
+ drivers/net/wireless/mediatek/mt76/mt7925/mac.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/net/wireless/mediatek/mt76/mt7925/mac.c b/drivers/net/wireless/mediatek/mt76/mt7925/mac.c
+index 101f571b027f..3b82c9de26c5 100644
+--- a/drivers/net/wireless/mediatek/mt76/mt7925/mac.c
++++ b/drivers/net/wireless/mediatek/mt76/mt7925/mac.c
+@@ -798,7 +798,8 @@ mt7925_mac_write_txwi(struct mt76_dev *dev, __le32 *txwi,
+ 	val = FIELD_PREP(MT_TXD1_WLAN_IDX, wcid->idx) |
+ 	      FIELD_PREP(MT_TXD1_OWN_MAC, omac_idx);
+ 
+-	if (band_idx)
++	/* 0xff means BAND_AUTO to the firmware, and TGID cannot encode it */
++	if (band_idx && band_idx != 0xff)
+ 		val |= FIELD_PREP(MT_TXD1_TGID, band_idx);
+ 
+ 	txwi[1] = cpu_to_le32(val);
+
+From 456de496b53ae73e6e3020fec815dbdc88aa7c07 Mon Sep 17 00:00:00 2001
+From: Cristian Papa <>
+Date: Thu, 3 Sep 2026 22:07:02 -0300
+Subject: [PATCH 09/12] wifi: mt76: mt7603: initialize global station WCID
+
+mt7603 uses a driver-private global station WCID for frames that have
+neither a station nor a vif, including frames injected through a monitor
+interface. Unlike the core global WCID initialized by
+mt76_register_device(), this WCID is published without ever being passed
+to mt76_wcid_init().
+
+Since commit 0335c034e726 ("wifi: mt76: fix race condition related to
+checking tx queue fill status"), mt76_tx() queues every such frame on the
+WCID's tx_pending or tx_offchannel queue and links its tx_list. The first
+injected frame therefore reaches __skb_queue_tail() with an uninitialized
+sk_buff_head and dereferences a NULL prev pointer.
+
+Initialize the WCID before publishing it.
+
+The fix was tested on an MT7603 PCIe device. Three wildcard probe requests
+were injected through a monitor interface. The hardware queue head and tail
+advanced from 0 to 3 and a second radio captured the third request over the
+air. No oops or reset occurred. After restoring AP mode, a 150 MB transfer
+also completed without a reset.
+
+Fixes: 0335c034e726 ("wifi: mt76: fix race condition related to checking tx queue fill status")
+Cc: stable@vger.kernel.org
+Signed-off-by: Cristian Papa <>
+Link: https://patch.msgid.link/20260904010702.16306-1-pcristian292@gmail.com
+Signed-off-by: Felix Fietkau <>
+---
+ drivers/net/wireless/mediatek/mt76/mt7603/init.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/drivers/net/wireless/mediatek/mt76/mt7603/init.c b/drivers/net/wireless/mediatek/mt76/mt7603/init.c
+index 10f2ec70c792..218ec406d2a8 100644
+--- a/drivers/net/wireless/mediatek/mt76/mt7603/init.c
++++ b/drivers/net/wireless/mediatek/mt76/mt7603/init.c
+@@ -230,6 +230,7 @@ mt7603_mac_init(struct mt7603_dev *dev)
+ 
+ 	eth_broadcast_addr(bc_addr);
+ 	mt7603_wtbl_init(dev, MT7603_WTBL_RESERVED, -1, bc_addr);
++	mt76_wcid_init(&dev->global_sta.wcid, 0);
+ 	dev->global_sta.wcid.idx = MT7603_WTBL_RESERVED;
+ 	rcu_assign_pointer(dev->mt76.wcid[MT7603_WTBL_RESERVED],
+ 			   &dev->global_sta.wcid);
+
+From 45f53d98cbaa078907b6a300ff3974dfb5ae8776 Mon Sep 17 00:00:00 2001
+From: Junjie Cao <>
+Date: Thu, 10 Sep 2026 09:23:00 +0800
+Subject: [PATCH 10/12] wifi: mt76: mt792x: treat 0xff ACPI SAR entries as no
+ limit
+
+Some ASUS firmware carries 0xff in MTGS power slots. The driver narrows
+the byte to s8, so the slot reads as -1 in its 0.5 dBm units, wins the
+min() against the regulatory limit and caps every rate the driver
+programs. On an ASUS Zenbook 14 UM3406HA (MT7922) all six MTGS tables
+hold 0xff in every power byte, and txpower_sku shows tmac 3 on every
+supported OFDM/HT/VHT/HE rate against EEPROM entries of 25-39, under
+both the FR and the world regulatory domain. Huy Nguyen Dinh Quang saw
+the same clamp on a Vivobook S 14 M5406WA, with 5 GHz TX at ~40 Mbps,
+and proposed skipping the geo entry.
+
+Skip a geo entry whose power byte is 0xff. The MTDS entry is narrowed
+the same way on its way into the geo lookup, so give it the same
+treatment, and clamp the dynamic value plus offset at 127 so a no-limit
+entry cannot wrap.
+
+Fixes: f965333e491e ("mt76: mt7921: introduce ACPI SAR support")
+Link: https://bugzilla.redhat.com/show_bug.cgi?id=2515420
+Reported-by: Huy Nguyen Dinh Quang <>
+Closes: https://lore.kernel.org/linux-wireless/20260827134820.2607530-1-huynguyendinhquang@gmail.com/
+Signed-off-by: Junjie Cao <>
+Tested-by: Cristian Fleischer <>
+Link: https://patch.msgid.link/acb947435fc78d5c06039c7bd5609c735468b0ee.1789002236.git.junjie.cao@intel.com
+Signed-off-by: Felix Fietkau <>
+---
+ .../wireless/mediatek/mt76/mt792x_acpi_sar.c   | 18 ++++++++++++++----
+ 1 file changed, 14 insertions(+), 4 deletions(-)
+
+diff --git a/drivers/net/wireless/mediatek/mt76/mt792x_acpi_sar.c b/drivers/net/wireless/mediatek/mt76/mt792x_acpi_sar.c
+index b468051fbe68..0ffb277f9909 100644
+--- a/drivers/net/wireless/mediatek/mt76/mt792x_acpi_sar.c
++++ b/drivers/net/wireless/mediatek/mt76/mt792x_acpi_sar.c
+@@ -279,10 +279,18 @@ mt792x_asar_get_geo_pwr(struct mt792x_phy *phy,
+ 	if (idx >= max)
+ 		return dyn_power;
+ 
+-	geo_power = (band_pwr + idx)->pwr;
+-	dyn_power += (band_pwr + idx)->offset;
++	band_pwr += idx;
+ 
+-	return min(geo_power, dyn_power);
++	/* Some OEM tables carry 0xff here; narrowed to s8 that is -1 and
++	 * wins the min() below. Take it as no limit.
++	 */
++	if (band_pwr->pwr == 0xff)
++		return dyn_power;
++
++	geo_power = band_pwr->pwr;
++
++	return min_t(int, geo_power,
++		     min_t(int, dyn_power + band_pwr->offset, 127));
+ }
+ 
+ static s8
+@@ -315,7 +323,9 @@ mt792x_asar_range_pwr(struct mt792x_phy *phy,
+ 	else
+ 		band = NL80211_BAND_2GHZ;
+ 
+-	return mt792x_asar_get_geo_pwr(phy, band, limit[idx]);
++	/* 0xff: no dynamic limit, see mt792x_asar_get_geo_pwr() */
++	return mt792x_asar_get_geo_pwr(phy, band,
++				       limit[idx] == 0xff ? 127 : limit[idx]);
+ }
+ 
+ int mt792x_init_acpi_sar_power(struct mt792x_phy *phy, bool set_default)
+
+From af97bf5a7e72da9026de184676df8e2fa57e1058 Mon Sep 17 00:00:00 2001
+From: Devin Wittmayer <>
+Date: Fri, 4 Sep 2026 18:35:51 -0700
+Subject: [PATCH 11/12] wifi: mt76: mt792x: pick the SAR table layout from the
+ table itself
+
+The SAR power tables are parsed with a version byte from a different
+ACPI table, never their own.
+
+Some firmware declares version 1 and ships version 2 tables. The
+entries then start a byte early, and the 6 GHz limits the table
+carries are dropped, because the older layout has no room for them.
+
+  ASUS GA503RM, MTCL declares v1:
+  MTGS  28 bytes   v1: (28-6) % 5 = 2, no fit   v2: 3 tables
+  MTDS  19 bytes   v1: (19-6) % 6 = 1, no fit   v2: 1 table
+
+The layouts accept disjoint lengths, so take whichever one fits and
+keep it per table.
+
+Reported-by: Sagun Kayastha <>
+Closes: https://github.com/morrownr/mt76/issues/62
+Fixes: f965333e491e ("mt76: mt7921: introduce ACPI SAR support")
+Signed-off-by: Devin Wittmayer <>
+Link: https://patch.msgid.link/20260905013551.24635-1-lucid_duck@justthetip.ca
+Signed-off-by: Felix Fietkau <>
+---
+ .../wireless/mediatek/mt76/mt792x_acpi_sar.c  | 110 +++++++++++-------
+ .../wireless/mediatek/mt76/mt792x_acpi_sar.h  |   2 +
+ 2 files changed, 73 insertions(+), 39 deletions(-)
+
+diff --git a/drivers/net/wireless/mediatek/mt76/mt792x_acpi_sar.c b/drivers/net/wireless/mediatek/mt76/mt792x_acpi_sar.c
+index 0ffb277f9909..e87dfb0f1b3a 100644
+--- a/drivers/net/wireless/mediatek/mt76/mt792x_acpi_sar.c
++++ b/drivers/net/wireless/mediatek/mt76/mt792x_acpi_sar.c
+@@ -108,68 +108,98 @@ mt792x_asar_acpi_read_mtcl(struct mt792x_dev *dev, u8 **table, u8 *version)
+ 	return ret;
+ }
+ 
++/* A table's layout is decided by the version byte in MTCL, but some firmware
++ * labels a version 2 table as version 1.  Accept whichever layout the table
++ * actually has: for every accepted entry count the two do not overlap, since
++ * one is 6 + 5n bytes and the other 7 + 7n.
++ */
++static bool
++mt792x_asar_fits(u8 *table, int len, int prelen, int sarlen, int nr_off,
++		 int min, int max)
++{
++	int tblcnt;
++
++	if (len < prelen || (len - prelen) % sarlen)
++		return false;
++
++	tblcnt = (len - prelen) / sarlen;
++	if (tblcnt < min || tblcnt > max)
++		return false;
++
++	return tblcnt == table[nr_off];
++}
++
+ /* MTDS : Dynamic SAR Power Table */
+ static int
+-mt792x_asar_acpi_read_mtds(struct mt792x_dev *dev, u8 **table, u8 version)
++mt792x_asar_acpi_read_mtds(struct mt792x_dev *dev, u8 **table, u8 version,
++			   u8 *used)
+ {
+-	int len, ret, sarlen, prelen, tblcnt;
+-	bool enable;
++	int len, ret;
++	u8 *t;
+ 
+ 	ret = mt792x_acpi_read(dev, MT792x_ACPI_MTDS, table, &len);
+ 	if (ret)
+ 		return ret;
+ 
++	t = *table;
++
+ 	/* Table content validation */
+-	switch (version) {
+-	case 1:
+-		enable = ((struct mt792x_asar_dyn *)*table)->enable;
+-		sarlen = sizeof(struct mt792x_asar_dyn_limit);
+-		prelen = sizeof(struct mt792x_asar_dyn);
+-		break;
+-	case 2:
+-		enable = ((struct mt792x_asar_dyn_v2 *)*table)->enable;
+-		sarlen = sizeof(struct mt792x_asar_dyn_limit_v2);
+-		prelen = sizeof(struct mt792x_asar_dyn_v2);
+-		break;
+-	default:
++	if (mt792x_asar_fits(t, len, sizeof(struct mt792x_asar_dyn),
++			     sizeof(struct mt792x_asar_dyn_limit),
++			     offsetof(struct mt792x_asar_dyn, nr_tbl),
++			     MT792x_ASAR_MIN_DYN, MT792x_ASAR_MAX_DYN))
++		*used = 1;
++	else if (mt792x_asar_fits(t, len, sizeof(struct mt792x_asar_dyn_v2),
++				  sizeof(struct mt792x_asar_dyn_limit_v2),
++				  offsetof(struct mt792x_asar_dyn_v2, nr_tbl),
++				  MT792x_ASAR_MIN_DYN, MT792x_ASAR_MAX_DYN))
++		*used = 2;
++	else
+ 		return -EINVAL;
+-	}
+ 
+-	tblcnt = (len - prelen) / sarlen;
+-	if (!enable ||
+-	    tblcnt > MT792x_ASAR_MAX_DYN || tblcnt < MT792x_ASAR_MIN_DYN)
++	if (!t[offsetof(struct mt792x_asar_dyn, enable)])
+ 		return -EINVAL;
+ 
++	if (version && *used != version)
++		dev_info(dev->mt76.dev,
++			 "MTDS is v%u, MTCL says v%u; using v%u\n",
++			 *used, version, *used);
++
+ 	return 0;
+ }
+ 
+ /* MTGS : Geo SAR Power Table */
+ static int
+-mt792x_asar_acpi_read_mtgs(struct mt792x_dev *dev, u8 **table, u8 version)
++mt792x_asar_acpi_read_mtgs(struct mt792x_dev *dev, u8 **table, u8 version,
++			   u8 *used)
+ {
+-	int len, ret, sarlen, prelen, tblcnt;
++	int len, ret;
++	u8 *t;
+ 
+ 	ret = mt792x_acpi_read(dev, MT792x_ACPI_MTGS, table, &len);
+ 	if (ret)
+ 		return ret;
+ 
++	t = *table;
++
+ 	/* Table content validation */
+-	switch (version) {
+-	case 1:
+-		sarlen = sizeof(struct mt792x_asar_geo_limit);
+-		prelen = sizeof(struct mt792x_asar_geo);
+-		break;
+-	case 2:
+-		sarlen = sizeof(struct mt792x_asar_geo_limit_v2);
+-		prelen = sizeof(struct mt792x_asar_geo_v2);
+-		break;
+-	default:
++	if (mt792x_asar_fits(t, len, sizeof(struct mt792x_asar_geo),
++			     sizeof(struct mt792x_asar_geo_limit),
++			     offsetof(struct mt792x_asar_geo, nr_tbl),
++			     MT792x_ASAR_MIN_GEO, MT792x_ASAR_MAX_GEO))
++		*used = 1;
++	else if (mt792x_asar_fits(t, len, sizeof(struct mt792x_asar_geo_v2),
++				  sizeof(struct mt792x_asar_geo_limit_v2),
++				  offsetof(struct mt792x_asar_geo_v2, nr_tbl),
++				  MT792x_ASAR_MIN_GEO, MT792x_ASAR_MAX_GEO))
++		*used = 2;
++	else
+ 		return -EINVAL;
+-	}
+ 
+-	tblcnt = (len - prelen) / sarlen;
+-	if (tblcnt > MT792x_ASAR_MAX_GEO || tblcnt < MT792x_ASAR_MIN_GEO)
+-		return -EINVAL;
++	if (version && *used != version)
++		dev_info(dev->mt76.dev,
++			 "MTGS is v%u, MTCL says v%u; using v%u\n",
++			 *used, version, *used);
+ 
+ 	return 0;
+ }
+@@ -205,14 +235,16 @@ int mt792x_init_acpi_sar(struct mt792x_dev *dev)
+ 		asar->countrylist = NULL;
+ 	}
+ 
+-	ret = mt792x_asar_acpi_read_mtds(dev, (u8 **)&asar->dyn, asar->ver);
++	ret = mt792x_asar_acpi_read_mtds(dev, (u8 **)&asar->dyn, asar->ver,
++					 &asar->dyn_ver);
+ 	if (ret) {
+ 		devm_kfree(dev->mt76.dev, asar->dyn);
+ 		asar->dyn = NULL;
+ 	}
+ 
+ 	/* MTGS is optional */
+-	ret = mt792x_asar_acpi_read_mtgs(dev, (u8 **)&asar->geo, asar->ver);
++	ret = mt792x_asar_acpi_read_mtgs(dev, (u8 **)&asar->geo, asar->ver,
++					 &asar->geo_ver);
+ 	if (ret) {
+ 		devm_kfree(dev->mt76.dev, asar->geo);
+ 		asar->geo = NULL;
+@@ -254,7 +286,7 @@ mt792x_asar_get_geo_pwr(struct mt792x_phy *phy,
+ 		break;
+ 	}
+ 
+-	if (asar->ver == 1) {
++	if (asar->geo_ver == 1) {
+ 		band_pwr = &asar->geo->tbl[idx].band[0];
+ 		max = ARRAY_SIZE(asar->geo->tbl[idx].band);
+ 	} else {
+@@ -305,7 +337,7 @@ mt792x_asar_range_pwr(struct mt792x_phy *phy,
+ 	if (!capa)
+ 		return 127;
+ 
+-	if (asar->ver == 1) {
++	if (asar->dyn_ver == 1) {
+ 		limit = &asar->dyn->tbl[0].frp[0];
+ 		max = ARRAY_SIZE(asar->dyn->tbl[0].frp);
+ 	} else {
+diff --git a/drivers/net/wireless/mediatek/mt76/mt792x_acpi_sar.h b/drivers/net/wireless/mediatek/mt76/mt792x_acpi_sar.h
+index 474033073831..1d42f24b05f6 100644
+--- a/drivers/net/wireless/mediatek/mt76/mt792x_acpi_sar.h
++++ b/drivers/net/wireless/mediatek/mt76/mt792x_acpi_sar.h
+@@ -105,6 +105,8 @@ struct mt792x_asar_fg {
+ 
+ struct mt792x_acpi_sar {
+ 	u8 ver;
++	u8 dyn_ver;
++	u8 geo_ver;
+ 	union {
+ 		struct mt792x_asar_dyn *dyn;
+ 		struct mt792x_asar_dyn_v2 *dyn_v2;
+
+From 52f6a065e0810c739a5dabd33a58047f08100f50 Mon Sep 17 00:00:00 2001
+From: Lu Huang <>
+Date: Wed, 30 Sep 2026 16:54:35 +0800
+Subject: [PATCH 12/12] wifi: mt76: mt7996: fix uninitialized buf read in
+ mt7996_variant_fem_init()
+
+When the eFuse block covering MT7976C_EFUSE_OFFSET is invalid,
+mt7996_mcu_get_eeprom() returns -EINVAL without writing buf, but
+mt7996_variant_fem_init() tolerates -EINVAL and keeps running, so
+buf[idx] == 0xc reads uninitialized stack memory.  A stale 0x0c byte
+misclassifies a 0x7976 aDie as 7976C, selects MT7996_FEM_INT and the
+wrong default EEPROM, overriding valid calibration data.  Only consult
+the eFuse byte when the read succeeded; with an invalid eFuse, fall
+back to the three explicit aDie version checks.
+
+Fixes: e8cb33ad546a ("wifi: mt76: mt7996: add support for more variants")
+Cc: stable@vger.kernel.org
+Signed-off-by: Lu Huang <>
+Link: https://patch.msgid.link/20260930085435.1424493-1-huanglu@kylinos.cn
+Signed-off-by: Felix Fietkau <>
+---
+ drivers/net/wireless/mediatek/mt76/mt7996/init.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/net/wireless/mediatek/mt76/mt7996/init.c b/drivers/net/wireless/mediatek/mt76/mt7996/init.c
+index 2db63c3be9d1..c1d860029801 100644
+--- a/drivers/net/wireless/mediatek/mt76/mt7996/init.c
++++ b/drivers/net/wireless/mediatek/mt76/mt7996/init.c
+@@ -1248,7 +1248,7 @@ static int mt7996_variant_fem_init(struct mt7996_dev *dev)
+ 	adie_ver = u32_get_bits(regval, MT_ADIE_VERSION_MASK);
+ 	idx = MT7976C_EFUSE_OFFSET % MT7996_EEPROM_BLOCK_SIZE;
+ 	is_7976c = adie_ver == 0x8a10 || adie_ver == 0x8b00 ||
+-		   adie_ver == 0x8c10 || buf[idx] == 0xc;
++		   adie_ver == 0x8c10 || (!ret && buf[idx] == 0xc);
+ 
+ 	adie_id = u32_get_bits(regval, MT_ADIE_CHIP_ID_MASK);
+ 	if (adie_id == 0x7975 || adie_id == 0x7979 ||
+-- 
+2.53.0
+

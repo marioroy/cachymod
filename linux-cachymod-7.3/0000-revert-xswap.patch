@@ -375,7 +375,7 @@ diff -uNarp a/include/linux/zswap.h b/include/linux/zswap.h
 diff -uNarp a/MAINTAINERS b/MAINTAINERS
 --- a/MAINTAINERS
 +++ b/MAINTAINERS
-@@ -17411,7 +17411,6 @@ F:	mm/swap.h
+@@ -17424,7 +17424,6 @@ F:	mm/swap.h
  F:	mm/swap_table.h
  F:	mm/swap_state.c
  F:	mm/swapfile.c

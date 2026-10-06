@@ -352,7 +352,7 @@ diff --git a/net/ipv4/tcp_input.c b/net/ipv4/tcp_input.c
 index adec44313772b..1c9db9a246f71 100644
 --- a/net/ipv4/tcp_input.c
 +++ b/net/ipv4/tcp_input.c
-@@ -5354,11 +5354,25 @@ static void tcp_ofo_queue(struct sock *sk)
+@@ -5360,11 +5360,25 @@ static void tcp_ofo_queue(struct sock *sk)
  static bool tcp_prune_ofo_queue(struct sock *sk, const struct sk_buff *in_skb);
  static int tcp_prune_queue(struct sock *sk, const struct sk_buff *in_skb);
  

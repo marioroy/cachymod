@@ -151,12 +151,12 @@ fi
 _pkgsuffix=cachymod
 _major=7.3
 _minor=0
-_rcver="rc5"
+_rcver="rc6"
 _tagrel=1
 pkgver=${_major}.${_rcver}
 
 pkgdesc='CachyMod Linux Kernel with other patches and improvements'
-pkgrel=4
+pkgrel=1
 _stable=${_major}-${_rcver}
 _srctag=cachyos-${_major}-${_rcver}-${_tagrel}
 _srcname=${_srctag}                                  
@@ -178,6 +178,9 @@ source=(
     "config"
     "config.sh"
     "minimal-modprobed.db"  # used if _localmodcfg=yes and _localmodcfg_minimal=yes
+
+    # mt76 fixes
+    "0000-mt76-fixes.patch"
 
     # Revert xswap, newidle balance, POC, and gaming-sched
     "0000-revert-xswap.patch"

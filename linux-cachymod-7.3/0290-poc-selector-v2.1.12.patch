@@ -1,5 +1,5 @@
 
-Minimalist POC v2.1.12 (rev2) variant, based on POC v2.1.0 by @firelzrd
+Minimalist POC v2.1.12 (rev3) variant, based on POC v2.1.0 by @firelzrd
   This applies fewer changes to kernel/sched/fair to help minimize EEVDF
   placement anomalies. Includes awareness patch for sched_ext.
 
@@ -17,8 +17,8 @@ Signed-off-by: Mario Roy <>
 
 From 7d942075abcf26c09f7effabce68c1f50d200cb1 Mon Sep 17 00:00:00 2001
 From: Masahito S <firelzrd@gmail.com>
-Date: Sun, 04 Oct 2026 09:00:00 +0900
-Subject: [PATCH] 7.3-poc-selector-v2.1.12 (rev2)
+Date: Mon, 05 Oct 2026 21:00:00 +0900
+Subject: [PATCH] 7.3-poc-selector-v2.1.12 (rev3)
 
 ---
  include/linux/sched/topology.h |   28 +
@@ -74,7 +74,7 @@ diff --git a/init/Kconfig b/init/Kconfig
 index cab3ad28ca..991fe7f8a4 100644
 --- a/init/Kconfig
 +++ b/init/Kconfig
-@@ -1505,6 +1505,19 @@ config SCHED_AUTOGROUP
+@@ -1510,6 +1510,19 @@ config SCHED_AUTOGROUP
  	  desktop applications.  Task group autogeneration is currently based
  	  upon task session.
  
@@ -129,8 +129,8 @@ index 967ca52fb2..042327d822 100644
  
 +#ifdef CONFIG_SCHED_POC_SELECTOR
 +	if (!sched_smt_active()
-+			|| (static_branch_unlikely(&sched_poc_prefer_idle_smt)
-+			&& cpu_rq(cpu)->nr_running <= 1))
++			|| ((static_branch_unlikely(&sched_poc_prefer_idle_smt)
++			&& cpu_rq(cpu)->nr_running <= 1) || cpu_rq(cpu)->nr_running > 1))
 +#else
  	if (!sched_smt_active())
 +#endif /* CONFIG_SCHED_POC_SELECTOR */
