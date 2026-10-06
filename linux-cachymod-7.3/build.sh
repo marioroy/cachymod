@@ -106,11 +106,11 @@ export _extra_patch_or_url9 _autofdo_profile_name
 
 if [[ "$NOINSTALL" -eq 0 ]]; then
   # Build and install the CachyMod kernel.
-  time nice -n 15 ionice -n 1 \
+  time nice -n 15 ionice -n 7 \
     makepkg -Ascif --cleanbuild --skipinteg --noconfirm || exit 1
 else
   # Build the CachyMod kernel.
-  time nice -n 15 ionice -n 1 \
+  time nice -n 15 ionice -n 7 \
     makepkg -Ascf --cleanbuild --skipinteg --noconfirm || exit 1
 fi
 
