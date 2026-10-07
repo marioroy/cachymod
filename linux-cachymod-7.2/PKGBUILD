@@ -595,6 +595,12 @@ build() {
     [[ -z "$ncpu" || "$ncpu" = "MAKEFLAGS"* ]] && ncpu="$nproc"
     [[ "$ncpu" -gt "$nproc" ]] && ncpu="$nproc"
 
+    ### Apply a localized throttle to prevent concurrent ThinLTO links from
+    ### over-saturating system resources and causing severe thread-thrashing.
+    if [[ "$_buildtype" = "thin" && "$ncpu" -ge 6 ]]; then
+        ncpu=$(awk -v j="$ncpu" 'BEGIN { print int(j * 0.8) }')
+    fi
+
     ### Use grep to filter/silence harmless warnings
     make "${BUILD_FLAGS[@]}" -j"$ncpu" all 2>&1 | \
        grep -Ev '^  (AS|AR|CC|LD|BT|CE|CO|GE|HO|IN|IP|MK|OB|PA|PE|PO|RE|ST|TA|TE|UN|UP|VD|WR|X32)|: unexpected end of section|: unreachable instruction| missing __noreturn in | no .sframe will be created|: relocation to !ENDBR|ld: warning: orphan section|ld.lld: warning: .*is being placed in'

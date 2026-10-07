@@ -24,7 +24,7 @@ diff -uarp a/Makefile b/Makefile
 +    # Optimized inline ceiling to prevent I-cache thrashing
 +    # =========================================================
 +    ifdef CONFIG_LTO_CLANG
-+    THINLTO_JOBS := $(shell nproc | awk '{print ($$1 > 32) ? 11 : 5}')
++    THINLTO_JOBS := $(shell nproc | awk '{print int(2.6 * sqrt($$1))}')
 +    KBUILD_LDFLAGS += --lto-O2 --lto-CGO2 --thinlto-jobs=$(THINLTO_JOBS)
 +    KBUILD_CFLAGS += -mllvm=-inline-threshold=320
 +    endif
