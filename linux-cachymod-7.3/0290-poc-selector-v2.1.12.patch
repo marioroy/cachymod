@@ -1313,7 +1313,7 @@ diff --git a/kernel/sched/sched.h b/kernel/sched/sched.h
 index adfb6e3409..ae7fec3397 100644
 --- a/kernel/sched/sched.h
 +++ b/kernel/sched/sched.h
-@@ -2402,6 +2402,105 @@ static inline struct task_group *task_group(struct task_struct *p)
+@@ -2401,6 +2401,105 @@ static inline struct task_group *task_group(struct task_struct *p)
  
  #endif /* !CONFIG_CGROUP_SCHED */
  
@@ -1462,7 +1462,7 @@ diff -uarp a/kernel/sched/ext/ext.c b/kernel/sched/ext/ext.c
  /*
   * NOTE: sched_ext is in the process of growing multiple scheduler support and
   * scx_root usage is in a transitional state. Naked dereferences are safe if the
-@@ -6608,6 +6614,15 @@ static void scx_root_disable(struct scx_sched *sch)
+@@ -6636,6 +6642,15 @@ static void scx_root_disable(struct scx_sched *sch)
  	cpus_read_lock();
  	RCU_INIT_POINTER(scx_root, NULL);
  	scx_cid_retire_tables();
@@ -1478,7 +1478,7 @@ diff -uarp a/kernel/sched/ext/ext.c b/kernel/sched/ext/ext.c
  	cpus_read_unlock();
  
  	/*
-@@ -7869,6 +7884,14 @@ static void scx_enable_workfn(struct kthread_work *work)
+@@ -7897,6 +7912,14 @@ static void scx_enable_workfn(struct kthread_work *work)
  	scx_cgroup_unlock();
  	percpu_up_write(&scx_fork_rwsem);
  

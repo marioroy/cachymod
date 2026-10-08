@@ -127,3 +127,3078 @@ index 6b1c14e684a93..2a7697cee00bc 100644
 -- 
 2.55.0
 
+Upstream fixes, post 7.3-rc6
+https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/
+
+From 1ca924044bf0de879a1648be93a56939652267d3 Mon Sep 17 00:00:00 2001
+From: Christian Göttsche <>
+Date: Wed, 23 Sep 2026 12:13:23 +0200
+Subject: selinux: fix data race on AVC latest_notif
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+avc_policy_seqno() reads latest_notif without holding notif_lock, while
+avc_latest_notif_update() can update it under that lock. KCSAN reports
+these concurrent accesses during policy boolean updates and permission
+checks.
+
+Use READ_ONCE() for the lockless read and WRITE_ONCE() for the update.
+The spinlock continues to serialize the comparison and update against
+other writers. Reads made while holding notif_lock cannot race with a
+writer and can remain plain accesses.
+
+This marks both sides of the intentional concurrent access and constrains
+compiler transformations, without suppressing checking with data_race().
+
+Cc: stable@vger.kernel.org
+Fixes: 788e7dd4c22e ("SELinux: Improve read/write performance")
+Reported-by: syzbot+a7f7cb0737bd91aa698c@syzkaller.appspotmail.com
+Closes: https://syzkaller.appspot.com/bug?extid=a7f7cb0737bd91aa698c
+Signed-off-by: Christian Göttsche <>
+Acked-by: Stephen Smalley <>
+Signed-off-by: Paul Moore <>
+---
+ security/selinux/avc.c | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/security/selinux/avc.c b/security/selinux/avc.c
+index 560a82c6d6826..b91f914d292e5 100644
+--- a/security/selinux/avc.c
++++ b/security/selinux/avc.c
+@@ -578,7 +578,7 @@ static int avc_latest_notif_update(u32 seqno, int is_insert)
+ 		}
+ 	} else {
+ 		if (seqno > selinux_avc.avc_cache.latest_notif)
+-			selinux_avc.avc_cache.latest_notif = seqno;
++			WRITE_ONCE(selinux_avc.avc_cache.latest_notif, seqno);
+ 	}
+ 	spin_unlock_irqrestore(&notif_lock, flag);
+ 
+@@ -1206,5 +1206,6 @@ int avc_has_perm(u32 ssid, u32 tsid, u16 tclass,
+ 
+ u32 avc_policy_seqno(void)
+ {
+-	return selinux_avc.avc_cache.latest_notif;
++	/* Writers hold notif_lock; readers only sample the sequence number. */
++	return READ_ONCE(selinux_avc.avc_cache.latest_notif);
+ }
+-- 
+cgit 1.3.1-korg
+
+From 28b7260548af3d35773477993ad4e4de41578dd7 Mon Sep 17 00:00:00 2001
+From: Stephen Smalley <>
+Date: Mon, 28 Sep 2026 10:19:17 -0400
+Subject: selinux: preserve NATIVE_LABELS on already-initialized sb in
+ set_mnt_opts
+
+When an NFSv4 filesystem exported with security_label is mounted a
+second time, sget_fc() returns the existing superblock and
+nfs_get_root() calls security_sb_set_mnt_opts() again on it. Since the
+superblock is already SB_INITIALIZED, selinux_set_mnt_opts() takes an
+early exit without setting SECURITY_LSM_NATIVE_LABELS in
+*set_kern_flags. nfs_get_root() then sees kflags without
+SECURITY_LSM_NATIVE_LABELS set and clears NFS_CAP_SECURITY_LABEL on
+the shared nfs_server, silently disabling per-file labeling for both
+the new and the original mount.
+
+Commit 3815a245b501 ("security/selinux: fix SECURITY_LSM_NATIVE_LABELS
+on reused superblock") fixed the same problem in
+selinux_sb_clone_mnt_opts().  The reused-superblock path for a plain
+second mount now goes through sb_set_mnt_opts rather than
+sb_clone_mnt_opts, so it needs the same treatment: on both
+SE_SBINITIALIZED early exits, set SECURITY_LSM_NATIVE_LABELS in
+*set_kern_flags when the superblock was already using
+SECURITY_FS_USE_NATVE.
+
+Cc: stable@vger.kernel.org
+Closes: https://github.com/SELinuxProject/selinux-kernel/issues/69
+Closes: https://github.com/SELinuxProject/selinux-kernel/issues/70
+Closes: https://github.com/SELinuxProject/selinux-testsuite/issues/91
+Closes: https://github.com/SELinuxProject/selinux-testsuite/issues/92
+Fixes: eb9ae686507b ("SELinux: Add new labeling type native labels")
+Signed-off-by: Stephen Smalley <>
+Signed-off-by: Paul Moore <>
+---
+ security/selinux/hooks.c | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/security/selinux/hooks.c b/security/selinux/hooks.c
+index 3f4a6ddee3225..30776b0107f29 100644
+--- a/security/selinux/hooks.c
++++ b/security/selinux/hooks.c
+@@ -690,8 +690,12 @@ static int selinux_set_mnt_opts(struct super_block *sb,
+ 	 * will be used for both mounts)
+ 	 */
+ 	if ((sbsec->flags & SE_SBINITIALIZED) && (sb->s_type->fs_flags & FS_BINARY_MOUNTDATA)
+-	    && !opts)
++		&& !opts) {
++		if ((kern_flags & SECURITY_LSM_NATIVE_LABELS) &&
++		    sbsec->behavior == SECURITY_FS_USE_NATIVE)
++			*set_kern_flags |= SECURITY_LSM_NATIVE_LABELS;
+ 		goto out;
++	}
+ 
+ 	root_isec = backing_inode_security_novalidate(root);
+ 
+@@ -735,6 +739,9 @@ static int selinux_set_mnt_opts(struct super_block *sb,
+ 		/* previously mounted with options, but not on this attempt? */
+ 		if ((sbsec->flags & SE_MNTMASK) && !opts)
+ 			goto out_double_mount;
++		if ((kern_flags & SECURITY_LSM_NATIVE_LABELS) &&
++		    sbsec->behavior == SECURITY_FS_USE_NATIVE)
++			*set_kern_flags |= SECURITY_LSM_NATIVE_LABELS;
+ 		rc = 0;
+ 		goto out;
+ 	}
+-- 
+cgit 1.3.1-korg
+
+From 25bf14f817168079f731975b8998fc2af380f29e Mon Sep 17 00:00:00 2001
+From: Karl Mehltretter <>
+Date: Sat, 12 Sep 2026 11:54:40 +0200
+Subject: keys: finalize persistent keyring timeout after link attempt
+
+When no keyring exists for the requested UID, KEYCTL_GET_PERSISTENT
+creates and registers one before linking it to the requested destination.
+The configured timeout is set only after the destination link succeeds.
+
+A destination restricted with KEYCTL_RESTRICT_KEYRING makes that link fail
+with -EPERM. With persistent_keyring_expiry set to 60 seconds, /proc/keys
+still reports the registered keyring's expiry as "perm".
+The failed call therefore leaves a quota-exempt keyring in the namespace's
+hidden register, where it may remain until namespace teardown.
+
+Rename the write-locked helper to key_get_or_create_persistent() and return
+the key reference through a result parameter. Return 0 when it creates a
+keyring and 1 when the retry finds an existing one. Return a negative error
+on failure. Another caller may create the keyring between the initial
+read-locked lookup and the retry under the write lock.
+
+Set the timeout after permission checking and linking. Do this on success,
+or on failure if the call allocated the keyring. This leaves a new keyring
+collectible after failure without starting its timeout while linking is
+still in progress.
+
+Cc: stable@vger.kernel.org # v5.10+
+Fixes: f36f8c75ae2e ("KEYS: Add per-user_namespace registers for persistent per-UID kerberos caches")
+Assisted-by: LLM
+Signed-off-by: Karl Mehltretter <>
+Link: https://lore.kernel.org/r/20260912095440.79864-1-kmehltretter@gmail.com
+Reviewed-by: Jarkko Sakkinen <>
+Signed-off-by: Jarkko Sakkinen <>
+---
+ security/keys/persistent.c | 55 +++++++++++++++++++++++++++-------------------
+ 1 file changed, 32 insertions(+), 23 deletions(-)
+
+diff --git a/security/keys/persistent.c b/security/keys/persistent.c
+index 97af230aa4b22..bdab995393261 100644
+--- a/security/keys/persistent.c
++++ b/security/keys/persistent.c
+@@ -33,25 +33,31 @@ static int key_create_persistent_register(struct user_namespace *ns)
+ }
+ 
+ /*
+- * Create the persistent keyring for the specified user.
++ * Get or create the persistent keyring for the specified user.
+  *
+  * Called with the namespace's sem locked for writing.
++ *
++ * Returns a boolean indicating whether the keyring already existed,
++ * or a negative error. On success, *persistent_ref holds a reference
++ * to the keyring.
+  */
+-static key_ref_t key_create_persistent(struct user_namespace *ns, kuid_t uid,
+-				       struct keyring_index_key *index_key)
++static int key_get_or_create_persistent(struct user_namespace *ns, kuid_t uid,
++					struct keyring_index_key *index_key,
++					key_ref_t *persistent_ref)
+ {
+ 	struct key *persistent;
+-	key_ref_t reg_ref, persistent_ref;
++	key_ref_t reg_ref;
+ 
+ 	if (!ns->persistent_keyring_register) {
+-		long err = key_create_persistent_register(ns);
++		int err = key_create_persistent_register(ns);
++
+ 		if (err < 0)
+-			return ERR_PTR(err);
++			return err;
+ 	} else {
+ 		reg_ref = make_key_ref(ns->persistent_keyring_register, true);
+-		persistent_ref = find_key_to_update(reg_ref, index_key);
+-		if (persistent_ref)
+-			return persistent_ref;
++		*persistent_ref = find_key_to_update(reg_ref, index_key);
++		if (*persistent_ref)
++			return 1;
+ 	}
+ 
+ 	persistent = keyring_alloc(index_key->description,
+@@ -61,9 +67,10 @@ static key_ref_t key_create_persistent(struct user_namespace *ns, kuid_t uid,
+ 				   KEY_ALLOC_NOT_IN_QUOTA, NULL,
+ 				   ns->persistent_keyring_register);
+ 	if (IS_ERR(persistent))
+-		return ERR_CAST(persistent);
++		return PTR_ERR(persistent);
+ 
+-	return make_key_ref(persistent, true);
++	*persistent_ref = make_key_ref(persistent, true);
++	return 0;
+ }
+ 
+ /*
+@@ -78,6 +85,7 @@ static long key_get_persistent(struct user_namespace *ns, kuid_t uid,
+ 	key_ref_t reg_ref, persistent_ref;
+ 	char buf[32];
+ 	long ret;
++	bool created = false;
+ 
+ 	/* Look in the register if it exists */
+ 	memset(&index_key, 0, sizeof(index_key));
+@@ -100,23 +108,24 @@ static long key_get_persistent(struct user_namespace *ns, kuid_t uid,
+ 	 * also need to create the register.
+ 	 */
+ 	down_write(&ns->keyring_sem);
+-	persistent_ref = key_create_persistent(ns, uid, &index_key);
++	ret = key_get_or_create_persistent(ns, uid, &index_key,
++					   &persistent_ref);
+ 	up_write(&ns->keyring_sem);
+-	if (!IS_ERR(persistent_ref))
+-		goto found;
+-
+-	return PTR_ERR(persistent_ref);
++	if (ret < 0)
++		return ret;
++	created = ret == 0;
+ 
+ found:
++	persistent = key_ref_to_ptr(persistent_ref);
+ 	ret = key_task_permission(persistent_ref, current_cred(), KEY_NEED_LINK);
+-	if (ret == 0) {
+-		persistent = key_ref_to_ptr(persistent_ref);
++	if (ret == 0)
+ 		ret = key_link(key_ref_to_ptr(dest_ref), persistent);
+-		if (ret == 0) {
+-			key_set_timeout(persistent, persistent_keyring_expiry);
+-			ret = persistent->serial;
+-		}
+-	}
++
++	if (ret == 0 || created)
++		key_set_timeout(persistent, persistent_keyring_expiry);
++
++	if (ret == 0)
++		ret = persistent->serial;
+ 
+ 	key_ref_put(persistent_ref);
+ 	return ret;
+-- 
+cgit 1.3.1-korg
+
+From dd3ea3fcba7c75493760cdbccd35f029597e8d5e Mon Sep 17 00:00:00 2001
+From: 성병찬 <>
+Date: Wed, 30 Sep 2026 13:18:01 +0900
+Subject: KEYS: Fix add_key() race with keyring restriction
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+__key_create_or_update() snapshots keyring->restrict_link before taking
+the destination keyring's semaphore.  keyring_restrict() installs a
+restriction while holding that semaphore.
+
+This allows a writer to observe no restriction, wait for the keyring
+owner to install a reject-all restriction and return successfully, and
+then link a key using the stale NULL snapshot.  The writer only needs
+write permission on the destination keyring.
+
+Move the restrict_link read after __key_link_lock() and
+__key_link_begin().  The read and the subsequent restriction check are
+then serialized with restriction installation by keyring->sem.
+
+The race was reproduced on v7.2.8 in 19 executions where restriction
+installation returned before the link completed.  All 19 linked the key
+despite the reject-all restriction.  With this change, 312 executions
+reached the same ordering and every add_key() call failed with -EPERM.
+
+The issue was found by manual concurrency analysis assisted by AI-based
+analysis and independently verified with a QEMU reproducer and kernel
+instrumentation.
+
+Fixes: 5ac7eace2d00 ("KEYS: Add a facility to restrict new links into a keyring")
+Cc: stable@vger.kernel.org
+Signed-off-by: 성병찬 <>
+Reviewed-by: Jarkko Sakkinen <>
+Link: https://lore.kernel.org/r/20260930041802.6114-1-tjdqudcks0424@naver.com
+Signed-off-by: Jarkko Sakkinen <>
+---
+ security/keys/key.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/security/keys/key.c b/security/keys/key.c
+index b34a64d81d47a..a438c4508595d 100644
+--- a/security/keys/key.c
++++ b/security/keys/key.c
+@@ -840,9 +840,6 @@ static key_ref_t __key_create_or_update(key_ref_t keyring_ref,
+ 
+ 	key_check(keyring);
+ 
+-	if (!(flags & KEY_ALLOC_BYPASS_RESTRICTION))
+-		restrict_link = keyring->restrict_link;
+-
+ 	key_ref = ERR_PTR(-ENOTDIR);
+ 	if (keyring->type != &key_type_keyring)
+ 		goto error_put_type;
+@@ -880,6 +877,9 @@ static key_ref_t __key_create_or_update(key_ref_t keyring_ref,
+ 		goto error_link_end;
+ 	}
+ 
++	if (!(flags & KEY_ALLOC_BYPASS_RESTRICTION))
++		restrict_link = keyring->restrict_link;
++
+ 	if (restrict_link && restrict_link->check) {
+ 		ret = restrict_link->check(keyring, index_key.type,
+ 					   &prep.payload, restrict_link->key);
+-- 
+cgit 1.3.1-korg
+
+From c83e3d2912432107148cc5e288ddd153a84c0f43 Mon Sep 17 00:00:00 2001
+From: Petr Mladek <>
+Date: Thu, 1 Oct 2026 16:07:27 +0200
+Subject: braille: nbcon: Allow to use a serial console with NBCON API as
+ Braille console
+
+The Braille console is not registered in console_list. Instead, it is
+integrated with the virtual terminal (VT) and shows what is displayed
+on the terminal. It writes the data using con->write*() callback
+of the associated serial console driver.
+
+braille_write() is called from the VT code under console_lock().
+The associated serial console driver can be converted to the NBCON API
+though. The situation is similar to flushing nbcon consoles in the legacy
+loop when some boot consoles are still registered, see
+nbcon_legacy_emit_next_record().
+
+But there is a big difference though. braille_write() is not directly
+called from the code paths flushing registered consoles. The VT code
+expects that braille_write() succeeds. It does not replay the message
+when it can't acquire the ownership. As a result, braille_write():
+
+  + must try harder to get the ownership.
+
+  + has to be synchronized only against non-printk serial console
+    which depend nbcon_device_try_acquire() using NBCON_PRIO_NORMAL.
+
+Let's look at it from another side and try to simulate the original
+locking using the NBCON API:
+
+  1. Take con->device_lock(), aka the port->lock in the legacy serial
+     console driver.
+
+  2. Acquire nbcon context to provide some synchronization for a panic()
+     context. Use NBCON_PRIO_NORMAL because it contends only with
+     nbcon_device_try_acquire() users. Do it in a busy loop. It should
+     always succeed when con->device_lock() succeeded because all other
+     users do the same. The only exception is when the context get acquired
+     by a CPU handling panic.
+
+  3. In panic, disable interrupts and try to acquire the nbcon context.
+     Use NBCON_PRIO_PANIC. And try even an unsafe takeover because
+     otherwise the Braille console won't see the text shown during panic().
+     It is similar to the oops_in_progress/trylock handling in the legacy
+     serial console driver.
+
+Finally, avoid the newline prepending logic in the existing serial console
+drivers when they are used as a Braille console. As explained above,
+the Braille console shows the last modified line on the terminal (VT).
+braille_write() is called when single characters are added. Most
+messages are not ended by newline. Anyway, the VT code does not have
+logic to reply partially printed messages.
+
+Fixes: 13189fa73afa ("printk: nbcon: Rely on kthreads for normal operation")
+Reviewed-by: John Ogness <>
+[pmladek@suse.com: Remove white space changes in braille_register_console(). Typo fix.]
+Link: https://patch.msgid.link/20261001140727.124398-2-pmladek@suse.com
+Signed-off-by: Petr Mladek <>
+---
+ drivers/accessibility/braille/braille_console.c | 57 +++++++++++++++++-
+ drivers/tty/serial/8250/8250_port.c             |  5 +-
+ drivers/tty/serial/amba-pl011.c                 |  2 +-
+ drivers/tty/serial/imx.c                        |  2 +-
+ drivers/tty/serial/sifive.c                     |  2 +-
+ include/linux/console.h                         | 15 +++++
+ kernel/printk/nbcon.c                           | 79 +++++++++++++++++++++++++
+ 7 files changed, 156 insertions(+), 6 deletions(-)
+
+diff --git a/drivers/accessibility/braille/braille_console.c b/drivers/accessibility/braille/braille_console.c
+index 06b43b678d6ea..5a3e375f4800f 100644
+--- a/drivers/accessibility/braille/braille_console.c
++++ b/drivers/accessibility/braille/braille_console.c
+@@ -62,14 +62,50 @@ static void braille_write(u16 *buf)
+ {
+ 	static u16 lastwrite[WIDTH];
+ 	unsigned char data[1 + 1 + 2*WIDTH + 2 + 1], csum = 0, *c;
++	struct nbcon_write_context wctxt = { };
++	unsigned long flags;
+ 	u16 out;
+ 	int i;
+ 
+ 	if (!braille_co)
+ 		return;
+ 
++	/*
++	 * Braille console is not registered in console_list. Instead, it
++	 * is integrated with VT and shows what appears on the graphical
++	 * console under console_lock(). From this POV it is a legacy
++	 * console. But it calls serial console driver which might be
++	 * converted to the NBCON API. It is similar to
++	 * nbcon_legacy_emit_next_record() except that we should try
++	 * harder to get the lock. Otherwise, the Braille device won't show
++	 * everything what is displayed on the terminal.
++	 *
++	 * In short, simulate the original locking using NBCON API.
++	 */
++	if (braille_co->flags & CON_NBCON) {
++		if (panic_on_this_cpu()) {
++			/*
++			 * This should be good enough in practice. Most/all
++			 * serial console drivers have the atomic callback.
++			 */
++			if (!braille_co->write_atomic)
++				return;
++
++			local_irq_save(flags);
++			/* NBCON API strictly requires the ownership. */
++			if (!nbcon_braille_try_acquire(braille_co, &wctxt)) {
++				local_irq_restore(flags);
++				return;
++			}
++		} else {
++			braille_co->device_lock(braille_co, &flags);
++			while (!nbcon_braille_try_acquire(braille_co, &wctxt))
++				cpu_relax();
++		}
++	}
++
+ 	if (!memcmp(lastwrite, buf, WIDTH * sizeof(*buf)))
+-		return;
++		goto unlock_nbcon;
+ 	memcpy(lastwrite, buf, WIDTH * sizeof(*buf));
+ 
+ #define SOH 1
+@@ -102,7 +138,24 @@ static void braille_write(u16 *buf)
+ 	*c++ = csum;
+ 	*c++ = ETX;
+ 
+-	braille_co->write(braille_co, data, c - data);
++	if (braille_co->flags & CON_NBCON) {
++		nbcon_write_context_set_buf(&wctxt, (char *)data, c - data);
++		if (panic_on_this_cpu())
++			braille_co->write_atomic(braille_co, &wctxt);
++		else
++			braille_co->write_thread(braille_co, &wctxt);
++	} else {
++		braille_co->write(braille_co, data, c - data);
++	}
++
++unlock_nbcon:
++	if (braille_co->flags & CON_NBCON) {
++		nbcon_braille_release(&wctxt);
++		if (panic_on_this_cpu())
++			local_irq_restore(flags);
++		else
++			braille_co->device_unlock(braille_co, flags);
++	}
+ }
+ 
+ /* Follow the VC cursor*/
+diff --git a/drivers/tty/serial/8250/8250_port.c b/drivers/tty/serial/8250/8250_port.c
+index 38fa45e74a37a..548fd68ad1fae 100644
+--- a/drivers/tty/serial/8250/8250_port.c
++++ b/drivers/tty/serial/8250/8250_port.c
+@@ -3417,8 +3417,11 @@ static void __serial8250_console_write(struct uart_8250_port *up,
+ 	 * If the console printer did not fully output the previous line, it
+ 	 * must have been handed or taken over. Insert a newline in order to
+ 	 * maintain clean output.
++	 *
++	 * Braille consoles are an exception. The serial port is not used
++	 * for printk(). The driver is supposed to write exactly what it gets.
+ 	 */
+-	if (!up->console_line_ended) {
++	if (unlikely(!up->console_line_ended && !nbcon_write_context_is_braille(wctxt))) {
+ 		if (use_fifo)
+ 			__serial8250_console_fifo_write(up, wctxt, "\n", 1);
+ 		else
+diff --git a/drivers/tty/serial/amba-pl011.c b/drivers/tty/serial/amba-pl011.c
+index c4824c201e1c3..e67f2ac454b63 100644
+--- a/drivers/tty/serial/amba-pl011.c
++++ b/drivers/tty/serial/amba-pl011.c
+@@ -2656,7 +2656,7 @@ pl011_console_write_atomic(struct console *co, struct nbcon_write_context *wctxt
+ 				uap, REG_CR);
+ 	}
+ 
+-	if (!uap->console_line_ended)
++	if (unlikely(!uap->console_line_ended && !nbcon_is_braille(co)))
+ 		uart_console_write(&uap->port, "\n", 1, pl011_console_putchar);
+ 	uart_console_write(&uap->port, wctxt->outbuf, wctxt->len, pl011_console_putchar);
+ 
+diff --git a/drivers/tty/serial/imx.c b/drivers/tty/serial/imx.c
+index 513dbe95f7e9c..986fefb45c632 100644
+--- a/drivers/tty/serial/imx.c
++++ b/drivers/tty/serial/imx.c
+@@ -2136,7 +2136,7 @@ static void imx_uart_console_write_atomic(struct console *co,
+ 	imx_uart_writel(sport, ucr1, UCR1);
+ 	imx_uart_writel(sport, old_ucr.ucr2 | UCR2_TXEN, UCR2);
+ 
+-	if (!sport->last_putchar_was_newline)
++	if (unlikely(!sport->last_putchar_was_newline && !nbcon_is_braille(co)))
+ 		uart_console_write(port, "\n", 1, imx_uart_console_putchar);
+ 	uart_console_write(port, wctxt->outbuf, wctxt->len,
+ 			   imx_uart_console_putchar);
+diff --git a/drivers/tty/serial/sifive.c b/drivers/tty/serial/sifive.c
+index 110d676131922..f615701fceb7d 100644
+--- a/drivers/tty/serial/sifive.c
++++ b/drivers/tty/serial/sifive.c
+@@ -821,7 +821,7 @@ static void sifive_serial_console_write_atomic(struct console *co,
+ 	ier = __ssp_readl(ssp, SIFIVE_SERIAL_IE_OFFS);
+ 	__ssp_writel(0, SIFIVE_SERIAL_IE_OFFS, ssp);
+ 
+-	if (!ssp->console_line_ended)
++	if (unlikely(!ssp->console_line_ended && !nbcon_is_braille(co)))
+ 		uart_console_write(port, "\n", 1, sifive_serial_console_putchar);
+ 	uart_console_write(port, wctxt->outbuf, wctxt->len,
+ 			   sifive_serial_console_putchar);
+diff --git a/include/linux/console.h b/include/linux/console.h
+index 502d1abe3f50b..df23148987eeb 100644
+--- a/include/linux/console.h
++++ b/include/linux/console.h
+@@ -615,6 +615,15 @@ extern bool nbcon_allow_unsafe_takeover(void);
+ extern bool nbcon_kdb_try_acquire(struct console *con,
+ 				  struct nbcon_write_context *wctxt);
+ extern void nbcon_kdb_release(struct nbcon_write_context *wctxt);
++extern bool nbcon_write_context_is_braille(struct nbcon_write_context *wctxt);
++extern bool nbcon_braille_try_acquire(struct console *con,
++				      struct nbcon_write_context *wctxt);
++extern void nbcon_braille_release(struct nbcon_write_context *wctxt);
++
++static inline bool nbcon_is_braille(struct console *con)
++{
++	return con && (con->flags & CON_BRL);
++}
+ 
+ /*
+  * Check if the given console is currently capable and allowed to print
+@@ -678,8 +687,14 @@ static inline void nbcon_reacquire_nobuf(struct nbcon_write_context *wctxt) { }
+ static inline bool nbcon_kdb_try_acquire(struct console *con,
+ 					 struct nbcon_write_context *wctxt) { return false; }
+ static inline void nbcon_kdb_release(struct nbcon_write_context *wctxt) { }
++static inline
++bool nbcon_write_context_is_braille(struct nbcon_write_context *wctxt) { return false; }
+ static inline bool console_is_usable(struct console *con, short flags,
+ 				     bool use_atomic) { return false; }
++static inline bool nbcon_braille_try_acquire(struct console *con,
++					     struct nbcon_write_context *wctxt) { return false; }
++static inline void nbcon_braille_release(struct nbcon_write_context *wctxt) { }
++static inline bool nbcon_is_braille(struct console *con) { return false; }
+ #endif
+ 
+ extern int console_set_on_cmdline;
+diff --git a/kernel/printk/nbcon.c b/kernel/printk/nbcon.c
+index d17704fe93ae1..fb1b377419527 100644
+--- a/kernel/printk/nbcon.c
++++ b/kernel/printk/nbcon.c
+@@ -1887,6 +1887,7 @@ bool nbcon_device_try_acquire(struct console *con)
+ 
+ 	memset(ctxt, 0, sizeof(*ctxt));
+ 	ctxt->console	= con;
++	/* Keep in sync with nbcon_braille_try_acquire(). */
+ 	ctxt->prio	= NBCON_PRIO_NORMAL;
+ 
+ 	if (!nbcon_context_try_acquire(ctxt, false))
+@@ -2002,3 +2003,81 @@ void nbcon_kdb_release(struct nbcon_write_context *wctxt)
+ 	 */
+ 	__nbcon_atomic_flush_pending_con(ctxt->console, prb_next_reserve_seq(prb));
+ }
++
++/**
++ * nbcon_is_braille - Checks whether the nbcon write context is using Braille console
++ *
++ * @wctxt:	checked nbcon write context
++ *
++ * Return: True when the write context is associated with a Braille console.
++ *	   Otherwise, return false.
++ *
++ * Context: Can be called in any context but only when Braille console is
++ *	registered and the struct console could not disappear.
++ */
++bool nbcon_write_context_is_braille(struct nbcon_write_context *wctxt)
++{
++	struct nbcon_context *ctxt = &ACCESS_PRIVATE(wctxt, ctxt);
++	struct console *con = ctxt->console;
++
++	return con && con->flags & CON_BRL;
++}
++EXPORT_SYMBOL_GPL(nbcon_write_context_is_braille);
++
++/**
++ * nbcon_braille_try_acquire - Try to acquire nbcon console for braille_write()
++ *
++ * @con:	The nbcon console to acquire
++ * @wctxt:	The nbcon write context to be used on success
++ *
++ * Context:	braille_write() for emitting a single buffer on Braille console.
++ *
++ * Return:	True if the console was acquired. False otherwise.
++ *
++ * Braille console is not registered as a proper printk consoles. Instead,
++ * it is integrated with the graphical virtual terminal.
++ *
++ * This function is going to synchronize the Braille write against other
++ * operations on the used serial port. The port can be used also for a user
++ * input but printk() won't emit the messages there directly. It means
++ * the other operations will get synchronized using nbcon_device_try_acquire().
++ */
++bool nbcon_braille_try_acquire(struct console *con,
++			   struct nbcon_write_context *wctxt)
++{
++	struct nbcon_context *ctxt = &ACCESS_PRIVATE(wctxt, ctxt);
++	bool success;
++
++	memset(ctxt, 0, sizeof(*ctxt));
++	ctxt->console = con;
++	/* Keep in sync with nbcon_device_try_acquire(). */
++	if (panic_on_this_cpu())
++		ctxt->prio = NBCON_PRIO_PANIC;
++	else
++		ctxt->prio = NBCON_PRIO_NORMAL;
++
++	success = nbcon_context_try_acquire(ctxt, false);
++	/*
++	 * Try hard in panic, otherwise the Braille console would
++	 * miss a text on the related VT.
++	 */
++	if (panic_on_this_cpu() && !success) {
++		ctxt->allow_unsafe_takeover = true;
++		success = nbcon_context_try_acquire(ctxt, false);
++	}
++
++	return success;
++}
++
++/**
++ * nbcon_braille_release - Release the nbcon console
++ *
++ * @wctxt:	The nbcon write context initialized by a successful
++ *		nbcon_braille_try_acquire()
++ */
++void nbcon_braille_release(struct nbcon_write_context *wctxt)
++{
++	struct nbcon_context *ctxt = &ACCESS_PRIVATE(wctxt, ctxt);
++
++	nbcon_context_release(ctxt);
++}
+-- 
+cgit 1.3.1-korg
+
+From bc8ce2cea5f77c4bd1a5184705e300e83546c0c4 Mon Sep 17 00:00:00 2001
+From: Hengyu Liang <>
+Date: Tue, 29 Sep 2026 12:41:35 -0400
+Subject: ata: libata-scsi: do not lose CHECK CONDITION for failed ATAPI
+ commands
+
+Since commit 2e1d2e65e773 ("ata: libata-scsi: terminate deferred commands
+on time out"), atapi_qc_complete() sets SAM_STAT_CHECK_CONDITION for a
+failed command only if cmd->result is zero, so that the DID_TIME_OUT or
+DID_REQUEUE host byte of a terminated command is preserved.
+
+However, cmd->result can also be non-zero for a regular failed ATAPI
+command completed through libata EH: ata_eh_analyze_tf() calls
+ata_eh_decide_disposition(), that is, scsi_check_sense(), on the sense
+data obtained with REQUEST SENSE, and scsi_check_sense() sets the SCSI
+midlayer internal byte of the result for some sense codes, e.g.
+SCSIML_STAT_TGT_FAILURE for ILLEGAL REQUEST with ASC 0x20 (INVALID
+COMMAND OPERATION CODE) or 0x24 (INVALID FIELD IN CDB), or
+SCSIML_STAT_MED_ERROR for MEDIUM ERROR with ASC 0x11 (UNRECOVERED READ
+ERROR). For such commands, atapi_qc_complete() keeps the result as is and
+the command completes with a GOOD status byte, even though it failed and
+valid sense data is available.
+
+As a result, passthrough users see these failed ATAPI commands as
+successful. For example, with the emulated IDE CD-ROM drive of QEMU and
+no medium loaded, a PLAY AUDIO MSF command issued with SG_IO completes
+with status 0x00 (and no DRIVER_SENSE) instead of 0x02 (CHECK CONDITION)
+with sense key ILLEGAL REQUEST, ASC/ASCQ 0x20/0x00, and the CDROM ioctls
+CDROMPLAYTRKIND, CDROMSUBCHNL, CDROMPAUSE, CDROMRESUME, CDROMPLAYMSF and
+CDROM_GET_MCN return 0 instead of -ENOMEDIUM or -EOPNOTSUPP.
+
+Fix this by setting the status byte to SAM_STAT_CHECK_CONDITION whenever
+the host byte is not set. Use set_status_byte() rather than overwriting
+the whole result, so that the SCSI midlayer internal byte set by
+scsi_check_sense() is preserved, as ata_scsi_qc_complete() already does
+for ATA commands.
+
+Fixes: 2e1d2e65e773 ("ata: libata-scsi: terminate deferred commands on time out")
+Cc: stable@vger.kernel.org
+Suggested-by: Niklas Cassel <>
+Signed-off-by: Hengyu Liang <>
+Reviewed-by: Damien Le Moal <>
+Link: https://lore.kernel.org/r/20260929164135.266708-1-hengyul@cs.unc.edu
+Signed-off-by: Niklas Cassel <>
+---
+ drivers/ata/libata-scsi.c | 13 +++++++++----
+ 1 file changed, 9 insertions(+), 4 deletions(-)
+
+diff --git a/drivers/ata/libata-scsi.c b/drivers/ata/libata-scsi.c
+index 8f9aa97a519d1..fb5517d51095d 100644
+--- a/drivers/ata/libata-scsi.c
++++ b/drivers/ata/libata-scsi.c
+@@ -3059,10 +3059,15 @@ static void atapi_qc_complete(struct ata_queued_cmd *qc)
+ 		if (qc->cdb[0] == ALLOW_MEDIUM_REMOVAL && qc->dev->sdev)
+ 			qc->dev->sdev->locked = 0;
+ 
+-		if (cmd->result)
+-			ata_scsi_qc_done(qc, false, 0);
+-		else
+-			ata_scsi_qc_done(qc, true, SAM_STAT_CHECK_CONDITION);
++		/*
++		 * Report CHECK CONDITION unless the command was terminated
++		 * with a host byte set. Only set the status byte, so that the
++		 * SCSI midlayer internal byte, which scsi_check_sense() may
++		 * have set from the sense data, is preserved.
++		 */
++		if (get_host_byte(cmd) == DID_OK)
++			set_status_byte(cmd, SAM_STAT_CHECK_CONDITION);
++		ata_scsi_qc_done(qc, false, 0);
+ 		goto schedule_deferred;
+ 	}
+ 
+-- 
+cgit 1.3.1-korg
+
+From d35a535d3e3e71f92a051d94e415f43612c4edfc Mon Sep 17 00:00:00 2001
+From: Tejun Heo <>
+Date: Wed, 23 Sep 2026 12:39:20 -1000
+Subject: sched_ext: Fix CPU hotplug hang when a dying CPU's tasks sit in the
+ BPF scheduler
+
+A CPU going down has to empty its own rq. Its hotplug thread waits in
+sched_cpu_wait_empty() until nothing else is left, and the only thing that
+wakes it is balance_push(), which runs from __schedule() on the dying CPU
+and pushes off the migratable tasks the CPU picks.
+
+sched_ext breaks this. A task sitting on a user DSQ or held by the BPF
+scheduler is still counted on its rq, but an inactive CPU no longer calls
+ops.dispatch() and can't pull the task back. The dying CPU goes idle with
+the task still counted, and one of two things happens:
+
+- Another CPU consumes the task. The rq empties without a __schedule() on
+  the dying CPU, so the hotplug thread is never woken and cpu_down() hangs
+  holding cpu_hotplug_lock.
+- The task is affine only to the dying CPU. Nothing can move it, and the
+  offline stalls until the watchdog ejects the BPF scheduler.
+
+When the rq goes offline, re-enqueue every task on it that isn't already on
+the local DSQ. An enqueue on an offline rq lands on the local DSQ, so the
+dying CPU itself picks the tasks and balance_push() pushes them off, the
+same as for the other sched classes. From then on no sched_ext path on
+another CPU can pull a task off the rq.
+
+ops.dispatch() currently stops as soon as the CPU goes inactive, and CPU
+hotplug then waits for an RCU grace period before taking the rq offline. A
+BPF-held task affine only to the dying CPU and preempted inside an RCU
+read-side critical section would block that grace period, and the rq would
+never go offline. Test SCX_RQ_ONLINE directly so that ops.dispatch() keeps
+running until the rq goes offline. Only the dying CPU's own hotplug thread
+clears the flag during teardown, and task_can_run_on_remote_rq() still keeps
+other rqs' tasks off the CPU.
+
+Fixes: f0e1a0643a59 ("sched_ext: Implement BPF extensible scheduler class")
+Fixes: 991ef53a4832 ("sched_ext: Make scx_rq_online() also test cpu_active() in addition to SCX_RQ_ONLINE")
+Cc: stable@vger.kernel.org # v6.12+
+Reported-by: Alap Mohan <>
+Reported-by: Joonwoo Park <>
+Signed-off-by: Tejun Heo <>
+Reviewed-by: Andrea Righi <>
+---
+ kernel/sched/ext/ext.c     | 22 ++++++++++++++++++++--
+ kernel/sched/ext/inlines.h |  8 +++++++-
+ kernel/sched/ext/sub.c     |  4 ----
+ kernel/sched/sched.h       |  5 +++--
+ 4 files changed, 30 insertions(+), 9 deletions(-)
+
+diff --git a/kernel/sched/ext/ext.c b/kernel/sched/ext/ext.c
+index ad391a8cbd05e..493b7aac7087d 100644
+--- a/kernel/sched/ext/ext.c
++++ b/kernel/sched/ext/ext.c
+@@ -2123,8 +2123,8 @@ static void set_task_runnable(struct rq *rq, struct task_struct *p)
+ 	}
+ 
+ 	/*
+-	 * list_add_tail() must be used. scx_bypass() depends on tasks being
+-	 * appended to the runnable_list.
++	 * list_add_tail() must be used. scx_bypass() and rq_offline_scx()
++	 * depend on tasks being appended to the runnable_list.
+ 	 */
+ 	list_add_tail(&p->scx.runnable_node, &rq->scx.runnable_list);
+ 
+@@ -3731,8 +3731,26 @@ static void rq_online_scx(struct rq *rq)
+ 
+ static void rq_offline_scx(struct rq *rq)
+ {
++	struct task_struct *p, *n;
++
+ 	rq->scx.flags &= ~SCX_RQ_ONLINE;
++
++	/* sched domain rebuilds call rq_offline with the CPU staying alive */
++	if (cpu_active(cpu_of(rq)))
++		return;
++
+ 	scx_rescue_flush(rq);
++
++	/*
++	 * An offline CPU no longer calls ops.dispatch(). Re-enqueue its tasks
++	 * onto the local DSQ so that they run here and balance_push() moves
++	 * them off.
++	 */
++	list_for_each_entry_safe_reverse(p, n, &rq->scx.runnable_list, scx.runnable_node) {
++		if (p->scx.dsq == &rq->scx.local_dsq)
++			continue;
++		guard(sched_change)(p, DEQUEUE_SAVE | DEQUEUE_MOVE | DEQUEUE_NOCLOCK);
++	}
+ }
+ 
+ static bool check_rq_for_timeouts(struct rq *rq)
+diff --git a/kernel/sched/ext/inlines.h b/kernel/sched/ext/inlines.h
+index 2ff5479334cba..8de9d8fb4b25f 100644
+--- a/kernel/sched/ext/inlines.h
++++ b/kernel/sched/ext/inlines.h
+@@ -70,7 +70,13 @@ scx_dispatch_sched(struct scx_sched *sch, struct rq *rq,
+ #endif	/* CONFIG_EXT_SUB_SCHED */
+ 	}
+ 
+-	if (unlikely(!SCX_HAS_OP(sch, dispatch)) || !scx_rq_online(rq))
++	/*
++	 * scx_rq_online() can't be used. Its cpu_active() test goes false
++	 * before CPU hotplug waits for an RCU grace period, and
++	 * rq_offline_scx() moves this CPU's tasks to the local DSQ only after
++	 * the wait. The grace period can depend on those tasks running.
++	 */
++	if (unlikely(!SCX_HAS_OP(sch, dispatch)) || !(rq->scx.flags & SCX_RQ_ONLINE))
+ 		return SCX_DSP_NONE;
+ 
+ 	dspc->rq = rq;
+diff --git a/kernel/sched/ext/sub.c b/kernel/sched/ext/sub.c
+index 3036190b06628..c9b44ab3bd0aa 100644
+--- a/kernel/sched/ext/sub.c
++++ b/kernel/sched/ext/sub.c
+@@ -585,10 +585,6 @@ void scx_rescue_flush(struct rq *rq)
+ 
+ 	lockdep_assert_rq_held(rq);
+ 
+-	/* sched domain rebuilds call rq_offline with the CPU staying alive */
+-	if (cpu_active(cpu_of(rq)))
+-		return;
+-
+ 	/* end the current rescue */
+ 	if (rq->scx.rescue.curr)
+ 		scx_task_slice_ended(rq, rq->scx.rescue.curr);
+diff --git a/kernel/sched/sched.h b/kernel/sched/sched.h
+index 7701a5a60972c..742cce9da4e9b 100644
+--- a/kernel/sched/sched.h
++++ b/kernel/sched/sched.h
+@@ -4215,8 +4215,9 @@ extern void balance_callbacks(struct rq *rq, struct balance_callback *head);
+  * after which it is enqueued again.
+  *
+  * Typically this must be called while holding task_rq_lock, since most/all
+- * properties are serialized under those locks. There is currently one
+- * exception to this rule in sched/ext which only holds rq->lock.
++ * properties are serialized under those locks. There are currently two
++ * exceptions to this rule in sched/ext which only hold rq->lock: scx_bypass()
++ * and rq_offline_scx().
+  */
+ 
+ /*
+-- 
+cgit 1.3.1-korg
+
+From af701b8d3238b9eb7cd450b0491300452c700bf5 Mon Sep 17 00:00:00 2001
+From: Kuba Piecuch <>
+Date: Wed, 30 Sep 2026 14:23:58 +0000
+Subject: sched_ext: Call ops.dequeue() when a task arrives on a remote local
+ DSQ
+
+When a task in the BPF scheduler's custody is moved to another CPU's
+local DSQ, ops.dequeue() is only called once the task is picked for
+execution, from set_next_task_scx() with SCX_DEQ_CORE_SCHED_EXEC, even
+though no core-sched pick took place. It should instead be called
+without flags when the task is inserted into the destination DSQ, as it
+is for same-rq dispatches.
+
+move_remote_task_to_local_dsq() sets p->scx.sticky_cpu across the
+migration so that deactivate_task() on the source rq doesn't end custody.
+Since commit b75aaea24c9f ("sched_ext: Properly mark SCX-internal
+migrations via sticky_cpu"), enqueue_task_scx() only clears it after
+inserting the task, so task_leave_custody() still sees the migration in
+progress and skips the custody exit.
+
+Clear p->scx.sticky_cpu as soon as enqueue_task_scx() has read it, as
+was done before that commit. The source side is unaffected.
+
+Fixes: ebf1ccff79c4 ("sched_ext: Fix ops.dequeue() semantics")
+Cc: stable@vger.kernel.org # 7.1.x: 18d62044cda7: sched_ext: Preserve rq tracking across local DSQ dispatch
+Cc: stable@vger.kernel.org # 7.1.x
+Reviewed-by: Andrea Righi <>
+Assisted-by: Claude:claude-opus-5.5
+Signed-off-by: Kuba Piecuch <>
+Signed-off-by: Tejun Heo <>
+---
+ kernel/sched/ext/ext.c | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/kernel/sched/ext/ext.c b/kernel/sched/ext/ext.c
+index 493b7aac7087d..5209510d6a5ee 100644
+--- a/kernel/sched/ext/ext.c
++++ b/kernel/sched/ext/ext.c
+@@ -2152,6 +2152,13 @@ static void enqueue_task_scx(struct rq *rq, struct task_struct *p, int core_enq_
+ 	int sticky_cpu = p->scx.sticky_cpu;
+ 	u64 enq_flags = core_enq_flags | rq->scx.remote_activate_enq_flags;
+ 
++	/*
++	 * An SCX-internal migration ends on arrival. Clear sticky_cpu so @p can
++	 * leave custody when inserted into the destination DSQ.
++	 */
++	if (sticky_cpu >= 0)
++		p->scx.sticky_cpu = -1;
++
+ 	/*
+ 	 * SCX_RQ_IN_WAKEUP promises a task_woken_scx() call once this enqueue
+ 	 * returns. Only the core's wakeup path delivers one. The flags stashed
+@@ -2190,9 +2197,6 @@ static void enqueue_task_scx(struct rq *rq, struct task_struct *p, int core_enq_
+ 		dl_server_start(&rq->ext_server);
+ 
+ 	scx_do_enqueue_task(rq, p, enq_flags, sticky_cpu);
+-
+-	if (sticky_cpu >= 0)
+-		p->scx.sticky_cpu = -1;
+ out:
+ 	rq->scx.flags &= ~SCX_RQ_IN_WAKEUP;
+ 
+-- 
+cgit 1.3.1-korg
+
+From cc07fae1de5dbf514a9a3978050ee3cf5fe20d3c Mon Sep 17 00:00:00 2001
+From: Kuba Piecuch <>
+Date: Wed, 30 Sep 2026 14:23:59 +0000
+Subject: selftests/sched_ext: Add a test for ops.dequeue() on remote local DSQ
+ moves
+
+Add a dequeue_remote test that makes moves of tasks in the BPF
+scheduler's custody to another CPU's local DSQ the common case, both via
+SCX_DSQ_LOCAL_ON dispatch and via scx_bpf_dsq_move_to_local(). The BPF
+scheduler tracks each task's custody state and triggers scx_bpf_error()
+if a custody period doesn't end with exactly one ops.dequeue() before
+the task runs, or if it ends with an SCX_DEQ_CORE_SCHED_EXEC dequeue of
+a task without a core cookie.
+
+Without the previous patch, the test fails with:
+
+  sched_ext: dequeue_remote: dequeue_remote.bpf.c:141: 15 (rcu_preempt): late ops.dequeue() with SCX_DEQ_CORE_SCHED_EXEC (enq_cpu=3 cpu=2 seq=1)
+     ...
+     ops_dequeue+0x114/0x170
+     set_next_task_scx+0x104/0x1e0
+     __pick_next_task+0xc7/0x180
+     __schedule+0x154/0x1870
+
+Reviewed-by: Andrea Righi <>
+Assisted-by: Claude:claude-opus-5.5
+Signed-off-by: Kuba Piecuch <>
+Signed-off-by: Tejun Heo <>
+---
+ tools/testing/selftests/sched_ext/Makefile         |   1 +
+ .../selftests/sched_ext/dequeue_remote.bpf.c       | 270 +++++++++++++++++++++
+ tools/testing/selftests/sched_ext/dequeue_remote.c | 204 ++++++++++++++++
+ 3 files changed, 475 insertions(+)
+ create mode 100644 tools/testing/selftests/sched_ext/dequeue_remote.bpf.c
+ create mode 100644 tools/testing/selftests/sched_ext/dequeue_remote.c
+
+diff --git a/tools/testing/selftests/sched_ext/Makefile b/tools/testing/selftests/sched_ext/Makefile
+index 4e06d0baaeec6..af919a56a4f4f 100644
+--- a/tools/testing/selftests/sched_ext/Makefile
++++ b/tools/testing/selftests/sched_ext/Makefile
+@@ -165,6 +165,7 @@ auto-test-targets :=			\
+ 	create_dsq			\
+ 	dequeue				\
+ 	dequeue_iter			\
++	dequeue_remote			\
+ 	enq_last_no_enq_fails		\
+ 	ddsp_bogus_dsq_fail		\
+ 	ddsp_vtimelocal_fail		\
+diff --git a/tools/testing/selftests/sched_ext/dequeue_remote.bpf.c b/tools/testing/selftests/sched_ext/dequeue_remote.bpf.c
+new file mode 100644
+index 0000000000000..983590c6d4980
+--- /dev/null
++++ b/tools/testing/selftests/sched_ext/dequeue_remote.bpf.c
+@@ -0,0 +1,270 @@
++// SPDX-License-Identifier: GPL-2.0
++/*
++ * Verify that ops.dequeue() is called when a task leaves the BPF scheduler's
++ * custody by being moved to the local DSQ of a CPU other than the one whose
++ * rq it's on (move_remote_task_to_local_dsq()).
++ *
++ * ops.enqueue() puts every task into custody and ops.dispatch() moves it to
++ * the dispatching CPU's local DSQ, so most moves cross CPUs. With
++ * @test_use_move_to_local, tasks are queued on a user DSQ and consumed with
++ * scx_bpf_dsq_move_to_local(). Otherwise, they are queued in a BPF queue and
++ * dispatched with SCX_DSQ_LOCAL_ON.
++ *
++ * Copyright (c) 2026 Google LLC.
++ */
++
++#include <scx/common.bpf.h>
++
++#define SHARED_DSQ		0
++#define MAX_DISPATCH_POPS	8
++
++char _license[] SEC("license") = "GPL";
++
++UEI_DEFINE(uei);
++
++struct {
++	__uint(type, BPF_MAP_TYPE_QUEUE);
++	__uint(max_entries, 32768);
++	__type(value, s32);
++} global_queue SEC(".maps");
++
++enum task_state {
++	TASK_NONE = 0,
++	TASK_ENQUEUED,		/* in BPF custody, waiting for ops.dequeue() */
++	TASK_DISPATCHED,	/* left custody */
++};
++
++struct task_ctx {
++	enum task_state state;
++	s32 enq_cpu;		/* scx_bpf_task_cpu() at ops.enqueue() */
++	u64 enqueue_seq;
++};
++
++struct {
++	__uint(type, BPF_MAP_TYPE_TASK_STORAGE);
++	__uint(map_flags, BPF_F_NO_PREALLOC);
++	__type(key, int);
++	__type(value, struct task_ctx);
++} task_ctx_stor SEC(".maps");
++
++/* core_cookie only exists with CONFIG_SCHED_CORE */
++struct task_struct___core_sched {
++	unsigned long core_cookie;
++} __attribute__((preserve_access_index));
++
++bool test_use_move_to_local;
++
++u64 enqueue_cnt, dequeue_cnt, dispatch_dequeue_cnt, change_dequeue_cnt;
++u64 remote_dispatch_cnt, remote_running_cnt, missed_dequeue_cnt;
++u64 core_sched_exec_dequeue_cnt;
++
++static struct task_ctx *lookup_task_ctx(struct task_struct *p)
++{
++	return bpf_task_storage_get(&task_ctx_stor, p, 0, 0);
++}
++
++static bool task_has_core_cookie(struct task_struct *p)
++{
++	struct task_struct___core_sched *t = (void *)p;
++
++	if (!bpf_core_field_exists(t->core_cookie))
++		return false;
++	return BPF_CORE_READ(t, core_cookie);
++}
++
++s32 BPF_STRUCT_OPS(dequeue_remote_select_cpu, struct task_struct *p,
++		   s32 prev_cpu, u64 wake_flags)
++{
++	/* no direct dispatch, always go through ops.enqueue() */
++	return prev_cpu;
++}
++
++void BPF_STRUCT_OPS(dequeue_remote_enqueue, struct task_struct *p, u64 enq_flags)
++{
++	struct task_ctx *tctx;
++	s32 pid = p->pid;
++
++	tctx = lookup_task_ctx(p);
++	if (!tctx) {
++		scx_bpf_dsq_insert(p, SCX_DSQ_GLOBAL, SCX_SLICE_DFL, enq_flags);
++		return;
++	}
++
++	/* the previous custody period must have ended with ops.dequeue() */
++	if (tctx->state == TASK_ENQUEUED)
++		scx_bpf_error("%d (%s): enqueue while in ENQUEUED state seq=%llu",
++			      p->pid, p->comm, tctx->enqueue_seq);
++
++	/*
++	 * Mark @p as enqueued before making it visible to ops.dispatch() on
++	 * other CPUs, which skips queue entries of tasks not in ENQUEUED
++	 * state as stale.
++	 */
++	tctx->state = TASK_ENQUEUED;
++	tctx->enq_cpu = scx_bpf_task_cpu(p);
++	tctx->enqueue_seq++;
++
++	if (test_use_move_to_local) {
++		scx_bpf_dsq_insert(p, SHARED_DSQ, SCX_SLICE_DFL, enq_flags);
++	} else if (bpf_map_push_elem(&global_queue, &pid, 0)) {
++		scx_bpf_dsq_insert(p, SCX_DSQ_GLOBAL, SCX_SLICE_DFL, enq_flags);
++		tctx->state = TASK_DISPATCHED;
++		tctx->enq_cpu = -1;
++		goto out;
++	}
++
++	__sync_fetch_and_add(&enqueue_cnt, 1);
++out:
++	scx_bpf_kick_cpu(scx_bpf_task_cpu(p), SCX_KICK_IDLE);
++}
++
++void BPF_STRUCT_OPS(dequeue_remote_dequeue, struct task_struct *p, u64 deq_flags)
++{
++	struct task_ctx *tctx;
++
++	__sync_fetch_and_add(&dequeue_cnt, 1);
++
++	tctx = lookup_task_ctx(p);
++	if (!tctx)
++		return;
++
++	/*
++	 * Only core scheduling can pick a task straight out of custody, and
++	 * only if the task has a core cookie. Otherwise, the custody exit was
++	 * missed when @p was inserted into a local DSQ and got deferred until
++	 * @p was picked.
++	 */
++	if ((deq_flags & SCX_DEQ_CORE_SCHED_EXEC) && !task_has_core_cookie(p)) {
++		__sync_fetch_and_add(&core_sched_exec_dequeue_cnt, 1);
++		scx_bpf_error("%d (%s): late ops.dequeue() with SCX_DEQ_CORE_SCHED_EXEC (enq_cpu=%d cpu=%d seq=%llu)",
++			      p->pid, p->comm, tctx->enq_cpu,
++			      scx_bpf_task_cpu(p), tctx->enqueue_seq);
++	}
++
++	/* ops.dequeue() ends the custody period started by ops.enqueue() */
++	if (tctx->state != TASK_ENQUEUED)
++		scx_bpf_error("%d (%s): dequeue outside custody deq_flags=0x%llx state=%d seq=%llu",
++			      p->pid, p->comm, deq_flags, tctx->state,
++			      tctx->enqueue_seq);
++
++	if (deq_flags & SCX_DEQ_SCHED_CHANGE) {
++		__sync_fetch_and_add(&change_dequeue_cnt, 1);
++		tctx->state = TASK_NONE;
++	} else {
++		__sync_fetch_and_add(&dispatch_dequeue_cnt, 1);
++		tctx->state = TASK_DISPATCHED;
++	}
++}
++
++void BPF_STRUCT_OPS(dequeue_remote_dispatch, s32 cpu, struct task_struct *prev)
++{
++	struct task_ctx *tctx;
++	struct task_struct *p;
++	s32 pid;
++	int i;
++
++	if (test_use_move_to_local) {
++		scx_bpf_dsq_move_to_local(SHARED_DSQ, 0);
++		return;
++	}
++
++	/* pop past stale entries so that they don't leave this CPU idle */
++	bpf_for(i, 0, MAX_DISPATCH_POPS) {
++		if (bpf_map_pop_elem(&global_queue, &pid))
++			return;
++
++		p = bpf_task_from_pid(pid);
++		if (!p)
++			continue;
++
++		/*
++		 * Entries are stale if @p left custody through a property
++		 * change dequeue or was dispatched from a duplicate entry.
++		 */
++		tctx = lookup_task_ctx(p);
++		if (!tctx || tctx->state != TASK_ENQUEUED) {
++			bpf_task_release(p);
++			continue;
++		}
++
++		if (bpf_cpumask_test_cpu(cpu, p->cpus_ptr)) {
++			if (scx_bpf_task_cpu(p) != cpu)
++				__sync_fetch_and_add(&remote_dispatch_cnt, 1);
++			scx_bpf_dsq_insert(p, SCX_DSQ_LOCAL_ON | cpu,
++					   SCX_SLICE_DFL, 0);
++		} else {
++			scx_bpf_dsq_insert(p, SCX_DSQ_GLOBAL, SCX_SLICE_DFL, 0);
++		}
++
++		bpf_task_release(p);
++		return;
++	}
++
++	/* out of pops with entries left, retry instead of idling this CPU */
++	if (!bpf_map_peek_elem(&global_queue, &pid))
++		scx_bpf_kick_cpu(cpu, SCX_KICK_IDLE);
++}
++
++void BPF_STRUCT_OPS(dequeue_remote_running, struct task_struct *p)
++{
++	struct task_ctx *tctx;
++
++	tctx = lookup_task_ctx(p);
++	if (!tctx)
++		return;
++
++	/* tasks can only run from a local DSQ, i.e. after leaving custody */
++	if (tctx->state == TASK_ENQUEUED) {
++		__sync_fetch_and_add(&missed_dequeue_cnt, 1);
++		scx_bpf_error("%d (%s): running without ops.dequeue() (enq_cpu=%d cpu=%d seq=%llu)",
++			      p->pid, p->comm, tctx->enq_cpu,
++			      scx_bpf_task_cpu(p), tctx->enqueue_seq);
++		return;
++	}
++
++	if (tctx->enq_cpu >= 0 && tctx->enq_cpu != scx_bpf_task_cpu(p))
++		__sync_fetch_and_add(&remote_running_cnt, 1);
++	tctx->enq_cpu = -1;
++}
++
++s32 BPF_STRUCT_OPS(dequeue_remote_init_task, struct task_struct *p,
++		   struct scx_init_task_args *args)
++{
++	struct task_ctx *tctx;
++
++	tctx = bpf_task_storage_get(&task_ctx_stor, p, 0,
++				    BPF_LOCAL_STORAGE_GET_F_CREATE);
++	if (!tctx)
++		return -ENOMEM;
++
++	/* task storage persists across attachments, start from scratch */
++	tctx->state = TASK_NONE;
++	tctx->enq_cpu = -1;
++	tctx->enqueue_seq = 0;
++
++	return 0;
++}
++
++s32 BPF_STRUCT_OPS_SLEEPABLE(dequeue_remote_init)
++{
++	return scx_bpf_create_dsq(SHARED_DSQ, -1);
++}
++
++void BPF_STRUCT_OPS(dequeue_remote_exit, struct scx_exit_info *ei)
++{
++	UEI_RECORD(uei, ei);
++}
++
++SEC(".struct_ops.link")
++struct sched_ext_ops dequeue_remote_ops = {
++	.select_cpu		= (void *)dequeue_remote_select_cpu,
++	.enqueue		= (void *)dequeue_remote_enqueue,
++	.dequeue		= (void *)dequeue_remote_dequeue,
++	.dispatch		= (void *)dequeue_remote_dispatch,
++	.running		= (void *)dequeue_remote_running,
++	.init_task		= (void *)dequeue_remote_init_task,
++	.init			= (void *)dequeue_remote_init,
++	.exit			= (void *)dequeue_remote_exit,
++	.flags			= SCX_OPS_ENQ_LAST,
++	.name			= "dequeue_remote",
++};
+diff --git a/tools/testing/selftests/sched_ext/dequeue_remote.c b/tools/testing/selftests/sched_ext/dequeue_remote.c
+new file mode 100644
+index 0000000000000..f2c1901030de0
+--- /dev/null
++++ b/tools/testing/selftests/sched_ext/dequeue_remote.c
+@@ -0,0 +1,204 @@
++// SPDX-License-Identifier: GPL-2.0
++/*
++ * Verify that ops.dequeue() is called for tasks leaving BPF custody through
++ * an SCX-internal cross-CPU migration (move_remote_task_to_local_dsq()).
++ *
++ * Copyright (c) 2026 Google LLC.
++ */
++#define _GNU_SOURCE
++#include <stdio.h>
++#include <stdlib.h>
++#include <string.h>
++#include <unistd.h>
++#include <signal.h>
++#include <time.h>
++#include <sched.h>
++#include <bpf/bpf.h>
++#include <scx/common.h>
++#include <sys/wait.h>
++#include "scx_test.h"
++#include "dequeue_remote.bpf.skel.h"
++
++#define MAX_WORKERS	64
++#define RUN_MS		2000
++
++static int nr_cpus;
++
++static long long now_ms(void)
++{
++	struct timespec ts;
++
++	clock_gettime(CLOCK_MONOTONIC, &ts);
++	return ts.tv_sec * 1000LL + ts.tv_nsec / 1000000;
++}
++
++/* mix of short bursts and sleeps to generate lots of enqueues and wakeups */
++static void worker_fn(int id)
++{
++	long long end = now_ms() + RUN_MS;
++	volatile unsigned long sum = 0;
++
++	while (now_ms() < end) {
++		unsigned long j;
++
++		for (j = 0; j < 20000 + id * 1000; j++)
++			sum += j;
++		if (id & 1)
++			usleep(100);
++		else
++			sched_yield();
++	}
++
++	exit(0);
++}
++
++static enum scx_test_status run_scenario(struct dequeue_remote *skel,
++					 bool use_move_to_local,
++					 const char *name)
++{
++	enum scx_test_status ret = SCX_TEST_PASS;
++	struct bpf_link *link;
++	pid_t pids[MAX_WORKERS];
++	int nr_workers, nr_forked, i;
++
++	nr_workers = 2 * nr_cpus;
++	if (nr_workers < 4)
++		nr_workers = 4;
++	if (nr_workers > MAX_WORKERS)
++		nr_workers = MAX_WORKERS;
++
++	skel->bss->test_use_move_to_local = use_move_to_local;
++	skel->bss->enqueue_cnt = 0;
++	skel->bss->dequeue_cnt = 0;
++	skel->bss->dispatch_dequeue_cnt = 0;
++	skel->bss->change_dequeue_cnt = 0;
++	skel->bss->remote_dispatch_cnt = 0;
++	skel->bss->remote_running_cnt = 0;
++	skel->bss->missed_dequeue_cnt = 0;
++	skel->bss->core_sched_exec_dequeue_cnt = 0;
++	memset(&skel->data->uei, 0, sizeof(skel->data->uei));
++
++	link = bpf_map__attach_struct_ops(skel->maps.dequeue_remote_ops);
++	SCX_FAIL_IF(!link, "Failed to attach struct_ops for %s", name);
++
++	fflush(stdout);
++	fflush(stderr);
++
++	for (nr_forked = 0; nr_forked < nr_workers; nr_forked++) {
++		pid_t pid = fork();
++
++		if (pid < 0) {
++			SCX_ERR("Failed to fork worker %d", nr_forked);
++			ret = SCX_TEST_FAIL;
++			break;
++		}
++		if (pid == 0)
++			worker_fn(nr_forked);
++		pids[nr_forked] = pid;
++	}
++
++	/* on failure, kill the remaining workers but still reap them */
++	for (i = 0; i < nr_forked; i++) {
++		int status;
++
++		if (ret != SCX_TEST_PASS)
++			kill(pids[i], SIGKILL);
++
++		if (waitpid(pids[i], &status, 0) != pids[i]) {
++			SCX_ERR("Failed to wait for worker %d", i);
++			ret = SCX_TEST_FAIL;
++		} else if (ret == SCX_TEST_PASS && status != 0) {
++			SCX_ERR("Worker %d exited with status %d", i, status);
++			ret = SCX_TEST_FAIL;
++		}
++	}
++
++	bpf_link__destroy(link);
++
++	if (ret != SCX_TEST_PASS)
++		return ret;
++
++	printf("%s:\n", name);
++	printf("  workers: %d\n", nr_workers);
++	printf("  enqueues: %lu\n", (unsigned long)skel->bss->enqueue_cnt);
++	printf("  dequeues: %lu (dispatch: %lu, property_change: %lu)\n",
++	       (unsigned long)skel->bss->dequeue_cnt,
++	       (unsigned long)skel->bss->dispatch_dequeue_cnt,
++	       (unsigned long)skel->bss->change_dequeue_cnt);
++	if (!use_move_to_local)
++		printf("  remote SCX_DSQ_LOCAL_ON dispatches: %lu\n",
++		       (unsigned long)skel->bss->remote_dispatch_cnt);
++	printf("  ran on a CPU other than the enqueue CPU: %lu\n",
++	       (unsigned long)skel->bss->remote_running_cnt);
++	printf("  ran without ops.dequeue(): %lu\n",
++	       (unsigned long)skel->bss->missed_dequeue_cnt);
++	printf("  late SCX_DEQ_CORE_SCHED_EXEC dequeues: %lu\n",
++	       (unsigned long)skel->bss->core_sched_exec_dequeue_cnt);
++
++	if (skel->data->uei.kind != EXIT_KIND(SCX_EXIT_UNREG))
++		SCX_ERR("Scheduler exited with kind=%lld: %s",
++			(long long)skel->data->uei.kind, skel->data->uei.msg);
++	SCX_EQ(skel->data->uei.kind, EXIT_KIND(SCX_EXIT_UNREG));
++
++	/* the test is meaningless if no task was moved across CPUs */
++	SCX_GT(skel->bss->remote_running_cnt, 0);
++	SCX_EQ(skel->bss->enqueue_cnt, skel->bss->dequeue_cnt);
++
++	return SCX_TEST_PASS;
++}
++
++static enum scx_test_status setup(void **ctx)
++{
++	struct dequeue_remote *skel;
++	cpu_set_t cpus;
++
++	SCX_FAIL_IF(sched_getaffinity(0, sizeof(cpus), &cpus),
++		    "Failed to get CPU affinity");
++	nr_cpus = CPU_COUNT(&cpus);
++	if (nr_cpus < 2) {
++		fprintf(stderr, "Skipping: requires at least 2 usable CPUs\n");
++		return SCX_TEST_SKIP;
++	}
++
++	skel = SCX_OPS_OPEN(dequeue_remote_ops, dequeue_remote);
++	SCX_OPS_LOAD(skel, dequeue_remote_ops, dequeue_remote, uei);
++
++	*ctx = skel;
++
++	return SCX_TEST_PASS;
++}
++
++static enum scx_test_status run(void *ctx)
++{
++	struct dequeue_remote *skel = ctx;
++	enum scx_test_status status;
++
++	status = run_scenario(skel, false,
++			      "BPF queue -> SCX_DSQ_LOCAL_ON | cpu");
++	if (status != SCX_TEST_PASS)
++		return status;
++
++	status = run_scenario(skel, true,
++			      "user DSQ -> scx_bpf_dsq_move_to_local()");
++	if (status != SCX_TEST_PASS)
++		return status;
++
++	return SCX_TEST_PASS;
++}
++
++static void cleanup(void *ctx)
++{
++	struct dequeue_remote *skel = ctx;
++
++	dequeue_remote__destroy(skel);
++}
++
++struct scx_test dequeue_remote_test = {
++	.name = "dequeue_remote",
++	.description = "Verify ops.dequeue() on SCX-internal cross-CPU migrations",
++	.setup = setup,
++	.run = run,
++	.cleanup = cleanup,
++};
++
++REGISTER_SCX_TEST(&dequeue_remote_test)
+-- 
+cgit 1.3.1-korg
+
+From e6ac89b8b1c12e9104df45a14a26e2dfa96ded06 Mon Sep 17 00:00:00 2001
+From: Kuba Piecuch <>
+Date: Sat, 3 Oct 2026 11:53:17 +0000
+Subject: sched_ext: Generate qseq from a per-task counter
+
+finish_dispatch() uses the qseq embedded in p->scx.ops_state to tell
+whether the QUEUED instance of a task it's about to claim is the one
+scx_bpf_dsq_insert() saw. qseq is generated from rq->scx.ops_qseq, but
+the counters of different rqs are independent, so if a task is dequeued
+and re-enqueued on a different rq between scx_bpf_dsq_insert() and
+finish_dispatch(), the new QUEUED instance can end up with the same
+qseq as the old one:
+
+  CPU X                          CPU Z
+  -----                          -----
+                                 enqueue p on rq A, qseq = N
+  ops.dispatch()
+    scx_bpf_dsq_insert(p)
+      records qseq N
+                                 sched_setaffinity(p)
+                                   dequeue p from rq A
+                                   enqueue p on rq B, qseq = N
+  finish_dispatch(p, N)
+    qseq matches, p is claimed
+
+The claim itself is still atomic so the core stays consistent, but an
+insert issued for a previous QUEUED instance gets applied to a new one
+which the BPF scheduler has just received through ops.enqueue(). This
+breaks the guarantee that dispatches targeting a stale instance are
+ignored.
+
+Generate qseq from a per-task counter, p->scx.ops_qseq, instead so that
+consecutive QUEUED instances of a task never share a qseq regardless of
+which rq they're on. The counter is only updated in
+scx_do_enqueue_task() with the task's rq locked, so no additional
+synchronization is needed, and it fits in an existing hole in struct
+sched_ext_entity on 64bit. Remove the now unused rq->scx.ops_qseq.
+
+Never generate qseq 0. NONE and DISPATCHING don't carry a qseq, so
+scx_bpf_dsq_insert() on a task in either state records 0. With a
+per-task counter, every task's first QUEUED instance would otherwise get
+qseq 0 and could be claimed by such an insert. Wrap the counter where
+the QSEQ field wraps so that it can't reach a value that shifts to 0 on
+32bit either.
+
+Fixes: f0e1a0643a59 ("sched_ext: Implement BPF extensible scheduler class")
+Cc: stable@vger.kernel.org # v6.12+
+Assisted-by: Claude:claude-opus-5.5
+Signed-off-by: Kuba Piecuch <>
+Signed-off-by: Tejun Heo <>
+---
+ include/linux/sched/ext.h   |  1 +
+ kernel/sched/ext/ext.c      | 14 ++++++++++----
+ kernel/sched/ext/internal.h |  5 +++++
+ kernel/sched/sched.h        |  1 -
+ 4 files changed, 16 insertions(+), 5 deletions(-)
+
+diff --git a/include/linux/sched/ext.h b/include/linux/sched/ext.h
+index 582d7cd4a9839..36c04797436c7 100644
+--- a/include/linux/sched/ext.h
++++ b/include/linux/sched/ext.h
+@@ -207,6 +207,7 @@ struct sched_ext_entity {
+ 	s32			holding_cpu;
+ 	s32			selected_cpu;
+ 	s32			runnable_cpu;	/* cpu @p is runnable on, -1 if not */
++	u32			ops_qseq;	/* protected by rq lock */
+ 	struct task_struct	*kf_tasks[2];	/* see SCX_CALL_OP_TASK() */
+ 
+ 	struct list_head	runnable_node;	/* rq->scx.runnable_list */
+diff --git a/kernel/sched/ext/ext.c b/kernel/sched/ext/ext.c
+index 5209510d6a5ee..ac8fe70a9fb6f 100644
+--- a/kernel/sched/ext/ext.c
++++ b/kernel/sched/ext/ext.c
+@@ -2057,8 +2057,14 @@ void scx_do_enqueue_task(struct rq *rq, struct task_struct *p, u64 enq_flags,
+ 	if (unlikely(!SCX_HAS_OP(sch, enqueue)))
+ 		goto global;
+ 
+-	/* DSQ bypass didn't trigger, enqueue on the BPF scheduler */
+-	qseq = rq->scx.ops_qseq++ << SCX_OPSS_QSEQ_SHIFT;
++	/*
++	 * DSQ bypass didn't trigger, enqueue on the BPF scheduler. Wrap the
++	 * per-task qseq counter where the QSEQ field wraps and skip 0, which is
++	 * what scx_bpf_dsq_insert() records for a task in NONE or DISPATCHING.
++	 */
++	p->scx.ops_qseq = ((p->scx.ops_qseq + 1) &
++			   (SCX_OPSS_QSEQ_MASK >> SCX_OPSS_QSEQ_SHIFT)) ?: 1;
++	qseq = (unsigned long)p->scx.ops_qseq << SCX_OPSS_QSEQ_SHIFT;
+ 
+ 	WARN_ON_ONCE(atomic_long_read(&p->scx.ops_state) != SCX_OPSS_NONE);
+ 	atomic_long_set(&p->scx.ops_state, SCX_OPSS_QUEUEING | qseq);
+@@ -6969,9 +6975,9 @@ static void scx_dump_cpu(struct scx_sched *sch, struct seq_buf *s,
+ 	seq_buf_init(&ns, buf, avail);
+ 
+ 	dump_newline(&ns);
+-	scx_dump_line(&ns, "CPU %-4d: nr_run=%u flags=0x%x cpu_rel=%d ops_qseq=%lu ksync=%lu",
++	scx_dump_line(&ns, "CPU %-4d: nr_run=%u flags=0x%x cpu_rel=%d ksync=%lu",
+ 		      cpu, rq->scx.nr_running, rq->scx.flags, rq->scx.cpu_released,
+-		      rq->scx.ops_qseq, rq->scx.kick_sync);
++		      rq->scx.kick_sync);
+ 	scx_rescue_dump(&ns, rq);
+ 	scx_dump_line(&ns, "          curr=%s[%d] class=%ps",
+ 		      rq->curr->comm, rq->curr->pid, rq->curr->sched_class);
+diff --git a/kernel/sched/ext/internal.h b/kernel/sched/ext/internal.h
+index 1df8f583b0eca..5b37faa532d67 100644
+--- a/kernel/sched/ext/internal.h
++++ b/kernel/sched/ext/internal.h
+@@ -1998,6 +1998,11 @@ enum scx_ops_state {
+ 	 * dequeue/requeue, the dispatcher can tell whether it still has a claim
+ 	 * on the task being dispatched.
+ 	 *
++	 * QSEQ is generated from the per-task p->scx.ops_qseq counter so that
++	 * it doesn't repeat across QUEUED instances of the same task even if
++	 * the task moves between rqs. 0 is never used as a valid QSEQ since
++	 * NONE and DISPATCHING map to this value.
++	 *
+ 	 * As some 32bit archs can't do 64bit store_release/load_acquire,
+ 	 * p->scx.ops_state is atomic_long_t which leaves 30 bits for QSEQ on
+ 	 * 32bit machines. The dispatch race window QSEQ protects is very narrow
+diff --git a/kernel/sched/sched.h b/kernel/sched/sched.h
+index 742cce9da4e9b..9ed0cb605c33b 100644
+--- a/kernel/sched/sched.h
++++ b/kernel/sched/sched.h
+@@ -815,7 +815,6 @@ struct scx_rq {
+ #endif
+ 	struct list_head	runnable_list;		/* runnable tasks on this rq */
+ 	struct list_head	ddsp_deferred_locals;	/* deferred ddsps from enq */
+-	unsigned long		ops_qseq;
+ 	/* both stashed across the activate_task() in move_remote_task_to_local_dsq() */
+ 	u64			remote_activate_enq_flags;
+ 	struct scx_sched	*remote_activate_sch;
+-- 
+cgit 1.3.1-korg
+
+From e06b678e3b4e12fdaa0b51a7a5a54abc5dbd6469 Mon Sep 17 00:00:00 2001
+From: Waiman Long <>
+Date: Tue, 29 Sep 2026 23:18:33 -0400
+Subject: cgroup/cpuset: Don't access cpuset_cgrp_subsys.root in
+ is_in_v2_mode()
+
+After seeing the patch [1] to guard is_in_v2_mode() with RCU, it makes
+me realize that is_in_v2_mode() may be called in a context where a new
+cgroup filesystem is being rebound with stale cpuset_cgrp_subsys.root
+pointer. Avoid this potential UaF situation by adding a new cpuset_v2_mode
+flag which is set when the cpuset_v2_mode mount option is used. This
+flag is written into only when cpuset_bind() is being called with a
+stable cpuset_cgrp_subsys.root value. The is_in_v2_mode() helper is
+modified to read the new cpuset_v2_mode flag instead of accessing
+cpuset_cgrp_subsys.root directly.
+
+[1] https://lore.kernel.org/lkml/20260929084124.626693-2-arighi@nvidia.com
+
+Fixes: b8d1b8ee93df ("cpuset: Allow v2 behavior in v1 cgroup")
+Signed-off-by: Waiman Long <>
+Reviewed-by: Ridong Chen <>
+Reviewed-by: Andrea Righi <>
+Signed-off-by: Tejun Heo <>
+---
+ kernel/cgroup/cpuset.c | 11 +++++++++--
+ 1 file changed, 9 insertions(+), 2 deletions(-)
+
+diff --git a/kernel/cgroup/cpuset.c b/kernel/cgroup/cpuset.c
+index 1fcec89a28b9a..98af44a7f3994 100644
+--- a/kernel/cgroup/cpuset.c
++++ b/kernel/cgroup/cpuset.c
+@@ -152,6 +152,12 @@ static cpumask_var_t	isolated_cpus;		/* CSCB */
+  */
+ static bool		update_housekeeping;	/* RWCS */
+ 
++/*
++ * Set if "cpuset_v2_mode" mount option is used
++ * Cached at bind time and not lock protected; accessed via {READ,WRITE}_ONCE
++ */
++static bool		cpuset_v2_mode;
++
+ /*
+  * Copy of isolated_cpus to be passed to housekeeping_update()
+  */
+@@ -439,8 +445,7 @@ static inline bool cpuset_v2(void)
+  */
+ static inline bool is_in_v2_mode(void)
+ {
+-	return cpuset_v2() ||
+-	      (cpuset_cgrp_subsys.root->flags & CGRP_ROOT_CPUSET_V2_MODE);
++	return cpuset_v2() || READ_ONCE(cpuset_v2_mode);
+ }
+ 
+ /**
+@@ -3732,6 +3737,8 @@ static void cpuset_bind(struct cgroup_subsys_state *root_css)
+ 	mutex_lock(&cpuset_mutex);
+ 	spin_lock_irq(&callback_lock);
+ 
++	WRITE_ONCE(cpuset_v2_mode,
++		   !!(cpuset_cgrp_subsys.root->flags & CGRP_ROOT_CPUSET_V2_MODE));
+ 	if (is_in_v2_mode()) {
+ 		cpumask_copy(top_cpuset.cpus_allowed, cpu_possible_mask);
+ 		cpumask_copy(top_cpuset.effective_xcpus, cpu_possible_mask);
+-- 
+cgit 1.3.1-korg
+
+From 23b1ab15ca91f2cffaf149d9bb0fafeb700c7db2 Mon Sep 17 00:00:00 2001
+From: Waiman Long <>
+Date: Fri, 2 Oct 2026 12:54:38 -0400
+Subject: cgroup/cpuset: Handle cpu hotplug race in guarantee_active_cpus()
+
+With commit 2125c0034c5d ("cgroup/cpuset: Make cpuset hotplug processing
+synchronous"), the cpuset hotplug operation becomes synchronous. That
+commit also removes the code that handles race between cpuset_hotplug_work
+and cpu hotplug notifier with the assumption that race is now gone.
+Later commit 7a0aabd9ce69 ("cgroup/cpuset: Always use cpu_active_mask")
+updates the cpuset code to always use cpu_active_mask instead of
+cpu_online_mask in some places including guarantee_online_cpus() which
+is renamed to guarantee_active_cpus() in that commit.
+
+In the case of CPU offline operation, cpu_active_mask is updated
+first in sched_cpu_deactivate() to remove the offline CPU before
+cpuset_handle_hotplug() is called to update the effective_cpus of the
+affected cpusets. The cpu_online_mask is updated after that near the end
+of the offline operation to remove the offline CPU. As a result, the race
+comes back and the top cpuset may not have any active CPU leading to NULL
+pointer dereference during the race window when guarantee_active_cpus()
+is called after cpu_active_mask is updated to remove the CPU to be torn
+down but before cpuset_handle_hotplug() is able to properly update the
+effective_cpus of the top cpuset.
+
+Fix this by adding back the NULL cs check to avoid this problem.
+
+Fixes: 7a0aabd9ce69 ("cgroup/cpuset: Always use cpu_active_mask")
+Cc: stable@vger.kernel.org # v6.16+
+Reported-by: Farhad Alemi <>
+Link: https://lore.kernel.org/lkml/CA+0ovChh3VjsKN1g+ZGjwwY2fGTpP7uD+aCCByLj5Qbymw=bfQ@mail.gmail.com
+Signed-off-by: Waiman Long <>
+Tested-by: Farhad Alemi <>
+Signed-off-by: Tejun Heo <>
+---
+ kernel/cgroup/cpuset.c | 20 ++++++++++++++++++--
+ 1 file changed, 18 insertions(+), 2 deletions(-)
+
+diff --git a/kernel/cgroup/cpuset.c b/kernel/cgroup/cpuset.c
+index 98af44a7f3994..d2ec7b1289602 100644
+--- a/kernel/cgroup/cpuset.c
++++ b/kernel/cgroup/cpuset.c
+@@ -518,10 +518,26 @@ static void guarantee_active_cpus(struct task_struct *tsk,
+ 	rcu_read_lock();
+ 	cs = task_cs(tsk);
+ 
+-	while (!cpumask_intersects(cs->effective_cpus, pmask))
++	while (!cpumask_intersects(cs->effective_cpus, pmask)) {
+ 		cs = parent_cs(cs);
+-
++		if (unlikely(!cs)) {
++			/*
++			 * The top cpuset doesn't have any active cpu as a
++			 * consequence of a race between its caller and the cpu
++			 * hotplug operation where cpu_active_mask is updated
++			 * asynchronously before cpuset_handle_hotplug() is
++			 * being called to adjust the effective_cpus of the
++			 * affected cpusets. But we know the top cpuset's
++			 * effective_cpus is on its way to be identical to
++			 * cpu_active_mask minus the exclusive CPUs dedicated
++			 * to other valid cpuset partitions. Just pass back
++			 * the filtered cpu_active_mask in this case.
++			 */
++			goto out_unlock;
++		}
++	}
+ 	cpumask_and(pmask, pmask, cs->effective_cpus);
++out_unlock:
+ 	rcu_read_unlock();
+ }
+ 
+-- 
+cgit 1.3.1-korg
+
+From b8eb5fd5bdb4c03758b056c70e5e1d962ca89757 Mon Sep 17 00:00:00 2001
+From: Waiman Long <>
+Date: Mon, 5 Oct 2026 06:43:10 -0400
+Subject: cgroup/cpuset: Call is_in_v2_mode() after acquiring cpuset_mutex in
+ cpuset_handle_hotplug()
+
+It is reported by sashiko that calling is_in_v2_mode() outside of
+cpuset_mutex critical section in cpuset_handle_hotplug() can introduce
+a TOCTOU race where cgroup hierarchy may have changed from v1 to v2 or
+vice versa after is_in_v2_mode() is called leading to erroneously skip
+the allocation of tmpmasks or incorrectly modify cpus_allowed masks,
+resulting in cpuset state corruption. Fix that by calling is_in_v2_mode()
+after acquiring the cpuset_mutex.
+
+Fixes: b8d1b8ee93df ("cpuset: Allow v2 behavior in v1 cgroup")
+Signed-off-by: Waiman Long <>
+Signed-off-by: Tejun Heo <>
+---
+ kernel/cgroup/cpuset.c | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/kernel/cgroup/cpuset.c b/kernel/cgroup/cpuset.c
+index d2ec7b1289602..b61bc3ed10379 100644
+--- a/kernel/cgroup/cpuset.c
++++ b/kernel/cgroup/cpuset.c
+@@ -4067,15 +4067,16 @@ static void cpuset_handle_hotplug(void)
+ 	static cpumask_t new_cpus;
+ 	static nodemask_t new_mems;
+ 	bool cpus_updated, mems_updated;
+-	bool on_dfl = is_in_v2_mode();
++	bool on_dfl;
+ 	struct tmpmasks tmp, *ptmp = NULL;
+ 
+-	if (on_dfl && !alloc_tmpmasks(&tmp))
+-		ptmp = &tmp;
+-
+ 	lockdep_assert_cpus_held();
+ 	mutex_lock(&cpuset_mutex);
+ 
++	on_dfl = is_in_v2_mode();
++	if (on_dfl && !alloc_tmpmasks(&tmp))
++		ptmp = &tmp;
++
+ 	/* fetch the available cpus/mems and find out which changed how */
+ 	cpumask_copy(&new_cpus, cpu_active_mask);
+ 	new_mems = node_states[N_MEMORY];
+-- 
+cgit 1.3.1-korg
+
+From 980db94e3eeefdd8a1c46f86412c33a7f7806f51 Mon Sep 17 00:00:00 2001
+From: Pavankumar Kondeti <>
+Date: Mon, 28 Sep 2026 09:18:56 +0530
+Subject: workqueue: Fix NULL current_pwq deref in chained work check
+
+current_wq_worker() only tells us that %current is a kworker. It does
+not guarantee that the worker is currently executing a work item, as
+worker->current_pwq is populated only while process_one_work() is running
+the work function.
+
+is_chained_work() can be reached while queueing on a draining or
+destroying workqueue. If a kworker outside work-item execution reaches
+that path, current_wq_worker() returns a worker but worker->current_pwq is
+NULL, and the chained-work test can fault before it emits the intended
+warning.
+
+Guard the chained-work test with worker->current_pwq. A kworker without
+current_pwq is not executing work on the target workqueue, so the helper
+should return false and let the draining/destroying warning fire.
+
+Fixes: 8d03ecfe4718 ("workqueue: reimplement is_chained_work() using current_wq_worker()")
+Cc: stable@vger.kernel.org
+Signed-off-by: Pavankumar Kondeti <>
+Signed-off-by: Tejun Heo <>
+---
+ kernel/workqueue.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/kernel/workqueue.c b/kernel/workqueue.c
+index 4a73d305d88ad..acf5d4a97ecba 100644
+--- a/kernel/workqueue.c
++++ b/kernel/workqueue.c
+@@ -2290,7 +2290,7 @@ static bool is_chained_work(struct workqueue_struct *wq)
+ 	 * Return %true iff I'm a worker executing a work item on @wq.  If
+ 	 * I'm @worker, it's safe to dereference it without locking.
+ 	 */
+-	return worker && worker->current_pwq->wq == wq;
++	return worker && worker->current_pwq && worker->current_pwq->wq == wq;
+ }
+ 
+ /*
+-- 
+cgit 1.3.1-korg
+
+From 764b683a6180fd72c931c13fea98d383506a3475 Mon Sep 17 00:00:00 2001
+From: Ben Cressey <>
+Date: Tue, 15 Sep 2026 00:37:35 +0000
+Subject: dm-integrity: fix buffer overflow in inline mode with large tag size
+
+In inline mode, dm_integrity_check and dm_integrity_inline_recheck
+compute the checksum of each block into an on-stack buffer of
+HASH_MAX_DIGESTSIZE bytes. integrity_sector_checksum pads its result
+with zeroes up to the tag size, so if the tag size is larger than
+HASH_MAX_DIGESTSIZE, the padding runs past the end of the buffer. With
+CONFIG_STACKPROTECTOR the kernel panics in dm_integrity_check on the
+first read.
+
+Enlarge both buffers to hold MAX_TAG_SIZE bytes, as commit b93b6643e9b5
+("dm integrity: fix a crash with unusually large tag size") did for
+integrity_metadata.
+
+Note that this is not a security bug because the buffer overflow can only
+be triggered by root.
+
+Fixes: fb0987682c62 ("dm-integrity: introduce the Inline mode")
+Cc: stable@vger.kernel.org
+Signed-off-by: Ben Cressey <>
+Assisted-by: LLM
+Signed-off-by: Mikulas Patocka <>
+---
+ drivers/md/dm-integrity.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/md/dm-integrity.c b/drivers/md/dm-integrity.c
+index 92970e12267ab..0862f31b8498d 100644
+--- a/drivers/md/dm-integrity.c
++++ b/drivers/md/dm-integrity.c
+@@ -2721,7 +2721,7 @@ static void dm_integrity_inline_recheck(struct work_struct *w)
+ 	outgoing_data = dio->integrity_payload + PAGE_SIZE;
+ 
+ 	while (dio->bio_details.bi_iter.bi_size) {
+-		char digest[HASH_MAX_DIGESTSIZE];
++		char digest[MAX_T(size_t, HASH_MAX_DIGESTSIZE, MAX_TAG_SIZE)];
+ 		int r;
+ 		struct bio_integrity_payload *bip;
+ 		struct bio_vec bv;
+@@ -2788,7 +2788,7 @@ static inline bool dm_integrity_check(struct dm_integrity_c *ic, struct dm_integ
+ 	unsigned pos = 0;
+ 
+ 	while (dio->bio_details.bi_iter.bi_size) {
+-		char digest[HASH_MAX_DIGESTSIZE];
++		char digest[MAX_T(size_t, HASH_MAX_DIGESTSIZE, MAX_TAG_SIZE)];
+ 		struct bio_vec bv = bio_iter_iovec(bio, dio->bio_details.bi_iter);
+ 		char *mem = integrity_kmap(ic, bv.bv_page);
+ 		integrity_sector_checksum(ic, &dio->ahash_req, dio->bio_details.bi_iter.bi_sector, mem, bv.bv_offset, digest);
+-- 
+cgit 1.3.1-korg
+
+From 3195e0daf590683992edb4eed32269e569e04924 Mon Sep 17 00:00:00 2001
+From: Ben Cressey <>
+Date: Tue, 15 Sep 2026 00:39:10 +0000
+Subject: dm-crypt: reject the lmk IV mode with AEAD ciphers
+
+A "capi:" table line that pairs an AEAD cipher with the lmk IV mode,
+for example "capi:gcm(aes)-lmk" with the integrity:28:aead option,
+causes an oops when it is loaded. lmk sets tfms_count to 64, but
+crypt_alloc_tfms_aead only allocates one transform, so crypt_setkey
+reads past the end of the tfms_aead array and calls crypto_aead_setkey
+on the values it finds there.
+
+lmk exists for compatibility with Loop-AES, which uses CBC, so refuse
+it with an AEAD cipher rather than allocate 64 AEAD transforms. The
+check cannot go in crypt_iv_lmk_ctr with the other lmk checks, because
+the IV constructor runs after crypt_set_key.
+
+Note that this is not a security bug because the memory corruption can
+only be triggered by root.
+
+Fixes: 33d2f09fcb35 ("dm crypt: introduce new format of cipher with "capi:" prefix")
+Cc: stable@vger.kernel.org
+Signed-off-by: Ben Cressey <>
+Assisted-by: LLM
+Signed-off-by: Mikulas Patocka <>
+---
+ drivers/md/dm-crypt.c | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/md/dm-crypt.c b/drivers/md/dm-crypt.c
+index 9e170de50ad32..0bd22bda3e2de 100644
+--- a/drivers/md/dm-crypt.c
++++ b/drivers/md/dm-crypt.c
+@@ -2894,8 +2894,13 @@ static int crypt_ctr_cipher_new(struct dm_target *ti, char *cipher_in, char *key
+ 		}
+ 	}
+ 
+-	if (*ivmode && !strcmp(*ivmode, "lmk"))
++	if (*ivmode && !strcmp(*ivmode, "lmk")) {
++		if (crypt_integrity_aead(cc)) {
++			ti->error = "AEAD transforms not supported for LMK";
++			return -EINVAL;
++		}
+ 		cc->tfms_count = 64;
++	}
+ 
+ 	if (*ivmode && !strcmp(*ivmode, "essiv")) {
+ 		if (!*ivopts) {
+-- 
+cgit 1.3.1-korg
+
+From 9b3fcf519d370df94a56f3b272d9eddffffa5be8 Mon Sep 17 00:00:00 2001
+From: Palla Raghunath <>
+Date: Sat, 19 Sep 2026 00:43:39 +0100
+Subject: dm ioctl: don't let data_start run past the buffer
+
+struct dm_ioctl has seven bytes of trailing padding, so the smallest
+buffer userspace is allowed to ask for, offsetof(struct dm_ioctl, data),
+is seven bytes shorter than sizeof(struct dm_ioctl).
+
+get_result_buffer() sets data_start to sizeof(struct dm_ioctl) without
+looking at how big the buffer actually is. Ask for the minimum and
+data_start ends up seven bytes past the end. Callers add it to
+data_size, and ctl_ioctl() copies that much back to userspace:
+
+  BUG: KASAN: slab-out-of-bounds in _copy_to_user+0xad/0xd0
+  Read of size 312 at addr ffff8880169e4c00 by task repro-dm/140
+   ctl_ioctl+0x5e3/0xcb0
+   dm_ctl_ioctl+0x25/0x40
+  allocated 305-byte region [ffff8880169e4c00, ffff8880169e4d31)
+
+A DM_LIST_DEVICES with data_size set to 305 is enough to hit it, and the
+seven bytes that leak are whatever sat next to the allocation.
+
+Clamp data_start to the buffer size.
+
+Note that this is not a security bug because the out-of-bounds read can
+only be triggered by root.
+
+Reported-by: syzbot+48d935cf48a4a76be346@syzkaller.appspotmail.com
+Closes: https://syzkaller.appspot.com/bug?extid=48d935cf48a4a76be346
+Fixes: 76c072b48e39 ("dm ioctl: move compat code")
+Cc: stable@vger.kernel.org
+Signed-off-by: Palla Raghunath <>
+Signed-off-by: Mikulas Patocka <>
+---
+ drivers/md/dm-ioctl.c | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/md/dm-ioctl.c b/drivers/md/dm-ioctl.c
+index a6b8e97755cd5..a005f124d7064 100644
+--- a/drivers/md/dm-ioctl.c
++++ b/drivers/md/dm-ioctl.c
+@@ -656,10 +656,16 @@ static void *get_result_buffer(struct dm_ioctl *param, size_t param_size,
+ {
+ 	param->data_start = align_ptr(param + 1) - (void *) param;
+ 
+-	if (param->data_start < param_size)
++	if (param->data_start < param_size) {
+ 		*len = param_size - param->data_start;
+-	else
++	} else {
++		/*
++		 * The buffer can be as small as offsetof(*param, data), which
++		 * is less than sizeof(*param), so don't run off the end of it.
++		 */
+ 		*len = 0;
++		param->data_start = param_size;
++	}
+ 
+ 	return ((void *) param) + param->data_start;
+ }
+-- 
+cgit 1.3.1-korg
+
+From c9417c1c5269e2bd0570fbe53e4ec03a8d31f008 Mon Sep 17 00:00:00 2001
+From: Mikulas Patocka <>
+Date: Wed, 23 Sep 2026 12:40:16 +0200
+Subject: dm: fix reading free memory in do_resume
+
+When do_resume calls dm_table_get_mode(new_map), the call is done without
+holding any locks (it only holds a reference to the md). It may be
+possible that another concurrent ioctl on the same device will swap table
+after dm_swap_table and before dm_table_get_mode. In this case,
+dm_table_get_mode(new_map) reads freed memory.
+
+This race condition was triggered by syzbot.
+
+This commit fixes the race by reading mode of the new table before
+dm_swap_table. Note that new_map is also passed to dm_ima_need_measure,
+but this function doesn't attempt to dereference it, so this call should
+be safe.
+
+Note that this is not a security bug because only root can trigger it and
+the commonly used tools such as lvm or cryptsetup do not call the ioctls
+concurrently, so that they can't trigger it acceidentally.
+
+Signed-off-by: Mikulas Patocka <>
+Reported-by: syzbot+bdff1ecf726d2af66afd@syzkaller.appspotmail.com
+Cc: stable@vger.kernel.org
+---
+ drivers/md/dm-ioctl.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/md/dm-ioctl.c b/drivers/md/dm-ioctl.c
+index a005f124d7064..8f945f0aeda5d 100644
+--- a/drivers/md/dm-ioctl.c
++++ b/drivers/md/dm-ioctl.c
+@@ -1273,6 +1273,7 @@ static int do_resume(struct dm_ioctl *param)
+ 	/* Do we need to load a new map ? */
+ 	if (new_map) {
+ 		sector_t old_size, new_size;
++		blk_mode_t new_map_mode;
+ 
+ 		dm_ima_context_table_op(md, ima_context, DM_IMA_TABLE_SAVE);
+ 		/* Suspend if it isn't already suspended */
+@@ -1305,6 +1306,7 @@ static int do_resume(struct dm_ioctl *param)
+ 			}
+ 		}
+ 
++		new_map_mode = dm_table_get_mode(new_map);
+ 		old_size = dm_get_size(md);
+ 		old_map = dm_swap_table(md, new_map);
+ 		if (IS_ERR(old_map)) {
+@@ -1320,7 +1322,7 @@ static int do_resume(struct dm_ioctl *param)
+ 		if (old_size && new_size && old_size != new_size)
+ 			need_resize_uevent = true;
+ 
+-		if (dm_table_get_mode(new_map) & BLK_OPEN_WRITE)
++		if (new_map_mode & BLK_OPEN_WRITE)
+ 			set_disk_ro(dm_disk(md), 0);
+ 		else
+ 			set_disk_ro(dm_disk(md), 1);
+-- 
+cgit 1.3.1-korg
+
+From fcbde6227fcc53c73f08c56b2539e462d545cac6 Mon Sep 17 00:00:00 2001
+From: Ma Xinmeng <>
+Date: Fri, 25 Sep 2026 11:05:39 +0800
+Subject: dm-snap: reject the transient exception store for snapshot-merge
+
+snapshot_merge_next_chunks() calls s->store->type->prepare_merge() without
+checking it. The transient store ("N") implements neither prepare_merge nor
+commit_merge, and snapshot_ctr() validates those callbacks only on the handover
+path (__validate_exception_handover()), so a directly constructed snapshot-merge
+calls a NULL prepare_merge on resume:
+
+  snapshot_merge_resume -> snapshot_merge_next_chunks -> prepare_merge(...)
+
+commit_merge() is NULL for the same reason. Userspace only issues documented
+device-mapper ioctls (CAP_SYS_ADMIN); this is a misconfiguration the kernel must
+reject rather than oops on.
+
+Reject the combination in snapshot_ctr() at table-load time (-EINVAL), the same
+check the handover path already performs; this also covers the commit_merge()
+call site, which a guard local to the prepare_merge call would miss.
+
+Tested on Linux v6.6.157 KASAN: unpatched, the dmsetup reproducer oopses in
+snapshot_merge_next_chunks(); with this patch, the table load fails with -EINVAL
+and no oops. Also present on v6.6.145; still present on the linux-dm tree
+(555f3d7be91a) and on torvalds/linux master (62f4c998b297) as of 2026-09-22.
+
+Note that this is not a security bug because only root can trigger it.
+
+Signed-off-by: Ma Xinmeng <>
+Signed-off-by: Mikulas Patocka <>
+Cc: stable@vger.kernel.org
+---
+ drivers/md/dm-snap.c | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)
+
+diff --git a/drivers/md/dm-snap.c b/drivers/md/dm-snap.c
+index c8a9ca1eeae76..7c3725e4ac54a 100644
+--- a/drivers/md/dm-snap.c
++++ b/drivers/md/dm-snap.c
+@@ -1292,6 +1292,20 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
+ 		goto bad_store;
+ 	}
+ 
++	/*
++	 * snapshot-merge requires the optional prepare_merge/commit_merge
++	 * callbacks; the transient exception store does not implement them.
++	 * The handover path checks this in __validate_exception_handover(),
++	 * but a directly constructed snapshot-merge never goes through it.
++	 */
++	if (dm_target_is_snapshot_merge(ti) &&
++	    (!s->store->type->prepare_merge ||
++	     !s->store->type->commit_merge)) {
++		ti->error = "Snapshot exception store does not support snapshot-merge.";
++		r = -EINVAL;
++		goto bad_hash_tables;
++	}
++
+ 	argv += args_used;
+ 	argc -= args_used;
+ 
+-- 
+cgit 1.3.1-korg
+
+From fc79aeb86a2c244c1f1894e2d8f2966fe2b60fa2 Mon Sep 17 00:00:00 2001
+From: Mikulas Patocka <>
+Date: Wed, 30 Sep 2026 18:42:20 +0200
+Subject: dm-integrity: validate the superblock on resume
+
+dm_integrity_resume() re-reads the superblock from the device so that it
+picks up the flags and the recalculate position. It performs no
+validation on the result, while the constructor validates the superblock
+it reads and sizes all the in-memory structures according to it. The user
+may modify the superblock on the underlying device while the dm-integrity
+device is suspended, so that the two no longer agree.
+
+In particular, access_journal_data() shifts the journal entry index by
+ic->sb->log2_sectors_per_block, while ic->journal_section_sectors and the
+journal page list were computed with the value that was present at
+constructor time. Increasing log2_sectors_per_block makes the index run
+past the end of the journal, and dm-integrity then writes 512 bytes
+through lowmem_page_address(NULL).
+
+Snapshot the validated superblock in the constructor and refuse to resume
+if any of the fields that describe the on-disk geometry changed.
+
+Reported-by: syzbot+675c91651049ad042c5f@syzkaller.appspotmail.com
+Signed-off-by: Mikulas Patocka <>
+Cc: stable@vger.kernel.org
+Fixes: 118ba36e446c ("dm-integrity: fix recalculation in bitmap mode")
+Assisted-by: Claude:claude-opus-5
+---
+ drivers/md/dm-integrity.c | 50 +++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 50 insertions(+)
+
+diff --git a/drivers/md/dm-integrity.c b/drivers/md/dm-integrity.c
+index 0862f31b8498d..802b377613b06 100644
+--- a/drivers/md/dm-integrity.c
++++ b/drivers/md/dm-integrity.c
+@@ -180,6 +180,7 @@ struct dm_integrity_c {
+ 	struct dm_bufio_client *bufio;
+ 	struct workqueue_struct *metadata_wq;
+ 	struct superblock *sb;
++	struct superblock *sb_copy;
+ 	unsigned int journal_pages;
+ 	unsigned int n_bitmap_blocks;
+ 
+@@ -3858,6 +3859,35 @@ static void dm_integrity_postsuspend(struct dm_target *ti)
+ 	ic->journal_uptodate = true;
+ }
+ 
++/*
++ * The superblock is re-read from the device on every resume, so that we pick
++ * up the flags and the recalculate position. The geometry described by the
++ * superblock must not change though - the in-memory structures (and the
++ * journal in particular) were sized according to the superblock that was
++ * validated in the constructor. Reject a superblock that was modified behind
++ * our back.
++ *
++ * Only the fields that the driver never rewrites may be tested here. In
++ * particular, "version" is recalculated by sb_set_version on every superblock
++ * write and it depends on SB_FLAG_RECALCULATING and SB_FLAG_DIRTY_BITMAP, and
++ * SB_FLAG_DISCARD_KEYED may be set by dm_integrity_resume itself.
++ */
++static bool superblock_changed(struct dm_integrity_c *ic)
++{
++	const __le32 immutable_flags = cpu_to_le32(SB_FLAG_HAVE_JOURNAL_MAC |
++						   SB_FLAG_FIXED_PADDING |
++						   SB_FLAG_FIXED_HMAC |
++						   SB_FLAG_INLINE);
++
++	return memcmp(ic->sb->magic, ic->sb_copy->magic, sizeof(ic->sb->magic)) != 0 ||
++	       ic->sb->log2_interleave_sectors != ic->sb_copy->log2_interleave_sectors ||
++	       ic->sb->integrity_tag_size != ic->sb_copy->integrity_tag_size ||
++	       ic->sb->journal_sections != ic->sb_copy->journal_sections ||
++	       ic->sb->log2_sectors_per_block != ic->sb_copy->log2_sectors_per_block ||
++	       ((ic->sb->flags ^ ic->sb_copy->flags) & immutable_flags) != 0 ||
++	       memcmp(ic->sb->salt, ic->sb_copy->salt, SALT_SIZE) != 0;
++}
++
+ static void dm_integrity_resume(struct dm_target *ti)
+ {
+ 	struct dm_integrity_c *ic = ti->private;
+@@ -3876,6 +3906,18 @@ static void dm_integrity_resume(struct dm_target *ti)
+ 	if (r)
+ 		dm_integrity_io_error(ic, "reading superblock", r);
+ 
++	if (unlikely(superblock_changed(ic))) {
++		/*
++		 * Restore the superblock that we validated in the constructor,
++		 * so that the rest of the driver doesn't operate on values
++		 * that don't match the in-memory structures.
++		 */
++		memcpy(ic->sb, ic->sb_copy, sizeof(struct superblock));
++		DMERR("The superblock was changed while the device was suspended");
++		dm_integrity_io_error(ic, "superblock check", -EINVAL);
++		goto skip_writes;
++	}
++
+ 	if (ic->mode == 'R')
+ 		goto skip_writes;
+ 
+@@ -5427,6 +5469,13 @@ try_smaller_buffer:
+ 		ic->just_formatted = true;
+ 	}
+ 
++	ic->sb_copy = kmemdup(ic->sb, sizeof(struct superblock), GFP_KERNEL);
++	if (!ic->sb_copy) {
++		ti->error = "Cannot allocate superblock copy";
++		r = -ENOMEM;
++		goto bad;
++	}
++
+ 	if (!ic->meta_dev && ic->mode != 'I') {
+ 		r = dm_set_target_max_io_len(ti, 1U << ic->sb->log2_interleave_sectors);
+ 		if (r)
+@@ -5525,6 +5574,7 @@ static void dm_integrity_dtr(struct dm_target *ti)
+ 	kvfree(ic->journal_tree);
+ 	if (ic->sb)
+ 		free_pages_exact(ic->sb, SB_SECTORS << SECTOR_SHIFT);
++	kfree(ic->sb_copy);
+ 
+ 	if (ic->internal_shash)
+ 		crypto_free_shash(ic->internal_shash);
+-- 
+cgit 1.3.1-korg
+
+From 3e6ff34afc7ec7a6156e58502b5a56771517cf93 Mon Sep 17 00:00:00 2001
+From: Filipe Manana <>
+Date: Fri, 18 Sep 2026 11:58:00 +0100
+Subject: btrfs: clear BTRFS_ROOT_IN_TRANS_SETUP on early exit from
+ record_root_in_trans()
+
+If we exit early because the transaction that last used the root already
+matches the current transaction, we leave the BTRFS_ROOT_IN_TRANS_SETUP
+bit set in the root (which we just set right before the exit). While this
+does not cause any functional issue, it makes callers of
+btrfs_record_root_in_trans() lock fs_info->reloc_mutex and call
+record_root_in_trans() for nothing, causing unnecessary lock contention,
+until one of them clears the bit in record_root_in_trans().
+One caller of btrfs_record_root_in_trans() is start_transaction(), used to
+start new transaction or joining an existing one, which is a hot path.
+
+So clear BTRFS_ROOT_IN_TRANS_SETUP on early exit.
+
+Assisted-by: LLM
+Reviewed-by: Boris Burkov <>
+Reviewed-by: Qu Wenruo <>
+Signed-off-by: Filipe Manana <>
+Signed-off-by: David Sterba <>
+---
+ fs/btrfs/transaction.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/fs/btrfs/transaction.c b/fs/btrfs/transaction.c
+index 6802b94ed76ff..11b38133f737e 100644
+--- a/fs/btrfs/transaction.c
++++ b/fs/btrfs/transaction.c
+@@ -432,6 +432,7 @@ static int record_root_in_trans(struct btrfs_trans_handle *trans,
+ 		spin_lock(&fs_info->fs_roots_radix_lock);
+ 		if (btrfs_get_root_last_trans(root) == trans->transid && !force) {
+ 			spin_unlock(&fs_info->fs_roots_radix_lock);
++			clear_bit(BTRFS_ROOT_IN_TRANS_SETUP, &root->state);
+ 			return 0;
+ 		}
+ 		radix_tree_tag_set(&fs_info->fs_roots_radix,
+-- 
+cgit 1.3.1-korg
+
+From 1fd742c7479961da6d0bb794ef8ac6b7b9442847 Mon Sep 17 00:00:00 2001
+From: Wentao Liang <>
+Date: Wed, 16 Sep 2026 17:16:10 +0000
+Subject: btrfs: scrub: fix local_root reference leak in
+ scrub_print_warning_inode()
+
+When paths_from_inode() fails, scrub_print_warning_inode() jumps to err
+without dropping the reference taken by btrfs_get_fs_root(), leaking a
+reference to the root every time path resolution fails while printing
+scrub warnings.  Every other error and success path of the function
+drops the reference.
+
+Drop the reference on the paths_from_inode() failure path too.
+
+Fixes: 558540c17771 ("btrfs scrub: print paths of corrupted files")
+CC: stable@vger.kernel.org
+Reviewed-by: Qu Wenruo <>
+Signed-off-by: Wentao Liang <>
+Reviewed-by: David Sterba <>
+Signed-off-by: David Sterba <>
+---
+ fs/btrfs/scrub.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/fs/btrfs/scrub.c b/fs/btrfs/scrub.c
+index c09d4213ad891..479c0e037015a 100644
+--- a/fs/btrfs/scrub.c
++++ b/fs/btrfs/scrub.c
+@@ -536,8 +536,10 @@ static int scrub_print_warning_inode(u64 inum, u64 offset, u64 num_bytes,
+ 	}
+ 	ret = paths_from_inode(inum, ipath);
+ 
+-	if (ret < 0)
++	if (ret < 0) {
++		btrfs_put_root(local_root);
+ 		goto err;
++	}
+ 
+ 	/*
+ 	 * we deliberately ignore the bit ipath might have been too small to
+-- 
+cgit 1.3.1-korg
+
+From 80a8dbb30d2b00b9c671b02bd73f700f6d20100f Mon Sep 17 00:00:00 2001
+From: Yang Xiuwei <>
+Date: Wed, 19 Aug 2026 10:54:32 +0800
+Subject: btrfs: always return -EIOCBQUEUED after btrfs_uring_read_extent_endio
+
+If all bios finish before btrfs_encoded_read_regular_fill_pages()
+returns, it calls btrfs_uring_read_extent_endio() and previously
+returned the I/O status.  A negative errno then made
+btrfs_uring_read_extent() unlock and free while
+btrfs_uring_read_finished() did the same again.
+
+Return -EIOCBQUEUED so only the deferred path cleans up.
+
+Reported-by: Yue Sun <>
+Closes: https://lore.kernel.org/linux-btrfs/20260630091609.3414-1-samsun1006219@gmail.com/
+Suggested-by: Jens Axboe <>
+Fixes: 34310c442e17 ("btrfs: add io_uring command for encoded reads (ENCODED_READ ioctl)")
+Signed-off-by: Yang Xiuwei <>
+Reviewed-by: David Sterba <>
+Signed-off-by: David Sterba <>
+---
+ fs/btrfs/inode.c | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)
+
+diff --git a/fs/btrfs/inode.c b/fs/btrfs/inode.c
+index e97446fc9e106..6a085a4d5d612 100644
+--- a/fs/btrfs/inode.c
++++ b/fs/btrfs/inode.c
+@@ -9623,7 +9623,6 @@ int btrfs_encoded_read_regular_fill_pages(struct btrfs_inode *inode,
+ 	struct completion sync_reads;
+ 	unsigned long i = 0;
+ 	struct btrfs_bio *bbio;
+-	int ret;
+ 
+ 	/*
+ 	 * Fast path for synchronous reads which completes in this call, io_uring
+@@ -9670,10 +9669,10 @@ int btrfs_encoded_read_regular_fill_pages(struct btrfs_inode *inode,
+ 
+ 	if (uring_ctx) {
+ 		if (refcount_dec_and_test(&priv->pending_refs)) {
+-			ret = blk_status_to_errno(READ_ONCE(priv->status));
+-			btrfs_uring_read_extent_endio(uring_ctx, ret);
++			int error = blk_status_to_errno(READ_ONCE(priv->status));
++
++			btrfs_uring_read_extent_endio(uring_ctx, error);
+ 			kfree(priv);
+-			return ret;
+ 		}
+ 
+ 		return -EIOCBQUEUED;
+-- 
+cgit 1.3.1-korg
+
+From a8ea92830b3e0e163d4e829bdcb17ca83c0f951c Mon Sep 17 00:00:00 2001
+From: Yang Xiuwei <>
+Date: Wed, 19 Aug 2026 10:54:33 +0800
+Subject: btrfs: free iov when btrfs_uring_read_extent() fails
+
+After btrfs_uring_read_extent(), the caller always jumped to out_acct.
+That skips kfree(data->iov), which is only correct for -EIOCBQUEUED
+where the deferred path owns the iov. On failure, fall through to
+out_free instead.
+
+Fixes: 34310c442e17 ("btrfs: add io_uring command for encoded reads (ENCODED_READ ioctl)")
+Signed-off-by: Yang Xiuwei <>
+Reviewed-by: David Sterba <>
+Signed-off-by: David Sterba <>
+---
+ fs/btrfs/ioctl.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/fs/btrfs/ioctl.c b/fs/btrfs/ioctl.c
+index 21c4e755f9c5d..58eba94a73b89 100644
+--- a/fs/btrfs/ioctl.c
++++ b/fs/btrfs/ioctl.c
+@@ -4865,8 +4865,8 @@ static int btrfs_uring_encoded_read(struct io_uring_cmd *cmd, unsigned int issue
+ 					      cached_state, disk_bytenr, disk_io_size,
+ 					      count, data->args.compression,
+ 					      data->iov, cmd);
+-
+-		goto out_acct;
++		if (ret == -EIOCBQUEUED)
++			goto out_acct;
+ 	}
+ 
+ out_free:
+-- 
+cgit 1.3.1-korg
+
+From b6e8add5d79d1f6f819a054c833bab452bd7365d Mon Sep 17 00:00:00 2001
+From: Yang Xiuwei <>
+Date: Wed, 19 Aug 2026 10:54:34 +0800
+Subject: btrfs: unlock inode and extent in caller when io_uring read extent
+ fails
+
+btrfs_uring_read_extent() runs only after btrfs_encoded_read() has taken
+the inode shared lock and the extent lock.  On failure it used to unlock
+in out_fail, and a pages-array allocation failure returned -ENOMEM
+without unlocking at all.
+
+Unlock in the caller instead on all failure returns, matching the
+copy_to_user() error path.  The deferred -EIOCBQUEUED path still unlocks
+in btrfs_uring_read_finished().
+
+Fixes: 34310c442e17 ("btrfs: add io_uring command for encoded reads (ENCODED_READ ioctl)")
+Suggested-by: Qu Wenruo <>
+Reviewed-by: Qu Wenruo <>
+Signed-off-by: Yang Xiuwei <>
+Reviewed-by: David Sterba <>
+Signed-off-by: David Sterba <>
+---
+ fs/btrfs/ioctl.c | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)
+
+diff --git a/fs/btrfs/ioctl.c b/fs/btrfs/ioctl.c
+index 58eba94a73b89..131373bf1e30a 100644
+--- a/fs/btrfs/ioctl.c
++++ b/fs/btrfs/ioctl.c
+@@ -4601,7 +4601,7 @@ static void btrfs_uring_read_finished(struct io_tw_req tw_req, io_tw_token_t tw)
+ 	size_t page_offset;
+ 	ssize_t ret;
+ 
+-	/* The inode lock has already been acquired in btrfs_uring_read_extent.  */
++	/* The inode lock has already been acquired in btrfs_encoded_read(). */
+ 	btrfs_lockdep_inode_acquire(inode, i_rwsem);
+ 
+ 	if (priv->err) {
+@@ -4667,7 +4667,6 @@ static int btrfs_uring_read_extent(struct kiocb *iocb, struct iov_iter *iter,
+ 				   struct iovec *iov, struct io_uring_cmd *cmd)
+ {
+ 	struct btrfs_inode *inode = BTRFS_I(file_inode(iocb->ki_filp));
+-	struct extent_io_tree *io_tree = &inode->io_tree;
+ 	struct page **pages = NULL;
+ 	struct btrfs_uring_priv *priv = NULL;
+ 	unsigned long nr_pages;
+@@ -4723,8 +4722,6 @@ static int btrfs_uring_read_extent(struct kiocb *iocb, struct iov_iter *iter,
+ 	return -EIOCBQUEUED;
+ 
+ out_fail:
+-	btrfs_unlock_extent(io_tree, start, lockend, &cached_state);
+-	btrfs_inode_unlock(inode, BTRFS_ILOCK_SHARED);
+ 	kfree(priv);
+ 	for (int i = 0; i < nr_pages; i++) {
+ 		if (pages[i])
+@@ -4867,6 +4864,8 @@ static int btrfs_uring_encoded_read(struct io_uring_cmd *cmd, unsigned int issue
+ 					      data->iov, cmd);
+ 		if (ret == -EIOCBQUEUED)
+ 			goto out_acct;
++		btrfs_unlock_extent(io_tree, start, lockend, &cached_state);
++		btrfs_inode_unlock(inode, BTRFS_ILOCK_SHARED);
+ 	}
+ 
+ out_free:
+-- 
+cgit 1.3.1-korg
+
+From 51562a8cb11628d3a5e105b4c347ec5473e5745f Mon Sep 17 00:00:00 2001
+From: Yang Xiuwei <>
+Date: Wed, 19 Aug 2026 10:54:35 +0800
+Subject: btrfs: don't stash io_uring encoded data across -EAGAIN
+
+Returning -EAGAIN while leaving btrfs_uring_encoded_data in the cmd PDU
+leaks if the request is cancelled or the ring exits before reissue.
+io_uring does not free driver PDU allocations on cleanup.
+
+Write: io_queue_sqe() always issues with IO_URING_F_NONBLOCK first, so
+return -EAGAIN before allocating and free data on every exit.
+
+Read: free on nowait -EAGAIN too; only -EIOCBQUEUED keeps the allocation
+for btrfs_uring_read_finished().
+
+Fixes: 34310c442e17 ("btrfs: add io_uring command for encoded reads (ENCODED_READ ioctl)")
+Fixes: e32dcdb0af9f ("btrfs: add io_uring interface for encoded writes")
+Signed-off-by: Yang Xiuwei <>
+Reviewed-by: David Sterba <>
+Signed-off-by: David Sterba <>
+---
+ fs/btrfs/ioctl.c | 20 +++++++++++---------
+ 1 file changed, 11 insertions(+), 9 deletions(-)
+
+diff --git a/fs/btrfs/ioctl.c b/fs/btrfs/ioctl.c
+index 131373bf1e30a..44d582d8cf3f0 100644
+--- a/fs/btrfs/ioctl.c
++++ b/fs/btrfs/ioctl.c
+@@ -4834,7 +4834,7 @@ static int btrfs_uring_encoded_read(struct io_uring_cmd *cmd, unsigned int issue
+ 	ret = btrfs_encoded_read(&kiocb, &data->iter, &data->args, &cached_state,
+ 				 &disk_bytenr, &disk_io_size);
+ 	if (ret == -EAGAIN)
+-		goto out_acct;
++		goto out_free;
+ 	if (ret < 0 && ret != -EIOCBQUEUED)
+ 		goto out_free;
+ 
+@@ -4876,8 +4876,10 @@ out_acct:
+ 		add_rchar(current, ret);
+ 	inc_syscr(current);
+ 
+-	if (ret != -EIOCBQUEUED && ret != -EAGAIN)
++	if (ret != -EIOCBQUEUED) {
+ 		kfree(data);
++		bc->data = NULL;
++	}
+ 
+ 	return ret;
+ }
+@@ -4906,6 +4908,11 @@ static int btrfs_uring_encoded_write(struct io_uring_cmd *cmd, unsigned int issu
+ 		goto out_acct;
+ 	}
+ 
++	if (issue_flags & IO_URING_F_NONBLOCK) {
++		ret = -EAGAIN;
++		goto out_acct;
++	}
++
+ 	if (!data) {
+ 		data = kzalloc_obj(*data, GFP_NOFS);
+ 		if (!data) {
+@@ -4974,11 +4981,6 @@ static int btrfs_uring_encoded_write(struct io_uring_cmd *cmd, unsigned int issu
+ 		}
+ 	}
+ 
+-	if (issue_flags & IO_URING_F_NONBLOCK) {
+-		ret = -EAGAIN;
+-		goto out_acct;
+-	}
+-
+ 	pos = data->args.offset;
+ 	ret = rw_verify_area(WRITE, file, &pos, data->args.len);
+ 	if (ret < 0)
+@@ -5004,8 +5006,8 @@ out_acct:
+ 		add_wchar(current, ret);
+ 	inc_syscw(current);
+ 
+-	if (ret != -EAGAIN)
+-		kfree(data);
++	kfree(data);
++	bc->data = NULL;
+ 	return ret;
+ }
+ 
+-- 
+cgit 1.3.1-korg
+
+From 858bee1c77857aabcc2327cd32dd8266332de332 Mon Sep 17 00:00:00 2001
+From: Filipe Manana <>
+Date: Fri, 25 Sep 2026 13:47:21 +0100
+Subject: btrfs: fix xattr replace when multiple xattrs are packed in the same
+ item
+
+If we have a btrfs_dir_item item that packs multiple xattrs and then we
+replace the value of one of them (with the setxattr(2) family of syscalls)
+with another value of a different size, we end up not having a fully
+initialized btrfs_dir_item, resulting in a corruption that the tree
+checker will detect at extent buffer writeback time.
+
+This is because in btrfs_setxattr() when we find a btrfs_dir_item with
+multiple xattrs (due to the crc32c hash of their name being the same)
+we delete one of the xattr items (btrfs_dir_item) and then insert a new
+one, but the deletion and insertion results in shifting existing data in
+the leaf and therefore when the new value of a xattr has a different size,
+the new btrfs_dir_item is placed in a leaf section that was not
+initialized and we only copy the value's data and set the value's length
+in the new btrfs_dir_item, without setting the name, the name's length,
+the key (which must be all zeroes for xattrs), flags (BTRFS_FT_XATTR) and
+transaction ID.
+
+The following script reproduces the issue:
+
+  $ cat test.sh
+  #!/bin/bash
+
+  DEV=/dev/sdi
+  MNT=/mnt/sdi
+
+  mkfs.btrfs -f $DEV
+  mount $DEV $MNT
+
+  touch $MNT/testfile
+
+  # Add two xattrs that, on btrfs, have the same hash (crc32c) for their
+  # name and therefore are packed into the same btrfs_dir_item.
+  setfattr -n user.foobar -v 123 $MNT/testfile
+  setfattr -n user.WvG1c1Td -v qwerty $MNT/testfile
+
+  # Verify the xattrs are present.
+  echo "xattrs before:"
+  getfattr --absolute-names --dump $MNT/testfile
+
+  # Now replace the value of the foobar xattr with a significantly larger
+  # value.
+  setfattr -n user.foobar -v abcdefghijklmnopqrstuvwxyz $MNT/testfile
+
+  # Check the xattrs have the expected values.
+  echo "xattrs after:"
+  getfattr --absolute-names --dump $MNT/testfile
+
+  umount $MNT
+
+Running it:
+
+  $ ./test.sh
+  (...)
+  xattrs before:
+  # file: /mnt/sdi/testfile
+  user.WvG1c1Td="qwerty"
+  user.foobar="123"
+
+  xattrs after:
+  # file: /mnt/sdi/testfile
+  user.WvG1c1Td="qwerty"
+
+So the "user.foobar" xattr is missing and there was a transaction abort
+when unmounting the fs with the following traces in dmesg:
+
+  $ dmesg
+  [869800.159271] BTRFS warning (device sdi): access to eb bytenr 30474240 len 16384 out of range start 16015 len 25964
+  [869800.159293] ------------[ cut here ]------------
+  [869800.159296] WARNING: fs/btrfs/extent_io.c:4408 at report_eb_range+0x44/0x60 [btrfs], CPU#8: getfattr/2605179
+  [869800.168961] Modules linked in: btrfs dm_thin_pool (...)
+  [869800.190527] CPU: 8 UID: 0 PID: 2605179 Comm: getfattr Tainted: G        W           7.3.0-rc3-btrfs-next-244+ #1 PREEMPT(full)
+  [869800.193726] Tainted: [W]=WARN
+  [869800.194502] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS rel-1.16.2-0-gea1b7a073390-prebuilt.qemu.org 04/01/2014
+  [869800.197576] RIP: 0010:report_eb_range+0x44/0x60 [btrfs]
+  [869800.198985] Code: 48 8b 7b 18 (...)
+  [869800.203531] RSP: 0018:ffffce4541937d58 EFLAGS: 00010246
+  [869800.204609] RAX: 0000000000000000 RBX: ffff8dde054b8738 RCX: 0000000000000000
+  [869800.206137] RDX: 0000000000000000 RSI: 0000000000000001 RDI: ffffffffc04c92a0
+  [869800.207645] RBP: 0000000000003e8f R08: 0000000000000000 R09: 3fffffffffefffff
+  [869800.226175] R10: ffffce4541937a88 R11: 0000000000000003 R12: 000000000000656c
+  [869800.227594] R13: ffff8dde14be800f R14: 000000000000656c R15: 0000000000000069
+  [869800.229097] FS:  00007f59023bb780(0000) GS:ffff8de5788ed000(0000) knlGS:0000000000000000
+  [869800.231137] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+  [869800.232321] CR2: 0000558dc45e6a78 CR3: 0000000765b16004 CR4: 0000000000370ef0
+  [869800.233783] Call Trace:
+  [869800.234330]  <TASK>
+  [869800.234791]  read_extent_buffer+0x4d/0x100 [btrfs]
+  [869800.235898]  btrfs_listxattr+0x199/0x240 [btrfs]
+  [869800.236912]  vfs_listxattr+0x51/0xa0
+  [869800.237683]  listxattr+0x7e/0x100
+  [869800.238398]  path_listxattrat+0x9e/0x190
+  [869800.239117]  do_syscall_64+0x89/0x470
+  [869800.239877]  entry_SYSCALL_64_after_hwframe+0x76/0x7e
+  [869800.240914] RIP: 0033:0x7f59024cdcb7
+  [869800.241686] Code: f0 ff ff 73 (...)
+  [869800.245353] RSP: 002b:00007ffd056dcdb8 EFLAGS: 00000246 ORIG_RAX: 00000000000000c2
+  [869800.246892] RAX: ffffffffffffffda RBX: 00007ffd056df2e2 RCX: 00007f59024cdcb7
+  [869800.248853] RDX: 0000000000006600 RSI: 0000558dc45e0470 RDI: 00007ffd056df2e2
+  [869800.250514] RBP: 00007ffd056df2e2 R08: 0000000000006600 R09: 0000000000006600
+  [869800.252295] R10: 0000000000000004 R11: 0000000000000246 R12: 00000000ffffff9c
+  [869800.254105] R13: 0000558dc45e0470 R14: 0000000000006600 R15: 0000000000000000
+  [869800.255931]  </TASK>
+  [869800.256529] ---[ end trace 0000000000000000 ]---
+  [869800.260071] page: refcount:2 mapcount:0 mapping:000000007ccfc77f index:0x1d10 pfn:0x608c69
+  [869800.260075] memcg:ffff8dde00344d40
+  [869800.260076] aops:btree_aops [btrfs] ino:1
+  [869800.260151] flags: 0x17fffc00000402a(uptodate|lru|private|writeback|node=0|zone=2|lastcpupid=0x1ffff)
+  [869800.260154] raw: 017fffc00000402a fffff4adc773d4c8 fffff4adc48f3d88 ffff8de36504ba30
+  [869800.260155] raw: 0000000000001d10 ffff8dde054b8738 00000002ffffffff ffff8dde00344d40
+  [869800.260156] page dumped because: eb page dump
+  [869800.260157] BTRFS critical (device sdi): corrupt leaf: root=5 block=30474240 slot=5 ino=257, invalid location key type, have 46, expect 132 or 1
+  [869800.260161] BTRFS info (device sdi): leaf 30474240 gen 9 total ptrs 6 free space 15629 owner 5
+  [869800.260163] BTRFS info (device sdi): refs 3 lock_owner 0 current 2550294
+  [869800.260164] 	item 0 key (256 INODE_ITEM 0) itemoff 16123 itemsize 160
+  [869800.260165] 		inode generation 3 transid 0 size 0 nbytes 16384
+  [869800.260166] 		block group 0 mode 40755 links 1 uid 0 gid 0
+  [869800.260167] 		rdev 0 sequence 0 flags 0x0
+  [869800.260168] 		atime 1790340637.0
+  [869800.260169] 		ctime 1790340637.0
+  [869800.260169] 		mtime 1790340637.0
+  [869800.260170] 		otime 1790340637.0
+  [869800.260170] 	item 1 key (256 INODE_REF 256) itemoff 16111 itemsize 12
+  [869800.260172] 		index 0 name_len 2
+  [869800.260172] 	item 2 key (256 DIR_ITEM 982728850) itemoff 16073 itemsize 38
+  [869800.260173] 		location key (257 1 0) type 1
+  [869800.260174] 		transid 9 data_len 0 name_len 8
+  [869800.260175] 	item 3 key (257 INODE_ITEM 0) itemoff 15913 itemsize 160
+  [869800.260176] 		inode generation 9 transid 9 size 0 nbytes 0
+  [869800.260177] 		block group 0 mode 100664 links 1 uid 0 gid 0
+  [869800.260177] 		rdev 0 sequence 0 flags 0x0
+  [869800.260178] 		atime 1790340638.38778502
+  [869800.260179] 		ctime 1790340638.38778502
+  [869800.260179] 		mtime 1790340638.38778502
+  [869800.260180] 		otime 1790340638.38778502
+  [869800.260180] 	item 4 key (257 INODE_REF 256) itemoff 15895 itemsize 18
+  [869800.260181] 		index 2 name_len 8
+  [869800.260182] 	item 5 key (257 XATTR_ITEM 751495445) itemoff 15779 itemsize 116
+  [869800.260183] 		location key (0 0 0) type 8
+  [869800.266052] 		transid 9 data_len 6 name_len 13
+  [869800.266053] 		location key (8243121639454149888 46 7229457603934778967) type 0
+  [869800.266055] 		transid 113 data_len 26 name_len 0
+  [869800.266056] 		location key (8608196880778817904 120 162425) type 9
+  [869800.266057] 		transid 8391162079612502016 data_len 26982 name_len 25964
+  [869800.266058] BTRFS error (device sdi): block=30474240 write time tree block corruption detected
+  [869800.266091] ------------[ cut here ]------------
+  [869800.266092] WARNING: fs/btrfs/disk-io.c:336 at btree_csum_one_bio+0x20b/0x220 [btrfs], CPU#7: kworker/u50:7/2550294
+  [869800.268392] Modules linked in: btrfs dm_thin_pool (...)
+  [869800.365851] CPU: 7 UID: 0 PID: 2550294 Comm: kworker/u50:7 Tainted: G        W           7.3.0-rc3-btrfs-next-244+ #1 PREEMPT(full)
+  [869800.368937] Tainted: [W]=WARN
+  [869800.369834] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS rel-1.16.2-0-gea1b7a073390-prebuilt.qemu.org 04/01/2014
+  [869800.372778] Workqueue: writeback wb_workfn (flush-btrfs-3821)
+  [869800.374314] RIP: 0010:btree_csum_one_bio+0x20b/0x220 [btrfs]
+  [869800.375915] Code: 89 44 24 04 (...)
+  [869800.380639] RSP: 0018:ffffce4548e3f7d0 EFLAGS: 00010246
+  [869800.382008] RAX: 0000000000000000 RBX: ffff8dde054b8738 RCX: 0000000000000000
+  [869800.383850] RDX: 0000000000000000 RSI: 0000000000000001 RDI: ffff8de091c2ddc0
+  [869800.385710] RBP: ffff8dde196a2000 R08: 0000000000000000 R09: 3fffffffffefffff
+  [869800.387388] R10: ffffce4548e3f500 R11: 0000000000000003 R12: ffffce4548e3f7d8
+  [869800.388973] R13: ffff8dde196a2000 R14: ffff8de36504b750 R15: ffff8dde4c497b00
+  [869800.390414] FS:  0000000000000000(0000) GS:ffff8de5788ad000(0000) knlGS:0000000000000000
+  [869800.392002] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+  [869800.393160] CR2: 000055cd6e92ad5c CR3: 00000007cb264001 CR4: 0000000000370ef0
+  [869800.394595] Call Trace:
+  [869800.395113]  <TASK>
+  [869800.395570]  btrfs_submit_bbio+0x872/0x890 [btrfs]
+  [869800.397284]  write_meta_extent_buffer+0x70/0x80 [btrfs]
+  [869800.398940]  btree_writepages+0x141/0x4f0 [btrfs]
+  [869800.400426]  ? get_random_u32+0x8a/0xf0
+  [869800.401417]  ? build_slab_freelist+0x47/0x130
+  [869800.402574]  ? preempt_count_add+0x6b/0xa0
+  [869800.403633]  ? _raw_spin_lock_irqsave+0x23/0x50
+  [869800.404807]  ? _raw_spin_unlock_irqrestore+0x22/0x40
+  [869800.406085]  ? alloc_from_new_slab+0x18f/0x330
+  [869800.407223]  do_writepages+0xc6/0x160
+  [869800.408191]  ? refill_objects+0xd8/0x300
+  [869800.409211]  __writeback_single_inode+0x42/0x350
+  [869800.410408]  writeback_sb_inodes+0x231/0x560
+  [869800.411511]  wb_writeback+0x8a/0x300
+  [869800.412440]  wb_workfn+0xbf/0x460
+  [869800.413291]  ? _raw_spin_unlock+0x14/0x30
+  [869800.414328]  ? finish_task_switch.isra.0+0xb9/0x380
+  [869800.415105]  process_one_work+0x1d1/0x3d0
+  [869800.416633]  worker_thread+0x1c4/0x330
+  [869800.417467]  ? __pfx_worker_thread+0x10/0x10
+  [869800.418452]  kthread+0xfc/0x130
+  [869800.419257]  ? __pfx_kthread+0x10/0x10
+  [869800.420089]  ret_from_fork+0x1f7/0x2c0
+  [869800.420863]  ? __pfx_kthread+0x10/0x10
+  [869800.421654]  ret_from_fork_asm+0x1a/0x30
+  [869800.422484]  </TASK>
+  [869800.422953] ---[ end trace 0000000000000000 ]---
+  [869800.424005] BTRFS error (device sdi state A): Transaction 9 aborted (-EIO)
+  [869800.424010] BTRFS: error (device sdi state A) in __btrfs_run_delayed_items:1162: errno=-5 IO failure
+  [869800.424011] BTRFS info (device sdi state EA): forced readonly
+  [869800.424013] BTRFS warning (device sdi state EA): Skipping commit of aborted transaction.
+  [869800.424014] BTRFS: error (device sdi state EA) in cleanup_transaction:2076: errno=-5 IO failure
+
+Fix this by always setting all fields in the new btrfs_dir_item when we
+replace an existing xattr.
+
+Fixes: 5f5bc6b1e2d5 ("Btrfs: make xattr replace operations atomic")
+Reviewed-by: Qu Wenruo <>
+Signed-off-by: Filipe Manana <>
+Signed-off-by: David Sterba <>
+---
+ fs/btrfs/xattr.c | 9 +++++++++
+ 1 file changed, 9 insertions(+)
+
+diff --git a/fs/btrfs/xattr.c b/fs/btrfs/xattr.c
+index ab55d10bd71fd..e8762e12f3e1e 100644
+--- a/fs/btrfs/xattr.c
++++ b/fs/btrfs/xattr.c
+@@ -161,6 +161,7 @@ int btrfs_setxattr(struct btrfs_trans_handle *trans, struct inode *inode,
+ 		const u16 old_data_len = btrfs_dir_data_len(leaf, di);
+ 		const u32 item_size = btrfs_item_size(leaf, slot);
+ 		const u32 data_size = sizeof(*di) + name_len + size;
++		unsigned long name_ptr;
+ 		unsigned long data_ptr;
+ 		char *ptr;
+ 
+@@ -189,8 +190,16 @@ int btrfs_setxattr(struct btrfs_trans_handle *trans, struct inode *inode,
+ 		ptr = btrfs_item_ptr(leaf, slot, char);
+ 		ptr += btrfs_item_size(leaf, slot) - data_size;
+ 		di = (struct btrfs_dir_item *)ptr;
++		memzero_extent_buffer(leaf, (unsigned long)ptr +
++				      offsetof(struct btrfs_dir_item, location),
++				      sizeof(struct btrfs_disk_key));
++		btrfs_set_dir_flags(leaf, di, BTRFS_FT_XATTR);
++		btrfs_set_dir_transid(leaf, di, trans->transid);
++		btrfs_set_dir_name_len(leaf, di, name_len);
+ 		btrfs_set_dir_data_len(leaf, di, size);
++		name_ptr = (unsigned long)(di + 1);
+ 		data_ptr = ((unsigned long)(di + 1)) + name_len;
++		write_extent_buffer(leaf, name, name_ptr, name_len);
+ 		write_extent_buffer(leaf, value, data_ptr, size);
+ 	} else {
+ 		/*
+-- 
+cgit 1.3.1-korg
+
+From 41c8899d59898f6fa51ceebd2b6e55257191a8ee Mon Sep 17 00:00:00 2001
+From: Filipe Manana <>
+Date: Fri, 25 Sep 2026 17:12:45 +0100
+Subject: btrfs: fix lost error return value in btrfs_listxattr()
+
+If the input buffer does not have enough space to store the current xattr,
+we set 'iter_ret' to -ERANGE and then do "break", but that only exits the
+while loop over the xattrs in the current btrfs_dir_item, and then we
+continue the btrfs_for_each_slot() iteration, which overwrites the value
+of 'iter_ret' causing us to lose the error return value and proceed as if
+the buffer has enough space.
+
+Fix this by returning -ERANGE directly (the path is automatically freed)
+instead of breaking from the while loop.
+
+Fixes: 184b3d190087 ("btrfs: use btrfs_for_each_slot in btrfs_listxattr")
+Assisted-by: LLM (found the bug)
+Reviewed-by: Qu Wenruo <>
+Signed-off-by: Filipe Manana <>
+Signed-off-by: David Sterba <>
+---
+ fs/btrfs/xattr.c | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/fs/btrfs/xattr.c b/fs/btrfs/xattr.c
+index e8762e12f3e1e..cb001a211f557 100644
+--- a/fs/btrfs/xattr.c
++++ b/fs/btrfs/xattr.c
+@@ -329,10 +329,8 @@ ssize_t btrfs_listxattr(struct dentry *dentry, char *buffer, size_t size)
+ 			if (!size)
+ 				goto next;
+ 
+-			if (!buffer || (name_len + 1) > size_left) {
+-			        iter_ret = -ERANGE;
+-				break;
+-			}
++			if (!buffer || (name_len + 1) > size_left)
++				return -ERANGE;
+ 
+ 			read_extent_buffer(leaf, buffer, name_ptr, name_len);
+ 			buffer[name_len] = '\0';
+-- 
+cgit 1.3.1-korg
+
+From 26f90559a77cac4b8fdfa3491732b7c7e08210ac Mon Sep 17 00:00:00 2001
+From: Sunho Park <>
+Date: Sun, 30 Aug 2026 18:56:05 +0900
+Subject: srcu: Fix WARN_ON() for rcu_segcblist_n_cbs() in
+ cleanup_srcu_struct()
+
+The WARN_ON() added by commit 78a38cbf6f20 ("srcu: Queue sdp->work
+when the delay timer is successfully deleted") uses rcu_segcblist_n_cbs()
+to detect callbacks that srcu_barrier() failed to wait for. However, the
+->len counter is decremented only at the end of srcu_invoke_callbacks(),
+after the invoking loop has finished. Since srcu_barrier() can return
+right after the barrier callback is invoked, cleanup_srcu_struct() can see
+a non-zero n_cbs even though the cblist is already physically empty,
+falsely triggering the WARN_ON() together with a still-pending delay_work
+timer.
+
+This can be triggered as follows, as seen in the syzbot report against
+kvm_destroy_vm() -> cleanup_srcu_struct(&kvm->srcu):
+
+1. call_srcu(&kvm->srcu, &bus->rcu, __free_bus) starts SRCU grace
+   period GP1.
+
+2. GP1 ends: a delay timer is armed and sdp->work is queued, but
+   sdp->work has not run yet.
+
+3. Another call_srcu(&kvm->srcu, &bus->rcu, __free_bus) call invokes
+   srcu_segcblist_advance(), which moves the GP1 callback to
+   RCU_DONE_TAIL, and starts SRCU grace period GP2.
+
+4. srcu_barrier() is called. It queues its barrier callback after the
+   GP2 callback and waits for srcu_invoke_callbacks() to invoke it.
+
+5. GP2 ends: another delay timer is armed, and the sdp->work queued in
+   step 2 begins to run. Its srcu_invoke_callbacks() call invokes
+   srcu_segcblist_advance() again, moving the GP2 and barrier callbacks
+   to RCU_DONE_TAIL as well, and then invokes all of them. However,
+   rcu_segcblist_add_len(), which updates srcu_cblist's ->len, has not
+   run yet at this point.
+
+6. srcu_barrier() returns once its callback has been invoked, and
+   cleanup_srcu_struct() starts running. It finds the delay timer
+   armed in step 5 still pending and srcu_cblist's ->len still
+   non-zero (because step 5 has not reached rcu_segcblist_add_len()
+   yet), and WARN_ON() fires even though every callback has actually
+   been invoked.
+
+Use rcu_segcblist_empty(), which checks the actual head of the cblist,
+instead of rcu_segcblist_n_cbs(), which checks the racy ->len counter.
+Callbacks that have genuinely not been invoked yet still leave the list
+non-empty, so the WARN_ON() still catches callers that skip srcu_barrier()
+or queue callbacks after it.
+
+Link: https://lore.kernel.org/rcu/e6350377085ddd85d6ef00d8e9a67bd50c762d3c@linux.dev/T/#t
+Reported-by: syzbot+d4faf7db59e11f6fd1ab@syzkaller.appspotmail.com
+Closes: https://syzkaller.appspot.com/bug?extid=d4faf7db59e11f6fd1ab
+Fixes: 78a38cbf6f20 ("srcu: Queue sdp->work when the delay timer is successfully deleted")
+Suggested-by: Zqiang <>
+Signed-off-by: Sunho Park <>
+Signed-off-by: Paul E. McKenney <>
+Tested-by: Sean Christopherson <>
+---
+ kernel/rcu/srcutree.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/kernel/rcu/srcutree.c b/kernel/rcu/srcutree.c
+index ed204b3f4b844..ad27880dd690f 100644
+--- a/kernel/rcu/srcutree.c
++++ b/kernel/rcu/srcutree.c
+@@ -704,7 +704,7 @@ void cleanup_srcu_struct(struct srcu_struct *ssp)
+ 		// Call srcu_barrier() before this cleanup_srcu_struct()
+ 		// to avoid triggering this WARN_ON().
+ 		if (WARN_ON(timer_delete_sync(&sdp->delay_work) &&
+-			    rcu_segcblist_n_cbs(&sdp->srcu_cblist)) &&
++			    !rcu_segcblist_empty(&sdp->srcu_cblist)) &&
+ 		    rcu_cpu_beenfullyonline(sdp->cpu))
+ 			queue_work_on(sdp->cpu, rcu_gp_wq, &sdp->work);
+ 		flush_work(&sdp->work);
+-- 
+cgit 1.3.1-korg
+
+From cfb3293c4573289f11f913611f530ea6b1926d67 Mon Sep 17 00:00:00 2001
+From: Vladimir Murzin <>
+Date: Tue, 22 Sep 2026 11:37:56 +0100
+Subject: usb: mtu3: Fix double dereference in TP_printk
+
+Paul reported kernel splat:
+
+[    0.000000] TRACE EVENT ERROR: Event mtu3_gadget_ep_set_halt has double dereference in TP_printk: &REC->gpd_ring->dma
+[    0.000000] ------------[ cut here ]------------
+[    0.000000] Event mtu3_gadget_ep_set_halt has double dereference in TP_printk: &REC->gpd_ring->dma
+[    0.000000] WARNING: kernel/trace/trace_events.c:420 at test_double_dereference+0x144/0x14c, CPU#0: swapper/0/0
+[    0.000000] Modules linked in:
+[    0.000000] CPU: 0 UID: 0 PID: 0 Comm: swapper/0 Not tainted 7.3.0-rc1 #15247 PREEMPT
+[    0.000000] Hardware name: linux,dummy-virt (DT)
+[    0.000000] pstate: 600000c5 (nZCv daIF -PAN -UAO -TCO -DIT -SSBS BTYPE=--)
+[    0.000000] pc : test_double_dereference+0x144/0x14c
+[    0.000000] lr : test_double_dereference+0x144/0x14c
+[    0.000000] sp : ffffc80aa7633bf0
+[    0.000000] x29: ffffc80aa7633bf0 x28: ffffc80aa7c0f047 x27: 000508b58019388f
+[    0.000000] x26: 0000000000000003 x25: 0000000000000007 x24: ffffc80aa5fceff8
+[    0.000000] x23: ffffc80aa7c0f05a x22: ffffc80aa64edfe8 x21: ffffc80aa7c0fce8
+[    0.000000] x20: ffffc80aa7c0f047 x19: 0000000000000013 x18: 0000000000000001
+[    0.000000] x17: 6572656420656c62 x16: 756f642073616820 x15: 746c61685f746573
+[    0.000000] x14: 0000000000000000 x13: ffff000139d90000 x12: 0000000000000045
+[    0.000000] x11: 00000000000000cf x10: ffff00013f546428 x9 : ffff000139d90000
+[    0.000000] x8 : 3fffffffffffc000 x7 : 0000000000000001 x6 : 0000000000000001
+[    0.000000] x5 : ffff00013f4e6440 x4 : 0000000000000000 x3 : 0000000000000000
+[    0.000000] x2 : 0000000000000000 x1 : 0000000000000000 x0 : ffffc80aa764a700
+[    0.000000] Call trace:
+[    0.000000]  test_double_dereference+0x144/0x14c (P)
+[    0.000000]  trace_event_raw_init+0x37c/0x5d8
+[    0.000000]  event_init+0x34/0xc0
+[    0.000000]  trace_event_init+0xec/0x588
+[    0.000000]  trace_init+0x24/0x6e0
+[    0.000000]  start_kernel+0x4a0/0x8ec
+[    0.000000]  __primary_switched+0x88/0x90
+[    0.000000] irq event stamp: 0
+[    0.000000] hardirqs last  enabled at (0): [<0000000000000000>] 0x0
+[    0.000000] hardirqs last disabled at (0): [<0000000000000000>] 0x0
+[    0.000000] softirqs last  enabled at (0): [<0000000000000000>] 0x0
+[    0.000000] softirqs last disabled at (0): [<0000000000000000>] 0x0
+[    0.000000] ---[ end trace 0000000000000000 ]---
+[    0.000000] TRACE EVENT ERROR: Event mtu3_gadget_ep_disable has double dereference in TP_printk: &REC->gpd_ring->dma
+[    0.000000] TRACE EVENT ERROR: Event mtu3_gadget_ep_enable has double dereference in TP_printk: &REC->gpd_ring->dma
+
+Which also observed by Mark and myself.
+
+The splat it result of new check introduced by b5cc230af5e5 ("tracing:
+Warn when an event dereferences a pointer in TP_printk()") which
+correctly catches issue with %pad dereferencing the address saved in
+the ring buffer. TP_fast_assign() logic gets executed when the
+tracepoint is triggered, however the TP_printk() is executed when the
+user reads the trace buffer which could be seconds, minutes, hours,
+days, even months later and nothing guarantee that __entry->gpd_ring
+pointer will still be pointing to what it was when it was recorded.
+
+Fix the issue by capturing immediate value of gpd_ring.dma when trace
+point is triggered.
+
+Reported-by: Paul E. McKenney <>
+Tested-by: Mark Rutland <>
+Reviewed-by: Steven Rostedt <>
+Signed-off-by: Vladimir Murzin <>
+Signed-off-by: Paul E. McKenney <>
+---
+ drivers/usb/mtu3/mtu3_trace.h | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/usb/mtu3/mtu3_trace.h b/drivers/usb/mtu3/mtu3_trace.h
+index 89870175d6356..9aaa167d69c13 100644
+--- a/drivers/usb/mtu3/mtu3_trace.h
++++ b/drivers/usb/mtu3/mtu3_trace.h
+@@ -224,6 +224,7 @@ DECLARE_EVENT_CLASS(mtu3_log_ep,
+ 		__field(unsigned int, flags)
+ 		__field(unsigned int, direction)
+ 		__field(struct mtu3_gpd_ring *, gpd_ring)
++		__field(dma_addr_t, gpd_ring_dma)
+ 	),
+ 	TP_fast_assign(
+ 		__assign_str(name);
+@@ -235,12 +236,13 @@ DECLARE_EVENT_CLASS(mtu3_log_ep,
+ 		__entry->flags = mep->flags;
+ 		__entry->direction = mep->is_in;
+ 		__entry->gpd_ring = &mep->gpd_ring;
++		__entry->gpd_ring_dma = mep->gpd_ring.dma
+ 	),
+ 	TP_printk("%s: type %s maxp %d slot %d mult %d burst %d ring %p/%pad flags %c:%c%c%c:%c",
+ 		__get_str(name), usb_ep_type_string(__entry->type),
+ 		__entry->maxp, __entry->slot,
+ 		__entry->mult, __entry->maxburst,
+-		__entry->gpd_ring, &__entry->gpd_ring->dma,
++		__entry->gpd_ring, &__entry->gpd_ring_dma,
+ 		__entry->flags & MTU3_EP_ENABLED ? 'E' : 'e',
+ 		__entry->flags & MTU3_EP_STALL ? 'S' : 's',
+ 		__entry->flags & MTU3_EP_WEDGE ? 'W' : 'w',
+-- 
+cgit 1.3.1-korg
+
