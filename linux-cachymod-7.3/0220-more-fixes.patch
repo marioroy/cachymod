@@ -151,7 +151,6 @@ writer and can remain plain accesses.
 This marks both sides of the intentional concurrent access and constrains
 compiler transformations, without suppressing checking with data_race().
 
-Cc: stable@vger.kernel.org
 Fixes: 788e7dd4c22e ("SELinux: Improve read/write performance")
 Reported-by: syzbot+a7f7cb0737bd91aa698c@syzkaller.appspotmail.com
 Closes: https://syzkaller.appspot.com/bug?extid=a7f7cb0737bd91aa698c
@@ -211,7 +210,6 @@ SE_SBINITIALIZED early exits, set SECURITY_LSM_NATIVE_LABELS in
 *set_kern_flags when the superblock was already using
 SECURITY_FS_USE_NATVE.
 
-Cc: stable@vger.kernel.org
 Closes: https://github.com/SELinuxProject/selinux-kernel/issues/69
 Closes: https://github.com/SELinuxProject/selinux-kernel/issues/70
 Closes: https://github.com/SELinuxProject/selinux-testsuite/issues/91
@@ -280,7 +278,6 @@ or on failure if the call allocated the keyring. This leaves a new keyring
 collectible after failure without starting its timeout while linking is
 still in progress.
 
-Cc: stable@vger.kernel.org # v5.10+
 Fixes: f36f8c75ae2e ("KEYS: Add per-user_namespace registers for persistent per-UID kerberos caches")
 Assisted-by: LLM
 Signed-off-by: Karl Mehltretter <>
@@ -428,7 +425,6 @@ analysis and independently verified with a QEMU reproducer and kernel
 instrumentation.
 
 Fixes: 5ac7eace2d00 ("KEYS: Add a facility to restrict new links into a keyring")
-Cc: stable@vger.kernel.org
 Signed-off-by: 성병찬 <>
 Reviewed-by: Jarkko Sakkinen <>
 Link: https://lore.kernel.org/r/20260930041802.6114-1-tjdqudcks0424@naver.com
@@ -840,7 +836,6 @@ scsi_check_sense() is preserved, as ata_scsi_qc_complete() already does
 for ATA commands.
 
 Fixes: 2e1d2e65e773 ("ata: libata-scsi: terminate deferred commands on time out")
-Cc: stable@vger.kernel.org
 Suggested-by: Niklas Cassel <>
 Signed-off-by: Hengyu Liang <>
 Reviewed-by: Damien Le Moal <>
@@ -916,7 +911,6 @@ other rqs' tasks off the CPU.
 
 Fixes: f0e1a0643a59 ("sched_ext: Implement BPF extensible scheduler class")
 Fixes: 991ef53a4832 ("sched_ext: Make scx_rq_online() also test cpu_active() in addition to SCX_RQ_ONLINE")
-Cc: stable@vger.kernel.org # v6.12+
 Reported-by: Alap Mohan <>
 Reported-by: Joonwoo Park <>
 Signed-off-by: Tejun Heo <>
@@ -1047,8 +1041,6 @@ Clear p->scx.sticky_cpu as soon as enqueue_task_scx() has read it, as
 was done before that commit. The source side is unaffected.
 
 Fixes: ebf1ccff79c4 ("sched_ext: Fix ops.dequeue() semantics")
-Cc: stable@vger.kernel.org # 7.1.x: 18d62044cda7: sched_ext: Preserve rq tracking across local DSQ dispatch
-Cc: stable@vger.kernel.org # 7.1.x
 Reviewed-by: Andrea Righi <>
 Assisted-by: Claude:claude-opus-5.5
 Signed-off-by: Kuba Piecuch <>
@@ -1670,7 +1662,6 @@ the QSEQ field wraps so that it can't reach a value that shifts to 0 on
 32bit either.
 
 Fixes: f0e1a0643a59 ("sched_ext: Implement BPF extensible scheduler class")
-Cc: stable@vger.kernel.org # v6.12+
 Assisted-by: Claude:claude-opus-5.5
 Signed-off-by: Kuba Piecuch <>
 Signed-off-by: Tejun Heo <>
@@ -1851,7 +1842,6 @@ effective_cpus of the top cpuset.
 Fix this by adding back the NULL cs check to avoid this problem.
 
 Fixes: 7a0aabd9ce69 ("cgroup/cpuset: Always use cpu_active_mask")
-Cc: stable@vger.kernel.org # v6.16+
 Reported-by: Farhad Alemi <>
 Link: https://lore.kernel.org/lkml/CA+0ovChh3VjsKN1g+ZGjwwY2fGTpP7uD+aCCByLj5Qbymw=bfQ@mail.gmail.com
 Signed-off-by: Waiman Long <>
@@ -1967,7 +1957,6 @@ current_pwq is not executing work on the target workqueue, so the helper
 should return false and let the draining/destroying warning fire.
 
 Fixes: 8d03ecfe4718 ("workqueue: reimplement is_chained_work() using current_wq_worker()")
-Cc: stable@vger.kernel.org
 Signed-off-by: Pavankumar Kondeti <>
 Signed-off-by: Tejun Heo <>
 ---
@@ -2011,7 +2000,6 @@ Note that this is not a security bug because the buffer overflow can only
 be triggered by root.
 
 Fixes: fb0987682c62 ("dm-integrity: introduce the Inline mode")
-Cc: stable@vger.kernel.org
 Signed-off-by: Ben Cressey <>
 Assisted-by: LLM
 Signed-off-by: Mikulas Patocka <>
@@ -2065,7 +2053,6 @@ Note that this is not a security bug because the memory corruption can
 only be triggered by root.
 
 Fixes: 33d2f09fcb35 ("dm crypt: introduce new format of cipher with "capi:" prefix")
-Cc: stable@vger.kernel.org
 Signed-off-by: Ben Cressey <>
 Assisted-by: LLM
 Signed-off-by: Mikulas Patocka <>
@@ -2126,7 +2113,6 @@ only be triggered by root.
 Reported-by: syzbot+48d935cf48a4a76be346@syzkaller.appspotmail.com
 Closes: https://syzkaller.appspot.com/bug?extid=48d935cf48a4a76be346
 Fixes: 76c072b48e39 ("dm ioctl: move compat code")
-Cc: stable@vger.kernel.org
 Signed-off-by: Palla Raghunath <>
 Signed-off-by: Mikulas Patocka <>
 ---
@@ -2183,7 +2169,6 @@ concurrently, so that they can't trigger it acceidentally.
 
 Signed-off-by: Mikulas Patocka <>
 Reported-by: syzbot+bdff1ecf726d2af66afd@syzkaller.appspotmail.com
-Cc: stable@vger.kernel.org
 ---
  drivers/md/dm-ioctl.c | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
@@ -2250,7 +2235,6 @@ Note that this is not a security bug because only root can trigger it.
 
 Signed-off-by: Ma Xinmeng <>
 Signed-off-by: Mikulas Patocka <>
-Cc: stable@vger.kernel.org
 ---
  drivers/md/dm-snap.c | 14 ++++++++++++++
  1 file changed, 14 insertions(+)
@@ -2307,7 +2291,6 @@ if any of the fields that describe the on-disk geometry changed.
 
 Reported-by: syzbot+675c91651049ad042c5f@syzkaller.appspotmail.com
 Signed-off-by: Mikulas Patocka <>
-Cc: stable@vger.kernel.org
 Fixes: 118ba36e446c ("dm-integrity: fix recalculation in bitmap mode")
 Assisted-by: Claude:claude-opus-5
 ---
@@ -2463,7 +2446,6 @@ drops the reference.
 Drop the reference on the paths_from_inode() failure path too.
 
 Fixes: 558540c17771 ("btrfs scrub: print paths of corrupted files")
-CC: stable@vger.kernel.org
 Reviewed-by: Qu Wenruo <>
 Signed-off-by: Wentao Liang <>
 Reviewed-by: David Sterba <>
@@ -3199,6 +3181,1113 @@ index 89870175d6356..9aaa167d69c13 100644
  		__entry->flags & MTU3_EP_ENABLED ? 'E' : 'e',
  		__entry->flags & MTU3_EP_STALL ? 'S' : 's',
  		__entry->flags & MTU3_EP_WEDGE ? 'W' : 'w',
+-- 
+cgit 1.3.1-korg
+
+From 838bb60dc21553e32df90f2f3bac5b905376e7aa Mon Sep 17 00:00:00 2001
+From: "Lorenzo Stoakes (ARM)" <>
+Date: Wed, 30 Sep 2026 19:47:09 +0100
+Subject: mm/mremap: fix locked_vm leak from MREMAP_DONTUNMAP self-merge
+
+Patch series "mm/mremap: fix two issues with MREMAP_DONTUNMAP", v2.
+
+The MREMAP_DONTUNMAP feature is highly unusual in that it permits mremap()
+operations that keep the original VMA in place.
+
+Historically this has led to a lot of bugs where non-obvious interactions
+occur between existing mremap() operations and the original VMA.
+
+Commit 397432cab17b ("mm/mremap: account mm->locked_vm correctly for
+MREMAP_DONTUNMAP") fixed an accidentally introduced bug around
+mm->locked_vm accounting, but this wasn't the only issue.
+
+And thus history repeats itself, as it turns out that mm->locked_vm
+accounting is broken by MREMAP_DONTUNMAP yet again by two further cases,
+and has been broken ever since the feature was introduced.
+
+Both relate to the fact that VMA_LOCKED_BIT is cleared on the source VMA
+(it has to be as all page tables are moved):
+
+1. If an unfaulted VMA_LOCKONFAULT_BIT anonymous VMA self-merges it
+   clears the VMA_LOCKED_BIT flag and permanently leaks mm->locked_vm
+   pages.
+
+2. If a partial mremap() is performed on a locked VMA there is a leak equal
+   to the number of pages not copied.
+
+(Both for MREMAP_DONTUNMAP operations only)
+
+Both issues can be fixed by treating the source range as distinct from the
+destination range, which is the definition of what MREMAP_DONTUNMAP does
+so is appropriate.
+
+In case 1, simply disallow the self-merge, keeping adjacent source and
+destination VMAs distinct.
+
+In case 2, split the source range ahead of time if the VMA is mlock()'d,
+so accounting is always correct.
+
+Both changes were tested locally and confirmed to fix the issues.
+
+For the purposes of a backport, the fixes are kept distinct, a follow-up
+series can add self-tests.
+
+This patch (of 2):
+
+The MREMAP_DONTUNMAP feature is highly unusual in that it permits mremap()
+operations that keep the original VMA in place.
+
+Historically this has led to a lot of bugs where non-obvious interactions
+occur between existing mremap() operations and the original VMA.
+
+Fix another of these - self-merge.
+
+Self-merge occurs when a VMA is moved in front of or behind itself and the
+attributes of the VMA permit such a merge.
+
+Practically this can only happen for unfaulted anonymous VMAs due to the
+page offset equality requirement for merge:
+
+                           |------------|
+                           |            |
+                           |            v
+        |...........||-----------||...........|
+        |           || unfaulted ||           |
+        |...........||-----------||...........|
+              ^            |
+              |            |
+              |------------|
+
+This becomes problematic if the VMA is configured by the user to
+mlock-on-fault, i.e. the VMA_LOCKED_BIT, VMA_LOCKONFAULT_BIT VMA flags are
+set.
+
+MREMAP_DONTUNMAP clears mlock flags for the source VMA and maintains them
+for the destination VMA.
+
+Self-merge makes this impossible (there is only one VMA) and incorrectly
+clears the destination VMA's mlock flags.
+
+This causes a leak in mm->locked_vm as clearing this flag does not
+decrement the counter and the VMA no longer has VMA_LOCKED_BIT set so it
+is not decremented on unmap.
+
+Resolve this by simply disallowing a self-merge in this case - the source
+and destination VMAs are kept distinct and then are able to have distinct
+mlock() flags.
+
+Update dontunmap_complete() to make the now-redundant self-merge check a
+VM_WARN_ON_ONCE() instead to guard against future regressions.
+
+Also update the VMA userland tests to reflect the change.
+
+Link: https://lore.kernel.org/20260930-fix-dontunmap-partial-self-merge-v2-0-f388985a0f0a@kernel.org
+Link: https://lore.kernel.org/20260930-fix-dontunmap-partial-self-merge-v2-1-f388985a0f0a@kernel.org
+Fixes: e346b3813067 ("mm/mremap: add MREMAP_DONTUNMAP to mremap()")
+Signed-off-by: Lorenzo Stoakes (ARM) <>
+Signed-off-by: Andrew Morton <>
+Reviewed-by: Pedro Falcato <>
+Acked-by: Kiryl Shutsemau (Meta) <>
+Reviewed-by: Jose A. Perez de Azpillaga <>
+Tested-by: Anirudh Srinivasan <>
+Cc: Liam R. Howlett <>
+Cc: Vlastimil Babka <>
+Cc: Jann Horn <>
+Cc: Brian Geffon <>
+Cc: Minchan Kim <>
+---
+ mm/mremap.c                   |  8 ++++++--
+ mm/vma.c                      | 17 ++++++++++++++++-
+ mm/vma.h                      |  2 +-
+ tools/testing/vma/tests/vma.c | 10 +++++-----
+ 4 files changed, 28 insertions(+), 9 deletions(-)
+
+diff --git a/mm/mremap.c b/mm/mremap.c
+index 7c368440fafe2..058dd66fe1d76 100644
+--- a/mm/mremap.c
++++ b/mm/mremap.c
+@@ -1275,7 +1275,8 @@ static int copy_vma_and_data(struct vma_remap_struct *vrm,
+ 	PAGETABLE_MOVE(pmc, NULL, NULL, vrm->addr, vrm->new_addr, vrm->old_len);
+ 
+ 	new_vma = copy_vma(&vma, vrm->new_addr, vrm->new_len, new_pgoff,
+-			   new_anon_pgoff, &pmc.need_rmap_locks);
++			   new_anon_pgoff, &pmc.need_rmap_locks,
++			   vrm->flags & MREMAP_DONTUNMAP);
+ 	if (!new_vma) {
+ 		vrm_uncharge(vrm);
+ 		*new_vma_ptr = NULL;
+@@ -1335,6 +1336,9 @@ static void dontunmap_complete(struct vma_remap_struct *vrm,
+ 	unsigned long old_start = vma->vm_start;
+ 	unsigned long old_end = vma->vm_end;
+ 
++	/* Self-merge is disallowed. */
++	VM_WARN_ON_ONCE(new_vma == vma);
++
+ 	/* We always clear VMA_LOCKED[ONFAULT]_BIT on the old VMA. */
+ 	vma_clear_flags_mask(vma, VMA_LOCKED_MASK);
+ 
+@@ -1342,7 +1346,7 @@ static void dontunmap_complete(struct vma_remap_struct *vrm,
+ 	 * anon_vma links of the old vma is no longer needed after its page
+ 	 * table has been moved.
+ 	 */
+-	if (new_vma != vma && start == old_start && end == old_end) {
++	if (start == old_start && end == old_end) {
+ 		const pgoff_t pgoff_unfaulted = vma->vm_start >> PAGE_SHIFT;
+ 
+ 		unlink_anon_vmas(vma);
+diff --git a/mm/vma.c b/mm/vma.c
+index 6cde67883fb04..d8308c319daa7 100644
+--- a/mm/vma.c
++++ b/mm/vma.c
+@@ -1943,7 +1943,7 @@ static int vma_link(struct mm_struct *mm, struct vm_area_struct *vma)
+  */
+ struct vm_area_struct *copy_vma(struct vm_area_struct **vmap,
+ 	unsigned long addr, unsigned long len, pgoff_t pgoff,
+-	pgoff_t anon_pgoff, bool *need_rmap_locks)
++	pgoff_t anon_pgoff, bool *need_rmap_locks, bool keep_source)
+ {
+ 	struct vm_area_struct *vma = *vmap;
+ 	unsigned long old_vma_start = vma->vm_start;
+@@ -1981,6 +1981,21 @@ struct vm_area_struct *copy_vma(struct vm_area_struct **vmap,
+ 	vmg.pgoff = pgoff;
+ 	vmg.anon_pgoff = anon_pgoff;
+ 	vmg.next = vma_iter_next_rewind(&vmi, NULL);
++
++	/*
++	 * If the original VMA is kept (MREMAP_DONTUNMAP), the source and
++	 * destination VMA must be treated distinctly.
++	 *
++	 * A merge violates this, so in this case disallow a self-merge.
++	 */
++	if (can_self_merge && keep_source) {
++		if (vmg.prev == vma)
++			vmg.prev = NULL;
++		if (vmg.next == vma)
++			vmg.next = NULL;
++		can_self_merge = false;
++	}
++
+ 	new_vma = vma_merge_copied_range(&vmg);
+ 
+ 	if (new_vma) {
+diff --git a/mm/vma.h b/mm/vma.h
+index 024fabe63560a..39514fac72fc7 100644
+--- a/mm/vma.h
++++ b/mm/vma.h
+@@ -535,7 +535,7 @@ void unlink_file_vma_batch_add(struct unlink_vma_file_batch *vb,
+ 
+ struct vm_area_struct *copy_vma(struct vm_area_struct **vmap,
+ 	unsigned long addr, unsigned long len, pgoff_t pgoff,
+-	pgoff_t anon_pgoff, bool *need_rmap_locks);
++	pgoff_t anon_pgoff, bool *need_rmap_locks, bool keep_source);
+ 
+ struct anon_vma *find_mergeable_anon_vma(struct vm_area_struct *vma);
+ 
+diff --git a/tools/testing/vma/tests/vma.c b/tools/testing/vma/tests/vma.c
+index c8ef7b8cd46be..e973e0a6d1a82 100644
+--- a/tools/testing/vma/tests/vma.c
++++ b/tools/testing/vma/tests/vma.c
+@@ -40,7 +40,7 @@ static bool test_copy_vma(void)
+ 	vma = alloc_and_link_vma(&mm, 0x1000, 0x2000, 1, vma_flags);
+ 	vma_set_anonymous(vma);
+ 	vma_orig = vma;
+-	vma_new = copy_vma(&vma, 0x2000, 0x1000, 1, 1, &need_locks);
++	vma_new = copy_vma(&vma, 0x2000, 0x1000, 1, 1, &need_locks, false);
+ 	ASSERT_EQ(vma_new, vma_orig);
+ 	ASSERT_EQ(vma, vma_orig);
+ 	ASSERT_EQ(vma_new->vm_start, 0x1000);
+@@ -53,7 +53,7 @@ static bool test_copy_vma(void)
+ 	vma = alloc_and_link_vma(&mm, 0x2000, 0x3000, 2, vma_flags);
+ 	vma_set_anonymous(vma);
+ 	vma_orig = vma;
+-	vma_new = copy_vma(&vma, 0x1000, 0x1000, 2, 2, &need_locks);
++	vma_new = copy_vma(&vma, 0x1000, 0x1000, 2, 2, &need_locks, false);
+ 	ASSERT_EQ(vma_new, vma_orig);
+ 	ASSERT_EQ(vma, vma_orig);
+ 	ASSERT_EQ(vma_new->vm_start, 0x1000);
+@@ -71,7 +71,7 @@ static bool test_copy_vma(void)
+ 	vma = alloc_and_link_vma(&mm, 0x3000, 0x4000, 3, vma_flags);
+ 	vma_set_anonymous(vma);
+ 	vma_orig = vma;
+-	vma_new = copy_vma(&vma, 0x2000, 0x1000, 3, 3, &need_locks);
++	vma_new = copy_vma(&vma, 0x2000, 0x1000, 3, 3, &need_locks, false);
+ 	ASSERT_NE(vma_new, vma_orig);
+ 	ASSERT_EQ(vma_new, vma);
+ 	ASSERT_EQ(vma_new->vm_start, 0x1000);
+@@ -82,7 +82,7 @@ static bool test_copy_vma(void)
+ 	/* Move backwards and do not merge. */
+ 
+ 	vma = alloc_and_link_vma(&mm, 0x3000, 0x5000, 3, vma_flags);
+-	vma_new = copy_vma(&vma, 0, 0x2000, 0, 3, &need_locks);
++	vma_new = copy_vma(&vma, 0, 0x2000, 0, 3, &need_locks, false);
+ 	ASSERT_NE(vma_new, vma);
+ 	ASSERT_EQ(vma_new->vm_start, 0);
+ 	ASSERT_EQ(vma_new->vm_end, 0x2000);
+@@ -95,7 +95,7 @@ static bool test_copy_vma(void)
+ 
+ 	vma = alloc_and_link_vma(&mm, 0, 0x2000, 0, vma_flags);
+ 	vma_next = alloc_and_link_vma(&mm, 0x6000, 0x8000, 6, vma_flags);
+-	vma_new = copy_vma(&vma, 0x4000, 0x2000, 4, 4, &need_locks);
++	vma_new = copy_vma(&vma, 0x4000, 0x2000, 4, 4, &need_locks, false);
+ 	vma_assert_attached(vma_new);
+ 
+ 	ASSERT_EQ(vma_new, vma_next);
+-- 
+cgit 1.3.1-korg
+
+From 597e4b9ab48a3f841080f627722064853d3f650e Mon Sep 17 00:00:00 2001
+From: "Lorenzo Stoakes (ARM)" <>
+Date: Wed, 30 Sep 2026 19:47:10 +0100
+Subject: mm/mremap: fix locked_vm leak by splitting VMA for MREMAP_DONTUNMAP
+
+The MREMAP_DONTUNMAP feature is highly unusual in that it permits mremap()
+operations that keep the original VMA in place.
+
+Historically this has led to a lot of bugs where non-obvious interactions
+occur between existing mremap() operations and the original VMA.
+
+Fix another of these - partial copies.
+
+The long-standing mremap() partial VMA logic has the baked-in assumption
+that the originating VMA is unmapped and thus moved.
+
+However MREMAP_DONTUNMAP defeats this by performing a partial copy
+instead since it keeps the source VMA around.
+
+An mremap(..., MREMAP_DONTUNMAP) operation disallows resizing of the VMA,
+but the operation can be performed partially:
+
+                           |-----------------|
+                           |                 |
+                           |                 v
+                        <------>          <------>
+                        .new_sz.           new_sz
+                     |--.------.--|       |------|
+                     |  .source.  |       | dest |
+                     |--.------.--|       |------|
+                     <------------>
+                         old_sz
+
+The page tables in the specified range are moved, but the original VMA is
+kept intact.
+
+This interacts poorly with mlock()'d VMAs, as the VMA_LOCKED_BIT flag is
+cleared for the entire source VMA and set for the entire destination VMA.
+
+This results in an mm->locked_vm leak as the change is therefore not
+accounted correctly.
+
+The clear solution here is to make the portion of the source VMA which is
+mremap()'d distinct from the rest of it, a.k.a. split it.
+
+Therefore resolve this issue by splitting it ahead of the rest of the
+mremap() operation if the VMA is mlock()'d.
+
+This is valid, as the source VMA will lose its VMA_LOCKED_BIT flag, so if a
+partial remap it will become distinct from the rest of the VMA.
+
+In order to make this change re-expose split_vma() in vma.h for
+CONFIG_MMU (nommu doesn't compile mremap.c and uses a static helper
+instead).
+
+Finally, update the sys_map_count check to account for this case.
+
+Note that the early check does not use needs_pre_split() - this is because
+the VMA has not been looked up by this point, so be conservative and assume
+that the VMA is mlock()'d in this case for the purposes of the
+sys_map_count check.
+
+Link: https://lore.kernel.org/20260930-fix-dontunmap-partial-self-merge-v2-2-f388985a0f0a@kernel.org
+Fixes: e346b3813067 ("mm/mremap: add MREMAP_DONTUNMAP to mremap()")
+Signed-off-by: Lorenzo Stoakes (ARM) <>
+Signed-off-by: Andrew Morton <>
+Reviewed-by: Pedro Falcato <>
+Acked-by: Kiryl Shutsemau (Meta) <>
+Reviewed-by: Jose A. Perez de Azpillaga <>
+Tested-by: Anirudh Srinivasan <>
+Cc: Liam R. Howlett <>
+Cc: Vlastimil Babka <>
+Cc: Jann Horn <>
+Cc: Brian Geffon <>
+Cc: Minchan Kim <>
+---
+ mm/mremap.c | 62 +++++++++++++++++++++++++++++++++++++++++++++----------------
+ mm/vma.c    |  4 ++--
+ mm/vma.h    |  5 +++++
+ 3 files changed, 53 insertions(+), 18 deletions(-)
+
+diff --git a/mm/mremap.c b/mm/mremap.c
+index 058dd66fe1d76..444f37d7cd28e 100644
+--- a/mm/mremap.c
++++ b/mm/mremap.c
+@@ -1037,6 +1037,7 @@ static void vrm_stat_account(struct vma_remap_struct *vrm,
+ }
+ 
+ static bool __check_map_count_against_split(struct mm_struct *mm,
++					    bool pre_split,
+ 					    bool before_unmaps)
+ {
+ 	const int sys_map_count = get_sysctl_max_map_count();
+@@ -1088,26 +1089,42 @@ static bool __check_map_count_against_split(struct mm_struct *mm,
+ 	 * Therefore we must check to ensure we have headroom of 2 additional
+ 	 * VMAs.
+ 	 */
+-	return map_count + 2 <= sys_map_count;
++	map_count += 2;
++
++	/* If pre-split, the -1 observed above doesn't apply. */
++	if (pre_split)
++		map_count++;
++
++	return map_count <= sys_map_count;
++}
++
++static bool needs_pre_split(struct vma_remap_struct *vrm)
++{
++	/*
++	 * An MREMAP_DONTUNMAP of a mlock()'d VMA needs to unlock the
++	 * source VMA, so split in this case.
++	 */
++	return (vrm->flags & MREMAP_DONTUNMAP) &&
++		vma_test(vrm->vma, VMA_LOCKED_BIT);
+ }
+ 
+ /* Do we violate the map count limit if we split VMAs when moving the VMA? */
+-static bool check_map_count_against_split(void)
++static bool check_map_count_against_split(struct vma_remap_struct *vrm)
+ {
+ 	return __check_map_count_against_split(current->mm,
+-					       /*before_unmaps=*/false);
++		needs_pre_split(vrm), /*before_unmaps=*/false);
+ }
+ 
+ /* Do we violate the map count limit if we split VMAs prior to early unmaps? */
+-static bool check_map_count_against_split_early(void)
++static bool check_map_count_against_split_early(struct vma_remap_struct *vrm)
+ {
+ 	return __check_map_count_against_split(current->mm,
+-					       /*before_unmaps=*/true);
++		vrm->flags & MREMAP_DONTUNMAP, /*before_unmaps=*/true);
+ }
+ 
+ /*
+- * Perform checks before attempting to write a VMA prior to it being
+- * moved.
++ * Perform checks and preparation before attempting to write a VMA prior to it
++ * being moved.
+  */
+ static unsigned long prep_move_vma(struct vma_remap_struct *vrm)
+ {
+@@ -1116,19 +1133,17 @@ static unsigned long prep_move_vma(struct vma_remap_struct *vrm)
+ 	unsigned long old_addr = vrm->addr;
+ 	unsigned long old_len = vrm->old_len;
+ 	vm_flags_t dummy = vma->vm_flags;
++	const bool split_before = vma->vm_start != old_addr;
++	const bool split_after = vma->vm_end != old_addr + old_len;
+ 
+-	/*
+-	 * We'd prefer to avoid failure later on in do_munmap: we copy a VMA,
+-	 * which may not merge, then (if MREMAP_DONTUNMAP is not set) unmap the
+-	 * source, which may split, causing a net increase of 2 mappings.
+-	 */
+-	if (!check_map_count_against_split())
++	/* Avoid failure later on. */
++	if (!check_map_count_against_split(vrm))
+ 		return -ENOMEM;
+ 
+ 	if (vma->vm_ops && vma->vm_ops->may_split) {
+-		if (vma->vm_start != old_addr)
++		if (split_before)
+ 			err = vma->vm_ops->may_split(vma, old_addr);
+-		if (!err && vma->vm_end != old_addr + old_len)
++		if (!err && split_after)
+ 			err = vma->vm_ops->may_split(vma, old_addr + old_len);
+ 		if (err)
+ 			return err;
+@@ -1146,6 +1161,21 @@ static unsigned long prep_move_vma(struct vma_remap_struct *vrm)
+ 	if (err)
+ 		return err;
+ 
++	/*
++	 * To account mlock()'d pages correctly in the MREMAP_DONTUNMAP
++	 * case perform any split ahead of time for an mlock()'d VMA.
++	 */
++	if (needs_pre_split(vrm)) {
++		VMA_ITERATOR(vmi, vma->vm_mm, old_addr);
++
++		if (split_before)
++			err = split_vma(&vmi, vma, old_addr, 1);
++		if (!err && split_after)
++			err = split_vma(&vmi, vma, old_addr + old_len, 0);
++		vrm->vmi_needs_invalidate = true;
++		return err;
++	}
++
+ 	return 0;
+ }
+ 
+@@ -2006,7 +2036,7 @@ static unsigned long do_mremap(struct vma_remap_struct *vrm)
+ 		return -EINTR;
+ 	vrm->mmap_locked = true;
+ 
+-	if (!check_map_count_against_split_early()) {
++	if (!check_map_count_against_split_early(vrm)) {
+ 		mmap_write_unlock(mm);
+ 		return -ENOMEM;
+ 	}
+diff --git a/mm/vma.c b/mm/vma.c
+index d8308c319daa7..6c35f0d775ab6 100644
+--- a/mm/vma.c
++++ b/mm/vma.c
+@@ -634,8 +634,8 @@ out_free_vma:
+  * Split a vma into two pieces at address 'addr', a new vma is allocated
+  * either for the first part or the tail.
+  */
+-static int split_vma(struct vma_iterator *vmi, struct vm_area_struct *vma,
+-		     unsigned long addr, int new_below)
++int split_vma(struct vma_iterator *vmi, struct vm_area_struct *vma,
++	      unsigned long addr, int new_below)
+ {
+ 	if (vma->vm_mm->map_count >= get_sysctl_max_map_count())
+ 		return -ENOMEM;
+diff --git a/mm/vma.h b/mm/vma.h
+index 39514fac72fc7..36973abaa015a 100644
+--- a/mm/vma.h
++++ b/mm/vma.h
+@@ -556,6 +556,11 @@ int do_brk_flags(struct vma_iterator *vmi, struct vm_area_struct *brkvma,
+ unsigned long unmapped_area(struct vm_unmapped_area_info *info);
+ unsigned long unmapped_area_topdown(struct vm_unmapped_area_info *info);
+ 
++#ifdef CONFIG_MMU
++int split_vma(struct vma_iterator *vmi, struct vm_area_struct *vma,
++	      unsigned long addr, int new_below);
++#endif
++
+ static inline bool vma_wants_manual_pte_write_upgrade(struct vm_area_struct *vma)
+ {
+ 	/*
+-- 
+cgit 1.3.1-korg
+
+From 2fb552b0bee70c24c092720028ab4620f5eb2646 Mon Sep 17 00:00:00 2001
+From: Mikhail Gavrilov <>
+Date: Fri, 25 Sep 2026 10:06:47 +0500
+Subject: mm: don't schedule deferred kernel page table freeing while booting
+
+Booting with a boot-time function tracer and a filter, for example
+
+  ftrace=function ftrace_filter=pud_free_pmd_page
+
+panics on 7.3-rc4 as soon as the tracer starts:
+
+  [   23.531178] Starting tracer 'function'
+  [   23.675800] Oops: general protection fault, probably for non-canonical address 0xdffffc0000000038: 0000 [#1] SMP KASAN NOPTI
+  [   23.819917] KASAN: null-ptr-deref in range [0x00000000000001c0-0x00000000000001c7]
+  [   23.964025] CPU: 0 UID: 0 PID: 0 Comm: swapper Not tainted 7.3.0-rc4-fe2ec83746e5-with-fixes-v2+ #195 PREEMPT(undef)
+  [   24.252248] RIP: 0010:__queue_work+0xab/0xf00
+  [   25.981629] Call Trace:
+  [   26.125727]  <TASK>
+  [   26.413912]  ? pagetable_free_kernel+0x20/0x120
+  [   26.990283]  queue_work_on+0x97/0xf0
+  [   27.134382]  __cpa_collapse_large_pages+0x501/0x6f0
+  [   27.566662]  cpa_flush+0x394/0x620
+  [   27.998953]  change_page_attr_set_clr+0x321/0x4a0
+  [   29.151729]  set_memory_rox+0xa2/0xf0
+  [   29.584018]  create_trampoline+0x431/0x6f0
+  ...
+  [   44.343347] Kernel panic - not syncing: Attempted to kill the idle task!
+
+The boot-time tracer is started from early_trace_init(), which runs
+before workqueue_init_early().  Making its trampoline read-only splits a
+large page, and CPA collapses it again right away.  The split table has
+been a kernel page table since commit 9e4a3ec3411b
+("x86/mm/pat: Allocate split page tables as kernel page tables"), so the
+collapse frees it through pagetable_free_kernel(), which queues work on
+system_percpu_wq - still NULL at that point.  That commit is correct in
+itself; it only lets CPA reach pagetable_free_kernel() before the
+workqueue that function relies on exists.
+
+Keep putting the table on the list, but don't schedule the work while
+the system is still booting.  A core_initcall schedules it once to free
+whatever was queued by then.
+
+Link: https://lore.kernel.org/20260925050647.86913-1-mikhail.v.gavrilov@gmail.com
+Link: https://lore.kernel.org/20260924064321.23787-1-mikhail.v.gavrilov@gmail.com
+Fixes: 9e4a3ec3411b ("x86/mm/pat: Allocate split page tables as kernel page tables")
+Signed-off-by: Mikhail Gavrilov <>
+Signed-off-by: Andrew Morton <>
+Suggested-by: David Hildenbrand (Arm) <>
+Suggested-by: Lorenzo Stoakes (ARM) <>
+Reviewed-by: Andrew Morton <>
+Reviewed-by: David Hildenbrand (Arm) <>
+Reviewed-by: Lorenzo Stoakes (ARM) <>
+Reviewed-by: Jose A. Perez de Azpillaga <>
+Tested-by: Jose A. Perez de Azpillaga <>
+Cc: Dave Hansen <>
+Cc: Liam R. Howlett <>
+Cc: Vlastimil Babka <>
+Cc: Mike Rapoport <>
+Cc: Suren Baghdasaryan <>
+Cc: Michal Hocko <>
+Cc: Vishal Moola (Oracle) <>
+Cc: Ingo Molnar <>
+Cc: Lu Baolu <>
+Cc: Jason Gunthorpe <>
+Cc: Steven Rostedt <>
+---
+ mm/pgtable-generic.c | 20 +++++++++++++++++++-
+ 1 file changed, 19 insertions(+), 1 deletion(-)
+
+diff --git a/mm/pgtable-generic.c b/mm/pgtable-generic.c
+index b91b1a98029c7..cd227fc05d2d8 100644
+--- a/mm/pgtable-generic.c
++++ b/mm/pgtable-generic.c
+@@ -438,12 +438,30 @@ static void kernel_pgtable_work_func(struct work_struct *work)
+ 		__pagetable_free(pt);
+ }
+ 
++static void schedule_kernel_pgtable_free(void)
++{
++	schedule_work(&kernel_pgtable_work.work);
++}
++
+ void pagetable_free_kernel(struct ptdesc *pt)
+ {
+ 	spin_lock(&kernel_pgtable_work.lock);
+ 	list_add(&pt->pt_list, &kernel_pgtable_work.list);
+ 	spin_unlock(&kernel_pgtable_work.lock);
+ 
+-	schedule_work(&kernel_pgtable_work.work);
++	/*
++	 * The workqueue may not exist yet while the system is booting.
++	 * kernel_pgtable_drain_early() schedules the work once it does.
++	 */
++	if (system_state != SYSTEM_BOOTING)
++		schedule_kernel_pgtable_free();
++}
++
++static int __init kernel_pgtable_drain_early(void)
++{
++	/* Free the kernel page tables queued while booting. */
++	schedule_kernel_pgtable_free();
++	return 0;
+ }
++core_initcall(kernel_pgtable_drain_early);
+ #endif
+-- 
+cgit 1.3.1-korg
+
+From 28eed9906e01d01cbdfb352e799413b2e8b33b76 Mon Sep 17 00:00:00 2001
+From: Carlos Llamas <>
+Date: Sun, 27 Sep 2026 16:24:18 +0000
+Subject: selftests/mm: cleanup -Wformat issues in hugetlb-mmap
+
+Commit ae571cd6015c ("selftests/mm: hugetlb-mmap: add setup of HugeTLB
+pages") and commit 9c5a65f374f8 ("selftests/mm: merge map_hugetlb into
+hugepage-mmap") added logs of 'hugepage_size' which has a size_t type.
+However, the incorrect format specifier '%lu' was used which triggers
+-Wformat warnings when building for 32-bit:
+
+  hugetlb-mmap.c:125:55: warning: format specifies type 'unsigned long'
+  but the argument has type 'size_t' (aka 'unsigned int') [-Wformat]
+    125 | ksft_print_msg("Default size hugepages (%lu kB)\n", hugepage_size >> 10);
+        |                                         ~~~         ^~~~~~~~~~~~~~~~~~~
+        |                                         %zu
+
+  hugetlb-mmap.c:134:47: warning: format specifies type 'unsigned long'
+  but the argument has type 'size_t' (aka 'unsigned int') [-Wformat]
+    134 | ksft_exit_skip("Not enough %lu Kb pages\n", hugepage_size >> 10);
+        |                            ~~~              ^~~~~~~~~~~~~~~~~~~
+        |                            %zu
+
+Fix this by switching to the expected '%zu' format specifier.
+
+Link: https://lore.kernel.org/20260927162419.820609-1-cmllamas@google.com
+Fixes: ae571cd6015c ("selftests/mm: hugetlb-mmap: add setup of HugeTLB pages")
+Fixes: 9c5a65f374f8 ("selftests/mm: merge map_hugetlb into hugepage-mmap")
+Signed-off-by: Carlos Llamas <>
+Signed-off-by: Andrew Morton <>
+Reviewed-by: Sarthak Sharma <>
+Reviewed-by: SJ Park <>
+Acked-by: Lorenzo Stoakes (ARM) <>
+Cc: Mike Rapoport <>
+Cc: David Hildenbrand <>
+Cc: Liam R. Howlett <>
+Cc: Vlastimil Babka <>
+Cc: Suren Baghdasaryan <>
+Cc: Michal Hocko <>
+Cc: Shuah Khan <>
+---
+ tools/testing/selftests/mm/hugetlb-mmap.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/tools/testing/selftests/mm/hugetlb-mmap.c b/tools/testing/selftests/mm/hugetlb-mmap.c
+index 0f2aad1b7dbd6..2edbc992e6bcf 100644
+--- a/tools/testing/selftests/mm/hugetlb-mmap.c
++++ b/tools/testing/selftests/mm/hugetlb-mmap.c
+@@ -122,7 +122,7 @@ int main(int argc, char **argv)
+ 		hugepage_size = default_huge_page_size();
+ 		if (!hugepage_size)
+ 			ksft_exit_skip("Could not detect default hugetlb page size.");
+-		ksft_print_msg("Default size hugepages (%lu kB)\n", hugepage_size >> 10);
++		ksft_print_msg("Default size hugepages (%zu kB)\n", hugepage_size >> 10);
+ 	}
+ 
+ 	/* munmap will fail if the length is not page aligned */
+@@ -131,7 +131,7 @@ int main(int argc, char **argv)
+ 
+ 	hugetlb_set_nr_pages(hugepage_size, nr);
+ 	if (hugetlb_free_pages(hugepage_size) < nr)
+-		ksft_exit_skip("Not enough %lu Kb pages\n", hugepage_size >> 10);
++		ksft_exit_skip("Not enough %zu Kb pages\n", hugepage_size >> 10);
+ 
+ 	ksft_set_plan(2);
+ 	ksft_print_msg("Mapping %lu Mbytes\n", (unsigned long)length >> 20);
+-- 
+cgit 1.3.1-korg
+
+From d3ed3a40951c964d30dc7fc63d13e87a873ea300 Mon Sep 17 00:00:00 2001
+From: "Lorenzo Stoakes (ARM)" <>
+Date: Thu, 24 Sep 2026 15:48:24 +0100
+Subject: drivers/char/mem: mmap readonly MAP_SHARED-/dev/zero correctly
+
+Rather surprisingly, opening /dev/zero read-only then mmap()'ing it
+MAP_SHARED gets you true anonymous memory (albeit in a VMA with non-NULL
+vma->vm_file).
+
+This is a by-product of MAP_PRIVATE-/dev/zero being how anonymous memory
+was mapped in Linux's distant past.
+
+It happens because mmap_zero_prepare() gates on VMA_SHARED_BIT and when
+mapping a read-only file MAP_SHARED, do_mmap() clears VMA_SHARED_BIT and
+VMA_MAYWRITE_BIT.
+
+The gating is incorrect - the (poorly named) VMA_MAYSHARE_BIT flag exists
+explicitly to tell you if something was originally mapped MAP_SHARED.
+
+So the fix is simple - gate on this instead.
+
+This isn't exactly a common use case, but it's unexpected behaviour which
+now causes an assert if CONFIG_DEBUG_VM is set.
+
+While this bug has existed since the dawn of time for linux (or at least
+since 2.6.12), it hasn't caused issues in the past, so while it's
+incorrect behaviour, it doesn't seem necessary to backport that far.
+
+The mapping is now accounted at mmap time and can fail with -ENOMEM under
+strict overcommit, and read faults allocate folios.  However this is
+normal behaviour for a read-only shmem mapping.
+
+Commit 93c0c8dc87f6 ("mm/rmap: use anon pgoff to track MAP_PRIVATE
+file-backed anon folios") is the first patch at which the debug assert
+fires, so target that instead.
+
+Link: https://lore.kernel.org/20260924-fix-dev-zero-readonly-shared-v1-1-153c2111e323@kernel.org
+Fixes: 93c0c8dc87f6 ("mm/rmap: use anon pgoff to track MAP_PRIVATE file-backed anon folios")
+Signed-off-by: Lorenzo Stoakes (ARM) <>
+Signed-off-by: Andrew Morton <>
+Reported-by: <syzbot+c181d3198e98f8aef8b9@syzkaller.appspotmail.com>
+Closes: https://lore.kernel.org/linux-mm/6ab4ae75.80e1c6cc.1e8e5f.000d.GAE@google.com/
+Acked-by: David Hildenbrand (Arm) <>
+Cc: Liam R. Howlett <>
+Cc: Vlastimil Babka <>
+Cc: Jann Horn <>
+Cc: Pedro Falcato <>
+Cc: Mike Rapoport <>
+Cc: Suren Baghdasaryan <>
+Cc: Michal Hocko <>
+Cc: Arnd Bergmann <>
+Cc: Greg Kroah-Hartman <>
+Cc: Lance Yang <>
+---
+ drivers/char/mem.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/char/mem.c b/drivers/char/mem.c
+index 63253d1de5d70..5b93c92c2cf19 100644
+--- a/drivers/char/mem.c
++++ b/drivers/char/mem.c
+@@ -503,7 +503,7 @@ static int mmap_zero_prepare(struct vm_area_desc *desc)
+ #ifndef CONFIG_MMU
+ 	return -ENOSYS;
+ #endif
+-	if (vma_desc_test(desc, VMA_SHARED_BIT))
++	if (vma_desc_test(desc, VMA_MAYSHARE_BIT))
+ 		return shmem_zero_setup_desc(desc);
+ 
+ 	/*
+-- 
+cgit 1.3.1-korg
+
+From ff82fc3a4a1d417dee1229681cc5285986edb1fa Mon Sep 17 00:00:00 2001
+From: Ridham Khurana <>
+Date: Wed, 23 Sep 2026 11:39:02 +0000
+Subject: gpio: xilinx: fix runtime PM leak on request error path
+
+pm_runtime_get_sync() leaves the usage counter incremented even when it
+fails, and xgpio_request() returns the error without dropping it.
+
+gpiolib does not call ->free() when ->request() fails, so xgpio_free(),
+which holds the only matching pm_runtime_put(), never runs. The reference
+is leaked and the controller can no longer runtime-suspend, so its clock
+stays enabled.
+
+Switch to pm_runtime_resume_and_get(), which only increments the usage
+counter on success.
+
+Fixes: 26b04774621e ("gpio: gpio-xilinx: Add support for suspend and resume")
+Signed-off-by: Ridham Khurana <>
+Link: https://patch.msgid.link/20260923113905.1409290-1-khurana.ridham222@gmail.com
+Signed-off-by: Bartosz Golaszewski <>
+---
+ drivers/gpio/gpio-xilinx.c | 9 +--------
+ 1 file changed, 1 insertion(+), 8 deletions(-)
+
+diff --git a/drivers/gpio/gpio-xilinx.c b/drivers/gpio/gpio-xilinx.c
+index 532205175827a..9406ce85f9330 100644
+--- a/drivers/gpio/gpio-xilinx.c
++++ b/drivers/gpio/gpio-xilinx.c
+@@ -271,14 +271,7 @@ static void xgpio_save_regs(struct xgpio_instance *chip)
+ 
+ static int xgpio_request(struct gpio_chip *chip, unsigned int offset)
+ {
+-	int ret;
+-
+-	ret = pm_runtime_get_sync(chip->parent);
+-	/*
+-	 * If the device is already active pm_runtime_get() will return 1 on
+-	 * success, but gpio_request still needs to return 0.
+-	 */
+-	return ret < 0 ? ret : 0;
++	return pm_runtime_resume_and_get(chip->parent);
+ }
+ 
+ static void xgpio_free(struct gpio_chip *chip, unsigned int offset)
+-- 
+cgit 1.3.1-korg
+
+From 4d69e74034b208588636ecc177e0dd43a7696af3 Mon Sep 17 00:00:00 2001
+From: Sang-Hoon Choi <>
+Date: Wed, 30 Sep 2026 02:37:31 +0900
+Subject: gpio: exar: initialize the ID before registering its cleanup
+
+devm_add_action_or_reset() invokes the cleanup action immediately when
+registering the action fails.  gpio_exar_probe() currently stores the
+allocated ID in exar_gpio only after registering the action, so that
+failure makes exar_devm_ida_free() release ID 0.  If the allocated ID is
+nonzero, this leaks that ID and can free ID 0 belonging to another device.
+
+Store the ID before registering the cleanup action so both the immediate
+failure path and normal device teardown release the correct allocation.
+
+Fixes: 5300ebb695fa ("gpio: exar: use devm action for freeing the IDA and drop remove()")
+Reported-by: Changyul Lee <>
+Assisted-by: LLM
+Signed-off-by: Sang-Hoon Choi <>
+Reviewed-by: Linus Walleij <>
+Link: https://patch.msgid.link/179070265834.12871.48183786512201899.idr-bug-79@gmail.com
+Signed-off-by: Bartosz Golaszewski <>
+---
+ drivers/gpio/gpio-exar.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/gpio/gpio-exar.c b/drivers/gpio/gpio-exar.c
+index 9053662f18177..f629cc526f3ee 100644
+--- a/drivers/gpio/gpio-exar.c
++++ b/drivers/gpio/gpio-exar.c
+@@ -199,6 +199,7 @@ static int gpio_exar_probe(struct platform_device *pdev)
+ 	index = ida_alloc(&ida_index, GFP_KERNEL);
+ 	if (index < 0)
+ 		return index;
++	exar_gpio->index = index;
+ 
+ 	ret = devm_add_action_or_reset(dev, exar_devm_ida_free, exar_gpio);
+ 	if (ret)
+@@ -214,7 +215,6 @@ static int gpio_exar_probe(struct platform_device *pdev)
+ 	exar_gpio->gpio_chip.set = exar_set_value;
+ 	exar_gpio->gpio_chip.base = -1;
+ 	exar_gpio->gpio_chip.ngpio = ngpios;
+-	exar_gpio->index = index;
+ 	exar_gpio->first_pin = first_pin;
+ 
+ 	ret = devm_gpiochip_add_data(dev, &exar_gpio->gpio_chip, exar_gpio);
+-- 
+cgit 1.3.1-korg
+
+From 7efa1a1953cd6b20b23a3524d5b4b81789c6ef25 Mon Sep 17 00:00:00 2001
+From: Fan Wu <>
+Date: Tue, 29 Sep 2026 09:36:46 +0000
+Subject: gpio: mpsse: fix race when arming the IRQ poll worker
+
+gpio_mpsse_irq_enable() arms the poll worker before publishing it:
+schedule_work() runs before the worker is added to priv->workers. If
+gpio_mpsse_disconnect() walks the list in that window it misses the
+worker, and once disconnect returns, the USB core frees mpsse_priv
+while the orphaned gpio_mpsse_poll() work keeps accessing it, causing
+a use-after-free.
+
+Fix this by publishing and arming the worker in one irq_spin
+critical section. Teardown walks the same list under irq_spin, so a
+worker found on the list is guaranteed to be armed, and
+cancel_work_sync() handles it whether it is queued or running.
+
+A worker armed after the disconnect walk would still be missed, so
+also set a new priv->dying flag under irq_spin before the teardown
+walk, and check it in the same critical section, freeing it via
+kfree_rcu() instead when the device is going away, since kfree()
+would be called with the IRQ core's raw spinlock held and may sleep
+on PREEMPT_RT. schedule_work() is safe to call with irq_spin held,
+and the next probe gets a fresh mpsse_priv, so the flag never needs
+to be cleared.
+
+This issue was found by an in-house static analysis tool.
+
+Fixes: 179ef1127d7a ("gpio: mpsse: ensure worker is torn down")
+Co-developed-by: Song Li <>
+Signed-off-by: Song Li <>
+Signed-off-by: Fan Wu <>
+Link: https://patch.msgid.link/20260929093646.18419-1-fanwu01@zju.edu.cn
+Signed-off-by: Bartosz Golaszewski <>
+---
+ drivers/gpio/gpio-mpsse.c | 24 ++++++++++++++++++++++--
+ 1 file changed, 22 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/gpio/gpio-mpsse.c b/drivers/gpio/gpio-mpsse.c
+index 30e8009b5fcc7..61c5ca96314b7 100644
+--- a/drivers/gpio/gpio-mpsse.c
++++ b/drivers/gpio/gpio-mpsse.c
+@@ -10,6 +10,7 @@
+ #include <linux/cleanup.h>
+ #include <linux/gpio/driver.h>
+ #include <linux/mutex.h>
++#include <linux/rcupdate.h>
+ #include <linux/spinlock.h>
+ #include <linux/usb.h>
+ 
+@@ -24,6 +25,7 @@ struct mpsse_priv {
+ 	raw_spinlock_t irq_spin;     /* protects worker list */
+ 	atomic_t irq_type[16];	     /* pin -> edge detection type */
+ 	atomic_t irq_enabled;
++	atomic_t dying;		     /* no new workers after disconnect */
+ 	int id;
+ 
+ 	u8 gpio_outputs[2];	     /* Output states for GPIOs [L, H] */
+@@ -46,6 +48,7 @@ struct mpsse_worker {
+ 	atomic_t       cancelled;
+ 	struct list_head    list;   /* linked list */
+ 	struct list_head destroy;   /* teardown linked list */
++	struct rcu_head      rcu;   /* deferred free for dying path */
+ };
+ 
+ struct bulk_desc {
+@@ -525,10 +528,24 @@ static void gpio_mpsse_irq_enable(struct irq_data *irqd)
+ 		worker->priv = priv;
+ 		INIT_LIST_HEAD(&worker->list);
+ 		INIT_WORK(&worker->work, gpio_mpsse_poll);
+-		schedule_work(&worker->work);
+ 
+-		scoped_guard(raw_spinlock_irqsave, &priv->irq_spin)
++		scoped_guard(raw_spinlock_irqsave, &priv->irq_spin) {
++			if (atomic_read(&priv->dying)) {
++				/*
++				 * Cannot kfree() here: this callback
++				 * runs with the IRQ descriptor's raw
++				 * spinlock held and kfree() may sleep
++				 * on PREEMPT_RT. The worker is not
++				 * yet published, so the deferred free
++				 * is unobservable.
++				 */
++				kfree_rcu(worker, rcu);
++				return;
++			}
++
+ 			list_add(&worker->list, &priv->workers);
++			schedule_work(&worker->work);
++		}
+ 	}
+ }
+ 
+@@ -704,6 +721,9 @@ static void gpio_mpsse_disconnect(struct usb_interface *intf)
+ {
+ 	struct mpsse_priv *priv = usb_get_intfdata(intf);
+ 
++	scoped_guard(raw_spinlock_irqsave, &priv->irq_spin)
++		atomic_set(&priv->dying, 1);
++
+ 	/*
+ 	 * Lock prevents double-free of worker from here and the teardown
+ 	 * step at the beginning of gpio_mpsse_poll
+-- 
+cgit 1.3.1-korg
+
+From 58a00330248154461c52a6f3bd5c01e5b67f9560 Mon Sep 17 00:00:00 2001
+From: Hans de Goede <>
+Date: Fri, 18 Sep 2026 11:38:38 +0200
+Subject: power: sequencing: pcie-m2: Add Lenovo ThinkPad T14s gen6 WCN7850
+ subsystem PCI ids
+
+Commit a39ac4651e3b ("power: sequencing: pcie-m2: Match WCN6855 and WCN7851
+UART BT variants by subdevice ID") has caused the serdev for the WCN7850 on
+the Lenovo ThinkPad T14s gen6 WCN7850 no longer getting created.
+
+Add a new match using the PCI subdev ids from the T14s gen6 to fix this.
+
+Fixes: a39ac4651e3b ("power: sequencing: pcie-m2: Match WCN6855 and WCN7851 UART BT variants by subdevice ID")
+Signed-off-by: Hans de Goede <>
+Link: https://patch.msgid.link/20260918093838.6645-1-johannes.goede@oss.qualcomm.com
+Signed-off-by: Bartosz Golaszewski <>
+---
+ drivers/power/sequencing/pwrseq-pcie-m2.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/drivers/power/sequencing/pwrseq-pcie-m2.c b/drivers/power/sequencing/pwrseq-pcie-m2.c
+index 471ffe914a4e2..0b72e3a6992b8 100644
+--- a/drivers/power/sequencing/pwrseq-pcie-m2.c
++++ b/drivers/power/sequencing/pwrseq-pcie-m2.c
+@@ -197,6 +197,8 @@ static const struct pci_device_id pwrseq_m2_pci_ids[] = {
+ 	  .driver_data = (kernel_ulong_t)"qcom,wcn6855-bt" },
+ 	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_QCOM, 0x1107, PCI_VENDOR_ID_QCOM, 0x337c),
+ 	  .driver_data = (kernel_ulong_t)"qcom,wcn7850-bt" },
++	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_QCOM, 0x1107, PCI_VENDOR_ID_LENOVO, 0xe0e9),
++	  .driver_data = (kernel_ulong_t)"qcom,wcn7850-bt" },
+ 	{ } /* Sentinel */
+ };
+ 
+-- 
+cgit 1.3.1-korg
+
+From 0d6c5794fd633427f0d4ad8b51d94061295649da Mon Sep 17 00:00:00 2001
+From: Alexey Charkov <>
+Date: Wed, 30 Sep 2026 20:10:21 +0400
+Subject: power: sequencing: pcie-m2: Fix leaking array from
+ of_regulator_bulk_get_all()
+
+of_regulator_bulk_get_all() allocates the consumers array and hands it to
+the caller, who is expected to free it at an appropriate time.
+pwrseq-pcie-m2.c never did, leading to a memory leak.
+
+Add an explicit kfree() for the consumers array.
+
+Fixes: 52e7b5bd62ba ("power: sequencing: Add the Power Sequencing driver for the PCIe M.2 connectors")
+Signed-off-by: Alexey Charkov <>
+Link: https://patch.msgid.link/20260930-m2-pwrseq-kfree-v1-1-82678b02c126@flipper.net
+Signed-off-by: Bartosz Golaszewski <>
+---
+ drivers/power/sequencing/pwrseq-pcie-m2.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/drivers/power/sequencing/pwrseq-pcie-m2.c b/drivers/power/sequencing/pwrseq-pcie-m2.c
+index 0b72e3a6992b8..e42e85f47629e 100644
+--- a/drivers/power/sequencing/pwrseq-pcie-m2.c
++++ b/drivers/power/sequencing/pwrseq-pcie-m2.c
+@@ -572,6 +572,7 @@ err_destroy_mutex:
+ 	mutex_destroy(&ctx->list_lock);
+ err_free_regulators:
+ 	regulator_bulk_free(ctx->num_vregs, ctx->regs);
++	kfree(ctx->regs);
+ 
+ 	return ret;
+ }
+@@ -585,6 +586,7 @@ static void pwrseq_pcie_m2_remove(struct platform_device *pdev)
+ 	mutex_destroy(&ctx->list_lock);
+ 
+ 	regulator_bulk_free(ctx->num_vregs, ctx->regs);
++	kfree(ctx->regs);
+ }
+ 
+ static const struct of_device_id pwrseq_pcie_m2_of_match[] = {
+-- 
+cgit 1.3.1-korg
+
+From 4b1d04693e5ef388d8c6110bc93ee0d0681f9711 Mon Sep 17 00:00:00 2001
+From: Matthias Goergens <>
+Date: Wed, 23 Sep 2026 18:17:49 +0800
+Subject: MAINTAINERS: name the ext4 dev branch
+
+The ext4 T: entry names the repository without a branch, so tools that
+default to the repository's HEAD select master, which still points at a
+merge from October 2020 (96485e446260).  Development happens on dev,
+which is also the branch linux-next merges.  Name it.
+
+The Sashiko review bot, for one, falls back to HEAD this way and has
+been reviewing ext4 patches against that tree.  Its review of an EA
+inode refcount fix reported a Critical double decrement and an
+undefined function after applying the patch to that stale baseline;
+neither holds on dev.
+
+Link: https://lore.kernel.org/all/20260916072420.316321F000FF@smtp.kernel.org/
+Signed-off-by: Matthias Goergens <>
+Acked-by: Jan Kara <>
+Link: https://patch.msgid.link/20260923101749.3505886-1-matthias.goergens@gmail.com
+Signed-off-by: Theodore Ts'o <>
+---
+ MAINTAINERS | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/MAINTAINERS b/MAINTAINERS
+index cc3cae2e378b3..c884c4c62e3f5 100644
+--- a/MAINTAINERS
++++ b/MAINTAINERS
+@@ -9861,7 +9861,7 @@ L:	linux-ext4@vger.kernel.org
+ S:	Maintained
+ W:	http://ext4.wiki.kernel.org
+ Q:	http://patchwork.ozlabs.org/project/linux-ext4/list/
+-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tytso/ext4.git
++T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tytso/ext4.git dev
+ F:	Documentation/filesystems/ext4/
+ F:	fs/ext4/
+ F:	include/trace/events/ext4.h
+-- 
+cgit 1.3.1-korg
+
+From 3e78d7b063230d39ffc42e80ee665b6c32a6adeb Mon Sep 17 00:00:00 2001
+From: Theodore Ts'o <>
+Date: Thu, 24 Sep 2026 10:58:12 -0400
+Subject: ext4: mark data=journal as deprecated and will be removed in January
+ 2028.
+
+Signed-off-by: Theodore Ts'o <>
+---
+ Documentation/admin-guide/ext4.rst | 6 ++++--
+ fs/ext4/super.c                    | 1 +
+ 2 files changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/Documentation/admin-guide/ext4.rst b/Documentation/admin-guide/ext4.rst
+index 742a48e6fc0c2..8b23b6ff3df18 100644
+--- a/Documentation/admin-guide/ext4.rst
++++ b/Documentation/admin-guide/ext4.rst
+@@ -172,7 +172,8 @@ When mounting an ext4 filesystem, the following option are accepted:
+   data=journal
+         All data are committed into the journal prior to being written into the
+         main file system.  Enabling this mode will disable delayed allocation
+-        and O_DIRECT support.
++        and O_DIRECT support.  This feature is deprecated and support
++	will be removed in January 2028.
+ 
+   data=ordered	(*)
+         All data are forced directly out to the main file system prior to its
+@@ -418,7 +419,8 @@ There are 3 different data modes:
+   consistent state.  This mode is the slowest except when data needs to be read
+   from and written to disk at the same time where it outperforms all others
+   modes.  Enabling this mode will disable delayed allocation and O_DIRECT
+-  support.
++  support.  The data=journal feature is deprecated and support will be
++  removed in January 2028.
+ 
+ /proc entries
+ =============
+diff --git a/fs/ext4/super.c b/fs/ext4/super.c
+index bca0dc87d0b7c..d636b89090a24 100644
+--- a/fs/ext4/super.c
++++ b/fs/ext4/super.c
+@@ -5057,6 +5057,7 @@ out:
+ static int ext4_check_journal_data_mode(struct super_block *sb)
+ {
+ 	if (test_opt(sb, DATA_FLAGS) == EXT4_MOUNT_JOURNAL_DATA) {
++		printk(KERN_WARNING "EXT4-fs: The data=journal mount option is deprecated and support will be removed in January 2028\n");
+ 		printk_once(KERN_WARNING "EXT4-fs: Warning: mounting with "
+ 			    "data=journal disables delayed allocation, "
+ 			    "dioread_nolock, O_DIRECT and fast_commit support!\n");
 -- 
 cgit 1.3.1-korg
 

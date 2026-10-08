@@ -26,7 +26,7 @@ diff -uarp a/Makefile b/Makefile
 +    ifdef CONFIG_LTO_CLANG
 +    THINLTO_JOBS := $(shell nproc | awk '{print int(2.6 * sqrt($$1))}')
 +    KBUILD_LDFLAGS += --lto-O2 --lto-CGO2 --thinlto-jobs=$(THINLTO_JOBS)
-+    KBUILD_CFLAGS += -mllvm=-inline-threshold=320
++    KBUILD_CFLAGS += -mllvm=-inline-threshold=350
 +    endif
 +endif
 +
