@@ -1031,7 +1031,7 @@ index ade1eceb39..fb694b6fb3 100644
   *
 - * (default: 0.70 msec * (1 + ilog(ncpus)), units: nanoseconds)
 + * BORE : base_slice = minimum multiple of nsecs_per_tick >= min_base_slice
-+ * (default min_base_slice = 2000000 constant, units: nanoseconds)
++ * (default min_base_slice = 1600000 constant, units: nanoseconds)
 + * EEVDF: default 0.70 msec * (1 + ilog(ncpus)), units: nanoseconds
   */
 +#ifdef CONFIG_SCHED_BORE
