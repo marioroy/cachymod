@@ -129,8 +129,8 @@ index 967ca52fb2..042327d822 100644
  
 +#ifdef CONFIG_SCHED_POC_SELECTOR
 +	if (!sched_smt_active()
-+			|| ((static_branch_unlikely(&sched_poc_prefer_idle_smt)
-+			&& cpu_rq(cpu)->nr_running <= 1) || cpu_rq(cpu)->nr_running > 1))
++			|| (static_branch_unlikely(&sched_poc_prefer_idle_smt)
++			&& cpu_rq(cpu)->nr_running <= 1) || cpu_rq(cpu)->nr_running > 1)
 +#else
  	if (!sched_smt_active())
 +#endif /* CONFIG_SCHED_POC_SELECTOR */
