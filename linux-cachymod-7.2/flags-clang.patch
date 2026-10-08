@@ -2,7 +2,7 @@
 diff -uarp a/Makefile b/Makefile
 --- a/Makefile
 +++ b/Makefile
-@@ -959,6 +959,30 @@
+@@ -959,6 +959,39 @@
  KBUILD_CFLAGS	+= $(call cc-option,-fno-allow-store-data-races)
  endif
  
@@ -16,7 +16,7 @@ diff -uarp a/Makefile b/Makefile
 +        -mllvm=-unroll-max-count=8
 +
 +    ifndef CONFIG_LTO_CLANG
-+    KBUILD_CFLAGS += -mllvm=-inline-threshold=420
++    KBUILD_CFLAGS += -mllvm=-inline-threshold=400
 +    endif
 +
 +    # =========================================================
@@ -24,9 +24,18 @@ diff -uarp a/Makefile b/Makefile
 +    # Optimized inline ceiling to prevent I-cache thrashing
 +    # =========================================================
 +    ifdef CONFIG_LTO_CLANG
-+    THINLTO_JOBS := $(shell nproc | awk '{print int(2.6 * sqrt($$1))}')
-+    KBUILD_LDFLAGS += --lto-O2 --lto-CGO2 --thinlto-jobs=$(THINLTO_JOBS)
-+    KBUILD_CFLAGS += -mllvm=-inline-threshold=320
++        THINLTO_JOBS := $(shell nproc | awk '{print int(2.6 * sqrt($$1))}')
++        KBUILD_LDFLAGS += --lto-O2 --lto-CGO2 --thinlto-jobs=$(THINLTO_JOBS)
++
++        # Thin-LTO / Distributed Thin-LTO Specific Rules
++        ifeq ($(or $(CONFIG_LTO_CLANG_THIN),$(CONFIG_LTO_CLANG_THIN_DIST)),y)
++        KBUILD_CFLAGS += -mllvm=-inline-threshold=350
++        endif
++
++        # Full-LTO Specific Rules
++        ifdef CONFIG_LTO_CLANG_FULL
++        KBUILD_CFLAGS += -mllvm=-inline-threshold=300
++        endif
 +    endif
 +endif
 +
