@@ -38,7 +38,7 @@ diff -uNarp a/include/linux/sched/bore.h b/include/linux/sched/bore.h
 diff -uNarp a/include/linux/sched.h b/include/linux/sched.h
 --- a/include/linux/sched.h
 +++ b/include/linux/sched.h
-@@ -831,6 +831,12 @@ struct task_ipi_mask {
+@@ -832,6 +832,12 @@ struct task_ipi_mask {
  struct task_ipi_mask { };
  #endif
  
@@ -51,7 +51,7 @@ diff -uNarp a/include/linux/sched.h b/include/linux/sched.h
  struct task_struct {
  #ifdef CONFIG_THREAD_INFO_IN_TASK
  	/*
-@@ -892,6 +898,9 @@ struct task_struct {
+@@ -893,6 +899,9 @@ struct task_struct {
  #ifdef CONFIG_SCHED_CLASS_EXT
  	struct sched_ext_entity		scx;
  #endif
@@ -176,7 +176,7 @@ diff -uNarp a/kernel/sched/core.c b/kernel/sched/core.c
  EXPORT_TRACEPOINT_SYMBOL_GPL(ipi_send_cpu);
  EXPORT_TRACEPOINT_SYMBOL_GPL(ipi_send_cpumask);
  
-@@ -8993,6 +8997,10 @@ void __init sched_init(void)
+@@ -8990,6 +8994,10 @@ void __init sched_init(void)
  	BUG_ON(!sched_class_above(&ext_sched_class, &idle_sched_class));
  #endif
  
@@ -190,7 +190,7 @@ diff -uNarp a/kernel/sched/core.c b/kernel/sched/core.c
 diff -uNarp a/kernel/sched/fair.c b/kernel/sched/fair.c
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -60,6 +60,10 @@
+@@ -61,6 +61,10 @@
  #include "stats.h"
  #include "autogroup.h"
  
@@ -201,7 +201,7 @@ diff -uNarp a/kernel/sched/fair.c b/kernel/sched/fair.c
  /*
   * The initial- and re-scaling of tunables is configurable
   *
-@@ -6386,6 +6390,16 @@ place_entity(struct cfs_rq *cfs_rq, stru
+@@ -6526,6 +6530,16 @@ place_entity(struct cfs_rq *cfs_rq, stru
  	 * EEVDF: vd_i = ve_i + r_i/w_i
  	 */
  	se->deadline = se->vruntime + vslice;
@@ -218,7 +218,7 @@ diff -uNarp a/kernel/sched/fair.c b/kernel/sched/fair.c
  }
  
  static void check_enqueue_throttle(struct cfs_rq *cfs_rq);
-@@ -8361,6 +8375,17 @@ static bool dequeue_task_fair(struct rq
+@@ -8425,6 +8439,17 @@ static bool dequeue_task_fair(struct rq
  	if (!p->se.sched_delayed)
  		util_est_dequeue(&rq->cfs, p);
  
@@ -233,7 +233,7 @@ diff -uNarp a/kernel/sched/fair.c b/kernel/sched/fair.c
 +		}
 +	}
 +#endif /* CONFIG_CACHY */
- 	if (dequeue_entities(rq, &p->se, flags) < 0)
+ 	if (!__dequeue_task(rq, p, flags))
  		return false;
  
 diff -uNarp a/kernel/sched/Makefile b/kernel/sched/Makefile

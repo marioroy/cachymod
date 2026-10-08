@@ -408,7 +408,7 @@ diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
 index 3ebec186f982..3a21ceefcadf 100644
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -15430,6 +15430,15 @@ static void switched_from_fair(struct rq *rq, struct task_struct *p)
+@@ -15446,6 +15446,15 @@ static void switched_from_fair(struct rq *rq, struct task_struct *p)
  	detach_task_cfs_rq(p);
  }
  
@@ -424,7 +424,7 @@ index 3ebec186f982..3a21ceefcadf 100644
  static void switched_to_fair(struct rq *rq, struct task_struct *p)
  {
  	WARN_ON_ONCE(p->se.sched_delayed);
-@@ -15807,6 +15816,7 @@ DEFINE_SCHED_CLASS(fair) = {
+@@ -15825,6 +15834,7 @@ DEFINE_SCHED_CLASS(fair) = {
  	.prio_changed		= prio_changed_fair,
  	.switching_from		= switching_from_fair,
  	.switched_from		= switched_from_fair,
@@ -451,6 +451,53 @@ diff -uarp a/fs/ntfs3/run.c b/fs/ntfs3/run.c
  	bool ok, zone;
  	struct wnd_bitmap *wnd;
  
+-- 
+2.53.0
+
+sched/fair: Change the default cgroup_mode to max
+
+Successfully restores smooth, stutter-free scrolling in Discord
+and other Electron-based apps under busy system workloads, out-
+performing the 'concur' configuration in desktop fluidity.
+
+Signed-off-by: Mario Roy <>
+
+diff -uarp a/kernel/sched/debug.c b/kernel/sched/debug.c
+--- a/kernel/sched/debug.c
++++ b/kernel/sched/debug.c
+@@ -634,7 +634,7 @@ static void debugfs_fair_server_init(voi
+ }
+ 
+ #ifdef CONFIG_FAIR_GROUP_SCHED
+-static int cgroup_mode = 2;
++static int cgroup_mode = 3;
+ 
+ /* See __sched_cgroup_mode_update(). */
+ static const char *cgroup_mode_str[] = {
+diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
+--- a/kernel/sched/fair.c	2026-10-07 13:53:40.564085231 -0400
++++ b/kernel/sched/fair.c	2026-10-07 13:56:14.504202338 -0400
+@@ -5225,7 +5225,7 @@ static long calc_up_shares(struct cfs_rq
+ 	return READ_ONCE(tg->shares);
+ }
+ 
+-DEFINE_STATIC_CALL(calc_group_shares, calc_concur_shares);
++DEFINE_STATIC_CALL(calc_group_shares, calc_max_shares);
+ 
+ void __sched_cgroup_mode_update(int mode)
+ {
+@@ -5238,10 +5238,10 @@ void __sched_cgroup_mode_update(int mode
+ 		func = &calc_smp_shares;
+ 		break;
+ 	case 2:
+-	default:
+ 		func = &calc_concur_shares;
+ 		break;
+ 	case 3:
++	default:
+ 		func = &calc_max_shares;
+ 		break;
+ 	case 4:
 -- 
 2.53.0
 

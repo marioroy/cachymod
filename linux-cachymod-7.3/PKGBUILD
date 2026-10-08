@@ -156,7 +156,7 @@ _tagrel=1
 pkgver=${_major}.${_rcver}
 
 pkgdesc='CachyMod Linux Kernel with other patches and improvements'
-pkgrel=1
+pkgrel=2
 _stable=${_major}-${_rcver}
 _srctag=cachyos-${_major}-${_rcver}-${_tagrel}
 _srcname=${_srctag}                                  
@@ -182,11 +182,10 @@ source=(
     # mt76 fixes
     "0000-mt76-fixes.patch"
 
-    # Revert xswap, newidle balance, POC, and gaming-sched
+    # Revert xswap, newidle balance, and POC
     "0000-revert-xswap.patch"
     "0000-revert-newidle-bal.patch"
     "0000-revert-poc.patch"
-    "0000-revert-gaming-sched.patch"
 
     # CachyOS
     "0001-rt-i915.patch"

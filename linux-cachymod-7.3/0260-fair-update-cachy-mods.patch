@@ -7,7 +7,7 @@ Revert Cachy mods + improve smoothness
 diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -71,7 +71,7 @@
+@@ -72,7 +72,7 @@
   *
   * (default SCHED_TUNABLESCALING_LOG = *(1+ilog(ncpus))
   */
@@ -16,7 +16,7 @@ diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
  
  /*
   * Default base time slice (request size r_i) for SCHED_NORMAL/SCHED_BATCH:
-@@ -81,19 +81,10 @@ unsigned int sysctl_sched_tunable_scalin
+@@ -82,19 +82,10 @@ unsigned int sysctl_sched_tunable_scalin
   *
   * (default: 0.70 msec * (1 + ilog(ncpus)), units: nanoseconds)
   */
@@ -51,7 +51,7 @@ diff -uarp a/init/init_task.c b/init/init_task.c
  	.pi_lock	= __RAW_SPIN_LOCK_UNLOCKED(init_task.pi_lock),
  	.blocked_lock	= __RAW_SPIN_LOCK_UNLOCKED(init_task.blocked_lock),
 -	.timer_slack_ns = 50000, /* 50 usec default slack */
-+	.timer_slack_ns = 31250, /* 31.25 usec default slack */
++	.timer_slack_ns = 32000, /* 32 usec default slack */
  	.thread_pid	= &init_struct_pid,
  	.thread_node	= LIST_HEAD_INIT(init_signals.thread_head),
  #ifdef CONFIG_AUDIT
