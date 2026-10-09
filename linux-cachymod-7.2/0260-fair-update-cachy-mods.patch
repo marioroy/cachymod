@@ -51,7 +51,7 @@ diff -uarp a/init/init_task.c b/init/init_task.c
  	.pi_lock	= __RAW_SPIN_LOCK_UNLOCKED(init_task.pi_lock),
  	.blocked_lock	= __RAW_SPIN_LOCK_UNLOCKED(init_task.blocked_lock),
 -	.timer_slack_ns = 50000, /* 50 usec default slack */
-+	.timer_slack_ns = 32000, /* 32 usec default slack */
++	.timer_slack_ns = 31250, /* 31.250 usec default slack */
  	.thread_pid	= &init_struct_pid,
  	.thread_node	= LIST_HEAD_INIT(init_signals.thread_head),
  #ifdef CONFIG_AUDIT
