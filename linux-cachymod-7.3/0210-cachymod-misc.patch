@@ -266,7 +266,7 @@ diff --git a/drivers/md/dm-crypt.c b/drivers/md/dm-crypt.c
 index 79704fbc523b..2ccc40954c4c 100644
 --- a/drivers/md/dm-crypt.c
 +++ b/drivers/md/dm-crypt.c
-@@ -3225,6 +3225,9 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
+@@ -3230,6 +3230,9 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
  			goto bad;
  	}
  

@@ -1,5 +1,5 @@
 
-Minimalist POC v2.1.12 (rev3) variant, based on POC v2.1.0 by @firelzrd
+Minimalist POC v2.1.12 (rev4) variant, based on POC v2.1.0 by @firelzrd
   This applies fewer changes to kernel/sched/fair to help minimize EEVDF
   placement anomalies. Includes awareness patch for sched_ext.
 
@@ -17,8 +17,8 @@ Signed-off-by: Mario Roy <>
 
 From 7d942075abcf26c09f7effabce68c1f50d200cb1 Mon Sep 17 00:00:00 2001
 From: Masahito S <firelzrd@gmail.com>
-Date: Mon, 05 Oct 2026 21:00:00 +0900
-Subject: [PATCH] 7.3-poc-selector-v2.1.12 (rev3)
+Date: Thu, 08 Oct 2026 20:00:00 +0900
+Subject: [PATCH] 7.3-poc-selector-v2.1.12 (rev4)
 
 ---
  include/linux/sched/topology.h |   28 +
@@ -572,7 +572,7 @@ index 0000000000..77da6e5bda
 +		atomic64_or(bit_mask, &sd_share->poc_idle_cpus_mask);
 +		smp_mb__after_atomic();
 +	} else {
-+		if ((u64)READ_ONCE(sd_share->poc_idle_cpus_mask.counter) & bit_mask) {
++		if ((u64)atomic64_read(&sd_share->poc_idle_cpus_mask) & bit_mask) {
 +			atomic64_andnot(bit_mask, &sd_share->poc_idle_cpus_mask);
 +			smp_mb__after_atomic();
 +		}
@@ -676,7 +676,7 @@ index 0000000000..77da6e5bda
 +
 +	/* Clear target CPU bit if busy */
 +	if ((cpu_mask & tgt_mask) && !choose_idle_cpu(target, p)) {
-+		if ((u64)READ_ONCE(sd_share->poc_idle_cpus_mask.counter) & tgt_mask) {
++		if ((u64)atomic64_read(&sd_share->poc_idle_cpus_mask) & tgt_mask) {
 +			atomic64_andnot(tgt_mask, &sd_share->poc_idle_cpus_mask);
 +			smp_mb__after_atomic();
 +		}

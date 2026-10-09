@@ -251,7 +251,7 @@ diff -uarp a/kernel/sched/sched.h b/kernel/sched/sched.h
  #include <linux/sched/affinity.h>
  #include <linux/sched/autogroup.h>
  #include <linux/sched/cpufreq.h>
-@@ -1429,12 +1428,6 @@ static inline bool is_migration_disabled
+@@ -1428,12 +1427,6 @@ static inline bool is_migration_disabled
  }
  
  DECLARE_PER_CPU_SHARED_ALIGNED(struct rq, runqueues);

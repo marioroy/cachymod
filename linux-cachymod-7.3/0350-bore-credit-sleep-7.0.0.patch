@@ -218,19 +218,15 @@ diff -uNarp a/kernel/sched/fair.c b/kernel/sched/fair.c
  }
  
  static void check_enqueue_throttle(struct cfs_rq *cfs_rq);
-@@ -8425,6 +8439,17 @@ static bool dequeue_task_fair(struct rq
+@@ -8425,6 +8439,13 @@ static bool dequeue_task_fair(struct rq
  	if (!p->se.sched_delayed)
  		util_est_dequeue(&rq->cfs, p);
  
 +#ifdef CONFIG_CACHY
 +	if (flags & DEQUEUE_SLEEP) {
-+		struct sched_entity *se = &p->se;
-+		if (entity_is_task(se)) {
-+			struct cfs_rq *cfs_rq = cfs_rq_of(se);
-+			if (cfs_rq->curr == se)
-+				update_curr(cfs_rq);
-+			bore_note_sleep(p, rq_clock(rq));
-+		}
++		if (rq->cfs.curr == &p->se)
++			update_curr_eevdf(&rq->cfs);
++		bore_note_sleep(p, rq_clock(rq));
 +	}
 +#endif /* CONFIG_CACHY */
  	if (!__dequeue_task(rq, p, flags))

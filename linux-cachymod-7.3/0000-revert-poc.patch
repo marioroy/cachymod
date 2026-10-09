@@ -101,7 +101,7 @@ diff --git a/kernel/sched/ext/ext.c b/kernel/sched/ext/ext.c
 index e0132294b..18183062f 100644
 --- a/kernel/sched/ext/ext.c
 +++ b/kernel/sched/ext/ext.c
-@@ -6628,9 +6628,6 @@ static void scx_root_disable(struct scx_sched *sch)
+@@ -6656,9 +6656,6 @@ static void scx_root_disable(struct scx_sched *sch)
  	mutex_unlock(&scx_enable_mutex);
  
  	WARN_ON_ONCE(scx_set_enable_state(SCX_DISABLED) != SCX_DISABLING);
@@ -111,7 +111,7 @@ index e0132294b..18183062f 100644
  done:
  	scx_bypass(sch, false);
  }
-@@ -7935,10 +7932,6 @@ static void scx_root_enable_workfn(struct kthread_work *work)
+@@ -7963,10 +7960,6 @@ static void scx_root_enable_workfn(struct kthread_work *work)
  		}
  	}
  
@@ -2442,7 +2442,7 @@ diff --git a/kernel/sched/sched.h b/kernel/sched/sched.h
 index e25c5a986..4664869d8 100644
 --- a/kernel/sched/sched.h
 +++ b/kernel/sched/sched.h
-@@ -1200,10 +1200,6 @@ struct rq {
+@@ -1199,10 +1199,6 @@ struct rq {
  	call_single_data_t	nohz_csd;
  #endif /* CONFIG_NO_HZ_COMMON */
  
@@ -2453,7 +2453,7 @@ index e25c5a986..4664869d8 100644
  #ifdef CONFIG_UCLAMP_TASK
  	/* Utilization clamp values based on CPU's RUNNABLE tasks */
  	struct uclamp_rq	uclamp[UCLAMP_CNT] ____cacheline_aligned;
-@@ -2406,119 +2402,6 @@ static inline struct task_group *task_group(struct task_struct *p)
+@@ -2405,119 +2401,6 @@ static inline struct task_group *task_group(struct task_struct *p)
  
  #endif /* !CONFIG_CGROUP_SCHED */
  
@@ -2573,7 +2573,7 @@ index e25c5a986..4664869d8 100644
  static inline void __set_task_cpu(struct task_struct *p, unsigned int cpu)
  {
  	set_task_rq(p, cpu);
-@@ -3598,7 +3481,6 @@ extern void nohz_run_idle_balance(int cpu);
+@@ -3597,7 +3480,6 @@ extern void nohz_run_idle_balance(int cpu);
  static inline void nohz_run_idle_balance(int cpu) { }
  #endif
  
