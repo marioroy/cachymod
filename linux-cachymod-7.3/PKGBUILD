@@ -156,7 +156,7 @@ _tagrel=1
 pkgver=${_major}.${_rcver}
 
 pkgdesc='CachyMod Linux Kernel with other patches and improvements'
-pkgrel=5
+pkgrel=6
 _stable=${_major}-${_rcver}
 _srctag=cachyos-${_major}-${_rcver}-${_tagrel}
 _srcname=${_srctag}                                  
@@ -449,13 +449,14 @@ prepare() {
         scripts/config -d PREEMPT_RT
     fi
 
-  # if [ "$_buildtype" = "gcc" ]; then
-  #     echo "Enabling KBUILD_CFLAGS -O2..."
-  #     scripts/config -d CC_OPTIMIZE_FOR_PERFORMANCE_O3 -e CC_OPTIMIZE_FOR_PERFORMANCE
-  # else
+    ### Mindfulness for the CPU L1/L2 I-instruction cache
+    if [[ "$_buildtype" =~ ^(full|thin)$ ]]; then
+        echo "Enabling KBUILD_CFLAGS -O2..."
+        scripts/config -d CC_OPTIMIZE_FOR_PERFORMANCE_O3 -e CC_OPTIMIZE_FOR_PERFORMANCE -d CC_OPTIMIZE_FOR_SIZE
+    else
         echo "Enabling KBUILD_CFLAGS -O3..."
-        scripts/config -d CC_OPTIMIZE_FOR_PERFORMANCE -e CC_OPTIMIZE_FOR_PERFORMANCE_O3
-  # fi
+        scripts/config -e CC_OPTIMIZE_FOR_PERFORMANCE_O3 -d CC_OPTIMIZE_FOR_PERFORMANCE -d CC_OPTIMIZE_FOR_SIZE
+    fi
 
     ### Enable bbr3
     if [[ "$_tcp_bbr3" =~ ^(yes|y|1)$ ]]; then
