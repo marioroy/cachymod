@@ -1,5 +1,5 @@
 
-Minimalist POC v2.1.12 (rev4) variant, based on POC v2.1.0 by @firelzrd
+Minimalist POC v2.1.12 (rev5) variant, based on POC v2.1.0 by @firelzrd
   This applies fewer changes to kernel/sched/fair to help minimize EEVDF
   placement anomalies. Includes awareness patch for sched_ext.
 
@@ -17,18 +17,18 @@ Signed-off-by: Mario Roy <>
 
 From 7d942075abcf26c09f7effabce68c1f50d200cb1 Mon Sep 17 00:00:00 2001
 From: Masahito S <firelzrd@gmail.com>
-Date: Thu, 08 Oct 2026 20:00:00 +0900
-Subject: [PATCH] 7.2-poc-selector-v2.1.12 (rev4)
+Date: Sat, 10 Oct 2026 03:00:00 +0900
+Subject: [PATCH] 7.2-poc-selector-v2.1.12 (rev5)
 
 ---
  include/linux/sched/topology.h |   28 +
  init/Kconfig                   |   13 +
- kernel/sched/fair.c            |   59 +
+ kernel/sched/fair.c            |   61 +
  kernel/sched/idle.c            |   10 +
  kernel/sched/poc_selector.c    | 1080 ++++++++++++++++++++++++++++++++
  kernel/sched/sched.h           |   99 +++
  kernel/sched/topology.c        |    3 +
- 7 files changed, 1292 insertions(+), 0 deletion(-)
+ 7 files changed, 1294 insertions(+), 0 deletion(-)
  create mode 100644 kernel/sched/poc_selector.c
 
 diff --git a/include/linux/sched/topology.h b/include/linux/sched/topology.h
@@ -130,22 +130,24 @@ index 967ca52fb2..042327d822 100644
 +#ifdef CONFIG_SCHED_POC_SELECTOR
 +	if (!sched_smt_active()
 +			|| (static_branch_unlikely(&sched_poc_prefer_idle_smt)
-+			&& cpu_rq(cpu)->nr_running <= 1) || cpu_rq(cpu)->nr_running > 1)
++			&& cpu_rq(cpu)->nr_running <= 1) || cpu_rq(cpu)->nr_running > 2)
 +#else
  	if (!sched_smt_active())
 +#endif /* CONFIG_SCHED_POC_SELECTOR */
  		return choose_idle_cpu(cpu, p);
  
  	for_each_cpu(sibling, cpu_smt_mask(cpu))
-@@ -8917,6 +8934,7 @@ static int select_idle_sibling(struct ta
+@@ -8917,6 +8934,9 @@ static int select_idle_sibling(struct ta
  	    cpumask_test_cpu(recent_used_cpu, p->cpus_ptr)) {
  
  		if ((unsigned int)recent_used_cpu < nr_cpumask_bits &&
++#ifdef CONFIG_SCHED_POC_SELECTOR
 +		    !static_branch_unlikely(&sched_poc_prefer_idle_smt) &&
++#endif /* CONFIG_SCHED_POC_SELECTOR */
  		    is_idle_core(recent_used_cpu, p))
  			return recent_used_cpu;
  	} else {
-@@ -8997,6 +9015,39 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target, int sync)
+@@ -8997,6 +9017,39 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target, int sync)
  	if (!sd)
  		return target;
  
@@ -185,7 +187,7 @@ index 967ca52fb2..042327d822 100644
  	if (sched_smt_active()) {
  		has_idle_core = test_idle_cores(target);
  
-@@ -9017,6 +9068,9 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target, int sync)
+@@ -9017,6 +9070,9 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target, int sync)
  	 * first. But prev_cpu or recent_used_cpu may also be a good candidate,
  	 * use them if possible when no idle CPU found in select_idle_cpu().
  	 */

@@ -1289,7 +1289,7 @@ index d78467ec6e..09415d190f 100644
  	if (dequeue_entities(rq, &p->se, flags) < 0)
  		return false;
  
-@@ -10012,6 +10132,18 @@ static void wakeup_preempt_fair(struct rq *rq, struct task_struct *p, int wake_f
+@@ -10014,6 +10134,18 @@ static void wakeup_preempt_fair(struct rq *rq, struct task_struct *p, int wake_f
  		goto pick;
  	}
  
@@ -1308,7 +1308,7 @@ index d78467ec6e..09415d190f 100644
  	/*
  	 * Ignore wakee preemption on WF_FORK as it is less likely that
  	 * there is shared data as exec often follow fork. Do not
-@@ -10182,16 +10314,25 @@ static void yield_task_fair(struct rq *rq)
+@@ -10184,16 +10316,25 @@ static void yield_task_fair(struct rq *rq)
  	/*
  	 * Are we the only task in the tree?
  	 */
@@ -1334,7 +1334,7 @@ index d78467ec6e..09415d190f 100644
  	/*
  	 * Tell update_rq_clock() that we've just updated,
  	 * so we don't do microscopic update in schedule()
-@@ -15139,6 +15280,9 @@ static void switched_to_fair(struct rq *rq, struct task_struct *p)
+@@ -15141,6 +15282,9 @@ static void switched_to_fair(struct rq *rq, struct task_struct *p)
  	WARN_ON_ONCE(p->se.sched_delayed);
  
  	attach_task_cfs_rq(p);
