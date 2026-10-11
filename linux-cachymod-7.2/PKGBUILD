@@ -150,14 +150,15 @@ fi
 
 _pkgsuffix=cachymod
 _major=7.2
-_minor=9
-_tagrel=2
+_minor=10
+_tagrel=1
 #_rcver="rc7"
 pkgver=${_major}.${_minor}
 
 pkgdesc='CachyMod Linux Kernel with other patches and improvements'
-pkgrel=6
-_srcname=cachyos-${_major}.${_minor}-${_tagrel}
+pkgrel=1
+#_srcname=cachyos-${_major}.${_minor}-${_tagrel}
+_srcname=cachyos-${_major}.9-2
 _kernver="$pkgver-$pkgrel"
 _kernuname="${pkgver}-${_pkgsuffix}"
 arch=('x86_64')
@@ -176,6 +177,9 @@ source=(
     "config"
     "config.sh"
     "minimal-modprobed.db"  # used if _localmodcfg=yes and _localmodcfg_minimal=yes
+
+    # Incremental bump release
+    "0000-linux7.2.9-10.patch"
 
     # Revert newidle balance, POC, and gaming-sched
     "0000-revert-newidle-bal.patch"

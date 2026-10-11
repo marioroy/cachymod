@@ -74,7 +74,7 @@ diff --git a/init/Kconfig b/init/Kconfig
 index cab3ad28ca..991fe7f8a4 100644
 --- a/init/Kconfig
 +++ b/init/Kconfig
-@@ -1496,6 +1496,19 @@ config SCHED_AUTOGROUP
+@@ -1501,6 +1501,19 @@ config SCHED_AUTOGROUP
  	  desktop applications.  Task group autogeneration is currently based
  	  upon task session.
  
@@ -98,7 +98,7 @@ diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
 index 967ca52fb2..042327d822 100644
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -2235,6 +2235,11 @@ update_stats_curr_start(struct cfs_rq *cfs_rq, struct sched_entity *se)
+@@ -2355,6 +2355,11 @@ update_stats_curr_start(struct cfs_rq *cfs_rq, struct sched_entity *se)
  	se->exec_start = rq_clock_task(rq_of(cfs_rq));
  }
  
@@ -110,7 +110,7 @@ index 967ca52fb2..042327d822 100644
  /* Check sched_smt_active before calling this to avoid overheads in fastpaths */
  static inline bool is_core_idle(int cpu)
  {
-@@ -2241,6 +2246,12 @@ static inline bool is_core_idle(int cpu)
+@@ -2361,6 +2366,12 @@ static inline bool is_core_idle(int cpu)
  	int sibling;
  
  	for_each_cpu(sibling, cpu_smt_mask(cpu)) {
@@ -123,7 +123,7 @@ index 967ca52fb2..042327d822 100644
  
  		if (!idle_cpu(sibling))
  			return false;
-@@ -8511,7 +8522,15 @@ static bool is_idle_core(int cpu, struct task_struct *p)
+@@ -8651,7 +8662,15 @@ static bool is_idle_core(int cpu, struct task_struct *p)
  {
  	int sibling;
  
@@ -139,7 +139,7 @@ index 967ca52fb2..042327d822 100644
  		return choose_idle_cpu(cpu, p);
  
  	for_each_cpu(sibling, cpu_smt_mask(cpu))
-@@ -8917,6 +8936,9 @@ static int select_idle_sibling(struct ta
+@@ -9057,6 +9076,9 @@ static int select_idle_sibling(struct ta
  	    cpumask_test_cpu(recent_used_cpu, p->cpus_ptr)) {
  
  		if ((unsigned int)recent_used_cpu < nr_cpumask_bits &&
@@ -149,7 +149,7 @@ index 967ca52fb2..042327d822 100644
  		    is_idle_core(recent_used_cpu, p))
  			return recent_used_cpu;
  	} else {
-@@ -8997,6 +9019,39 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target, int sync)
+@@ -9137,6 +9159,39 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target, int sync)
  	if (!sd)
  		return target;
  
@@ -189,7 +189,7 @@ index 967ca52fb2..042327d822 100644
  	if (sched_smt_active()) {
  		has_idle_core = test_idle_cores(target);
  
-@@ -9017,6 +9072,9 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target, int sync)
+@@ -9157,6 +9212,9 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target, int sync)
  	 * first. But prev_cpu or recent_used_cpu may also be a good candidate,
  	 * use them if possible when no idle CPU found in select_idle_cpu().
  	 */
@@ -1466,10 +1466,10 @@ diff -uarp a/kernel/sched/ext/ext.c b/kernel/sched/ext/ext.c
  /*
   * NOTE: sched_ext is in the process of growing multiple scheduler support and
   * scx_root usage is in a transitional state. Naked dereferences are safe if the
-@@ -6350,6 +6356,15 @@ static void scx_root_disable(struct scx_sched *sch)
- 	 */
- 	cpus_read_lock();
+@@ -6367,6 +6373,15 @@ static void scx_root_disable(struct scx_sched *sch)
  	RCU_INIT_POINTER(scx_root, NULL);
+ 	topo = rcu_replace_pointer(scx_cid_topo, NULL,
+ 				   lockdep_is_held(&scx_enable_mutex));
 +#ifdef CONFIG_SCHED_POC_SELECTOR
 +	/* Restore POC when switching back to sched_fair */
 +	if (static_branch_likely(&sched_poc_transfer_state)) {
@@ -1481,8 +1481,8 @@ diff -uarp a/kernel/sched/ext/ext.c b/kernel/sched/ext/ext.c
 +#endif /* CONFIG_SCHED_POC_SELECTOR */
  	cpus_read_unlock();
  
- 	/*
-@@ -7522,6 +7537,14 @@ static void scx_enable_workfn(struct kthread_work *work)
+ 	if (topo) {
+@@ -7544,6 +7559,14 @@ static void scx_enable_workfn(struct kthread_work *work)
  	scx_cgroup_unlock();
  	percpu_up_write(&scx_fork_rwsem);
  
