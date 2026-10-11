@@ -3,21 +3,21 @@ Nap (Neural Adaptive Predictor) CPUIdle Governor
 https://github.com/firelzrd/nap
 
 
-From cecf6dd1e79d781a7300394431122be8fbd6f7e7 Mon Sep 17 00:00:00 2001
+From d1b63456d4ead525d614e9a76c114eedf50187e9 Mon Sep 17 00:00:00 2001
 From: Masahito S <firelzrd@gmail.com>
-Date: Fri, 5 Jun 2026 13:10:05 +0900
-Subject: [PATCH] 6.18.3-nap-v0.5.0
+Date: Sun, 11 Oct 2026 09:31:03 +0900
+Subject: [PATCH] 6.18.3-nap-v0.5.1
 
 ---
  drivers/cpuidle/Kconfig                     |  17 +
  drivers/cpuidle/governors/Makefile          |   1 +
  drivers/cpuidle/governors/nap/Makefile      |  30 +
- drivers/cpuidle/governors/nap/nap.c         | 618 ++++++++++++++++++++
+ drivers/cpuidle/governors/nap/nap.c         | 624 ++++++++++++++++++++
  drivers/cpuidle/governors/nap/nap.h         | 291 +++++++++
  drivers/cpuidle/governors/nap/nap_fpu.c     | 528 +++++++++++++++++
  drivers/cpuidle/governors/nap/nap_nn_avx2.c | 135 +++++
  drivers/cpuidle/governors/nap/nap_nn_sse2.c | 136 +++++
- 8 files changed, 1756 insertions(+)
+ 8 files changed, 1762 insertions(+)
  create mode 100644 drivers/cpuidle/governors/nap/Makefile
  create mode 100644 drivers/cpuidle/governors/nap/nap.c
  create mode 100644 drivers/cpuidle/governors/nap/nap.h
@@ -100,10 +100,10 @@ index 0000000000..8b85a475a6
 +CFLAGS_nap_nn_avx2.o   += $(CC_FLAGS_FPU) -mavx -mavx2 -mfma
 diff --git a/drivers/cpuidle/governors/nap/nap.c b/drivers/cpuidle/governors/nap/nap.c
 new file mode 100644
-index 0000000000..fc7393e9f4
+index 0000000000..b5ccda34b5
 --- /dev/null
 +++ b/drivers/cpuidle/governors/nap/nap.c
-@@ -0,0 +1,618 @@
+@@ -0,0 +1,624 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
 + * nap.c — Neural Adaptive Predictor cpuidle governor
@@ -149,7 +149,7 @@ index 0000000000..fc7393e9f4
 +#define CPUIDLE_NAP_PROGNAME "Nap CPUIdle Governor"
 +#define CPUIDLE_NAP_AUTHOR   "Masahito Suzuki"
 +
-+#define CPUIDLE_NAP_VERSION  "0.5.0"
++#define CPUIDLE_NAP_VERSION  "0.5.1"
 +
 +/* Governor defaults */
 +#define NAP_DEFAULT_LR_MILLTHS    1     /* 0.001 = 1 millths */
@@ -341,8 +341,14 @@ index 0000000000..fc7393e9f4
 +		idx = nap_fallback_heuristic(drv, dev);
 +	}
 +
-+	*stop_tick = (drv->states[idx].target_residency_ns >
-+		      RESIDENCY_THRESHOLD_NS);
++	/*
++	 * Stopping the tick saves nothing when the next timer is closer
++	 * than one tick period, and the slow restart delays the wakeup
++	 * (about 100 us on average in a 1 ms periodic-timer test).
++	 */
++	*stop_tick = sleep_length_ns >= TICK_NSEC &&
++		     drv->states[idx].target_residency_ns >
++		     RESIDENCY_THRESHOLD_NS;
 +
 +	d->last_selected_idx = idx;
 +	d->stats.total_selects++;
@@ -463,7 +469,7 @@ index 0000000000..fc7393e9f4
 +			     div_u64(total_res, NSEC_PER_MSEC));
 +	len += sysfs_emit_at(buf, len, "overshoot_count: %llu\n", total_under);
 +	len += sysfs_emit_at(buf, len, "overshoot_rate_permil: %llu\n",
-+			     total_sel ? div_u64(total_under * 1000, total_sel) : 0);
++			     total_sel ? div64_u64(total_under * 1000, total_sel) : 0);
 +	len += sysfs_emit_at(buf, len, "learn_count: %llu\n", total_learn);
 +	return len;
 +}

@@ -194,7 +194,7 @@ source=(
     "0200-clearlinux-extras.patch"
     "0210-cachymod-misc.patch"
     "0220-more-fixes.patch"
-    "0230-nap-0.5.0.patch"
+    "0230-nap-0.5.1.patch"
     "0240-reflex-0.4.0.patch"
     "0260-fair-update-cachy-mods.patch"
     "0280-prefer-idle-core.patch"
