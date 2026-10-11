@@ -1,5 +1,5 @@
 
-Minimalist POC v2.1.12 (rev5) variant, based on POC v2.1.0 by @firelzrd
+Minimalist POC v2.1.12 (rev6) variant, based on POC v2.1.0 by @firelzrd
   This applies fewer changes to kernel/sched/fair to help minimize EEVDF
   placement anomalies. Includes awareness patch for sched_ext.
 
@@ -18,17 +18,17 @@ Signed-off-by: Mario Roy <>
 From 7d942075abcf26c09f7effabce68c1f50d200cb1 Mon Sep 17 00:00:00 2001
 From: Masahito S <firelzrd@gmail.com>
 Date: Sat, 10 Oct 2026 03:00:00 +0900
-Subject: [PATCH] 7.3-poc-selector-v2.1.12 (rev5)
+Subject: [PATCH] 7.3-poc-selector-v2.1.12 (rev6)
 
 ---
  include/linux/sched/topology.h |   28 +
  init/Kconfig                   |   13 +
- kernel/sched/fair.c            |   61 +
+ kernel/sched/fair.c            |   63 +
  kernel/sched/idle.c            |   10 +
  kernel/sched/poc_selector.c    | 1080 ++++++++++++++++++++++++++++++++
  kernel/sched/sched.h           |   99 +++
  kernel/sched/topology.c        |    3 +
- 7 files changed, 1294 insertions(+), 0 deletion(-)
+ 7 files changed, 1296 insertions(+), 0 deletion(-)
  create mode 100644 kernel/sched/poc_selector.c
 
 diff --git a/include/linux/sched/topology.h b/include/linux/sched/topology.h
@@ -115,29 +115,31 @@ index 967ca52fb2..042327d822 100644
  
  	for_each_cpu(sibling, cpu_smt_mask(cpu)) {
 +#ifdef CONFIG_SCHED_POC_SELECTOR
-+		if (cpu == sibling
-+				&& static_branch_unlikely(&sched_poc_prefer_idle_smt)
-+				&& cpu_rq(cpu)->nr_running <= 1)
++		if (cpu == sibling &&
++				static_branch_unlikely(&sched_poc_prefer_idle_smt) &&
++				cpu_rq(cpu)->nr_running <= 1)
 +			continue;
 +#endif /* CONFIG_SCHED_POC_SELECTOR */
  
  		if (!idle_cpu(sibling))
  			return false;
-@@ -8797,7 +8808,13 @@ static bool is_idle_core(int cpu, struct task_struct *p)
+@@ -8797,7 +8808,15 @@ static bool is_idle_core(int cpu, struct task_struct *p)
  {
  	int sibling;
  
 +#ifdef CONFIG_SCHED_POC_SELECTOR
-+	if (!sched_smt_active()
-+			|| (static_branch_unlikely(&sched_poc_prefer_idle_smt)
-+			&& cpu_rq(cpu)->nr_running <= 1) || cpu_rq(cpu)->nr_running > 2)
++	struct rq *rq = cpu_rq(cpu);
++
++	if (!sched_smt_active() ||
++			(static_branch_unlikely(&sched_poc_prefer_idle_smt) && rq->nr_running <= 1) ||
++			(rq->nr_running > 1))
 +#else
  	if (!sched_smt_active())
 +#endif /* CONFIG_SCHED_POC_SELECTOR */
  		return choose_idle_cpu(cpu, p);
  
  	for_each_cpu(sibling, cpu_smt_mask(cpu))
-@@ -9203,6 +9220,9 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target, int sync)
+@@ -9203,6 +9222,9 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target, int sync)
  	    cpumask_test_cpu(recent_used_cpu, p->cpus_ptr)) {
  
  		if ((unsigned int)recent_used_cpu < nr_cpumask_bits &&
@@ -147,7 +149,7 @@ index 967ca52fb2..042327d822 100644
  		    is_idle_core(recent_used_cpu, p))
  			return recent_used_cpu;
  	} else {
-@@ -9283,6 +9303,39 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target, int sync)
+@@ -9283,6 +9305,39 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target, int sync)
  	if (!sd)
  		return target;
  
@@ -187,7 +189,7 @@ index 967ca52fb2..042327d822 100644
  	if (sched_smt_active()) {
  		has_idle_core = test_idle_cores(target);
  
-@@ -9303,6 +9356,9 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target, int sync)
+@@ -9303,6 +9358,9 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target, int sync)
  	 * first. But prev_cpu or recent_used_cpu may also be a good candidate,
  	 * use them if possible when no idle CPU found in select_idle_cpu().
  	 */
@@ -574,7 +576,7 @@ index 0000000000..77da6e5bda
 +		atomic64_or(bit_mask, &sd_share->poc_idle_cpus_mask);
 +		smp_mb__after_atomic();
 +	} else {
-+		if ((u64)atomic64_read(&sd_share->poc_idle_cpus_mask) & bit_mask) {
++		if ((u64)READ_ONCE(sd_share->poc_idle_cpus_mask.counter) & bit_mask) {
 +			atomic64_andnot(bit_mask, &sd_share->poc_idle_cpus_mask);
 +			smp_mb__after_atomic();
 +		}
@@ -678,9 +680,9 @@ index 0000000000..77da6e5bda
 +
 +	/* Clear target CPU bit if busy */
 +	if ((cpu_mask & tgt_mask) && !choose_idle_cpu(target, p)) {
-+		if ((u64)atomic64_read(&sd_share->poc_idle_cpus_mask) & tgt_mask) {
++		if ((u64)READ_ONCE(sd_share->poc_idle_cpus_mask.counter) & tgt_mask) {
 +			atomic64_andnot(tgt_mask, &sd_share->poc_idle_cpus_mask);
-+			smp_mb__after_atomic();
++		//	smp_mb__after_atomic();
 +		}
 +		cpu_mask &= ~(tgt_mask);
 +	}
