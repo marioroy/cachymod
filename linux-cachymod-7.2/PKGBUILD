@@ -156,7 +156,7 @@ _tagrel=2
 pkgver=${_major}.${_minor}
 
 pkgdesc='CachyMod Linux Kernel with other patches and improvements'
-pkgrel=5
+pkgrel=6
 _srcname=cachyos-${_major}.${_minor}-${_tagrel}
 _kernver="$pkgver-$pkgrel"
 _kernuname="${pkgver}-${_pkgsuffix}"
@@ -358,7 +358,10 @@ prepare() {
         scripts/config -d GENERIC_CPU -d MZEN4 -e X86_NATIVE_CPU
     fi
 
-    ### Selecting CachyOS config
+    echo "Disabling Cache aware load balancer..."
+    echo "Prevents multi-CCD thread choking and gaming regressions."
+    scripts/config -d SCHED_CACHE
+
     echo "Enabling CachyOS config..."
     scripts/config -e CACHY
 
@@ -476,7 +479,7 @@ prepare() {
 
     echo "Selecting '$_hugepage' TRANSPARENT_HUGEPAGE config..."
 
-    # Enable Clang AutoFDO
+    ### Enable Clang AutoFDO
     if [[ "$_autofdo" =~ ^(yes|y|1)$ ]]; then
         scripts/config -e AUTOFDO_CLANG
     fi
