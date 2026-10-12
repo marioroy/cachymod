@@ -1,7 +1,8 @@
 
-Linux 7.3-rc6 post fixes: Snapshot 2026-10-11 11:49:08 -0700
+Linux 7.3-rc6-rc7 Incremental Patch: 2026-10-11 20:04:55 -0700
 https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
-tree 3107f1b1b6e6a358126d76304bf914f234a0124c
+commit 24a19b953e2a3d0ea5a8c4951a0ab8f32720c907
+tree   35e4248213006b8c37f54118790a99b673c84fd9
 
 diff -uNarp a/arch/arm64/boot/dts/freescale/fsl-lx216x.dtsi b/arch/arm64/boot/dts/freescale/fsl-lx216x.dtsi
 --- a/arch/arm64/boot/dts/freescale/fsl-lx216x.dtsi	2026-10-04 16:45:25.000000000 -0400
@@ -20816,6 +20817,18 @@ diff -uNarp a/tools/testing/vma/tests/vma.c b/tools/testing/vma/tests/vma.c
  	vma_assert_attached(vma_new);
  
  	ASSERT_EQ(vma_new, vma_next);
+diff -uNarp a/Makefile b/Makefile
+--- a/Makefile	2026-10-11 14:49:08.000000000 -0400
++++ b/Makefile	2026-10-11 23:04:55.000000000 -0400
+@@ -2,7 +2,7 @@
+ VERSION = 7
+ PATCHLEVEL = 3
+ SUBLEVEL = 0
+-EXTRAVERSION = -rc6
++EXTRAVERSION = -rc7
+ NAME = Baby Opossum Posse
+ 
+ # *DOCUMENTATION*
 -- 
 2.53.0
 
