@@ -69,6 +69,18 @@ All scripts support querying current values, setting values globally, or executi
 
 ***
 
+## 🔋 Battery Savings vs. 🏎️ Extreme Performance
+
+By default, the CachyMod kernel favors system efficiency and battery longevity, making them ideal for laptops and handhelds (like the Zen 4 AMD Z1 Extreme). However, if your machine is plugged into a wall or you are running a high-core workstation like a Threadripper, you can unleash massive performance gains by toggling full-idle cores.
+
+*   Default Behavior (Idle-SMT Preference): Favors clustering tasks on active SMT threads first. This keeps processing localized, prevents unnecessary CPU wake-ups, and maximizes battery savings.
+*   Performance Toggle (poc-smt -d): Forces the scheduler to search for pristine, physically fully-idle cores first. This eliminates hyper-threading contention and maximizes compute throughput for heavy game simulation engines.
+
+```text
+poc-smt -e %command%   # default
+poc-smt -d %command%   # try with Forza Horizon 6
+```
+
 ## 🎮 Steam Launch Options (Recommended for Cyberpunk 2077)
 
 You can apply optimizations dynamically on a per-game basis directly within Steam without leaving the kernel feature permanently turned on. Right-click your game, go to **Properties**, and paste the wrapper into the **Launch Options** field:
