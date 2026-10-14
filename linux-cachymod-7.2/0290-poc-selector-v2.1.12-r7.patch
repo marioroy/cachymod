@@ -1,5 +1,5 @@
 
-Minimalist POC v2.1.12 (rev6) variant, based on POC v2.1.0 by @firelzrd
+Minimalist POC v2.1.12 (rev7) variant, based on POC v2.1.0 by @firelzrd
   This applies fewer changes to kernel/sched/fair to help minimize EEVDF
   placement anomalies. Includes awareness patch for sched_ext.
 
@@ -7,7 +7,7 @@ Dependencies:
   This patch depends on 0280-prefer-idle-core.patch, included in the repo.
 
 Prefer the SMT siblings over full idle-cores (disables prefer-idle-core patch).
-  kernel.sched_poc_prefer_idle_smt = 0 (default: OFF)
+  kernel.sched_poc_prefer_idle_smt = 1 (default: ON)
 
 If target CPU is idle, return it immediately for L1/TLB cache affinity.
   kernel.sched_poc_target_sticky = 0 (default: OFF)
@@ -17,18 +17,18 @@ Signed-off-by: Mario Roy <>
 
 From 7d942075abcf26c09f7effabce68c1f50d200cb1 Mon Sep 17 00:00:00 2001
 From: Masahito S <firelzrd@gmail.com>
-Date: Sat, 10 Oct 2026 03:00:00 +0900
-Subject: [PATCH] 7.2-poc-selector-v2.1.12 (rev6)
+Date: Mon, 12 Oct 2026 22:00:00 +0900
+Subject: [PATCH] 7.2-poc-selector-v2.1.12 (rev7)
 
 ---
  include/linux/sched/topology.h |   28 +
  init/Kconfig                   |   13 +
- kernel/sched/fair.c            |   63 +
+ kernel/sched/fair.c            |   61 +
  kernel/sched/idle.c            |   10 +
  kernel/sched/poc_selector.c    | 1080 ++++++++++++++++++++++++++++++++
  kernel/sched/sched.h           |   99 +++
  kernel/sched/topology.c        |    3 +
- 7 files changed, 1296 insertions(+), 0 deletion(-)
+ 7 files changed, 1294 insertions(+), 0 deletion(-)
  create mode 100644 kernel/sched/poc_selector.c
 
 diff --git a/include/linux/sched/topology.h b/include/linux/sched/topology.h
@@ -116,40 +116,38 @@ index 967ca52fb2..042327d822 100644
  	for_each_cpu(sibling, cpu_smt_mask(cpu)) {
 +#ifdef CONFIG_SCHED_POC_SELECTOR
 +		if (cpu == sibling &&
-+				static_branch_unlikely(&sched_poc_prefer_idle_smt) &&
++				static_branch_likely(&sched_poc_prefer_idle_smt) &&
 +				cpu_rq(cpu)->nr_running <= 1)
 +			continue;
 +#endif /* CONFIG_SCHED_POC_SELECTOR */
  
  		if (!idle_cpu(sibling))
  			return false;
-@@ -8651,7 +8662,15 @@ static bool is_idle_core(int cpu, struct task_struct *p)
+@@ -8651,7 +8662,13 @@ static bool is_idle_core(int cpu, struct task_struct *p)
  {
  	int sibling;
  
 +#ifdef CONFIG_SCHED_POC_SELECTOR
-+	struct rq *rq = cpu_rq(cpu);
-+
 +	if (!sched_smt_active() ||
-+			(static_branch_unlikely(&sched_poc_prefer_idle_smt) && rq->nr_running <= 1) ||
-+			(rq->nr_running > 1))
++			(static_branch_likely(&sched_poc_prefer_idle_smt) &&
++			cpu_rq(cpu)->nr_running <= 1))
 +#else
  	if (!sched_smt_active())
 +#endif /* CONFIG_SCHED_POC_SELECTOR */
  		return choose_idle_cpu(cpu, p);
  
  	for_each_cpu(sibling, cpu_smt_mask(cpu))
-@@ -9057,6 +9076,9 @@ static int select_idle_sibling(struct ta
+@@ -9057,6 +9074,9 @@ static int select_idle_sibling(struct ta
  	    cpumask_test_cpu(recent_used_cpu, p->cpus_ptr)) {
  
  		if ((unsigned int)recent_used_cpu < nr_cpumask_bits &&
 +#ifdef CONFIG_SCHED_POC_SELECTOR
-+		    !static_branch_unlikely(&sched_poc_prefer_idle_smt) &&
++		    !static_branch_likely(&sched_poc_prefer_idle_smt) &&
 +#endif /* CONFIG_SCHED_POC_SELECTOR */
  		    is_idle_core(recent_used_cpu, p))
  			return recent_used_cpu;
  	} else {
-@@ -9137,6 +9159,39 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target, int sync)
+@@ -9137,6 +9157,39 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target, int sync)
  	if (!sd)
  		return target;
  
@@ -189,7 +187,7 @@ index 967ca52fb2..042327d822 100644
  	if (sched_smt_active()) {
  		has_idle_core = test_idle_cores(target);
  
-@@ -9157,6 +9212,9 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target, int sync)
+@@ -9157,6 +9210,9 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target, int sync)
  	 * first. But prev_cpu or recent_used_cpu may also be a good candidate,
  	 * use them if possible when no idle CPU found in select_idle_cpu().
  	 */
@@ -272,7 +270,7 @@ index 0000000000..77da6e5bda
 +#define SCHED_POC_SELECTOR_AUTHOR   "Masahito Suzuki"
 +#define SCHED_POC_SELECTOR_PROGNAME "Piece-Of-Cake (POC) CPU Selector"
 +
-+#define SCHED_POC_SELECTOR_VERSION  "2.1.12"
++#define SCHED_POC_SELECTOR_VERSION  "2.1.12-r7"
 +
 +/**************************************************************
 + * Static keys:
@@ -301,9 +299,9 @@ index 0000000000..77da6e5bda
 + * (sysctl kernel.sched_poc_prefer_idle_smt)
 + *                          
 + * When enabled, prefer the SMT siblings over full idle-cores.
-+ * Default: disabled.
++ * Default: enabled.
 + */                         
-+DEFINE_STATIC_KEY_FALSE(sched_poc_prefer_idle_smt);
++DEFINE_STATIC_KEY_TRUE(sched_poc_prefer_idle_smt);
 +
 +/*
 + * sched_poc_aligned: true when all LLCs have poc_cpu_base aligned to 64
@@ -682,7 +680,7 @@ index 0000000000..77da6e5bda
 +	if ((cpu_mask & tgt_mask) && !choose_idle_cpu(target, p)) {
 +		if ((u64)READ_ONCE(sd_share->poc_idle_cpus_mask.counter) & tgt_mask) {
 +			atomic64_andnot(tgt_mask, &sd_share->poc_idle_cpus_mask);
-+		//	smp_mb__after_atomic();
++			smp_mb__after_atomic();
 +		}
 +		cpu_mask &= ~(tgt_mask);
 +	}

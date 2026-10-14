@@ -59,13 +59,13 @@ All scripts support querying current values, setting values globally, or executi
 | :--- | :--- | :--- | :--- | :--- |
 | `poc` | `selector` | Kernel default | Hot-path lookup accelerator | Shaves prime test from **12.33s to 12.18s** |
 | `poc-smt -d` | `prefer_idle_smt=0` | **Active** (via `0280`) | Heavy Math / Pure Compute | Spreads tasks to empty cores (**12.18s** vs 13.32s) |
-| `poc-smt -e` | `prefer_idle_smt=1` | Off by default | Databases / Server I/O | Rockets Valkey from **2.06M to 2.37M RPS (+15.5%)** |
+| `poc-smt -e` | `prefer_idle_smt=1` | On by default | Databases / Server I/O | Rockets Valkey from **2.06M to 2.37M RPS (+15.5%)** |
 | `poc-sticky` | `target_sticky` | Off by default | Cache-heavy games (High Core CPUs) | Locks L1/TLB cache (Proven for **Cyberpunk 2077**) |
 
 ### Core Deployment Rules
 *   **Gaming Launch Options:** Right-click a specific title like Cyberpunk 2077 in Steam ➔ Properties ➔ Launch Options: `poc-sticky %command%`
 *   **Server Deployments:** Maximize concurrent text/memory pipelines by executing directly via the wrapper: `poc-smt -e valkey-server /path/to/valkey.conf`
-*   **Modular Design:** While chaining is rarely necessary due to optimized kernel defaults, the independent structure easily allows it if an edge-case workload ever requires stacked options (e.g., `poc -e poc-smt -e server-job`).
+*   **Modular Design:** While chaining is rarely necessary due to optimized kernel defaults, the independent structure easily allows it if an edge-case workload ever requires stacked options (e.g., `poc -e poc-smt -d server-job`).
 
 ***
 
@@ -74,7 +74,7 @@ All scripts support querying current values, setting values globally, or executi
 You can apply optimizations dynamically on a per-game basis directly within Steam without leaving the kernel feature permanently turned on. Right-click your game, go to **Properties**, and paste the wrapper into the **Launch Options** field:
 
 ```text
-poc-sticky -e %command%
+poc-smt -d poc-sticky -e %command%
 ```
 
 Omitting the flag has the same effect as explicitly enabling the option.
@@ -83,19 +83,19 @@ Omitting the flag has the same effect as explicitly enabling the option.
 poc-sticky %command%
 ```
 
-The script will automatically enable your L1/TLB cache affinity preferences for the game and cleanly restore your global system defaults the second you exit the game.
+The scripts will automatically enable full-idle cores and your L1/TLB cache affinity preferences for the game and cleanly restore your global system defaults the second you exit the game.
 
 ## 🧮 Server Workloads & Optimization Chaining
 
-For complex server environments or background compute jobs that benefit from keeping cache affinity on SMT siblings rather than bouncing to entirely idle cores, you can use `poc-smt`. This option can be invoked independently whether the master POC Selector is globally enabled or disabled.
+For complex server environments or background compute jobs that benefit from full-idle cores, you can use `poc-smt`. This option can be invoked independently whether the master POC Selector is globally enabled or disabled.
 
 ```bash
-poc-smt -e server-job
+poc-smt -d server-job
 ```
 
 Because these tools are decoupled, they can be chained cleanly to stack optimization layers for a single runtime job—even if the subsystem is disabled globally:
 
 ```bash
-poc -e poc-smt -e server-job
+poc -e poc-smt -d server-job
 ```
 

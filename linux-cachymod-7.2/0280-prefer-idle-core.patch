@@ -13,6 +13,9 @@ the Threadripper machine.
 
 This is more an awareness for the folks in the CPU scheduler domain.
 
+From Shubhang Kaushik
+  sched/fair: Prefer cache-hot prev_cpu for wakeup
+
 From Andrea Righi
   The "is_idle_core" function
   Select target in select_idle_sibling(), if an idle core

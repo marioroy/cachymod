@@ -156,9 +156,8 @@ _tagrel=1
 pkgver=${_major}.${_minor}
 
 pkgdesc='CachyMod Linux Kernel with other patches and improvements'
-pkgrel=1
-#_srcname=cachyos-${_major}.${_minor}-${_tagrel}
-_srcname=cachyos-${_major}.9-2
+pkgrel=2
+_srcname=cachyos-${_major}.${_minor}-${_tagrel}
 _kernver="$pkgver-$pkgrel"
 _kernuname="${pkgver}-${_pkgsuffix}"
 arch=('x86_64')
@@ -177,9 +176,6 @@ source=(
     "config"
     "config.sh"
     "minimal-modprobed.db"  # used if _localmodcfg=yes and _localmodcfg_minimal=yes
-
-    # Incremental bump release
-    "0000-linux7.2.9-10.patch"
 
     # Revert newidle balance, POC, and gaming-sched
     "0000-revert-newidle-bal.patch"
@@ -202,7 +198,7 @@ source=(
     "0240-reflex-0.4.0.patch"
     "0260-fair-update-cachy-mods.patch"
     "0280-prefer-idle-core.patch"
-    "0290-poc-selector-v2.1.12.patch"
+    "0290-poc-selector-v2.1.12-r7.patch"
 
     # Clear Linux default, applied if _prevent_avx2=yes
     "0300-x86-prevent-avx2-vector.patch"
@@ -286,6 +282,17 @@ build_bore=0
     for src in "${source[@]}"; do
         if [[ $src = *-bore* && $src != 0350-bore-credit-sleep* ]]; then
             [[ "$_cpusched" =~ ^(eevdf|rt)$ ]] && build_bore=1
+            break
+        fi
+    done
+}
+
+build_handheld=0
+{
+    local src
+    for src in "${source[@]}"; do
+        if [[ $src = *-handheld* ]]; then
+            [[ "$_cpusched" =~ ^(eevdf|rt)$ ]] && build_handheld=1
             break
         fi
     done
@@ -482,6 +489,28 @@ prepare() {
     esac
 
     echo "Selecting '$_hugepage' TRANSPARENT_HUGEPAGE config..."
+
+    ### Enable Handheld
+    if [[ "$build_handheld" -eq 1 ]]; then
+        echo "Enabling handheld configs..."
+        scripts/config \
+            -d RCU_LAZY_DEFAULT_OFF \
+            -e AMD_PRIVATE_COLOR \
+            -m SENSORS_STEAMDECK \
+            -m MFD_STEAMDECK \
+            -m SND_SOC_AW87XXX \
+            -m HID_ASUS_ALLY \
+            -m HID_LENOVO_GO \
+            -m HID_LENOVO_GO_S \
+            -m HID_MSI_CLAW \
+            -m ZOTAC_ZONE_HID \
+            -m LEDS_STEAMDECK \
+            -m LEDS_VALVE \
+            -e ACPI_CALL \
+            -m ZOTAC_ZONE_PLATFORM \
+            -m EXTCON_STEAMDECK \
+            -m HID_MSI
+    fi
 
     ### Enable Clang AutoFDO
     if [[ "$_autofdo" =~ ^(yes|y|1)$ ]]; then
