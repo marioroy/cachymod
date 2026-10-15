@@ -3,6 +3,7 @@ Revert Cachy mods + improve smoothness
 (1) Set scheduler tunable latencies to unscaled
 (2) Compute sched_base_slice
 (3) Decrease timer_slack_ns default
+(4) Disable sched/fair DELAY_DEQUEUE feature
 
 diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
 --- a/kernel/sched/fair.c
@@ -57,4 +58,29 @@ diff -uarp a/init/init_task.c b/init/init_task.c
  #ifdef CONFIG_AUDIT
 -- 
 2.47.1
+
+Disable DELAY_DEQUEUE as default.
+
+Handheld gaming PCs (like the Steam Deck, ROG Ally, or Legion Go) are
+heavily bound by tight thermal and power envelopes (TDP). This helps
+handheld APUs maintain a much flatter, more stable frame-time graph,
+which is exactly what you want for a smooth portable gaming experience.
+
+The desktop environment benefits from this as well.
+So, let's give this a try.
+
+diff -uarp a/kernel/sched/features.h b/kernel/sched/features.h
+--- a/kernel/sched/features.h
++++ b/kernel/sched/features.h
+@@ -55,7 +55,7 @@ SCHED_FEAT(CACHE_HOT_BUDDY, true)
+  *
+  * DELAY_ZERO clips the lag on dequeue (or wakeup) to 0.
+  */
+-SCHED_FEAT(DELAY_DEQUEUE, true)
++SCHED_FEAT(DELAY_DEQUEUE, false)
+ SCHED_FEAT(DELAY_ZERO, true)
+ 
+ SCHED_FEAT(PARANOID_AVG, false)
+-- 
+2.53.0
 

@@ -156,7 +156,7 @@ _tagrel=1
 pkgver=${_major}.${_rcver}
 
 pkgdesc='CachyMod Linux Kernel with other patches and improvements'
-pkgrel=2
+pkgrel=3
 _stable=${_major}-${_rcver}
 #_srctag=cachyos-${_major}-${_rcver}-${_tagrel}
 _srctag=cachyos-${_major}-rc6-${_tagrel}
@@ -180,8 +180,9 @@ source=(
     "config.sh"
     "minimal-modprobed.db"  # used if _localmodcfg=yes and _localmodcfg_minimal=yes
 
-    # Incremental bump release
+    # Incremental bump release and post fixes
     "0000-linux7.3-rc6-rc7.patch"
+    "0000-linux7.3-rc7-post-fixes.patch"
 
     # Revert xswap, newidle balance, and POC
     "0000-revert-xswap.patch"

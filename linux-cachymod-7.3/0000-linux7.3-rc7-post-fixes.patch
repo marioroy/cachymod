@@ -1,0 +1,748 @@
+
+Linux 7.3-rc7 post fixes: 2026-10-14 08:23:37 -0700
+https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
+commit 0fcb05b72344f40806cbe810de8872f1698bf053
+tree   4c8d2f41787972a683a7bcceac460f4c4ff4d3a7
+
+diff -uNarp a/arch/nios2/include/asm/checksum.h b/arch/nios2/include/asm/checksum.h
+--- a/arch/nios2/include/asm/checksum.h	2026-10-11 23:04:55.000000000 -0400
++++ b/arch/nios2/include/asm/checksum.h	2026-10-14 11:23:37.000000000 -0400
+@@ -27,7 +27,7 @@ static inline __sum16 csum_fold(__wsum s
+ 		"add	%0, %0, r8\n"
+ 		"nor	%0, %0, %0\n"
+ 		: "=r" (sum)
+-		: "r" (sum << 16), "0" (sum)
++		: "r" ((__force u32)sum << 16), "0" (sum)
+ 		: "r8");
+ 	return (__force __sum16) sum;
+ }
+diff -uNarp a/arch/x86/kvm/mmu/paging_tmpl.h b/arch/x86/kvm/mmu/paging_tmpl.h
+--- a/arch/x86/kvm/mmu/paging_tmpl.h	2026-10-11 23:04:55.000000000 -0400
++++ b/arch/x86/kvm/mmu/paging_tmpl.h	2026-10-14 11:23:37.000000000 -0400
+@@ -328,7 +328,6 @@ static int FNAME(walk_addr_generic)(stru
+ 	int offset;
+ 	u64 walk_nx_mask = 0;
+ 	const int write_fault = access & PFERR_WRITE_MASK;
+-	const int user_fault  = access & PFERR_USER_MASK;
+ 	const int fetch_fault = access & PFERR_FETCH_MASK;
+ 	/*
+ 	 * Note! Track the error_code that's common to legacy shadow paging
+@@ -486,7 +485,7 @@ retry_walk:
+ 	return 1;
+ 
+ error:
+-	errcode |= write_fault | user_fault;
++	errcode |= access & (PFERR_WRITE_MASK | PFERR_USER_MASK | PFERR_SS_MASK);
+ 	if (fetch_fault && has_pferr_fetch(w))
+ 		errcode |= PFERR_FETCH_MASK;
+ 
+diff -uNarp a/arch/x86/kvm/mmu.h b/arch/x86/kvm/mmu.h
+--- a/arch/x86/kvm/mmu.h	2026-10-11 23:04:55.000000000 -0400
++++ b/arch/x86/kvm/mmu.h	2026-10-14 11:23:37.000000000 -0400
+@@ -275,8 +275,18 @@ static inline u8 permission_fault(struct
+ 				  unsigned pte_access, unsigned pte_pkey,
+ 				  u64 access)
+ {
+-	/* strip nested paging fault error codes */
+-	unsigned int pfec = access;
++	/*
++	 * Of the error codes that do not contribute to the index in
++	 * fmt->permissions, PK and SS are not supported by shadow paging
++	 * and also not provided to EPT violations, but SS *is* included
++	 * in the NPT exit code.  RSVD faults are handled elsewhere.
++	 */
++	unsigned int pfec = access & ~PFERR_SS_MASK;
++	if (WARN_ON_ONCE(pfec & ~(PFERR_PRESENT_MASK | PFERR_WRITE_MASK |
++				  PFERR_USER_MASK | PFERR_FETCH_MASK)))
++		pfec &= (PFERR_PRESENT_MASK | PFERR_WRITE_MASK |
++			 PFERR_USER_MASK | PFERR_FETCH_MASK);
++
+ 	unsigned long rflags = kvm_x86_call(get_rflags)(vcpu);
+ 
+ 	/*
+@@ -301,8 +311,6 @@ static inline u8 permission_fault(struct
+ 	kvm_mmu_refresh_passthrough_bits(vcpu, w);
+ 
+ 	fault = (fmt->permissions[index] >> pte_access) & 1;
+-
+-	WARN_ON_ONCE(pfec & (PFERR_PK_MASK | PFERR_SS_MASK | PFERR_RSVD_MASK));
+ 	if (unlikely(fmt->pkru_mask)) {
+ 		u32 pkru_bits, offset;
+ 
+diff -uNarp a/arch/x86/kvm/svm/avic.c b/arch/x86/kvm/svm/avic.c
+--- a/arch/x86/kvm/svm/avic.c	2026-10-11 23:04:55.000000000 -0400
++++ b/arch/x86/kvm/svm/avic.c	2026-10-14 11:23:37.000000000 -0400
+@@ -395,6 +395,11 @@ static phys_addr_t avic_get_backing_page
+ 	return __sme_set(__pa(svm->vcpu.arch.apic->regs));
+ }
+ 
++static bool avic_is_addressable_vcpu(struct kvm_vcpu *vcpu)
++{
++	return vcpu->vcpu_id <= __avic_get_max_physical_id(vcpu->kvm, NULL);
++}
++
+ void avic_init_vmcb(struct vcpu_svm *svm, struct vmcb *vmcb)
+ {
+ 	struct kvm_svm *kvm_svm = to_kvm_svm(svm->vcpu.kvm);
+@@ -412,7 +417,6 @@ void avic_init_vmcb(struct vcpu_svm *svm
+ 
+ static int avic_init_backing_page(struct kvm_vcpu *vcpu)
+ {
+-	u32 max_id = x2avic_enabled ? x2avic_max_physical_id : AVIC_MAX_PHYSICAL_ID;
+ 	struct kvm_svm *kvm_svm = to_kvm_svm(vcpu->kvm);
+ 	struct vcpu_svm *svm = to_svm(vcpu);
+ 	u32 id = vcpu->vcpu_id;
+@@ -425,7 +429,7 @@ static int avic_init_backing_page(struct
+ 	 * avic_vcpu_load() expects to be called if and only if the vCPU has
+ 	 * fully initialized AVIC.
+ 	 */
+-	if (id > max_id) {
++	if (!avic_is_addressable_vcpu(vcpu)) {
+ 		kvm_set_apicv_inhibit(vcpu->kvm, APICV_INHIBIT_REASON_PHYSICAL_ID_TOO_BIG);
+ 		vcpu->arch.apic->apicv_active = false;
+ 		return 0;
+@@ -885,6 +889,14 @@ int avic_init_vcpu(struct vcpu_svm *svm)
+ 	return ret;
+ }
+ 
++void avic_vcpu_free(struct kvm_vcpu *vcpu)
++{
++	struct kvm_svm *kvm_svm = to_kvm_svm(vcpu->kvm);
++
++	if (kvm_svm->avic_physical_id_table && avic_is_addressable_vcpu(vcpu))
++		WRITE_ONCE(kvm_svm->avic_physical_id_table[vcpu->vcpu_id], 0);
++}
++
+ void avic_apicv_post_state_restore(struct kvm_vcpu *vcpu)
+ {
+ 	avic_handle_dfr_update(vcpu);
+@@ -1045,8 +1057,7 @@ static void __avic_vcpu_load(struct kvm_
+ 	if (WARN_ON(h_physical_id & ~AVIC_PHYSICAL_ID_ENTRY_HOST_PHYSICAL_ID_MASK))
+ 		return;
+ 
+-	if (WARN_ON_ONCE(vcpu->vcpu_id * sizeof(entry) >=
+-			 PAGE_SIZE << avic_get_physical_id_table_order(vcpu->kvm)))
++	if (WARN_ON_ONCE(!avic_is_addressable_vcpu(vcpu)))
+ 		return;
+ 
+ 	/*
+@@ -1108,8 +1119,7 @@ static void __avic_vcpu_put(struct kvm_v
+ 
+ 	lockdep_assert_preemption_disabled();
+ 
+-	if (WARN_ON_ONCE(vcpu->vcpu_id * sizeof(entry) >=
+-			 PAGE_SIZE << avic_get_physical_id_table_order(vcpu->kvm)))
++	if (WARN_ON_ONCE(!avic_is_addressable_vcpu(vcpu)))
+ 		return;
+ 
+ 	/*
+diff -uNarp a/arch/x86/kvm/svm/sev.c b/arch/x86/kvm/svm/sev.c
+--- a/arch/x86/kvm/svm/sev.c	2026-10-11 23:04:55.000000000 -0400
++++ b/arch/x86/kvm/svm/sev.c	2026-10-14 11:23:37.000000000 -0400
+@@ -2421,7 +2421,7 @@ static int sev_gmem_post_populate(struct
+ 		void *dst_vaddr = kmap_local_pfn(pfn);
+ 
+ 		memcpy(src_vaddr, dst_vaddr, PAGE_SIZE);
+-		set_page_dirty(src_page);
++		set_page_dirty_lock(src_page);
+ 
+ 		kunmap_local(dst_vaddr);
+ 		kunmap_local(src_vaddr);
+diff -uNarp a/arch/x86/kvm/svm/svm.c b/arch/x86/kvm/svm/svm.c
+--- a/arch/x86/kvm/svm/svm.c	2026-10-11 23:04:55.000000000 -0400
++++ b/arch/x86/kvm/svm/svm.c	2026-10-14 11:23:37.000000000 -0400
+@@ -1328,7 +1328,7 @@ static int svm_vcpu_create(struct kvm_vc
+ 	svm->msrpm = svm_vcpu_alloc_msrpm();
+ 	if (!svm->msrpm) {
+ 		err = -ENOMEM;
+-		goto error_free_sev;
++		goto error_free_avic;
+ 	}
+ 
+ 	svm->x2avic_msrs_intercepted = true;
+@@ -1342,6 +1342,8 @@ static int svm_vcpu_create(struct kvm_vc
+ 
+ 	return 0;
+ 
++error_free_avic:
++	avic_vcpu_free(vcpu);
+ error_free_sev:
+ 	sev_free_vcpu(vcpu);
+ error_free_vmcb_page:
+@@ -1356,6 +1358,8 @@ static void svm_vcpu_free(struct kvm_vcp
+ 
+ 	WARN_ON_ONCE(!list_empty(&svm->ir_list));
+ 
++	avic_vcpu_free(vcpu);
++
+ 	svm_leave_nested(vcpu);
+ 	svm_free_nested(svm);
+ 
+diff -uNarp a/arch/x86/kvm/svm/svm.h b/arch/x86/kvm/svm/svm.h
+--- a/arch/x86/kvm/svm/svm.h	2026-10-11 23:04:55.000000000 -0400
++++ b/arch/x86/kvm/svm/svm.h	2026-10-14 11:23:37.000000000 -0400
+@@ -955,6 +955,7 @@ void avic_init_vmcb(struct vcpu_svm *svm
+ int avic_incomplete_ipi_interception(struct kvm_vcpu *vcpu);
+ int avic_unaccelerated_access_interception(struct kvm_vcpu *vcpu);
+ int avic_init_vcpu(struct vcpu_svm *svm);
++void avic_vcpu_free(struct kvm_vcpu *vcpu);
+ void avic_vcpu_load(struct kvm_vcpu *vcpu, int cpu);
+ void avic_vcpu_put(struct kvm_vcpu *vcpu);
+ void avic_apicv_post_state_restore(struct kvm_vcpu *vcpu);
+diff -uNarp a/arch/x86/kvm/x86.h b/arch/x86/kvm/x86.h
+--- a/arch/x86/kvm/x86.h	2026-10-11 23:04:55.000000000 -0400
++++ b/arch/x86/kvm/x86.h	2026-10-14 11:23:37.000000000 -0400
+@@ -250,7 +250,7 @@ static inline bool is_noncanonical_invlp
+ static inline void vcpu_cache_mmio_info(struct kvm_vcpu *vcpu,
+ 					gva_t gva, gfn_t gfn, unsigned access)
+ {
+-	u64 gen = kvm_memslots(vcpu->kvm)->generation;
++	u64 gen = kvm_vcpu_memslots(vcpu)->generation;
+ 
+ 	if (unlikely(gen & KVM_MEMSLOT_GEN_UPDATE_IN_PROGRESS))
+ 		return;
+@@ -267,7 +267,7 @@ static inline void vcpu_cache_mmio_info(
+ 
+ static inline bool vcpu_match_mmio_gen(struct kvm_vcpu *vcpu)
+ {
+-	return vcpu->arch.mmio_gen == kvm_memslots(vcpu->kvm)->generation;
++	return vcpu->arch.mmio_gen == kvm_vcpu_memslots(vcpu)->generation;
+ }
+ 
+ /*
+diff -uNarp a/drivers/power/supply/ds2780_battery.c b/drivers/power/supply/ds2780_battery.c
+--- a/drivers/power/supply/ds2780_battery.c	2026-10-11 23:04:55.000000000 -0400
++++ b/drivers/power/supply/ds2780_battery.c	2026-10-14 11:23:37.000000000 -0400
+@@ -304,7 +304,7 @@ static int ds2780_get_capacity(struct ds
+ 		return ret;
+ 
+ 	*capacity = raw;
+-	return raw;
++	return 0;
+ }
+ 
+ static int ds2780_get_status(struct ds2780_device_info *dev_info, int *status)
+diff -uNarp a/drivers/power/supply/generic-adc-battery.c b/drivers/power/supply/generic-adc-battery.c
+--- a/drivers/power/supply/generic-adc-battery.c	2026-10-11 23:04:55.000000000 -0400
++++ b/drivers/power/supply/generic-adc-battery.c	2026-10-14 11:23:37.000000000 -0400
+@@ -90,12 +90,17 @@ static int gab_read_channel(struct gab *
+ 	int ret;
+ 
+ 	ret = iio_read_channel_processed(adc_bat->channel[channel], result);
+-	if (ret < 0)
++	if (ret < 0) {
+ 		dev_err(&adc_bat->psy->dev, "read channel error: %d\n", ret);
++		return ret;
++	}
++
++	if (channel == GAB_TEMP)
++		*result /= 100; /* Convert from milli- to deci-degree */
+ 	else
+ 		*result *= 1000;
+ 
+-	return ret;
++	return 0;
+ }
+ 
+ static int gab_get_property(struct power_supply *psy,
+diff -uNarp a/drivers/power/supply/max17042_battery.c b/drivers/power/supply/max17042_battery.c
+--- a/drivers/power/supply/max17042_battery.c	2026-10-11 23:04:55.000000000 -0400
++++ b/drivers/power/supply/max17042_battery.c	2026-10-14 11:23:37.000000000 -0400
+@@ -1233,7 +1233,7 @@ static int max17042_parse_dt(struct max1
+ 	if (of_property_read_u32(np, "maxim,over-volt", &prop))
+ 		chip->vmax = INT_MAX;
+ 	else
+-		chip->vmin = prop;
++		chip->vmax = prop;
+ 
+ 	return 0;
+ }
+diff -uNarp a/drivers/power/supply/power_supply_core.c b/drivers/power/supply/power_supply_core.c
+--- a/drivers/power/supply/power_supply_core.c	2026-10-11 23:04:55.000000000 -0400
++++ b/drivers/power/supply/power_supply_core.c	2026-10-14 11:23:37.000000000 -0400
+@@ -1530,6 +1530,19 @@ void power_supply_external_power_changed
+ 			!psy->desc->external_power_changed)
+ 		return;
+ 
++	/*
++	 * Keep power_supply_unregister() from returning, and thus from letting
++	 * the driver's data be freed, while the callback is running. The
++	 * ->removing check has to happen under the lock: on its own, just like
++	 * the use_cnt check above, it only tells us the supply was still there
++	 * when we looked, not that it still is by the time the callback
++	 * dereferences its driver data.
++	 */
++	guard(rwsem_read)(&psy->epc_sem);
++
++	if (psy->removing)
++		return;
++
+ 	psy->desc->external_power_changed(psy);
+ }
+ EXPORT_SYMBOL_GPL(power_supply_external_power_changed);
+@@ -1774,6 +1787,7 @@ __power_supply_register(struct device *p
+ 	}
+ 
+ 	spin_lock_init(&psy->changed_lock);
++	init_rwsem(&psy->epc_sem);
+ 	init_rwsem(&psy->extensions_sem);
+ 	INIT_LIST_HEAD(&psy->extensions);
+ 
+@@ -1914,7 +1928,17 @@ EXPORT_SYMBOL_GPL(devm_power_supply_regi
+ void power_supply_unregister(struct power_supply *psy)
+ {
+ 	WARN_ON(atomic_dec_return(&psy->use_cnt));
+-	psy->removing = true;
++
++	/*
++	 * Publish ->removing so that no new ->external_power_changed() call can
++	 * start, and wait via semaphore for one that is already running: it may
++	 * be a supplier's changed_work, which cancel_work_sync() below does not
++	 * cover, and it may still dereference driver data that the caller is
++	 * about to free.
++	 */
++	scoped_guard(rwsem_write, &psy->epc_sem)
++		psy->removing = true;
++
+ 	cancel_work_sync(&psy->changed_work);
+ 	cancel_delayed_work_sync(&psy->deferred_register_work);
+ 	sysfs_remove_link(&psy->dev.kobj, "powers");
+diff -uNarp a/include/linux/power_supply.h b/include/linux/power_supply.h
+--- a/include/linux/power_supply.h	2026-10-11 23:04:55.000000000 -0400
++++ b/include/linux/power_supply.h	2026-10-14 11:23:37.000000000 -0400
+@@ -351,6 +351,16 @@ struct power_supply {
+ 	bool removing;
+ 	atomic_t use_cnt;
+ 	struct power_supply_battery_info *battery_info;
++	/*
++	 * Held for read while ->external_power_changed() runs, and for write by
++	 * power_supply_unregister() when it publishes @removing, so that it
++	 * waits for an in-flight callback to finish. Without this a driver's
++	 * data, typically devm-allocated on its own device, can be freed while
++	 * the callback is still using it.
++	 * Must not be shared with extensions_sem: callbacks may read their own
++	 * properties, which takes that one for read.
++	 */
++	struct rw_semaphore epc_sem;
+ 	struct rw_semaphore extensions_sem; /* protects "extensions" */
+ 	struct list_head extensions;
+ #ifdef CONFIG_THERMAL
+@@ -414,9 +424,9 @@ struct power_supply_vbat_ri_table {
+  * @charge_voltage_max_uv: maintenance charging voltage that is usually a bit
+  *   lower than the constant_charge_voltage_max_uv. We can apply this settings
+  *   charge_current_max_ua until we get back up to this voltage.
+- * @safety_timer_minutes: maintenance charging safety timer, with an expiry
+- *   time in minutes. We will only use maintenance charging in this setting
+- *   for a certain amount of time, then we will first move to the next
++ * @charge_safety_timer_minutes: maintenance charging safety timer, with an
++ *   expiry time in minutes. We will only use maintenance charging in this
++ *   setting for a certain amount of time, then we will first move to the next
+  *   maintenance charge current and voltage pair in respective array and wait
+  *   for the next safety timer timeout, or, if we reached the last maintencance
+  *   charging setting, disable charging until we reach
+diff -uNarp a/lib/crypto/arm64/poly1305-armv8.pl b/lib/crypto/arm64/poly1305-armv8.pl
+--- a/lib/crypto/arm64/poly1305-armv8.pl	2026-10-11 23:04:55.000000000 -0400
++++ b/lib/crypto/arm64/poly1305-armv8.pl	2026-10-14 11:23:37.000000000 -0400
+@@ -375,7 +375,7 @@ poly1305_blocks_neon:
+ 	adc	$h1,$h1,xzr
+ 	lsr	$h2,x14,#24
+ 	adds	$h1,$h1,x14,lsl#40
+-	adc	$d2,$h2,xzr		// can be partially reduced...
++	adc	$h2,$h2,xzr		// preserve carry into top limb
+ 
+ 	ldp	$d0,$d1,[$inp],#16	// load input
+ 	sub	$len,$len,#16
+diff -uNarp a/lib/crypto/poly1305.c b/lib/crypto/poly1305.c
+--- a/lib/crypto/poly1305.c	2026-10-11 23:04:55.000000000 -0400
++++ b/lib/crypto/poly1305.c	2026-10-14 11:23:37.000000000 -0400
+@@ -78,7 +78,7 @@ void poly1305_final(struct poly1305_desc
+ 	}
+ 
+ 	poly1305_emit(&desc->state.h, dst, desc->s);
+-	*desc = (struct poly1305_desc_ctx){};
++	memzero_explicit(desc, sizeof(*desc));
+ }
+ EXPORT_SYMBOL(poly1305_final);
+ 
+diff -uNarp a/lib/crypto/tests/poly1305_kunit.c b/lib/crypto/tests/poly1305_kunit.c
+--- a/lib/crypto/tests/poly1305_kunit.c	2026-10-11 23:04:55.000000000 -0400
++++ b/lib/crypto/tests/poly1305_kunit.c	2026-10-14 11:23:37.000000000 -0400
+@@ -55,16 +55,17 @@ static int poly1305_suite_init(struct ku
+  * - Using an all-one-bits r_key tests the key clamping.
+  * - Using an all-one-bits s_key tests carries in implementations of the
+  *   addition mod 2**128 during finalization.
+- * - Using all-one-bits message, and to a lesser extent r_key, tends to maximize
+- *   any intermediate accumulator values.  This increases the chance of
+- *   detecting bugs that occur only in rare cases where the accumulator values
+- *   get very large, for example the bug fixed by commit 678cce4019d746da
+- *   ("crypto: x86/poly1305 - fix overflow during partial reduction").
+- *
+- * Accumulator overflow bugs may be specific to particular update lengths (in
+- * blocks) and/or particular values of the previous acculumator.  Note that the
+- * accumulator starts at 0 which gives the lowest chance of an overflow.  Thus,
+- * a single all-one-bits test vector may be insufficient.
++ * - Using all-one-bits message and r_key results in large values for the
++ *   internal products of r_key by (accumulator + message block).  This
++ *   increases the chance of detecting bugs that occur only in rare cases where
++ *   the sum of these internal products is very large, for example the bug fixed
++ *   by commit 678cce4019d7 ("crypto: x86/poly1305 - fix overflow during partial
++ *   reduction").
++ *
++ * Bugs with the handling of large internal product sums may be specific to
++ * particular update lengths (in blocks) and/or require that the accumulator
++ * also have a large value.  Note that the accumulator starts at 0.  Thus, a
++ * single all-one-bits test vector may be insufficient.
+  *
+  * Considering that, do the following test: continuously update a single
+  * Poly1305 context with all-one-bits data of varying lengths (0, 16, 32, ...,
+@@ -141,10 +142,88 @@ static void test_poly1305_reduction_edge
+ 	}
+ }
+ 
++/*
++ * Test that Poly1305 MACs are computed correctly when r_key=1, s_key=0, and the
++ * message consists of all-ones blocks.
++ *
++ * With r_key=1 and s_key=0, Poly1305 degrades to the sum of the padded blocks
++ * mod 2**130 - 5, then reduced mod 2**128.  A padded all-ones block maps to
++ * 2**128 + (2**128 - 1) = 2**129 - 1.  Two such blocks sum to 2**130 - 2, which
++ * is congruent to 3 mod 2**130 - 5.  Thus, the expected MAC is just 3 *
++ * floor(nblocks / 2), minus 1 if nblocks is odd, then reduced mod 2**128.  If
++ * nblocks == 1 this is 2**128 - 1, otherwise it's just a small integer.
++ *
++ * Inside the Poly1305 implementation in this case, the multiplication does
++ * nothing and each block just adds 2**129 - 1 to the accumulator.  Without the
++ * multiplication to mix things up, this results in some interesting values
++ * being reached where the limbs are at or near their maximum values, even after
++ * (lazy) reduction.  This can reproduce bugs that happen only in such cases.
++ *
++ * For example, this test case reproduces the bug fixed by commit 24f07e8c07a0
++ * ("lib/crypto: arm64: Fix lost Poly1305 carry when resuming NEON state").
++ *
++ * However, reaching that bug required two consecutive updates: one with >= 8
++ * blocks to cause NEON code to be used and leave the accumulator in base 2**26
++ * with its limbs in a certain pattern, then one with an odd number of blocks >=
++ * 9 to cause NEON to be used again, but first processing one block using scalar
++ * code as a special case, triggering a conversion to base 2**64 where the carry
++ * into the 2**128 bit was lost.  To cover this and other similar edge cases
++ * that may exist in other Poly1305 implementations, just test all possible
++ * block-aligned splits between three poly1305_update() calls.
++ */
++static void test_poly1305_split_update_carry(struct kunit *test)
++{
++	static const u8 key[POLY1305_KEY_SIZE] = { 1 }; /* r_key=1, s_key=0 */
++	/*
++	 * Use max_nblocks=66 so that it's a bit more than twice the AVX-512
++	 * threshold of 32 blocks.
++	 */
++	const int max_nblocks = 66;
++	u8 *data = alloc_buf(test, max_nblocks * POLY1305_BLOCK_SIZE);
++	u8 expected_mac[POLY1305_DIGEST_SIZE];
++	u8 actual_mac[POLY1305_DIGEST_SIZE];
++	struct poly1305_desc_ctx ctx;
++
++	KUNIT_ASSERT_LE(test, 3 * (max_nblocks / 2), U8_MAX);
++
++	memset(data, 0xff, max_nblocks * POLY1305_BLOCK_SIZE);
++
++	for (int nblocks = 0; nblocks <= max_nblocks; nblocks++) {
++		size_t len = nblocks * POLY1305_BLOCK_SIZE;
++
++		expected_mac[0] = 3 * (nblocks / 2) - (nblocks % 2);
++		memset(&expected_mac[1], nblocks == 1 ? 0xff : 0,
++		       POLY1305_DIGEST_SIZE - 1);
++		for (size_t part1_len = 0; part1_len <= len;
++		     part1_len += POLY1305_BLOCK_SIZE) {
++			for (size_t part2_len = 0; part2_len <= len - part1_len;
++			     part2_len += POLY1305_BLOCK_SIZE) {
++				size_t part3_len = len - part1_len - part2_len;
++
++				poly1305_init(&ctx, key);
++				poly1305_update(&ctx, data, part1_len);
++				poly1305_update(&ctx, &data[part1_len],
++						part2_len);
++				poly1305_update(&ctx,
++						&data[part1_len + part2_len],
++						part3_len);
++				poly1305_final(&ctx, actual_mac);
++				KUNIT_ASSERT_MEMEQ_MSG(
++					test, actual_mac, expected_mac,
++					POLY1305_DIGEST_SIZE,
++					"Failed with nblocks=%d, part1_len=%zu, part2_len=%zu, part3_len=%zu",
++					nblocks, part1_len, part2_len,
++					part3_len);
++			}
++		}
++	}
++}
++
+ static struct kunit_case poly1305_test_cases[] = {
+ 	HASH_KUNIT_CASES,
+ 	KUNIT_CASE(test_poly1305_allones_keys_and_message),
+ 	KUNIT_CASE(test_poly1305_reduction_edge_cases),
++	KUNIT_CASE(test_poly1305_split_update_carry),
+ 	KUNIT_CASE(benchmark_hash),
+ 	{},
+ };
+diff -uNarp a/tools/bootconfig/main.c b/tools/bootconfig/main.c
+--- a/tools/bootconfig/main.c	2026-10-11 23:04:55.000000000 -0400
++++ b/tools/bootconfig/main.c	2026-10-14 11:23:37.000000000 -0400
+@@ -495,7 +495,8 @@ static int apply_xbc(const char *path, c
+ 	footer.size = htole32(size);
+ 	footer.csum = htole32(csum);
+ 	memcpy(footer.magic, BOOTCONFIG_MAGIC, BOOTCONFIG_MAGIC_LEN);
+-	static_assert(sizeof(footer) == BOOTCONFIG_FOOTER_SIZE);
++	static_assert(sizeof(footer) == BOOTCONFIG_FOOTER_SIZE,
++		      "bootconfig footer size mismatch");
+ 	memcpy(data + size, &footer, BOOTCONFIG_FOOTER_SIZE);
+ 
+ 	total_size = size + BOOTCONFIG_FOOTER_SIZE;
+diff -uNarp a/tools/power/x86/turbostat/turbostat.c b/tools/power/x86/turbostat/turbostat.c
+--- a/tools/power/x86/turbostat/turbostat.c	2026-10-11 23:04:55.000000000 -0400
++++ b/tools/power/x86/turbostat/turbostat.c	2026-10-14 11:23:37.000000000 -0400
+@@ -2034,8 +2034,11 @@ const struct dirent *pmt_diriter_begin(s
+ 			return NULL;
+ 
+ 		num_names = scandir(pmt_root_path, &iter->namelist, pmt_telemdir_filter, pmt_telemdir_sort);
+-		if (num_names == -1)
++		if (num_names == -1) {
++			closedir(iter->dir);
++			iter->dir = NULL;
+ 			return NULL;
++		}
+ 	}
+ 
+ 	iter->current_name_idx = 0;
+@@ -2063,8 +2066,10 @@ void pmt_diriter_remove(struct pmt_dirit
+ 	iter->num_names = 0;
+ 	iter->current_name_idx = 0;
+ 
+-	closedir(iter->dir);
+-	iter->dir = NULL;
++	if (iter->dir) {
++		closedir(iter->dir);
++		iter->dir = NULL;
++	}
+ }
+ 
+ unsigned int pmt_counter_get_width(const struct pmt_counter *p)
+@@ -3636,7 +3641,7 @@ int format_counters(PER_THREAD_PARAMS)
+ 		if (p->gfx_rc6_ms == -1) {	/* detect GFX counter reset */
+ 			outp += sprintf(outp, "%s**.**", (printed++ ? delim : ""));
+ 		} else {
+-			outp += sprintf(outp, "%s%.2f", (printed++ ? delim : ""), p->gfx_rc6_ms / 10.0 / interval_float);
++			outp += sprintf(outp, "%s%.2f", (printed++ ? delim : ""), pct(p->gfx_rc6_ms / 10.0, interval_float));
+ 		}
+ 	}
+ 
+@@ -3653,7 +3658,7 @@ int format_counters(PER_THREAD_PARAMS)
+ 		if (p->sam_mc6_ms == -1) {	/* detect GFX counter reset */
+ 			outp += sprintf(outp, "%s**.**", (printed++ ? delim : ""));
+ 		} else {
+-			outp += sprintf(outp, "%s%.2f", (printed++ ? delim : ""), p->sam_mc6_ms / 10.0 / interval_float);
++			outp += sprintf(outp, "%s%.2f", (printed++ ? delim : ""), pct(p->sam_mc6_ms / 10.0, interval_float));
+ 		}
+ 	}
+ 
+@@ -5915,7 +5920,7 @@ void free_fd_msr(void)
+ 	if (!msr_counter_info)
+ 		return;
+ 
+-	for (int cpu = 0; cpu < topo.max_cpu_num; ++cpu) {
++	for (int cpu = 0; cpu <= topo.max_cpu_num; ++cpu) {
+ 		if (msr_counter_info[cpu].fd_perf != -1)
+ 			close(msr_counter_info[cpu].fd_perf);
+ 	}
+@@ -6311,33 +6316,35 @@ int for_all_proc_cpus(int (func) (int))
+ 
+ #define PATH_EFFECTIVE_CPUS	"/sys/fs/cgroup/cpuset.cpus.effective"
+ 
+-static char cpu_effective_str[1024];
++static char *cpu_effective_str;
+ 
+ static int update_effective_str(bool startup)
+ {
+ 	FILE *fp;
+-	char *pos;
+-	char buf[1024];
++	char *buf = NULL;
++	size_t size = 0;
+ 	int ret;
+ 
+-	if (cpu_effective_str[0] == '\0' && !startup)
++	if (!cpu_effective_str && !startup)
+ 		return 0;
+ 
+ 	fp = fopen(PATH_EFFECTIVE_CPUS, "r");
+ 	if (!fp)
+ 		return 0;
+ 
+-	pos = fgets(buf, 1024, fp);
+-	if (!pos)
++	if (getline(&buf, &size, fp) < 0)
+ 		err(1, "%s: file read failed", PATH_EFFECTIVE_CPUS);
+ 
+ 	fclose(fp);
+ 
+-	ret = strncmp(cpu_effective_str, buf, 1024);
+-	if (!ret)
++	ret = cpu_effective_str ? strcmp(cpu_effective_str, buf) : 1;
++	if (!ret) {
++		free(buf);
+ 		return 0;
++	}
+ 
+-	strncpy(cpu_effective_str, buf, 1024);
++	free(cpu_effective_str);
++	cpu_effective_str = buf;
+ 	return 1;
+ }
+ 
+@@ -8529,13 +8536,16 @@ end:
+ 	return ret;
+ }
+ 
+-char cpuset_buf[1024];
+-int initialize_cpu_set_from_sysfs(cpu_set_t *cpu_set, char *sysfs_path, char *sysfs_file)
++int initialize_cpu_set_from_sysfs(cpu_set_t *cpu_set, const char *sysfs_path,
++				  const char *sysfs_file)
+ {
+ 	FILE *fp;
++	char *cpuset_buf = NULL;
++	size_t size = 0;
+ 	char path[128];
++	int ret = -1;
+ 
+-	if (snprintf(path, 128, "%s/%s", sysfs_path, sysfs_file) > 128)
++	if (snprintf(path, sizeof(path), "%s/%s", sysfs_path, sysfs_file) >= (int)sizeof(path))
+ 		err(-1, "%s %s", sysfs_path, sysfs_file);
+ 
+ 	fp = fopen(path, "r");
+@@ -8543,19 +8553,20 @@ int initialize_cpu_set_from_sysfs(cpu_se
+ 		warn("open %s", path);
+ 		return -1;
+ 	}
+-	if (fread(cpuset_buf, sizeof(char), 1024, fp) == 0) {
++	if (getline(&cpuset_buf, &size, fp) < 0) {
+ 		warn("read %s", sysfs_path);
+-		goto err;
++		goto out;
+ 	}
+ 	if (parse_cpu_str(cpuset_buf, cpu_set, cpu_possible_setsize)) {
+-		warnx("%s: cpu str malformat %s\n", sysfs_path, cpu_effective_str);
+-		goto err;
++		warnx("%s: cpu str malformat %s\n", sysfs_path, cpuset_buf);
++		goto out;
+ 	}
+-	return 0;
++	ret = 0;
+ 
+-err:
++out:
+ 	fclose(fp);
+-	return -1;
++	free(cpuset_buf);
++	return ret;
+ }
+ 
+ void print_cpu_set(char *s, cpu_set_t *set)
+@@ -8655,6 +8666,8 @@ void rapl_perf_init(void)
+ {
+ 	const unsigned int num_domains = get_rapl_num_domains();
+ 	bool *domain_visited = calloc(num_domains, sizeof(bool));
++	if (!domain_visited)
++		err(-1, "calloc domain_visited");
+ 
+ 	rapl_counter_info_perdomain = calloc(num_domains, sizeof(*rapl_counter_info_perdomain));
+ 	if (rapl_counter_info_perdomain == NULL)
+@@ -9471,8 +9484,10 @@ void perf_l2_init(void)
+ 				free_fd_l2_percpu();
+ 				return;
+ 			}
+-		} else
+-			err(-1, "%s: cpu%d: type %d", __func__, cpu, cpus[cpu].type);
++		} else {
++			warn("%s: cpu%d: type %d: Update kernel perf support or use \"--hide L2MRPS,L2%%hit\" or \"--hide cache\" or \"--no-perf\"", __func__, cpu, cpus[cpu].type);
++			return;
++		}
+ 	}
+ 	BIC_PRESENT(BIC_L2_MRPS);
+ 	BIC_PRESENT(BIC_L2_HIT);
+@@ -9999,6 +10014,8 @@ int added_perf_counters_init_(struct per
+ 	const size_t max_num_domains = MAX(topo.max_cpu_num + 1, MAX(topo.max_core_id + 1, topo.max_package_id + 1));
+ 
+ 	domain_visited = calloc(max_num_domains, sizeof(*domain_visited));
++	if (!domain_visited)
++		errx(1, "%s: alloc %s", __func__, "domain_visited");
+ 
+ 	while (pinfo) {
+ 		switch (pinfo->scope) {
+@@ -10390,6 +10407,8 @@ int pmt_add_counter(unsigned int guid, u
+ 	pcounter = pmt_find_counter(*pmt_root, name);
+ 	if (!pcounter) {
+ 		pcounter = calloc(1, sizeof(*pcounter));
++		if (!pcounter)
++			return 1;
+ 		new_counter = true;
+ 	}
+ 
+@@ -10439,7 +10458,7 @@ void pmt_init(void)
+ 		mod_num = 0;	/* Relative module number for current PMT file. */
+ 
+ 		/* Open the counter for each CPU. */
+-		for (cpu_num = 0; cpu_num < topo.max_cpu_num;) {
++		for (cpu_num = 0; cpu_num <= topo.max_cpu_num;) {
+ 
+ 			if (cpu_is_not_allowed(cpu_num))
+ 				goto next_loop_iter;
+@@ -10608,7 +10627,7 @@ int get_and_dump_counters(void)
+ 
+ void print_version()
+ {
+-	fprintf(outf, "turbostat version 2026.04.21 - Len Brown <lenb@kernel.org>\n");
++	fprintf(outf, "turbostat version 2026.09.28 - Len Brown <lenb@kernel.org>\n");
+ }
+ 
+ #define COMMAND_LINE_SIZE 2048
+@@ -10668,10 +10687,11 @@ int add_counter(unsigned int msr_num, ch
+ 				fprintf(stderr, "%s: %s FOUND\n", __func__, name);
+ 			break;
+ 		}
+-		if (sys.added_thread_counters++ >= MAX_ADDED_THREAD_COUNTERS) {
++		if (sys.added_thread_counters >= MAX_ADDED_THREAD_COUNTERS) {
+ 			warnx("ignoring thread counter %s", name);
+ 			return -1;
+ 		}
++		sys.added_thread_counters++;
+ 		break;
+ 	case SCOPE_CORE:
+ 		msrp = find_msrp_by_name(sys.cp, name);
+@@ -10680,10 +10700,11 @@ int add_counter(unsigned int msr_num, ch
+ 				fprintf(stderr, "%s: %s FOUND\n", __func__, name);
+ 			break;
+ 		}
+-		if (sys.added_core_counters++ >= MAX_ADDED_CORE_COUNTERS) {
++		if (sys.added_core_counters >= MAX_ADDED_CORE_COUNTERS) {
+ 			warnx("ignoring core counter %s", name);
+ 			return -1;
+ 		}
++		sys.added_core_counters++;
+ 		break;
+ 	case SCOPE_PACKAGE:
+ 		msrp = find_msrp_by_name(sys.pp, name);
+@@ -10692,10 +10713,11 @@ int add_counter(unsigned int msr_num, ch
+ 				fprintf(stderr, "%s: %s FOUND\n", __func__, name);
+ 			break;
+ 		}
+-		if (sys.added_package_counters++ >= MAX_ADDED_PACKAGE_COUNTERS) {
++		if (sys.added_package_counters >= MAX_ADDED_PACKAGE_COUNTERS) {
+ 			warnx("ignoring package counter %s", name);
+ 			return -1;
+ 		}
++		sys.added_package_counters++;
+ 		break;
+ 	default:
+ 		warnx("ignoring counter %s with unknown scope", name);
+-- 
+2.53.0
+
