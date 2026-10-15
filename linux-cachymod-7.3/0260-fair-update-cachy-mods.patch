@@ -1,9 +1,12 @@
 
-Revert Cachy mods + improve smoothness
+Revert Cachy mods, plus improve smoothness
+
 (1) Set scheduler tunable latencies to unscaled
 (2) Compute sched_base_slice
 (3) Decrease timer_slack_ns default
-(4) Disable sched/fair DELAY_DEQUEUE feature
+(4) Disable sched/fair DELAY_DEQUEUE and RUN_TO_PARITY features
+
+Signed-off-by: Mario Roy <>
 
 diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
 --- a/kernel/sched/fair.c
@@ -59,19 +62,78 @@ diff -uarp a/init/init_task.c b/init/init_task.c
 -- 
 2.47.1
 
-Disable DELAY_DEQUEUE as default.
+Disable DELAY_DEQUEUE and RUN_TO_PARITY as default.
 
-Handheld gaming PCs (like the Steam Deck, ROG Ally, or Legion Go) are
-heavily bound by tight thermal and power envelopes (TDP). This helps
-handheld APUs maintain a much flatter, more stable frame-time graph,
-which is exactly what you want for a smooth portable gaming experience.
+The Symbiotic Effect of the "Double Negative" - Google/Gemini
 
-The desktop environment benefits from this as well.
-So, let's give this a try.
+To understand why they work so well together, look at how the scheduler
+handles a newly awakened interactive task (like a game engine thread,
+a mouse click event, or an audio buffer filling) when both features
+are disabled:
+
+Scheduler Action
+
+ 1. Evaluating the Runqueue
+
+    With Defaut Settings:
+      DELAY_DEQUEUE keeps sleeping tasks lingering in the queue to
+      recalculate eligibility math. The queue is cluttered.
+
+    NO_DELAY_DEQUEUE + NO_RUN_TO_PARITY
+      NO_DELAY_DEQUEUE instantly drops sleeping tasks. The scheduler
+      has a perfectly clean, accurate picture of free cores.
+
+ 2. Finding a Core
+
+    With Defaut Settings:
+      The task is placed on a core via a heavy search path.
+
+    NO_DELAY_DEQUEUE + NO_RUN_TO_PARITY
+      Your POC Selector (0290) instantly assigns the task to a
+      cache-hot core via your lock-free atomic bitmap.
+
+ 3. Claiming the CPU
+
+    With Defaut Settings:
+      RUN_TO_PARITY blocks the task from executing if a background
+      task is currently running, forcing it to wait until the current
+      task hits "parity."
+
+    NO_DELAY_DEQUEUE + NO_RUN_TO_PARITY
+      NO_RUN_TO_PARITY violently preempts the running task.
+      The interactive thread claims the core and executes immediately.
+
+Why This Combination Specifically Prevents Micro-Stutters
+
+If you disable DELAY_DEQUEUE but leave RUN_TO_PARITY enabled, you
+create a new bottleneck:
+
+ 1. Your lightning-fast POC Selector will successfully find an
+    available execution pipeline instantly.
+
+ 2. However, if that pipeline happens to have a running thread on
+    it (like a background process), RUN_TO_PARITY steps in as an
+    anti-preemption brake. It tells your newly awakened task:
+    "I know you found this core quickly, but you must sit and wait
+    for this running thread to finish its fair share."
+
+By turning both off, you completely eliminate that handoff latency.
+A task is selected instantly via your bitmap (POC patch), wakes up,
+and immediately knocks out whatever background noise was occupying
+that core.
 
 diff -uarp a/kernel/sched/features.h b/kernel/sched/features.h
 --- a/kernel/sched/features.h
 +++ b/kernel/sched/features.h
+@@ -17,7 +17,7 @@ SCHED_FEAT(PLACE_REL_DEADLINE, true)
+  * Inhibit (wakeup) preemption until the current task has either matched the
+  * 0-lag point or until is has exhausted it's slice.
+  */
+-SCHED_FEAT(RUN_TO_PARITY, true)
++SCHED_FEAT(RUN_TO_PARITY, false)
+ /*
+  * Allow wakeup of tasks with a shorter slice to cancel RUN_TO_PARITY for
+  * current.
 @@ -55,7 +55,7 @@ SCHED_FEAT(CACHE_HOT_BUDDY, true)
   *
   * DELAY_ZERO clips the lag on dequeue (or wakeup) to 0.
