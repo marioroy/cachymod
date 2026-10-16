@@ -18,7 +18,7 @@ diff --git a/fs/namei.c b/fs/namei.c
 index 19ce43c9a6e66..9180ee85809b8 100644
 --- a/fs/namei.c
 +++ b/fs/namei.c
-@@ -4652,6 +4652,7 @@ static const char *open_last_lookups(struct nameidata *nd,
+@@ -4681,6 +4681,7 @@ static const char *open_last_lookups(struct nameidata *nd,
  static int do_open(struct nameidata *nd,
  		   struct file *file, const struct open_flags *op)
  {
@@ -26,7 +26,7 @@ index 19ce43c9a6e66..9180ee85809b8 100644
  	struct mnt_idmap *idmap;
  	int open_flag = op->open_flag;
  	bool do_truncate;
-@@ -4693,11 +4694,17 @@ static int do_open(struct nameidata *nd,
+@@ -4722,11 +4723,17 @@ static int do_open(struct nameidata *nd,
  		error = mnt_want_write(nd->path.mnt);
  		if (error)
  			return error;
@@ -45,7 +45,7 @@ index 19ce43c9a6e66..9180ee85809b8 100644
  	if (!error)
  		error = security_file_post_open(file, op->acc_mode);
  	if (!error && do_truncate)
-@@ -4706,8 +4713,10 @@ static int do_open(struct nameidata *nd,
+@@ -4735,8 +4742,10 @@ static int do_open(struct nameidata *nd,
  		WARN_ON(1);
  		error = -EINVAL;
  	}

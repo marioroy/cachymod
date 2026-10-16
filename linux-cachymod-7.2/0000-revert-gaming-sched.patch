@@ -55,7 +55,7 @@ diff --git a/kernel/cgroup/cpuset.c b/kernel/cgroup/cpuset.c
 index e42f81a61..45944b3e3 100644
 --- a/kernel/cgroup/cpuset.c
 +++ b/kernel/cgroup/cpuset.c
-@@ -4158,28 +4158,6 @@ bool cpuset_cpus_allowed_fallback(struct task_struct *tsk)
+@@ -4182,28 +4182,6 @@ bool cpuset_cpus_allowed_fallback(struct task_struct *tsk)
  	return changed;
  }
  
@@ -2017,7 +2017,7 @@ index 4664869d8..a4a1eb57a 100644
  	long			propagate;
  	long			prop_runnable_sum;
  
-@@ -2570,7 +2567,6 @@ extern const u32		sched_prio_to_wmult[40];
+@@ -2569,7 +2566,6 @@ extern const u32		sched_prio_to_wmult[40];
  #define ENQUEUE_MIGRATED	0x00040000
  #define ENQUEUE_INITIAL		0x00080000
  #define ENQUEUE_RQ_SELECTED	0x00100000
