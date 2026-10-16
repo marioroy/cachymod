@@ -1,5 +1,5 @@
 
-Minimalist POC v2.1.12 (rev7) variant, based on POC v2.1.0 by @firelzrd
+Minimalist POC v2.1.12 (rev8) variant, based on POC v2.1.0 by @firelzrd
   This applies fewer changes to kernel/sched/fair to help minimize EEVDF
   placement anomalies. Includes awareness patch for sched_ext.
 
@@ -17,8 +17,8 @@ Signed-off-by: Mario Roy <>
 
 From 7d942075abcf26c09f7effabce68c1f50d200cb1 Mon Sep 17 00:00:00 2001
 From: Masahito S <firelzrd@gmail.com>
-Date: Mon, 12 Oct 2026 22:00:00 +0900
-Subject: [PATCH] 7.2-poc-selector-v2.1.12 (rev7)
+Date: Fri, 16 Oct 2026 09:00:00 +0900
+Subject: [PATCH] 7.2-poc-selector-v2.1.12 (rev8)
 
 ---
  include/linux/sched/topology.h |   28 +
@@ -174,7 +174,7 @@ index 967ca52fb2..042327d822 100644
 +			rcu_dereference(per_cpu(sd_llc_shared, target));
 +
 +		if (sd_share && likely(sd_share->poc_fast_eligible)) {
-+			int poc_cpu = select_idle_cpu_poc(p, target, sd_share, p->cpus_ptr);
++			int poc_cpu = select_idle_cpu_poc(target, sd_share, p->cpus_ptr);
 +			if (poc_cpu >= 0)
 +				return poc_cpu;
 +
@@ -270,7 +270,7 @@ index 0000000000..77da6e5bda
 +#define SCHED_POC_SELECTOR_AUTHOR   "Masahito Suzuki"
 +#define SCHED_POC_SELECTOR_PROGNAME "Piece-Of-Cake (POC) CPU Selector"
 +
-+#define SCHED_POC_SELECTOR_VERSION  "2.1.12-r7"
++#define SCHED_POC_SELECTOR_VERSION  "2.1.12-r8"
 +
 +/**************************************************************
 + * Static keys:
@@ -660,7 +660,7 @@ index 0000000000..77da6e5bda
 + * Returns: idle CPU number if found, -1 otherwise
 + */
 +static __always_inline int select_idle_cpu_poc(
-+				struct task_struct *p, int target,
++				int target,
 +				struct sched_domain_shared *sd_share,
 +				const struct cpumask *allowed)
 +{
@@ -677,7 +677,7 @@ index 0000000000..77da6e5bda
 +	cpu_mask = poc_read_idle_cpus(sd_share) & affinity;
 +
 +	/* Clear target CPU bit if busy */
-+	if ((cpu_mask & tgt_mask) && !choose_idle_cpu(target, p)) {
++	if ((cpu_mask & tgt_mask) && !available_idle_cpu(target)) {
 +		if ((u64)READ_ONCE(sd_share->poc_idle_cpus_mask.counter) & tgt_mask) {
 +			atomic64_andnot(tgt_mask, &sd_share->poc_idle_cpus_mask);
 +			smp_mb__after_atomic();
@@ -922,7 +922,7 @@ index 0000000000..77da6e5bda
 +	int cpu;
 +
 +	for_each_online_cpu(cpu)
-+		__set_cpu_idle_state_poc(cpu, choose_idle_cpu(cpu, NULL));
++		__set_cpu_idle_state_poc(cpu, available_idle_cpu(cpu));
 +}
 +
 +static int sched_poc_sysctl_handler(const struct ctl_table *table, int write,
