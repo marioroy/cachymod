@@ -1464,7 +1464,7 @@ diff -uarp a/kernel/sched/ext/ext.c b/kernel/sched/ext/ext.c
  /*
   * NOTE: sched_ext is in the process of growing multiple scheduler support and
   * scx_root usage is in a transitional state. Naked dereferences are safe if the
-@@ -6636,6 +6642,15 @@ static void scx_root_disable(struct scx_sched *sch)
+@@ -6689,6 +6695,15 @@ static void scx_root_disable(struct scx_sched *sch)
  	cpus_read_lock();
  	RCU_INIT_POINTER(scx_root, NULL);
  	scx_cid_retire_tables();
@@ -1480,7 +1480,7 @@ diff -uarp a/kernel/sched/ext/ext.c b/kernel/sched/ext/ext.c
  	cpus_read_unlock();
  
  	/*
-@@ -7897,6 +7912,14 @@ static void scx_enable_workfn(struct kthread_work *work)
+@@ -7950,6 +7965,14 @@ static void scx_enable_workfn(struct kthread_work *work)
  	scx_cgroup_unlock();
  	percpu_up_write(&scx_fork_rwsem);
  
