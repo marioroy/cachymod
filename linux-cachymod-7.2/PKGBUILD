@@ -186,7 +186,7 @@ source=(
     "0001-rt-i915.patch"
 
     # XanMod
-    "0002-x86-kconfig-more-uarches.patch"
+    "0002-x86-kconfig-uarches.patch"
 
     # CachyMod
     "0100-kconfig-add-800Hz.patch"
