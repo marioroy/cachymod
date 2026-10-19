@@ -123,7 +123,7 @@ index 967ca52fb2..042327d822 100644
  
  		if (!idle_cpu(sibling))
  			return false;
-@@ -8797,7 +8808,13 @@ static bool is_idle_core(int cpu, struct task_struct *p)
+@@ -8816,7 +8827,13 @@ static bool is_idle_core(int cpu, struct task_struct *p)
  {
  	int sibling;
  
@@ -137,7 +137,7 @@ index 967ca52fb2..042327d822 100644
  		return choose_idle_cpu(cpu, p);
  
  	for_each_cpu(sibling, cpu_smt_mask(cpu))
-@@ -9203,6 +9220,9 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target, int sync)
+@@ -9222,6 +9239,9 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target, int sync)
  	    cpumask_test_cpu(recent_used_cpu, p->cpus_ptr)) {
  
  		if ((unsigned int)recent_used_cpu < nr_cpumask_bits &&
@@ -147,7 +147,7 @@ index 967ca52fb2..042327d822 100644
  		    is_idle_core(recent_used_cpu, p))
  			return recent_used_cpu;
  	} else {
-@@ -9283,6 +9303,39 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target, int sync)
+@@ -9302,6 +9322,39 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target, int sync)
  	if (!sd)
  		return target;
  
@@ -187,7 +187,7 @@ index 967ca52fb2..042327d822 100644
  	if (sched_smt_active()) {
  		has_idle_core = test_idle_cores(target);
  
-@@ -9303,6 +9356,9 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target, int sync)
+@@ -9322,6 +9375,9 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target, int sync)
  	 * first. But prev_cpu or recent_used_cpu may also be a good candidate,
  	 * use them if possible when no idle CPU found in select_idle_cpu().
  	 */

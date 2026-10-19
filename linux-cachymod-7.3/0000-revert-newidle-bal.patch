@@ -30,7 +30,7 @@ diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
 index bf948db..66afa0a 100644
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -14265,30 +14265,7 @@ static inline void update_newidle_stats(struct sched_domain *sd, unsigned int su
+@@ -14273,30 +14273,7 @@ static inline void update_newidle_stats(struct sched_domain *sd, unsigned int su
  	sd->newidle_success += success;
  
  	if (sd->newidle_call >= 1024) {
@@ -62,7 +62,7 @@ index bf948db..66afa0a 100644
  		sd->newidle_call /= 2;
  		sd->newidle_success /= 2;
  	}
-@@ -15017,7 +14994,7 @@ static int sched_balance_newidle(struct rq *this_rq, struct rq_flags *rf)
+@@ -15025,7 +15002,7 @@ static int sched_balance_newidle(struct rq *this_rq, struct rq_flags *rf)
  		if (sd->flags & SD_BALANCE_NEWIDLE) {
  			unsigned int weight = 1;
  
@@ -150,7 +150,7 @@ diff -uarp a/kernel/sched/core.c b/kernel/sched/core.c
 diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -14259,27 +14259,11 @@ void update_max_interval(void)
+@@ -14267,27 +14267,11 @@ void update_max_interval(void)
  	max_load_balance_interval = HZ*num_online_cpus()/10;
  }
  
@@ -179,7 +179,7 @@ diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
  	if (cost > sd->max_newidle_lb_cost) {
  		/*
  		 * Track max cost of a domain to make sure to not delay the
-@@ -14327,7 +14311,7 @@ static void sched_balance_domains(struct
+@@ -14335,7 +14319,7 @@ static void sched_balance_domains(struct
  		 * Decay the newidle max times here because this is a regular
  		 * visit to all the domains.
  		 */
@@ -188,7 +188,7 @@ diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
  		max_cost += sd->max_newidle_lb_cost;
  
  		/*
-@@ -14992,22 +14976,6 @@ static int sched_balance_newidle(struct
+@@ -15000,22 +14984,6 @@ static int sched_balance_newidle(struct
  			break;
  
  		if (sd->flags & SD_BALANCE_NEWIDLE) {
@@ -211,7 +211,7 @@ diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
  
  			pulled_task = sched_balance_rq(this_cpu, this_rq,
  						   sd, CPU_NEWLY_IDLE,
-@@ -15015,14 +14883,10 @@ static int sched_balance_newidle(struct
+@@ -15023,14 +14891,10 @@ static int sched_balance_newidle(struct
  
  			t1 = sched_clock_cpu(this_cpu);
  			domain_cost = t1 - t0;

@@ -401,6 +401,49 @@ index 0cf94c7a2c9c..20450f7a0c92 100644
 -- 
 2.40.2
 
+sched/eevdf: Fix vprot across reweighting
+https://lore.kernel.org/all/20261016153721.7843-1-kayracizmeci@gmail.com/
+
+diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
+index 0feec172fd37..fd8902813c9f 100644
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -4954,12 +4954,15 @@ static void reweight_eevdf(struct cfs_rq *cfs_rq, struct sched_entity *se,
+ 	update_load_set(&se->h_load, weight);
+ 
+ 	if (on_rq) {
+-		if (rel_vprot)
+-			se->vprot += avruntime;
+ 		se->deadline += avruntime;
+ 		se->rel_deadline = 0;
+ 		se->vruntime = avruntime - se->vlag;
+ 
++		if (rel_vprot)
++			se->vprot += avruntime;
++		else if (curr)
++			se->vprot = se->vruntime;
++
+ 		if (!curr)
+ 			__enqueue_entity(cfs_rq, se);
+ 		cfs_rq->h_nr_queued++;
+@@ -8270,6 +8273,14 @@ enqueue_task_fair(struct rq *rq, struct task_struct *p, int flags)
+ 	if (!curr) {
+ 		reweight_eevdf(cfs_rq, se, weight, false);
+ 		place_entity(cfs_rq, se, flags | ENQUEUE_QUEUED);
++		/*
++		 * During a sched_change pattern, current is dequeued and
++		 * cfs_rq->curr becomes NULL while rq->donor == p. As all
++		 * properties can change, cancel slice protection which is
++		 * not reliable anymore.
++		 */
++		if (task_current_donor(rq, p))
++			cancel_protect_slice(se);
+ 		__enqueue_entity(cfs_rq, se);
+ 	}
+ 
+-- 
+2.53.0
+
 sched/fair: Rebuild load weight when switching to fair
 https://lore.kernel.org/all/20260528131238.3879110-1-quzicheng315@gmail.com/
 
@@ -408,7 +451,7 @@ diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
 index 3ebec186f982..3a21ceefcadf 100644
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -15446,6 +15446,15 @@ static void switched_from_fair(struct rq *rq, struct task_struct *p)
+@@ -15465,6 +15465,15 @@ static void switched_from_fair(struct rq *rq, struct task_struct *p)
  	detach_task_cfs_rq(p);
  }
  
@@ -424,7 +467,7 @@ index 3ebec186f982..3a21ceefcadf 100644
  static void switched_to_fair(struct rq *rq, struct task_struct *p)
  {
  	WARN_ON_ONCE(p->se.sched_delayed);
-@@ -15825,6 +15834,7 @@ DEFINE_SCHED_CLASS(fair) = {
+@@ -15844,6 +15853,7 @@ DEFINE_SCHED_CLASS(fair) = {
  	.prio_changed		= prio_changed_fair,
  	.switching_from		= switching_from_fair,
  	.switched_from		= switched_from_fair,
@@ -477,7 +520,7 @@ diff -uarp a/kernel/sched/debug.c b/kernel/sched/debug.c
 diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
 --- a/kernel/sched/fair.c	2026-10-07 13:53:40.564085231 -0400
 +++ b/kernel/sched/fair.c	2026-10-07 13:56:14.504202338 -0400
-@@ -5225,7 +5225,7 @@ static long calc_up_shares(struct cfs_rq
+@@ -5228,7 +5228,7 @@ static long calc_up_shares(struct cfs_rq
  	return READ_ONCE(tg->shares);
  }
  
@@ -486,7 +529,7 @@ diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
  
  void __sched_cgroup_mode_update(int mode)
  {
-@@ -5238,10 +5238,10 @@ void __sched_cgroup_mode_update(int mode
+@@ -5241,10 +5241,10 @@ void __sched_cgroup_mode_update(int mode
  		func = &calc_smp_shares;
  		break;
  	case 2:
