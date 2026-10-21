@@ -523,13 +523,13 @@ prepare() {
 
     ### Run the config.sh script for kernel tuning
     if [[ -s "${srcdir}"/config.sh ]]; then
-        echo "Further kernel customization. Running config.sh script..."
+        echo "Further kernel customization: Running config.sh script..."
         bash "${srcdir}"/config.sh
     fi
 
     ### Optionally run the custom.sh script for custom tuning
     if [ -n "$custom_script" ]; then
-        echo "Custom kernel tuning. Running custom.sh script..."
+        echo "Custom kernel tuning: Running custom.sh script..."
         bash "$custom_script"
     fi
 
@@ -588,8 +588,15 @@ prepare() {
         make "${BUILD_FLAGS[@]}" LSMOD="/tmp/modprobed.db.$$" localmodconfig
         rm -f "/tmp/modprobed.db.$$"
 
+        # Re-apply the bbr3 module configs
+        if [[ "$_tcp_bbr3" =~ ^(yes|y|1)$ ]]; then
+           echo "Re-enabling the bbr3 module configs..."
+           scripts/config -m TCP_CONG_CUBIC -m NET_SCH_FQ_CODEL
+        fi
+
         # Re-apply the handheld module configs
-        if [[ "$build_handheld" -eq 1 ]]; then
+        if [ "$build_handheld" -eq 1 ]; then
+           echo "Re-enabling the handheld module configs..."
            scripts/config \
               -m MFD_STEAMDECK \
               -m SENSORS_STEAMDECK \
@@ -604,6 +611,12 @@ prepare() {
               -m ZOTAC_ZONE_PLATFORM \
               -m EXTCON_STEAMDECK \
               -m HID_MSI
+        fi
+
+        # Re-run the custom.sh script to re-apply module configs
+        if [ -n "$custom_script" ]; then
+           echo "Re-running the custom.sh script to re-apply module configs..."
+           bash "$custom_script"
         fi
     fi
 
