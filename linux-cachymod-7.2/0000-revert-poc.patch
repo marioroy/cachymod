@@ -101,7 +101,7 @@ diff --git a/kernel/sched/ext/ext.c b/kernel/sched/ext/ext.c
 index e0132294b..18183062f 100644
 --- a/kernel/sched/ext/ext.c
 +++ b/kernel/sched/ext/ext.c
-@@ -6400,9 +6400,6 @@ static void scx_root_disable(struct scx_sched *sch)
+@@ -6423,9 +6423,6 @@ static void scx_root_disable(struct scx_sched *sch)
  	mutex_unlock(&scx_enable_mutex);
  
  	WARN_ON_ONCE(scx_set_enable_state(SCX_DISABLED) != SCX_DISABLING);
@@ -111,7 +111,7 @@ index e0132294b..18183062f 100644
  done:
  	scx_bypass(sch, false);
  }
-@@ -7618,10 +7615,6 @@ static void scx_root_enable_workfn(struct kthread_work *work)
+@@ -7641,10 +7638,6 @@ static void scx_root_enable_workfn(struct kthread_work *work)
  		}
  	}
  

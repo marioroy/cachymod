@@ -150,14 +150,15 @@ fi
 
 _pkgsuffix=cachymod
 _major=7.2
-_minor=11
+_minor=12
 _tagrel=1
 #_rcver="rc7"
 pkgver=${_major}.${_minor}
 
 pkgdesc='CachyMod Linux Kernel with other patches and improvements'
 pkgrel=1
-_srcname=cachyos-${_major}.${_minor}-${_tagrel}
+#_srcname=cachyos-${_major}.${_minor}-${_tagrel}
+_srcname=cachyos-${_major}.11-${_tagrel}
 _kernver="$pkgver-$pkgrel"
 _kernuname="${pkgver}-${_pkgsuffix}"
 arch=('x86_64')
@@ -176,6 +177,9 @@ source=(
     "config"
     "config.sh"
     "minimal-modprobed.db"  # used if _localmodcfg=yes and _localmodcfg_minimal=yes
+
+    # Linux incremental patch release
+    "0000-linux7.2.11-12.patch"
 
     # Revert newidle balance, POC, and gaming-sched
     "0000-revert-newidle-bal.patch"
@@ -496,8 +500,8 @@ prepare() {
         scripts/config \
             -d RCU_LAZY_DEFAULT_OFF \
             -e AMD_PRIVATE_COLOR \
-            -m SENSORS_STEAMDECK \
             -m MFD_STEAMDECK \
+            -m SENSORS_STEAMDECK \
             -m SND_SOC_AW87XXX \
             -m HID_ASUS_ALLY \
             -m HID_LENOVO_GO \
@@ -579,6 +583,24 @@ prepare() {
 
         make "${BUILD_FLAGS[@]}" LSMOD="/tmp/modprobed.db.$$" localmodconfig
         rm -f "/tmp/modprobed.db.$$"
+
+        # Re-apply the handheld module configs
+        if [[ "$build_handheld" -eq 1 ]]; then
+           scripts/config \
+              -m MFD_STEAMDECK \
+              -m SENSORS_STEAMDECK \
+              -m SND_SOC_AW87XXX \
+              -m HID_ASUS_ALLY \
+              -m HID_LENOVO_GO \
+              -m HID_LENOVO_GO_S \
+              -m HID_MSI_CLAW \
+              -m ZOTAC_ZONE_HID \
+              -m LEDS_STEAMDECK \
+              -m LEDS_VALVE \
+              -m ZOTAC_ZONE_PLATFORM \
+              -m EXTCON_STEAMDECK \
+              -m HID_MSI
+        fi
     fi
 
     ### Rewrite configuration

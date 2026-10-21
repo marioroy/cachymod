@@ -1464,7 +1464,7 @@ diff -uarp a/kernel/sched/ext/ext.c b/kernel/sched/ext/ext.c
  /*
   * NOTE: sched_ext is in the process of growing multiple scheduler support and
   * scx_root usage is in a transitional state. Naked dereferences are safe if the
-@@ -6377,6 +6383,15 @@ static void scx_root_disable(struct scx_sched *sch)
+@@ -6400,6 +6406,15 @@ static void scx_root_disable(struct scx_sched *sch)
  	RCU_INIT_POINTER(scx_root, NULL);
  	topo = rcu_replace_pointer(scx_cid_topo, NULL,
  				   lockdep_is_held(&scx_enable_mutex));
@@ -1480,7 +1480,7 @@ diff -uarp a/kernel/sched/ext/ext.c b/kernel/sched/ext/ext.c
  	cpus_read_unlock();
  
  	if (topo) {
-@@ -7553,6 +7568,14 @@ static void scx_enable_workfn(struct kthread_work *work)
+@@ -7576,6 +7591,14 @@ static void scx_enable_workfn(struct kthread_work *work)
  	scx_cgroup_unlock();
  	percpu_up_write(&scx_fork_rwsem);
  
