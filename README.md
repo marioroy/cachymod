@@ -120,6 +120,18 @@ w! /sys/devices/system/cpu/cpuidle/current_governor - - - - teo
 
 *   **[poc-extra folder](./poc-extra):** A collection of multi-function wrapper scripts designed to easily toggle **Piece-Of-Cake (POC) Custom** kernel scheduler features (`poc`, `poc-smt`, `poc-sticky`). These tools support automatic runtime execution wrapping (e.g., for Steam launch options) and clean state restoration upon exit. Includes an automated installer for passwordless `sudo` rights.
 
+*   **Faster Compilation via `localmodcfg`:** Build times can be significantly reduced by enabling a stripped-down, streamlined kernel configuration using two specific variables. Setting `_localmodcfg_minimal="yes"` appends the `linux-tkg` pre-configured, community-maintained "diet" database of Linux kernel modules. This provides excellent out-of-the-box hardware compatibility without forcing you to manually plug in and log every peripheral to "train" a local database before compiling.
+
+```bash
+# Set both options for a diet kernel build
+_localmodcfg=yes
+_localmodcfg_minimal=yes
+
+# Opt-in for extra performance
+_buildtype=thin # or full
+_autofdo=yes
+```
+
 *   If you're running CPU-intensive background tasks or make jobs, refer to **[linux-cgroup-always](https://github.com/marioroy/linux-cgroup-always)** for Ghostty-like `linux-cgroup = always` feature with your terminal emulator. This can be used with EEVDF/BORE and Real-time (RT) kernels.
 
 *   If adding BORE patch, the official patch may not apply with recent kernels. Try `0001-bore.patch` found at <https://github.com/CachyOS/kernel-patches/>.

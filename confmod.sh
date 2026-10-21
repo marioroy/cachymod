@@ -327,6 +327,9 @@ input_localmodcfg() {
   msg+="  Run 'store' from a stock CachyOS kernel at least once.\n"
   msg+="  Run subsequently to store any new module(s) to the database.\n"
   msg+="    sudo modprobed-db store  (refreshes modprobed.db)\n"
+  msg+="\n"
+  msg+="Note: lsmod is called if omitting the installation steps.\n"
+  msg+="Use this option together with _localmodcfg_minimal for diet kernel.\n"
 
   confirm $1 "Enable localmodcfg?" "$msg"
 }

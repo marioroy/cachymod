@@ -352,7 +352,7 @@ diff --git a/net/ipv4/tcp_input.c b/net/ipv4/tcp_input.c
 index adec44313772b..1c9db9a246f71 100644
 --- a/net/ipv4/tcp_input.c
 +++ b/net/ipv4/tcp_input.c
-@@ -5360,11 +5360,25 @@ static void tcp_ofo_queue(struct sock *sk)
+@@ -5388,11 +5388,25 @@ static void tcp_ofo_queue(struct sock *sk)
  static bool tcp_prune_ofo_queue(struct sock *sk, const struct sk_buff *in_skb);
  static int tcp_prune_queue(struct sock *sk, const struct sk_buff *in_skb);
  
@@ -518,8 +518,8 @@ diff -uarp a/kernel/sched/debug.c b/kernel/sched/debug.c
  /* See __sched_cgroup_mode_update(). */
  static const char *cgroup_mode_str[] = {
 diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
---- a/kernel/sched/fair.c	2026-10-07 13:53:40.564085231 -0400
-+++ b/kernel/sched/fair.c	2026-10-07 13:56:14.504202338 -0400
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
 @@ -5228,7 +5228,7 @@ static long calc_up_shares(struct cfs_rq
  	return READ_ONCE(tg->shares);
  }
