@@ -127,3 +127,87 @@ index 6b1c14e684a93..2a7697cee00bc 100644
 -- 
 2.55.0
 
+NTFS driver returns incorrect file data on recent kernels
+https://github.com/namjaejeon/linux-ntfs/issues/96
+
+Apply fix: ntfs: only require compressed size on first extent
+
+The attribute validator required the compressed_size field for
+every sparse or compressed extent. Continuation extents omit that field,
+so their valid mapping_pairs_offset of 64 was rejected and compressed
+reads failed.
+
+Signed-off-by: Hyunchul Lee <>
+
+diff --git a/fs/ntfs/attrib.c b/fs/ntfs/attrib.c
+index 333b3371acb4..6114368ae1b5 100644
+--- a/fs/ntfs/attrib.c
++++ b/fs/ntfs/attrib.c
+@@ -700,8 +700,12 @@ static bool ntfs_non_resident_attr_value_is_valid(const struct attr_record *a)
+ 	min_len = offsetof(struct attr_record, data.non_resident.initialized_size) +
+ 		  sizeof(a->data.non_resident.initialized_size);
+ 
+-	/* Sparse and compressed attributes have the extra compressed_size field */
+-	if (a->flags & (ATTR_IS_SPARSE | ATTR_COMPRESSION_MASK))
++	/*
++	 * Only the first extent of sparse and compressed attributes has the
++	 * extra compressed_size field.
++	 */
++	if ((a->flags & (ATTR_IS_SPARSE | ATTR_COMPRESSION_MASK)) &&
++	    !a->data.non_resident.lowest_vcn)
+ 		min_len += sizeof(a->data.non_resident.compressed_size);
+ 
+ 	if (attr_len < min_len)
+diff --git a/fs/ntfs/inode.c b/fs/ntfs/inode.c
+index 9583b2c6c7a2..83ee35685373 100644
+--- a/fs/ntfs/inode.c
++++ b/fs/ntfs/inode.c
+@@ -1133,6 +1133,11 @@ static int ntfs_read_locked_inode(struct inode *vi)
+ 		}
+ 		if (a->non_resident) {
+ 			NInoSetNonResident(ni);
++			if (a->data.non_resident.lowest_vcn) {
++				ntfs_error(vi->i_sb,
++					   "First extent of $DATA attribute has non zero lowest_vcn.");
++				goto unm_err_out;
++			}
+ 			if (NInoCompressed(ni) || (NInoSparse(ni) && !NInoWofCompressed(ni))) {
+ 				if (NInoCompressed(ni) &&
+ 				    a->data.non_resident.compression_unit != 4) {
+@@ -1174,11 +1179,6 @@ static int ntfs_read_locked_inode(struct inode *vi)
+ 				ni->itype.compressed.size = le64_to_cpu(
+ 						a->data.non_resident.compressed_size);
+ 			}
+-			if (a->data.non_resident.lowest_vcn) {
+-				ntfs_error(vi->i_sb,
+-					"First extent of $DATA attribute has non zero lowest_vcn.");
+-				goto unm_err_out;
+-			}
+ 			vi->i_size = ni->data_size = le64_to_cpu(a->data.non_resident.data_size);
+ 			ni->initialized_size = le64_to_cpu(a->data.non_resident.initialized_size);
+ 			ni->allocated_size = le64_to_cpu(a->data.non_resident.allocated_size);
+@@ -1402,6 +1402,10 @@ static int ntfs_read_locked_attr_inode(struct inode *base_vi, struct inode *vi)
+ 		}
+ 	} else {
+ 		NInoSetNonResident(ni);
++		if (a->data.non_resident.lowest_vcn) {
++			ntfs_error(vi->i_sb, "First extent of attribute has non-zero lowest_vcn.");
++			goto unm_err_out;
++		}
+ 		/*
+ 		 * Ensure the attribute name is placed before the mapping pairs
+ 		 * array.
+@@ -1437,10 +1441,6 @@ static int ntfs_read_locked_attr_inode(struct inode *base_vi, struct inode *vi)
+ 			ni->itype.compressed.size = le64_to_cpu(
+ 					a->data.non_resident.compressed_size);
+ 		}
+-		if (a->data.non_resident.lowest_vcn) {
+-			ntfs_error(vi->i_sb, "First extent of attribute has non-zero lowest_vcn.");
+-			goto unm_err_out;
+-		}
+ 		vi->i_size = ni->data_size = le64_to_cpu(a->data.non_resident.data_size);
+ 		ni->initialized_size = le64_to_cpu(a->data.non_resident.initialized_size);
+ 		ni->allocated_size = le64_to_cpu(a->data.non_resident.allocated_size);
+-- 
+2.53.0
+
