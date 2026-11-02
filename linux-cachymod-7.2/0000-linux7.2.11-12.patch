@@ -650,7 +650,7 @@ diff --git a/kernel/sched/sched.h b/kernel/sched/sched.h
 index a6c6f8165eecc8..d25defb116caae 100644
 --- a/kernel/sched/sched.h
 +++ b/kernel/sched/sched.h
-@@ -4307,8 +4307,9 @@ extern void balance_callbacks(struct rq *rq, struct balance_callback *head);
+@@ -4303,8 +4303,9 @@ extern void balance_callbacks(struct rq *rq, struct balance_callback *head);
   * after which it is enqueued again.
   *
   * Typically this must be called while holding task_rq_lock, since most/all

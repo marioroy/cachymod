@@ -266,7 +266,7 @@ diff --git a/drivers/md/dm-crypt.c b/drivers/md/dm-crypt.c
 index 79704fbc523b..2ccc40954c4c 100644
 --- a/drivers/md/dm-crypt.c
 +++ b/drivers/md/dm-crypt.c
-@@ -3231,6 +3231,9 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
+@@ -3230,6 +3230,9 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
  			goto bad;
  	}
  
@@ -401,6 +401,104 @@ index 0cf94c7a2c9c..20450f7a0c92 100644
 -- 
 2.40.2
 
+ALSA: usb-audio: Avoid applying boot quirk for Behringer UMC204HD
+https://lore.kernel.org/all/20261019102347.2425406-1-tiwai@suse.de/
+
+diff --git a/sound/usb/quirks.c b/sound/usb/quirks.c
+index 4fadb1fdcdea..4ac4aef47dd7 100644
+--- a/sound/usb/quirks.c
++++ b/sound/usb/quirks.c
+@@ -1705,8 +1705,15 @@ int snd_usb_apply_boot_quirk_once(struct usb_device *dev,
+ 	}
+ 
+ 	/* Behringer devices may need explicit device descriptor read at boot */
+-	if (USB_ID_VENDOR(id) == 0x1397)
++	if (USB_ID_VENDOR(id) == 0x1397) {
++		/* the quirk seems breaking on some Behringer devices */
++		switch (id) {
++		case USB_ID(0x1397, 0x0508): /* UMC204HD */
++		case USB_ID(0x1397, 0x0509): /* UMC404HD */
++			return 0;
++		}
+ 		return snd_usb_cm1a_boot_quirk(dev);
++	}
+ 
+ 	return 0;
+ }
+-- 
+2.55.0
+
+mm/hugetlb_vmemmap: map the shared tail page writable
+https://lore.kernel.org/lkml/20261028132623.2560146-1-kirill@shutemov.name/
+
+diff --git a/Documentation/mm/vmemmap_dedup.rst b/Documentation/mm/vmemmap_dedup.rst
+index 9fa8642ded48..66d58fbea5b1 100644
+--- a/Documentation/mm/vmemmap_dedup.rst
++++ b/Documentation/mm/vmemmap_dedup.rst
+@@ -131,8 +131,19 @@ pages of ``struct page`` (page 1 to page 7) are tail pages.
+ The optimization is only applied when the size of the struct page is a power
+ of 2. In this case, all tail pages of the same order are identical. See
+ compound_head(). This allows us to remap the tail pages of the vmemmap to a
+-shared, read-only page. The head page is also remapped to a new page. This
+-allows the original vmemmap pages to be freed.
++shared page. The head page is also remapped to a new page. This allows the
++original vmemmap pages to be freed.
++
++The shared page is mapped writable. A lockless get of a page reference can
++read a non-zero refcount before the remap and attempt its atomic update
++after it. The refcount of a tail page is zero, so the update fails without
++changing the page. Nothing else may write to the shared page: it is shared
++by all HugeTLB pages of the same size in the zone, and a stray write would
++corrupt all of them.
++
++HugeTLB pages whose vmemmap is optimized when the memmap is first set up at
++boot keep a read-only mapping of the shared page. Nothing can do a lockless
++get on them before they are handed to HugeTLB.
+ 
+ Here is how things look after remapping::
+ 
+diff --git a/mm/hugetlb_vmemmap.c b/mm/hugetlb_vmemmap.c
+index 917db0984143..8e5981888937 100644
+--- a/mm/hugetlb_vmemmap.c
++++ b/mm/hugetlb_vmemmap.c
+@@ -223,10 +223,12 @@ static void vmemmap_remap_pte(pte_t *pte, unsigned long addr,
+ 		VM_WARN_ON_ONCE(!PageTail((const struct page *)addr));
+ 
+ 		/*
+-		 * Remap the tail pages as read-only to catch illegal write
+-		 * operation to the tail pages.
++		 * Map the shared tail page writable. A lockless get that read
++		 * a non-zero refcount before the remap can still do its
++		 * cmpxchg after it. The refcount is zero, so the cmpxchg
++		 * fails and leaves the page unchanged.
+ 		 */
+-		entry = mk_pte(walk->vmemmap_tail, PAGE_KERNEL_RO);
++		entry = mk_pte(walk->vmemmap_tail, PAGE_KERNEL);
+ 	}
+ 
+ 	list_add(&page->lru, walk->vmemmap_pages);
+-- 
+2.54.0
+
+wifi: ath12k: fix wrong register read for RU start index of 80_3 segment
+https://lore.kernel.org/all/20261030090906.298234-1-jtornosm@redhat.com/
+
+diff --git a/drivers/net/wireless/ath/ath12k/wifi7/dp_mon.c b/drivers/net/wireless/ath/ath12k/wifi7/dp_mon.c
+index 1e29c13ad66d..0e69d9fe138b 100644
+--- a/drivers/net/wireless/ath/ath12k/wifi7/dp_mon.c
++++ b/drivers/net/wireless/ath/ath12k/wifi7/dp_mon.c
+@@ -293,7 +293,7 @@ ath12k_wifi7_dp_mon_hal_rx_parse_user_info(const struct hal_receive_user_info *r
+ 	}
+ 
+ 	ru_type_80_3 = le32_get_bits(rx_usr_info->info2, HAL_RX_USR_INFO2_RU_TYPE_80_3);
+-	ru_start_index_80_3 = le32_get_bits(rx_usr_info->info2,
++	ru_start_index_80_3 = le32_get_bits(rx_usr_info->info3,
+ 					    HAL_RX_USR_INFO3_RU_START_IDX_80_3);
+ 	if (ru_type_80_3 != HAL_EHT_RU_NONE) {
+ 		ru_size += ru_type_80_3;
+-- 
+2.55.0
+
 sched/fair: Rebuild load weight when switching to fair
 https://lore.kernel.org/all/20260528131238.3879110-1-quzicheng315@gmail.com/
 
@@ -408,7 +506,7 @@ diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
 index 3ebec186f982..3a21ceefcadf 100644
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -15271,6 +15271,15 @@ static void switched_from_fair(struct rq *rq, struct task_struct *p)
+@@ -15279,6 +15279,15 @@ static void switched_from_fair(struct rq *rq, struct task_struct *p)
  	detach_task_cfs_rq(p);
  }
  
@@ -424,7 +522,7 @@ index 3ebec186f982..3a21ceefcadf 100644
  static void switched_to_fair(struct rq *rq, struct task_struct *p)
  {
  	WARN_ON_ONCE(p->se.sched_delayed);
-@@ -15648,6 +15657,7 @@ DEFINE_SCHED_CLASS(fair) = {
+@@ -15656,6 +15665,7 @@ DEFINE_SCHED_CLASS(fair) = {
  	.prio_changed		= prio_changed_fair,
  	.switching_from		= switching_from_fair,
  	.switched_from		= switched_from_fair,
@@ -445,7 +543,7 @@ diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
 index b5819c489..2b9653623 100644
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -13799,12 +13799,21 @@ static int sched_balance_rq(int this_cpu, struct rq *this_rq,
+@@ -13807,12 +13807,21 @@ static int sched_balance_rq(int this_cpu, struct rq *this_rq,
  			 * ->active_balance_work.  Once set, it's cleared
  			 * only after active load balance is finished.
  			 */
@@ -482,7 +580,7 @@ diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
 index 2b9653623..9c78241e9 100644
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -13827,10 +13827,8 @@ static int sched_balance_rq(int this_cpu, struct rq *this_rq,
+@@ -13835,10 +13835,8 @@ static int sched_balance_rq(int this_cpu, struct rq *this_rq,
  		sd->nr_balance_failed = 0;
  	}
  
@@ -513,6 +611,104 @@ diff -uarp a/fs/ntfs3/run.c b/fs/ntfs3/run.c
 +	size_t index = 0, done;
  	bool ok, zone;
  	struct wnd_bitmap *wnd;
+ 
+-- 
+2.53.0
+
+sched-urgent-2026-10-25
+https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/commit/?id=6e723c4f9417663c318d898fa113af211f48a6da
+
+ - Fix MM CID affinity-triggered switch back to per-task mode
+   (Hui Su)
+
+ - Fix scheduling regression observed on AMD Ryzen
+   AI HX 370 systems, caused by cache aware scheduling
+   incorrectly overriding asym packing placement (Tim Chen)
+
+ - Fix stale get_pref_llc() prototype for !CONFIG_SCHED_CACHE
+   (Yafang Shao)
+
+diff --git a/kernel/sched/core.c b/kernel/sched/core.c
+index 0ab15f03cb947..04b62c16fa8ca 100644
+--- a/kernel/sched/core.c
++++ b/kernel/sched/core.c
+@@ -10845,11 +10845,10 @@ static void __mm_update_max_cids(struct mm_mm_cid *mc)
+ 
+ static inline unsigned int mm_cid_calc_pcpu_thrs(struct mm_mm_cid *mc)
+ {
+-	unsigned int opt_cids;
++	unsigned int nr_cpus = mc->nr_cpus_allowed;
+ 
+-	opt_cids = min(mc->nr_cpus_allowed, mc->users);
+ 	/* Has to be at least 1 because 0 indicates PCPU mode off */
+-	return max(min(opt_cids - opt_cids / 4, num_possible_cpus() / 2), 1);
++	return max(min(nr_cpus - nr_cpus / 4, num_possible_cpus() / 2), 1);
+ }
+ 
+ static bool mm_update_max_cids(struct mm_struct *mm)
+diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
+index b5546cd27dba0..f77e7226693be 100644
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -2164,7 +2164,7 @@ void init_sched_mm(struct task_struct *p) { }
+ static void task_tick_cache(struct rq *rq, struct task_struct *p) { }
+ 
+ static inline int get_pref_llc(struct task_struct *p,
+-			       struct mm_struct *mm)
++			       struct sched_cache_group *grp)
+ {
+ 	return -1;
+ }
+@@ -10827,6 +10827,8 @@ static inline bool task_misfits_asym_cpu(struct lb_env *env, struct task_struct
+ 	return false;
+ }
+ 
++static inline bool sched_asym(struct sched_domain *sd, int dst_cpu, int src_cpu);
++
+ /*
+  * Check if task p can migrate from source LLC to
+  * destination LLC in terms of cache aware load balance.
+@@ -10851,6 +10853,10 @@ static enum llc_mig can_migrate_llc_task(struct lb_env *env,
+ 	if (cpu < 0 || cpus_share_cache(src_cpu, dst_cpu))
+ 		return mig_unrestricted;
+ 
++	/* Prioritize asym packing to idle core over cache awareness */
++	if (env->idle && sched_asym(env->sd, dst_cpu, src_cpu))
++		return mig_unrestricted;
++
+ 	/* skip cache aware load balance for too many threads */
+ 	if (invalid_llc_nr(grp, p, dst_cpu) ||
+ 	    exceed_llc_capacity(grp, dst_cpu)) {
+@@ -12048,6 +12054,14 @@ static inline bool llc_balance(struct lb_env *env, struct sg_lb_stats *sgs,
+ 		return false;
+ 
+ 	/*
++	 * On asym packing domains, if the destination CPU
++	 * has higher priority than all CPUs in the source group,
++	 * prioritize asym packing.
++	 */
++	if (sgs->group_asym_packing)
++		return false;
++
++	/*
+ 	 * Skip cache aware tagging if nr_balanced_failed is sufficiently high.
+ 	 * Threshold of cache_nice_tries is set to 1 higher than nr_balance_failed
+ 	 * to avoid excessive task migration at the same time.
+@@ -13434,12 +13448,12 @@ static int need_active_balance(struct lb_env *env)
+ {
+ 	struct sched_domain *sd = env->sd;
+ 
+-	if (alb_break_llc(env))
+-		return 0;
+-
+ 	if (asym_active_balance(env))
+ 		return 1;
+ 
++	if (alb_break_llc(env))
++		return 0;
++
+ 	if (imbalanced_active_balance(env))
+ 		return 1;
  
 -- 
 2.53.0

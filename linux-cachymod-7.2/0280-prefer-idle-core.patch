@@ -267,7 +267,7 @@ index 23596398abca9e..0d2ce4bfac8322 100644
  static unsigned long task_h_load(struct task_struct *p);
  static unsigned long capacity_of(int cpu);
  
-@@ -7982,7 +7982,7 @@ static int sched_idle_rq(struct rq *rq)
+@@ -7990,7 +7990,7 @@ static int sched_idle_rq(struct rq *rq)
  
  static int choose_sched_idle_rq(struct rq *rq, struct task_struct *p)
  {
@@ -276,7 +276,7 @@ index 23596398abca9e..0d2ce4bfac8322 100644
  }
  
  static int choose_idle_cpu(int cpu, struct task_struct *p)
-@@ -8645,6 +8645,24 @@ static inline int __select_idle_cpu(int cpu, struct task_struct *p)
+@@ -8653,6 +8653,24 @@ static inline int __select_idle_cpu(int cpu, struct task_struct *p)
  DEFINE_STATIC_KEY_FALSE(sched_smt_present);
  EXPORT_SYMBOL_GPL(sched_smt_present);
  
@@ -301,7 +301,7 @@ index 23596398abca9e..0d2ce4bfac8322 100644
  static inline void set_idle_cores(int cpu, int val)
  {
  	struct sched_domain_shared *sds;
-@@ -9024,13 +9042,29 @@ static inline bool asym_fits_cpu(unsigned long util,
+@@ -9032,13 +9050,29 @@ static inline bool asym_fits_cpu(unsigned long util,
  /*
   * Try and locate an idle core/thread in the LLC cache domain.
   */
@@ -332,7 +332,7 @@ index 23596398abca9e..0d2ce4bfac8322 100644
  	/*
  	 * On asymmetric system, update task utilization because we will check
  	 * that the task fits with CPU's capacity.
-@@ -9047,7 +9081,7 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target)
+@@ -9055,7 +9089,7 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target)
  	 */
  	lockdep_assert_irqs_disabled();
  
@@ -341,7 +341,7 @@ index 23596398abca9e..0d2ce4bfac8322 100644
  	    asym_fits_cpu(task_util, util_min, util_max, target))
  		return target;
  
-@@ -9081,24 +9115,6 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target)
+@@ -9089,24 +9123,6 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target)
  		return prev;
  	}
  
@@ -366,7 +366,7 @@ index 23596398abca9e..0d2ce4bfac8322 100644
  	/*
  	 * For asymmetric CPU capacity systems, our domain of interest is
  	 * sd_asym_cpucapacity rather than sd_llc.
-@@ -9829,8 +9845,16 @@ select_task_rq_fair(struct task_struct *p, int prev_cpu, int wake_flags)
+@@ -9837,8 +9853,16 @@ select_task_rq_fair(struct task_struct *p, int prev_cpu, int wake_flags)
  		return sched_balance_find_dst_cpu(sd, p, cpu, prev_cpu, sd_flag);
  
  	/* Fast path */
@@ -385,7 +385,7 @@ index 23596398abca9e..0d2ce4bfac8322 100644
  
  	return new_cpu;
  }
-@@ -11850,7 +11872,7 @@ static bool sched_use_asym_prio(struct sched_domain *sd, int cpu)
+@@ -11864,7 +11888,7 @@ static bool sched_use_asym_prio(struct sched_domain *sd, int cpu)
  	if (!sched_smt_active())
  		return true;
  
@@ -411,7 +411,7 @@ diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
  
  		if (!idle_cpu(sibling))
  			return false;
-@@ -11874,7 +11872,7 @@ static bool sched_use_asym_prio(struct s
+@@ -11888,7 +11886,7 @@ static bool sched_use_asym_prio(struct s
  	if (!sched_smt_active())
  		return true;
  

@@ -42,6 +42,7 @@
 # This PKGBUILD read the database kept if it exists
 #
 # More at this wiki page ---> https://wiki.archlinux.org/index.php/Modprobed-db
+# Use this option together with _localmodcfg_minimal for diet kernel build.
 : ${_localmodcfg:=no}
 
 # The localmod db name (e.g. modprobed.db) or full path
@@ -150,7 +151,7 @@ fi
 
 _pkgsuffix=cachymod
 _major=7.2
-_minor=12
+_minor=15
 _tagrel=1
 #_rcver="rc7"
 pkgver=${_major}.${_minor}
@@ -178,13 +179,21 @@ source=(
     "config.sh"
     "minimal-modprobed.db"  # used if _localmodcfg=yes and _localmodcfg_minimal=yes
 
-    # Linux incremental patch release
-    "0000-linux7.2.11-12.patch"
+    # Revert gaming-sched
+    "0000-revert-gaming-sched.patch"
 
-    # Revert newidle balance, POC, and gaming-sched
+    # Linux incremental patch releases
+    "0000-linux7.2.11-12.patch"
+    "0000-linux7.2.12-13.patch"
+    "0000-linux7.2.13-14.patch"
+    "0000-linux7.2.14-15.patch"
+
+    # Revert newidle-balance and POC
     "0000-revert-newidle-bal.patch"
     "0000-revert-poc.patch"
-    "0000-revert-gaming-sched.patch"
+
+    # assoc_array: clean up library
+    "0000-assoc-array-fixes.patch"
 
     # CachyOS
     "0001-rt-i915.patch"
@@ -198,7 +207,7 @@ source=(
     "0200-clearlinux-extras.patch"
     "0210-cachymod-misc.patch"
     "0220-more-fixes.patch"
-    "0230-nap-0.5.1.patch"
+    "0230-nap-0.6.6.patch"
     "0240-reflex-0.4.0.patch"
     "0260-fair-update-cachy-mods.patch"
     "0280-prefer-idle-core.patch"
@@ -302,6 +311,17 @@ build_handheld=0
     done
 }
 
+build_poc=0
+{
+    local src
+    for src in "${source[@]}"; do
+        if [[ $src = *-poc-selector* && $src != 0290-poc-selector* ]]; then
+            [[ "$_cpusched" =~ ^(eevdf|rt)$ ]] && build_poc=1
+            break
+        fi
+    done
+}
+
 if [ -s "custom.sh" ]; then
     custom_script="$(pwd)/custom.sh"
 else
@@ -332,6 +352,12 @@ prepare() {
         [[ $src = *.patch ]] || continue
         if [[ $src = *-prevent-avx2* ]]; then
             [[ "$_prevent_avx2" =~ ^(yes|y|1)$ ]] || continue
+        fi
+        if [[ $src = 0280-prefer-idle-core* ]]; then
+            [[ "$build_poc" -eq 1 ]] && continue
+        fi
+        if [[ $src = 0290-poc-selector* ]]; then
+            [[ "$build_poc" -eq 1 ]] && continue
         fi
         if [[ $src = 0350-bore-credit-sleep* ]]; then
             [[ "$build_bore" -eq 1 ]] && continue
@@ -551,14 +577,22 @@ prepare() {
           fi
         fi
 
-        [[ ! -e "$_localmodcfg_path" ]] && _die "No modprobed.db data found"
-
         [[ "$_localmodcfg_minimal" =~ ^(yes|y|1)$ ]] && \
            echo "Including the modules in minimal-modprobed.db"
 
-        ( cat "$_localmodcfg_path"
-           [[ "$_localmodcfg_minimal" =~ ^(yes|y|1)$ ]] && \
+        (
+           if [[ -e "$_localmodcfg_path" ]]; then
+              cat "$_localmodcfg_path"
+           else
+              # Fallback to listing currently loaded modules if the DB file
+              # is missing. E.g. modprobed-db not installed or package not
+              # available on non-Arch platforms.
+              lsmod | awk 'NR > 1 { print $1 }'
+           fi
+
+           if [[ "$_localmodcfg_minimal" =~ ^(yes|y|1)$ ]]; then
               cat "${srcdir}"/minimal-modprobed.db
+           fi
 
            # Include RAM disk, exfat, ntsync, ttm, and modules for Docker
            # Include tcp_bbr, tcp_dctcp, and tcp_htcp for bpftune

@@ -123,7 +123,7 @@ index 967ca52fb2..042327d822 100644
  
  		if (!idle_cpu(sibling))
  			return false;
-@@ -8651,7 +8662,13 @@ static bool is_idle_core(int cpu, struct task_struct *p)
+@@ -8659,7 +8670,13 @@ static bool is_idle_core(int cpu, struct task_struct *p)
  {
  	int sibling;
  
@@ -137,7 +137,7 @@ index 967ca52fb2..042327d822 100644
  		return choose_idle_cpu(cpu, p);
  
  	for_each_cpu(sibling, cpu_smt_mask(cpu))
-@@ -9057,6 +9074,9 @@ static int select_idle_sibling(struct ta
+@@ -9065,6 +9082,9 @@ static int select_idle_sibling(struct ta
  	    cpumask_test_cpu(recent_used_cpu, p->cpus_ptr)) {
  
  		if ((unsigned int)recent_used_cpu < nr_cpumask_bits &&
@@ -147,7 +147,7 @@ index 967ca52fb2..042327d822 100644
  		    is_idle_core(recent_used_cpu, p))
  			return recent_used_cpu;
  	} else {
-@@ -9137,6 +9157,39 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target, int sync)
+@@ -9145,6 +9165,39 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target, int sync)
  	if (!sd)
  		return target;
  
@@ -187,7 +187,7 @@ index 967ca52fb2..042327d822 100644
  	if (sched_smt_active()) {
  		has_idle_core = test_idle_cores(target);
  
-@@ -9157,6 +9210,9 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target, int sync)
+@@ -9165,6 +9218,9 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target, int sync)
  	 * first. But prev_cpu or recent_used_cpu may also be a good candidate,
  	 * use them if possible when no idle CPU found in select_idle_cpu().
  	 */
@@ -1464,7 +1464,7 @@ diff -uarp a/kernel/sched/ext/ext.c b/kernel/sched/ext/ext.c
  /*
   * NOTE: sched_ext is in the process of growing multiple scheduler support and
   * scx_root usage is in a transitional state. Naked dereferences are safe if the
-@@ -6400,6 +6406,15 @@ static void scx_root_disable(struct scx_sched *sch)
+@@ -6453,6 +6459,15 @@ static void scx_root_disable(struct scx_sched *sch)
  	RCU_INIT_POINTER(scx_root, NULL);
  	topo = rcu_replace_pointer(scx_cid_topo, NULL,
  				   lockdep_is_held(&scx_enable_mutex));
@@ -1480,7 +1480,7 @@ diff -uarp a/kernel/sched/ext/ext.c b/kernel/sched/ext/ext.c
  	cpus_read_unlock();
  
  	if (topo) {
-@@ -7576,6 +7591,14 @@ static void scx_enable_workfn(struct kthread_work *work)
+@@ -7629,6 +7644,14 @@ static void scx_enable_workfn(struct kthread_work *work)
  	scx_cgroup_unlock();
  	percpu_up_write(&scx_fork_rwsem);
  
