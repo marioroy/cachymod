@@ -151,13 +151,13 @@ fi
 
 _pkgsuffix=cachymod
 _major=7.3
-_minor=0
-_tagrel=4
+_minor=1
+_tagrel=1
 #_rcver="rc7"
 pkgver=${_major}.${_minor}
 
 pkgdesc='CachyMod Linux Kernel with other patches and improvements'
-pkgrel=4
+pkgrel=1
 _srcname=cachyos-${_major}.${_minor}-${_tagrel}
 _kernver="$pkgver-$pkgrel"
 _kernuname="${pkgver}-${_pkgsuffix}"
@@ -178,9 +178,19 @@ source=(
     "config.sh"
     "minimal-modprobed.db"  # used if _localmodcfg=yes and _localmodcfg_minimal=yes
 
-    # Revert newidle balance and POC
+    # Revert sched-branch, newidle-balance, and POC
+    "0000-revert-cachyos-sched.patch"
     "0000-revert-newidle-bal.patch"
     "0000-revert-poc.patch"
+
+    # assoc_array: clean up library
+    "0000-assoc-array-fixes.patch"
+
+    # upstream fixes applied to 7.2.15
+    "0000-upstream-fixes.patch"
+
+    # wifi: ath12k fixes
+    "0000-wifi-ath12k-fixes.patch"
 
     # CachyOS
     "0001-rt-i915.patch"
@@ -194,7 +204,7 @@ source=(
     "0200-clearlinux-extras.patch"
     "0210-cachymod-misc.patch"
     "0220-more-fixes.patch"
-    "0230-nap-0.5.1.patch"
+    "0230-nap-0.6.6.patch"
     "0240-reflex-0.4.0.patch"
     "0260-fair-update-cachy-mods.patch"
     "0280-prefer-idle-core.patch"
@@ -298,6 +308,17 @@ build_handheld=0
     done
 }
 
+build_poc=0
+{
+    local src
+    for src in "${source[@]}"; do
+        if [[ $src = *-poc-selector* && $src != 0290-poc-selector* ]]; then
+            [[ "$_cpusched" =~ ^(eevdf|rt)$ ]] && build_poc=1
+            break
+        fi
+    done
+}
+
 if [ -s "custom.sh" ]; then
     custom_script="$(pwd)/custom.sh"
 else
@@ -328,6 +349,12 @@ prepare() {
         [[ $src = *.patch ]] || continue
         if [[ $src = *-prevent-avx2* ]]; then
             [[ "$_prevent_avx2" =~ ^(yes|y|1)$ ]] || continue
+        fi
+        if [[ $src = 0280-prefer-idle-core* ]]; then
+            [[ "$build_poc" -eq 1 ]] && continue
+        fi
+        if [[ $src = 0290-poc-selector* ]]; then
+            [[ "$build_poc" -eq 1 ]] && continue
         fi
         if [[ $src = 0350-bore-credit-sleep* ]]; then
             [[ "$build_bore" -eq 1 ]] && continue

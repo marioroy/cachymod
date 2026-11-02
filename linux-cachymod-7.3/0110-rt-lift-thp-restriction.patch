@@ -34,3 +34,23 @@ diff -uarp a/mm/Kconfig b/mm/Kconfig
 -- 
 2.55.0
 
+Enable the PREEMPT_RT TTWU_QUEUE (Try-To-Wake-Up queueing) by default.
+
+Reduces lock contention on large core-count systems, keeping cross-CPU
+wakeups highly efficient.
+
+diff -uarp a/kernel/sched/features.h b/kernel/sched/features.h
+--- a/kernel/sched/features.h
++++ b/kernel/sched/features.h
+@@ -79,7 +79,7 @@ SCHED_FEAT(HRTICK_DL, false)
+ SCHED_FEAT(NONTASK_CAPACITY, true)
+ 
+ #ifdef CONFIG_PREEMPT_RT
+-SCHED_FEAT(TTWU_QUEUE, false)
++SCHED_FEAT(TTWU_QUEUE, true)
+ #else
+ 
+ /*
+-- 
+2.55.0
+

@@ -1,0 +1,1603 @@
+
+wifi: ath12k: align QMI memory to 64 KB boundary
+https://lore.kernel.org/all/20260730-ath12k-align-qmi-memory-v1-1-0fef98dda614@oss.qualcomm.com/T/
+
+Subject: [PATCH 1/3] wifi: ath12k: use per-device max QMI chunk size
+From: Baochen Qiang <>
+Date: Thu, 30 Jul 2026 14:17:40 +0800
+
+When a target memory chunk fails to allocate, ath12k_qmi_alloc_chunk()
+compares the requested chunk size against ATH12K_QMI_MAX_CHUNK_SIZE to
+decide whether to ask the firmware to retry with smaller chunks
+(-EAGAIN) or to give up (-ENOMEM). This threshold is the boundary that
+tells a first (big) request apart from a retry (small) request, so it
+has to match the size the firmware actually falls back to on retry.
+
+That fallback size is not the same across all firmware, though. On
+WCN7850 and QCC2072 the firmware splits the request into 512 KB chunks
+on retry, whereas on QCN9274, IPQ5332 and IPQ5424 the firmware retries
+with larger 2 MB segments instead of 512 KB. A single hardcoded 2 MB
+threshold is therefore wrong for the former, and a hardcoded 512 KB
+threshold would be wrong for the latter.
+
+Replace the hardcoded ATH12K_QMI_MAX_CHUNK_SIZE with a per-device
+qmi_max_chunk_size parameter: SZ_512K for WCN7850 and QCC2072, SZ_2M for
+QCN9274, IPQ5332 and IPQ5424. No functional change for the latter (the
+value stays 2 MB); the former now use the correct 512 KB boundary.
+
+Tested-on: WCN7850 hw2.0 PCI WLAN.HMT.1.1.c5-00302-QCAHMTSWPL_V1.0_V2.0_SILICONZ-1.115823.3
+Tested-on: QCC2072 hw1.0 PCI WLAN.COL.1.0.c2-00074-QCACOLSWPL_V1_TO_SILICONZ-1
+
+Signed-off-by: Baochen Qiang <>
+Reviewed-by: Rameshkumar Sundaram <>
+---
+ drivers/net/wireless/ath/ath12k/hw.h       | 1 +
+ drivers/net/wireless/ath/ath12k/qmi.c      | 3 +--
+ drivers/net/wireless/ath/ath12k/wifi7/hw.c | 7 +++++++
+ 3 files changed, 9 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/net/wireless/ath/ath12k/hw.h b/drivers/net/wireless/ath/ath12k/hw.h
+index bb1c104e1a65..78a13b169e99 100644
+--- a/drivers/net/wireless/ath/ath12k/hw.h
++++ b/drivers/net/wireless/ath/ath12k/hw.h
+@@ -166,6 +166,7 @@ struct ath12k_hw_params {
+ 	u8 max_radios;
+ 	bool single_pdev_only:1;
+ 	u32 qmi_service_ins_id;
++	u32 qmi_max_chunk_size;
+ 	bool internal_sleep_clock:1;
+ 
+ 	const struct ath12k_hw_ops *hw_ops;
+diff --git a/drivers/net/wireless/ath/ath12k/qmi.c b/drivers/net/wireless/ath/ath12k/qmi.c
+index bb61c78e5c29..f96d847ac92f 100644
+--- a/drivers/net/wireless/ath/ath12k/qmi.c
++++ b/drivers/net/wireless/ath/ath12k/qmi.c
+@@ -18,7 +18,6 @@
+ #define SLEEP_CLOCK_SELECT_INTERNAL_BIT	0x02
+ #define HOST_CSTATE_BIT			0x04
+ #define PLATFORM_CAP_PCIE_GLOBAL_RESET	0x08
+-#define ATH12K_QMI_MAX_CHUNK_SIZE	2097152
+ 
+ static const struct qmi_elem_info wlfw_host_mlo_chip_info_s_v01_ei[] = {
+ 	{
+@@ -2655,7 +2654,7 @@ static int ath12k_qmi_alloc_chunk(struct ath12k_base *ab,
+ 					   &chunk->paddr,
+ 					   GFP_KERNEL | __GFP_NOWARN);
+ 	if (!chunk->v.addr) {
+-		if (chunk->size > ATH12K_QMI_MAX_CHUNK_SIZE) {
++		if (chunk->size > ab->hw_params->qmi_max_chunk_size) {
+ 			ab->qmi.target_mem_delayed = true;
+ 			ath12k_warn(ab,
+ 				    "qmi dma allocation failed (%u B type %u), will try later with small size\n",
+diff --git a/drivers/net/wireless/ath/ath12k/wifi7/hw.c b/drivers/net/wireless/ath/ath12k/wifi7/hw.c
+index 296180fbdc21..23a855018bc4 100644
+--- a/drivers/net/wireless/ath/ath12k/wifi7/hw.c
++++ b/drivers/net/wireless/ath/ath12k/wifi7/hw.c
+@@ -7,6 +7,7 @@
+ #include <linux/types.h>
+ #include <linux/bitops.h>
+ #include <linux/bitfield.h>
++#include <linux/sizes.h>
+ 
+ #include "../debug.h"
+ #include "../core.h"
+@@ -369,6 +370,7 @@ static const struct ath12k_hw_params ath12k_wifi7_hw_params[] = {
+ 		.max_radios = 1,
+ 		.single_pdev_only = false,
+ 		.qmi_service_ins_id = ATH12K_QMI_WLFW_SERVICE_INS_ID_V01_QCN9274,
++		.qmi_max_chunk_size = SZ_2M,
+ 		.internal_sleep_clock = false,
+ 
+ 		.hw_ops = &qcn9274_ops,
+@@ -461,6 +463,7 @@ static const struct ath12k_hw_params ath12k_wifi7_hw_params[] = {
+ 		.max_radios = 1,
+ 		.single_pdev_only = true,
+ 		.qmi_service_ins_id = ATH12K_QMI_WLFW_SERVICE_INS_ID_V01_WCN7850,
++		.qmi_max_chunk_size = SZ_512K,
+ 		.internal_sleep_clock = true,
+ 
+ 		.hw_ops = &wcn7850_ops,
+@@ -553,6 +556,7 @@ static const struct ath12k_hw_params ath12k_wifi7_hw_params[] = {
+ 		.max_radios = 2,
+ 		.single_pdev_only = false,
+ 		.qmi_service_ins_id = ATH12K_QMI_WLFW_SERVICE_INS_ID_V01_QCN9274,
++		.qmi_max_chunk_size = SZ_2M,
+ 		.internal_sleep_clock = false,
+ 
+ 		.hw_ops = &qcn9274_ops,
+@@ -643,6 +647,7 @@ static const struct ath12k_hw_params ath12k_wifi7_hw_params[] = {
+ 		.max_radios = 1,
+ 		.single_pdev_only = false,
+ 		.qmi_service_ins_id = ATH12K_QMI_WLFW_SERVICE_INS_ID_V01_IPQ5332,
++		.qmi_max_chunk_size = SZ_2M,
+ 		.internal_sleep_clock = false,
+ 
+ 		.hw_ops = &qcn9274_ops,
+@@ -728,6 +733,7 @@ static const struct ath12k_hw_params ath12k_wifi7_hw_params[] = {
+ 		.max_radios = 1,
+ 		.single_pdev_only = true,
+ 		.qmi_service_ins_id = ATH12K_QMI_WLFW_SERVICE_INS_ID_V01_WCN7850,
++		.qmi_max_chunk_size = SZ_512K,
+ 		.internal_sleep_clock = true,
+ 
+ 		.hw_ops = &qcc2072_ops,
+@@ -821,6 +827,7 @@ static const struct ath12k_hw_params ath12k_wifi7_hw_params[] = {
+ 		.max_radios = 1,
+ 		.single_pdev_only = false,
+ 		.qmi_service_ins_id = ATH12K_QMI_WLFW_SERVICE_INS_ID_V01_IPQ5332,
++		.qmi_max_chunk_size = SZ_2M,
+ 		.internal_sleep_clock = false,
+ 
+ 		.hw_ops = &qcn9274_ops,
+
+-- 
+2.25.1
+
+Subject: [PATCH 2/3] wifi: ath12k: clear chunk paddr and size in
+ ath12k_qmi_free_target_mem_chunk()
+From: Baochen Qiang <>
+Date: Thu, 30 Jul 2026 14:17:41 +0800
+
+paddr and size of a chunk are not cleared after the chunk is freed, which
+is safe now since the code checks vaddr only and it is properly cleared
+on free. However, leaving stale values can mislead diagnostics and future
+maintenance. Clear both to reduce such risk, this also aligns with
+ath12k_qmi_free_mlo_mem_chunk().
+
+Tested-on: WCN7850 hw2.0 PCI WLAN.HMT.1.1.c5-00302-QCAHMTSWPL_V1.0_V2.0_SILICONZ-1.115823.3
+Tested-on: QCC2072 hw1.0 PCI WLAN.COL.1.0.c2-00074-QCACOLSWPL_V1_TO_SILICONZ-1
+
+Signed-off-by: Baochen Qiang <>
+Reviewed-by: Rameshkumar Sundaram <>
+---
+ drivers/net/wireless/ath/ath12k/qmi.c | 26 ++++++++++++++++----------
+ 1 file changed, 16 insertions(+), 10 deletions(-)
+
+diff --git a/drivers/net/wireless/ath/ath12k/qmi.c b/drivers/net/wireless/ath/ath12k/qmi.c
+index f96d847ac92f..03ec2057ca27 100644
+--- a/drivers/net/wireless/ath/ath12k/qmi.c
++++ b/drivers/net/wireless/ath/ath12k/qmi.c
+@@ -2602,27 +2602,33 @@ static void ath12k_qmi_free_mlo_mem_chunk(struct ath12k_base *ab,
+ static void ath12k_qmi_free_target_mem_chunk(struct ath12k_base *ab)
+ {
+ 	struct ath12k_hw_group *ag = ab->ag;
++	struct target_mem_chunk *chunk;
+ 	int i, mlo_idx;
+ 
+ 	for (i = 0, mlo_idx = 0; i < ab->qmi.mem_seg_count; i++) {
+-		if (ab->qmi.target_mem[i].type == MLO_GLOBAL_MEM_REGION_TYPE) {
++		chunk = &ab->qmi.target_mem[i];
++
++		if (chunk->type == MLO_GLOBAL_MEM_REGION_TYPE) {
+ 			ath12k_qmi_free_mlo_mem_chunk(ab,
+-						      &ab->qmi.target_mem[i],
++						      chunk,
+ 						      mlo_idx++);
+ 		} else {
+ 			if (test_bit(ATH12K_FLAG_FIXED_MEM_REGION, &ab->dev_flags) &&
+-			    ab->qmi.target_mem[i].v.ioaddr) {
+-				iounmap(ab->qmi.target_mem[i].v.ioaddr);
+-				ab->qmi.target_mem[i].v.ioaddr = NULL;
++			    chunk->v.ioaddr) {
++				iounmap(chunk->v.ioaddr);
++				chunk->v.ioaddr = NULL;
+ 			} else {
+-				if (!ab->qmi.target_mem[i].v.addr)
++				if (!chunk->v.addr)
+ 					continue;
+ 				dma_free_coherent(ab->dev,
+-						  ab->qmi.target_mem[i].prev_size,
+-						  ab->qmi.target_mem[i].v.addr,
+-						  ab->qmi.target_mem[i].paddr);
+-				ab->qmi.target_mem[i].v.addr = NULL;
++						  chunk->prev_size,
++						  chunk->v.addr,
++						  chunk->paddr);
++				chunk->v.addr = NULL;
+ 			}
++
++			chunk->paddr = 0;
++			chunk->size = 0;
+ 		}
+ 	}
+ 
+
+-- 
+2.25.1
+
+Subject: [PATCH 3/3] wifi: ath12k: align QMI target memory to 64 KB
+From: Baochen Qiang <>
+Date: Thu, 30 Jul 2026 14:17:42 +0800
+
+ath12k_qmi_alloc_chunk() allocates the target memory chunks the firmware
+requests via dma_alloc_coherent() and hands the resulting physical
+addresses to the firmware. The firmware does not require every chunk to
+be aligned, but each unaligned chunk consumes extra TLB entries when the
+firmware maps it, and too many unaligned chunks exhaust the TLB and make
+the firmware crash. The firmware team recommends aligning the chunks to
+64 KB so that the TLB stays within budget. dma_alloc_coherent() only
+guarantees page alignment, so a chunk can end up unaligned.
+
+Align the physical address handed to the firmware to 64 KB. A natural
+allocation is often already 64 KB aligned, so try the exact size first
+and keep it when it happens to be aligned; only when it is not, free it
+and over-allocate by SZ_64K - PAGE_SIZE and round the base up. Since the
+DMA allocator already guarantees page alignment, that padding is enough
+to reach the next 64 KB boundary. Record the raw allocation in
+paddr_unaligned/vaddr_unaligned/total_size so the chunk can still be
+freed correctly.
+
+Tested-on: WCN7850 hw2.0 PCI WLAN.HMT.1.1.c5-00302-QCAHMTSWPL_V1.0_V2.0_SILICONZ-1.115823.3
+Tested-on: QCC2072 hw1.0 PCI WLAN.COL.1.0.c2-00074-QCACOLSWPL_V1_TO_SILICONZ-1
+
+Signed-off-by: Baochen Qiang <>
+Reviewed-by: Rameshkumar Sundaram <>
+---
+ drivers/net/wireless/ath/ath12k/qmi.c | 79 +++++++++++++++++++++++++++--------
+ drivers/net/wireless/ath/ath12k/qmi.h |  4 ++
+ 2 files changed, 65 insertions(+), 18 deletions(-)
+
+diff --git a/drivers/net/wireless/ath/ath12k/qmi.c b/drivers/net/wireless/ath/ath12k/qmi.c
+index 03ec2057ca27..bfb5b6659f21 100644
+--- a/drivers/net/wireless/ath/ath12k/qmi.c
++++ b/drivers/net/wireless/ath/ath12k/qmi.c
+@@ -14,6 +14,7 @@
+ #include <linux/of_address.h>
+ #include <linux/ioport.h>
+ #include <linux/of_reserved_mem.h>
++#include <linux/sizes.h>
+ 
+ #define SLEEP_CLOCK_SELECT_INTERNAL_BIT	0x02
+ #define HOST_CSTATE_BIT			0x04
+@@ -2583,20 +2584,28 @@ static void ath12k_qmi_free_mlo_mem_chunk(struct ath12k_base *ab,
+ 		mlo_chunk->v.ioaddr = NULL;
+ 	} else if (mlo_chunk->v.addr) {
+ 		dma_free_coherent(ab->dev,
+-				  mlo_chunk->size,
+-				  mlo_chunk->v.addr,
+-				  mlo_chunk->paddr);
++				  mlo_chunk->total_size,
++				  mlo_chunk->vaddr_unaligned,
++				  mlo_chunk->paddr_unaligned);
++		mlo_chunk->vaddr_unaligned = NULL;
+ 		mlo_chunk->v.addr = NULL;
+ 	}
+ 
+ 	mlo_chunk->paddr = 0;
++	mlo_chunk->paddr_unaligned = 0;
+ 	mlo_chunk->size = 0;
+-	if (fixed_mem)
++	mlo_chunk->total_size = 0;
++
++	if (fixed_mem) {
+ 		chunk->v.ioaddr = NULL;
+-	else
++	} else {
+ 		chunk->v.addr = NULL;
++		chunk->vaddr_unaligned = NULL;
++	}
+ 	chunk->paddr = 0;
++	chunk->paddr_unaligned = 0;
+ 	chunk->size = 0;
++	chunk->total_size = 0;
+ }
+ 
+ static void ath12k_qmi_free_target_mem_chunk(struct ath12k_base *ab)
+@@ -2621,14 +2630,17 @@ static void ath12k_qmi_free_target_mem_chunk(struct ath12k_base *ab)
+ 				if (!chunk->v.addr)
+ 					continue;
+ 				dma_free_coherent(ab->dev,
+-						  chunk->prev_size,
+-						  chunk->v.addr,
+-						  chunk->paddr);
++						  chunk->total_size,
++						  chunk->vaddr_unaligned,
++						  chunk->paddr_unaligned);
++				chunk->vaddr_unaligned = NULL;
+ 				chunk->v.addr = NULL;
+ 			}
+ 
+ 			chunk->paddr = 0;
++			chunk->paddr_unaligned = 0;
+ 			chunk->size = 0;
++			chunk->total_size = 0;
+ 		}
+ 	}
+ 
+@@ -2641,6 +2653,10 @@ static void ath12k_qmi_free_target_mem_chunk(struct ath12k_base *ab)
+ static int ath12k_qmi_alloc_chunk(struct ath12k_base *ab,
+ 				  struct target_mem_chunk *chunk)
+ {
++	dma_addr_t paddr;
++	size_t size;
++	void *vaddr;
++
+ 	/* Firmware reloads in recovery/resume.
+ 	 * In such cases, no need to allocate memory for FW again.
+ 	 */
+@@ -2650,29 +2666,56 @@ static int ath12k_qmi_alloc_chunk(struct ath12k_base *ab,
+ 			goto this_chunk_done;
+ 
+ 		/* cannot reuse the existing chunk */
+-		dma_free_coherent(ab->dev, chunk->prev_size,
+-				  chunk->v.addr, chunk->paddr);
++		dma_free_coherent(ab->dev, chunk->total_size,
++				  chunk->vaddr_unaligned, chunk->paddr_unaligned);
+ 		chunk->v.addr = NULL;
++		chunk->vaddr_unaligned = NULL;
++		chunk->paddr_unaligned = 0;
++		chunk->total_size = 0;
+ 	}
+ 
+-	chunk->v.addr = dma_alloc_coherent(ab->dev,
+-					   chunk->size,
+-					   &chunk->paddr,
++	/*
++	 * Each unaligned chunk costs the firmware extra TLB entries when
++	 * mapping it, and too many unaligned chunks exhaust the TLB and
++	 * crash the firmware, so align the base to 64 KB. The DMA
++	 * allocator only guarantees page alignment, but a natural
++	 * allocation is often already 64 KB aligned. Try the exact size
++	 * first and keep it when it happens to be aligned; only fall back
++	 * to over-allocating and rounding up when it is not.
++	 */
++	size = chunk->size;
++	vaddr = dma_alloc_coherent(ab->dev, size, &paddr,
++				   GFP_KERNEL | __GFP_NOWARN);
++	if (vaddr && !IS_ALIGNED(paddr, SZ_64K)) {
++		dma_free_coherent(ab->dev, size, vaddr, paddr);
++
++		size = chunk->size + SZ_64K - PAGE_SIZE;
++		vaddr = dma_alloc_coherent(ab->dev, size, &paddr,
+ 					   GFP_KERNEL | __GFP_NOWARN);
+-	if (!chunk->v.addr) {
++	}
++
++	if (!vaddr) {
+ 		if (chunk->size > ab->hw_params->qmi_max_chunk_size) {
+ 			ab->qmi.target_mem_delayed = true;
+ 			ath12k_warn(ab,
+-				    "qmi dma allocation failed (%u B type %u), will try later with small size\n",
+-				    chunk->size,
++				    "qmi dma allocation failed (%zu B type %u), will try later with small size\n",
++				    size,
+ 				    chunk->type);
+ 			ath12k_qmi_free_target_mem_chunk(ab);
+ 			return -EAGAIN;
+ 		}
+-		ath12k_warn(ab, "memory allocation failure for %u size: %u\n",
+-			    chunk->type, chunk->size);
++		ath12k_warn(ab, "memory allocation failure for %u size: %zu\n",
++			    chunk->type, size);
+ 		return -ENOMEM;
+ 	}
++
++	chunk->vaddr_unaligned = vaddr;
++	chunk->paddr_unaligned = paddr;
++	chunk->total_size = size;
++
++	chunk->paddr = ALIGN(paddr, SZ_64K);
++	chunk->v.addr = (u8 *)vaddr + (chunk->paddr - paddr);
++
+ 	chunk->prev_type = chunk->type;
+ 	chunk->prev_size = chunk->size;
+ this_chunk_done:
+diff --git a/drivers/net/wireless/ath/ath12k/qmi.h b/drivers/net/wireless/ath/ath12k/qmi.h
+index cbe5be30053a..afa380f5e934 100644
+--- a/drivers/net/wireless/ath/ath12k/qmi.h
++++ b/drivers/net/wireless/ath/ath12k/qmi.h
+@@ -100,6 +100,10 @@ struct target_mem_chunk {
+ 		void __iomem *ioaddr;
+ 		void *addr;
+ 	} v;
++
++	dma_addr_t paddr_unaligned;
++	void *vaddr_unaligned;
++	u32 total_size;
+ };
+ 
+ struct target_info {
+
+-- 
+2.25.1
+
+
+wifi: ath12k: convert DP profile parameter macros to inline helpers
+https://lore.kernel.org/all/20260820054804.3222296-2-aaradhana.sahu@oss.qualcomm.com/T/
+
+Subject: [PATCH 1/7] wifi: ath12k: move dp_profile_params to dp.h
+From: Aaradhana Sahu <>
+Date: Thu, 20 Aug 2026 11:17:58 +0530
+
+Move struct ath12k_dp_profile_params from core.h to dp.h as it is
+specifically used for Data Path operations. This improves code
+organization by keeping DP-related structures in the DP header.
+
+No functional change intended.
+
+Tested-on: QCN9274 hw2.0 PCI WLAN.WBE.1.6-01243-QCAHKSWPL_SILICONZ-1
+
+Signed-off-by: Aaradhana Sahu <>
+Reviewed-by: Baochen Qiang <>
+Reviewed-by: Rameshkumar Sundaram <>
+---
+ drivers/net/wireless/ath/ath12k/core.h | 9 ---------
+ drivers/net/wireless/ath/ath12k/dp.h   | 9 +++++++++
+ 2 files changed, 9 insertions(+), 9 deletions(-)
+
+diff --git a/drivers/net/wireless/ath/ath12k/core.h b/drivers/net/wireless/ath/ath12k/core.h
+index a98fc6e0699d..4718da494aab 100644
+--- a/drivers/net/wireless/ath/ath12k/core.h
++++ b/drivers/net/wireless/ath/ath12k/core.h
+@@ -927,15 +927,6 @@ struct ath12k_wsi_info {
+ 	u32 hw_link_id_base;
+ };
+ 
+-struct ath12k_dp_profile_params {
+-	u32 tx_comp_ring_size;
+-	u32 rxdma_monitor_buf_ring_size;
+-	u32 rxdma_monitor_dst_ring_size;
+-	u32 num_pool_tx_desc;
+-	u32 rx_desc_count;
+-	u32 rx_release_ring_size;
+-};
+-
+ struct ath12k_mem_profile_based_param {
+ 	u32 num_vdevs;
+ 	u32 max_client_single;
+diff --git a/drivers/net/wireless/ath/ath12k/dp.h b/drivers/net/wireless/ath/ath12k/dp.h
+index bef0f2ba0560..72d3de2db5d8 100644
+--- a/drivers/net/wireless/ath/ath12k/dp.h
++++ b/drivers/net/wireless/ath/ath12k/dp.h
+@@ -23,6 +23,15 @@ struct ath12k_ext_irq_grp;
+ struct ath12k_dp_rx_tid;
+ struct ath12k_dp_rx_tid_rxq;
+ 
++struct ath12k_dp_profile_params {
++	u32 tx_comp_ring_size;
++	u32 rxdma_monitor_buf_ring_size;
++	u32 rxdma_monitor_dst_ring_size;
++	u32 num_pool_tx_desc;
++	u32 rx_desc_count;
++	u32 rx_release_ring_size;
++};
++
+ #define DP_MON_PURGE_TIMEOUT_MS     100
+ #define DP_MON_SERVICE_BUDGET       128
+ 
+-- 
+2.34.1
+
+Subject: [PATCH 2/7] wifi: ath12k: convert DP_TX_COMP_RING_SIZE to inline
+ helper
+From: Aaradhana Sahu <>
+Date: Thu, 20 Aug 2026 11:17:59 +0530
+
+Replace DP_TX_COMP_RING_SIZE macro with ath12k_dp_tx_comp_ring_size()
+static inline helper. Pass the DP profile parameters explicitly to
+improve type safety and make the interface explicit.
+
+Update code using ATH12K_TX_COMPL_NEXT to pass ring size directly rather
+than deriving it from the ath12k_base structure.
+Also remove the unused DP_TX_IDR_SIZE macro.
+
+No functional change intended.
+
+Tested-on: QCN9274 hw2.0 PCI WLAN.WBE.1.6-01243-QCAHKSWPL_SILICONZ-1
+
+Signed-off-by: Aaradhana Sahu <>
+Reviewed-by: Baochen Qiang <>
+Reviewed-by: Rameshkumar Sundaram <>
+---
+ drivers/net/wireless/ath/ath12k/dp.c          | 10 +++++++---
+ drivers/net/wireless/ath/ath12k/dp.h          | 11 +++++++----
+ drivers/net/wireless/ath/ath12k/wifi7/dp_tx.c | 12 +++++++-----
+ 3 files changed, 21 insertions(+), 12 deletions(-)
+
+diff --git a/drivers/net/wireless/ath/ath12k/dp.c b/drivers/net/wireless/ath/ath12k/dp.c
+index f9b37d75956d..5980946d1e82 100644
+--- a/drivers/net/wireless/ath/ath12k/dp.c
++++ b/drivers/net/wireless/ath/ath12k/dp.c
+@@ -439,6 +439,7 @@ static void ath12k_dp_srng_common_cleanup(struct ath12k_base *ab)
+ 
+ static int ath12k_dp_srng_common_setup(struct ath12k_base *ab)
+ {
++	const struct ath12k_dp_profile_params *dp_params = &ab->profile_param->dp_params;
+ 	struct ath12k_dp *dp = ath12k_ab_to_dp(ab);
+ 	const struct ath12k_hal_tcl_to_wbm_rbm_map *map;
+ 	struct hal_srng *srng;
+@@ -469,7 +470,7 @@ static int ath12k_dp_srng_common_setup(struct ath12k_base *ab)
+ 
+ 		ret = ath12k_dp_srng_setup(ab, &dp->tx_ring[i].tcl_comp_ring,
+ 					   HAL_WBM2SW_RELEASE, tx_comp_ring_num, 0,
+-					   DP_TX_COMP_RING_SIZE(ab));
++					   ath12k_dp_tx_comp_ring_size(dp_params));
+ 		if (ret) {
+ 			ath12k_warn(ab, "failed to set up tcl_comp ring (%d) :%d\n",
+ 				    tx_comp_ring_num, ret);
+@@ -1465,6 +1466,7 @@ static int ath12k_dp_reoq_lut_setup(struct ath12k_base *ab)
+ 
+ static int ath12k_dp_setup(struct ath12k_base *ab)
+ {
++	const struct ath12k_dp_profile_params *dp_params;
+ 	struct ath12k_dp *dp;
+ 	struct hal_srng *srng = NULL;
+ 	size_t size = 0;
+@@ -1474,6 +1476,7 @@ static int ath12k_dp_setup(struct ath12k_base *ab)
+ 
+ 	dp = ath12k_ab_to_dp(ab);
+ 	dp->ab = ab;
++	dp_params = &ab->profile_param->dp_params;
+ 
+ 	INIT_LIST_HEAD(&dp->reo_cmd_list);
+ 	INIT_LIST_HEAD(&dp->reo_cmd_cache_flush_list);
+@@ -1528,7 +1531,7 @@ static int ath12k_dp_setup(struct ath12k_base *ab)
+ 		goto fail_dp_bank_profiles_cleanup;
+ 
+ 	size = ab->hal.hal_wbm_release_ring_tx_size *
+-	       DP_TX_COMP_RING_SIZE(ab);
++	       ath12k_dp_tx_comp_ring_size(dp_params);
+ 
+ 	ret = ath12k_dp_reoq_lut_setup(ab);
+ 	if (ret) {
+@@ -1540,7 +1543,8 @@ static int ath12k_dp_setup(struct ath12k_base *ab)
+ 		dp->tx_ring[i].tcl_data_ring_id = i;
+ 
+ 		dp->tx_ring[i].tx_status_head = 0;
+-		dp->tx_ring[i].tx_status_tail = DP_TX_COMP_RING_SIZE(ab) - 1;
++		dp->tx_ring[i].tx_status_tail =
++			ath12k_dp_tx_comp_ring_size(dp_params) - 1;
+ 		dp->tx_ring[i].tx_status = kmalloc(size, GFP_KERNEL);
+ 		if (!dp->tx_ring[i].tx_status) {
+ 			ret = -ENOMEM;
+diff --git a/drivers/net/wireless/ath/ath12k/dp.h b/drivers/net/wireless/ath/ath12k/dp.h
+index 72d3de2db5d8..6540b3453cc6 100644
+--- a/drivers/net/wireless/ath/ath12k/dp.h
++++ b/drivers/net/wireless/ath/ath12k/dp.h
+@@ -61,7 +61,7 @@ struct dp_rxdma_ring {
+ 	int bufs_max;
+ };
+ 
+-#define ATH12K_TX_COMPL_NEXT(ab, x)	(((x) + 1) % DP_TX_COMP_RING_SIZE(ab))
++#define ATH12K_TX_COMPL_NEXT(ring_size, x)	(((x) + 1) % (ring_size))
+ 
+ struct dp_tx_ring {
+ 	u8 tcl_data_ring_id;
+@@ -201,9 +201,6 @@ struct ath12k_pdev_dp {
+ 
+ #define DP_WBM_RELEASE_RING_SIZE	64
+ #define DP_TCL_DATA_RING_SIZE		512
+-#define DP_TX_COMP_RING_SIZE(ab) \
+-	((ab)->profile_param->dp_params.tx_comp_ring_size)
+-#define DP_TX_IDR_SIZE(ab)		DP_TX_COMP_RING_SIZE(ab)
+ #define DP_TCL_CMD_RING_SIZE		32
+ #define DP_TCL_STATUS_RING_SIZE		32
+ #define DP_REO_DST_RING_MAX		8
+@@ -689,6 +686,12 @@ ath12k_dp_to_pdev_dp(struct ath12k_dp *dp, u8 pdev_idx)
+ 	return rcu_dereference(dp->dp_pdevs[pdev_idx]);
+ }
+ 
++static inline u32
++ath12k_dp_tx_comp_ring_size(const struct ath12k_dp_profile_params *p)
++{
++	return p->tx_comp_ring_size;
++}
++
+ void ath12k_dp_vdev_tx_attach(struct ath12k *ar, struct ath12k_link_vif *arvif);
+ void ath12k_dp_partner_cc_init(struct ath12k_base *ab);
+ int ath12k_dp_pdev_alloc(struct ath12k_base *ab);
+diff --git a/drivers/net/wireless/ath/ath12k/wifi7/dp_tx.c b/drivers/net/wireless/ath/ath12k/wifi7/dp_tx.c
+index 587d58eeccfa..e14f1d190ba8 100644
+--- a/drivers/net/wireless/ath/ath12k/wifi7/dp_tx.c
++++ b/drivers/net/wireless/ath/ath12k/wifi7/dp_tx.c
+@@ -922,12 +922,14 @@ void ath12k_wifi7_dp_tx_completion_handler(struct ath12k_dp *dp, int ring_id)
+ 	u64 desc_va;
+ 	enum hal_wbm_rel_src_module buf_rel_source;
+ 	enum hal_wbm_tqm_rel_reason rel_status;
++	u32 ring_size;
+ 
+ 	spin_lock_bh(&status_ring->lock);
+ 
++	ring_size = ath12k_dp_tx_comp_ring_size(&ab->profile_param->dp_params);
+ 	ath12k_hal_srng_access_begin(ab, status_ring);
+ 
+-	while (ATH12K_TX_COMPL_NEXT(ab, tx_ring->tx_status_head) !=
++	while (ATH12K_TX_COMPL_NEXT(ring_size, tx_ring->tx_status_head) !=
+ 	       tx_ring->tx_status_tail) {
+ 		desc = ath12k_hal_srng_dst_get_next_entry(ab, status_ring);
+ 		if (!desc)
+@@ -936,11 +938,11 @@ void ath12k_wifi7_dp_tx_completion_handler(struct ath12k_dp *dp, int ring_id)
+ 		memcpy(&tx_ring->tx_status[tx_ring->tx_status_head],
+ 		       desc, sizeof(*desc));
+ 		tx_ring->tx_status_head =
+-			ATH12K_TX_COMPL_NEXT(ab, tx_ring->tx_status_head);
++			ATH12K_TX_COMPL_NEXT(ring_size, tx_ring->tx_status_head);
+ 	}
+ 
+ 	if (ath12k_hal_srng_dst_peek(ab, status_ring) &&
+-	    (ATH12K_TX_COMPL_NEXT(ab, tx_ring->tx_status_head) ==
++	    (ATH12K_TX_COMPL_NEXT(ring_size, tx_ring->tx_status_head) ==
+ 	     tx_ring->tx_status_tail)) {
+ 		/* TODO: Process pending tx_status messages when kfifo_is_full() */
+ 		ath12k_warn(ab, "Unable to process some of the tx_status ring desc because status_fifo is full\n");
+@@ -950,13 +952,13 @@ void ath12k_wifi7_dp_tx_completion_handler(struct ath12k_dp *dp, int ring_id)
+ 
+ 	spin_unlock_bh(&status_ring->lock);
+ 
+-	while (ATH12K_TX_COMPL_NEXT(ab, tx_ring->tx_status_tail) !=
++	while (ATH12K_TX_COMPL_NEXT(ring_size, tx_ring->tx_status_tail) !=
+ 	       tx_ring->tx_status_head) {
+ 		struct hal_wbm_completion_ring_tx *tx_status;
+ 		u32 desc_id;
+ 
+ 		tx_ring->tx_status_tail =
+-			ATH12K_TX_COMPL_NEXT(ab, tx_ring->tx_status_tail);
++			ATH12K_TX_COMPL_NEXT(ring_size, tx_ring->tx_status_tail);
+ 		tx_status = &tx_ring->tx_status[tx_ring->tx_status_tail];
+ 		ath12k_wifi7_dp_tx_status_parse(dp, tx_status, &ts);
+ 
+-- 
+2.34.1
+
+Subject: [PATCH 3/7] wifi: ath12k: convert DP_RXDMA_MONITOR_BUF_RING_SIZE
+ to inline helper
+From: Aaradhana Sahu <>
+Date: Thu, 20 Aug 2026 11:18:00 +0530
+
+Replace DP_RXDMA_MONITOR_BUF_RING_SIZE macro with
+ath12k_dp_rxdma_monitor_buf_ring_size() static inline helper. Pass the DP
+profile parameters explicitly to improve type safety and make the interface
+explicit.
+
+No functional change intended.
+
+Tested-on: QCN9274 hw2.0 PCI WLAN.WBE.1.6-01243-QCAHKSWPL_SILICONZ-1
+
+Signed-off-by: Aaradhana Sahu <>
+Reviewed-by: Baochen Qiang <>
+Reviewed-by: Rameshkumar Sundaram <>
+---
+ drivers/net/wireless/ath/ath12k/dp.h    | 8 ++++++--
+ drivers/net/wireless/ath/ath12k/dp_rx.c | 4 +++-
+ 2 files changed, 9 insertions(+), 3 deletions(-)
+
+diff --git a/drivers/net/wireless/ath/ath12k/dp.h b/drivers/net/wireless/ath/ath12k/dp.h
+index 6540b3453cc6..9081655eae77 100644
+--- a/drivers/net/wireless/ath/ath12k/dp.h
++++ b/drivers/net/wireless/ath/ath12k/dp.h
+@@ -216,8 +216,6 @@ struct ath12k_pdev_dp {
+ #define DP_RXDMA_REFILL_RING_SIZE	2048
+ #define DP_RXDMA_ERR_DST_RING_SIZE	1024
+ #define DP_RXDMA_MON_STATUS_RING_SIZE	1024
+-#define DP_RXDMA_MONITOR_BUF_RING_SIZE(ab) \
+-	((ab)->profile_param->dp_params.rxdma_monitor_buf_ring_size)
+ #define DP_RXDMA_MONITOR_DST_RING_SIZE(ab) \
+ 	((ab)->profile_param->dp_params.rxdma_monitor_dst_ring_size)
+ #define DP_RXDMA_MONITOR_DESC_RING_SIZE	4096
+@@ -692,6 +690,12 @@ ath12k_dp_tx_comp_ring_size(const struct ath12k_dp_profile_params *p)
+ 	return p->tx_comp_ring_size;
+ }
+ 
++static inline u32
++ath12k_dp_rxdma_monitor_buf_ring_size(const struct ath12k_dp_profile_params *p)
++{
++	return p->rxdma_monitor_buf_ring_size;
++}
++
+ void ath12k_dp_vdev_tx_attach(struct ath12k *ar, struct ath12k_link_vif *arvif);
+ void ath12k_dp_partner_cc_init(struct ath12k_base *ab);
+ int ath12k_dp_pdev_alloc(struct ath12k_base *ab);
+diff --git a/drivers/net/wireless/ath/ath12k/dp_rx.c b/drivers/net/wireless/ath/ath12k/dp_rx.c
+index 8fa0e90b4531..efc419d41d21 100644
+--- a/drivers/net/wireless/ath/ath12k/dp_rx.c
++++ b/drivers/net/wireless/ath/ath12k/dp_rx.c
+@@ -1692,6 +1692,8 @@ int ath12k_dp_rx_htt_setup(struct ath12k_base *ab)
+ 
+ int ath12k_dp_rx_alloc(struct ath12k_base *ab)
+ {
++	const struct ath12k_dp_profile_params *dp_params = &ab->profile_param->dp_params;
++	u32 monitor_buf_ring_size = ath12k_dp_rxdma_monitor_buf_ring_size(dp_params);
+ 	struct ath12k_dp *dp = ath12k_ab_to_dp(ab);
+ 	struct dp_srng *srng;
+ 	int i, ret;
+@@ -1736,7 +1738,7 @@ int ath12k_dp_rx_alloc(struct ath12k_base *ab)
+ 		ret = ath12k_dp_srng_setup(ab,
+ 					   &dp->rxdma_mon_buf_ring.refill_buf_ring,
+ 					   HAL_RXDMA_MONITOR_BUF, 0, 0,
+-					   DP_RXDMA_MONITOR_BUF_RING_SIZE(ab));
++					   monitor_buf_ring_size);
+ 		if (ret) {
+ 			ath12k_warn(ab, "failed to setup HAL_RXDMA_MONITOR_BUF\n");
+ 			return ret;
+-- 
+2.34.1
+
+Subject: [PATCH 4/7] wifi: ath12k: convert DP_RXDMA_MONITOR_DST_RING_SIZE
+ to inline helper
+From: Aaradhana Sahu <>
+Date: Thu, 20 Aug 2026 11:18:01 +0530
+
+Replace DP_RXDMA_MONITOR_DST_RING_SIZE macro with
+ath12k_dp_rxdma_monitor_dst_ring_size() static inline helper.
+
+Pass the DP profile parameters explicitly to improve type safety and
+make the interface explicit.
+
+No functional change intended.
+
+Tested-on: QCN9274 hw2.0 PCI WLAN.WBE.1.6-01243-QCAHKSWPL_SILICONZ-1
+
+Signed-off-by: Aaradhana Sahu <>
+Reviewed-by: Baochen Qiang <>
+Reviewed-by: Rameshkumar Sundaram <>
+---
+ drivers/net/wireless/ath/ath12k/dp.h    | 8 ++++++--
+ drivers/net/wireless/ath/ath12k/dp_rx.c | 8 ++++++--
+ 2 files changed, 12 insertions(+), 4 deletions(-)
+
+diff --git a/drivers/net/wireless/ath/ath12k/dp.h b/drivers/net/wireless/ath/ath12k/dp.h
+index 9081655eae77..a7cd2535866b 100644
+--- a/drivers/net/wireless/ath/ath12k/dp.h
++++ b/drivers/net/wireless/ath/ath12k/dp.h
+@@ -216,8 +216,6 @@ struct ath12k_pdev_dp {
+ #define DP_RXDMA_REFILL_RING_SIZE	2048
+ #define DP_RXDMA_ERR_DST_RING_SIZE	1024
+ #define DP_RXDMA_MON_STATUS_RING_SIZE	1024
+-#define DP_RXDMA_MONITOR_DST_RING_SIZE(ab) \
+-	((ab)->profile_param->dp_params.rxdma_monitor_dst_ring_size)
+ #define DP_RXDMA_MONITOR_DESC_RING_SIZE	4096
+ #define DP_TX_MONITOR_BUF_RING_SIZE	4096
+ #define DP_TX_MONITOR_DEST_RING_SIZE	2048
+@@ -696,6 +694,12 @@ ath12k_dp_rxdma_monitor_buf_ring_size(const struct ath12k_dp_profile_params *p)
+ 	return p->rxdma_monitor_buf_ring_size;
+ }
+ 
++static inline u32
++ath12k_dp_rxdma_monitor_dst_ring_size(const struct ath12k_dp_profile_params *p)
++{
++	return p->rxdma_monitor_dst_ring_size;
++}
++
+ void ath12k_dp_vdev_tx_attach(struct ath12k *ar, struct ath12k_link_vif *arvif);
+ void ath12k_dp_partner_cc_init(struct ath12k_base *ab);
+ int ath12k_dp_pdev_alloc(struct ath12k_base *ab);
+diff --git a/drivers/net/wireless/ath/ath12k/dp_rx.c b/drivers/net/wireless/ath/ath12k/dp_rx.c
+index efc419d41d21..31e7d47f7734 100644
+--- a/drivers/net/wireless/ath/ath12k/dp_rx.c
++++ b/drivers/net/wireless/ath/ath12k/dp_rx.c
+@@ -330,16 +330,20 @@ static int ath12k_dp_rx_pdev_srng_alloc(struct ath12k *ar)
+ {
+ 	struct ath12k_pdev_dp *dp = &ar->dp;
+ 	struct ath12k_base *ab = ar->ab;
++	u32 monitor_dst_ring_size;
++	u32 mac_id = dp->mac_id;
+ 	int i;
+ 	int ret;
+-	u32 mac_id = dp->mac_id;
++
++	monitor_dst_ring_size =
++		ath12k_dp_rxdma_monitor_dst_ring_size(&ab->profile_param->dp_params);
+ 
+ 	for (i = 0; i < ab->hw_params->num_rxdma_per_pdev; i++) {
+ 		ret = ath12k_dp_srng_setup(ar->ab,
+ 					   &dp->rxdma_mon_dst_ring[i],
+ 					   HAL_RXDMA_MONITOR_DST,
+ 					   0, mac_id + i,
+-					   DP_RXDMA_MONITOR_DST_RING_SIZE(ab));
++					   monitor_dst_ring_size);
+ 		if (ret) {
+ 			ath12k_warn(ar->ab,
+ 				    "failed to setup HAL_RXDMA_MONITOR_DST\n");
+-- 
+2.34.1
+
+Subject: [PATCH 5/7] wifi: ath12k: convert ATH12K_NUM_POOL_TX_DESC to
+ inline helper
+From: Aaradhana Sahu <>
+Date: Thu, 20 Aug 2026 11:18:02 +0530
+
+Replace ATH12K_NUM_POOL_TX_DESC with the ath12k_dp_num_pool_tx_desc()
+static inline helper. Also replace ATH12K_TX_SPT_PAGES_PER_POOL,
+ATH12K_NUM_TX_SPT_PAGES, and ATH12K_RX_SPT_PAGE_OFFSET, which are derived
+from ATH12K_NUM_POOL_TX_DESC, with static inline helper functions.
+
+Pass the DP profile parameters explicitly to improve type safety and
+make the interface more explicit.
+
+No functional change intended.
+
+Tested-on: QCN9274 hw2.0 PCI WLAN.WBE.1.6-01243-QCAHKSWPL_SILICONZ-1
+
+Signed-off-by: Aaradhana Sahu <>
+Reviewed-by: Baochen Qiang <>
+Reviewed-by: Rameshkumar Sundaram <>
+---
+ drivers/net/wireless/ath/ath12k/dp.c  | 55 ++++++++++++++++-----------
+ drivers/net/wireless/ath/ath12k/dp.h  | 32 ++++++++++++----
+ drivers/net/wireless/ath/ath12k/mac.c |  5 ++-
+ 3 files changed, 61 insertions(+), 31 deletions(-)
+
+diff --git a/drivers/net/wireless/ath/ath12k/dp.c b/drivers/net/wireless/ath/ath12k/dp.c
+index 5980946d1e82..93a41b2440da 100644
+--- a/drivers/net/wireless/ath/ath12k/dp.c
++++ b/drivers/net/wireless/ath/ath12k/dp.c
+@@ -967,14 +967,15 @@ void ath12k_dp_vdev_tx_attach(struct ath12k *ar, struct ath12k_link_vif *arvif)
+ 
+ static void ath12k_dp_cc_cleanup(struct ath12k_base *ab)
+ {
+-	struct ath12k_rx_desc_info *desc_info;
++	const struct ath12k_dp_profile_params *dp_params = &ab->profile_param->dp_params;
++	u32 pool_id, tx_spt_page, tx_spt_pages_per_pool;
+ 	struct ath12k_tx_desc_info *tx_desc_info, *tmp1;
+ 	struct ath12k_dp *dp = ath12k_ab_to_dp(ab);
++	struct ath12k_rx_desc_info *desc_info;
+ 	struct ath12k_skb_cb *skb_cb;
+ 	struct sk_buff *skb;
+ 	struct ath12k *ar;
+ 	int i, j;
+-	u32 pool_id, tx_spt_page;
+ 
+ 	if (!dp->spt_info)
+ 		return;
+@@ -1056,12 +1057,13 @@ static void ath12k_dp_cc_cleanup(struct ath12k_base *ab)
+ 	}
+ 
+ 	if (dp->txbaddr) {
++		tx_spt_pages_per_pool = ath12k_dp_tx_spt_pages_per_pool(dp_params);
++
+ 		for (pool_id = 0; pool_id < ATH12K_HW_MAX_QUEUES; pool_id++) {
+ 			spin_lock_bh(&dp->tx_desc_lock[pool_id]);
+ 
+-			for (i = 0; i < ATH12K_TX_SPT_PAGES_PER_POOL(ab); i++) {
+-				tx_spt_page = i + pool_id *
+-					      ATH12K_TX_SPT_PAGES_PER_POOL(ab);
++			for (i = 0; i < tx_spt_pages_per_pool; i++) {
++				tx_spt_page = i + pool_id * tx_spt_pages_per_pool;
+ 				if (!dp->txbaddr[tx_spt_page])
+ 					continue;
+ 
+@@ -1155,13 +1157,15 @@ static void *ath12k_dp_cc_get_desc_addr_ptr(struct ath12k_dp *dp,
+ struct ath12k_rx_desc_info *ath12k_dp_get_rx_desc(struct ath12k_dp *dp,
+ 						  u32 cookie)
+ {
++	const struct ath12k_dp_profile_params *dp_params;
+ 	struct ath12k_rx_desc_info **desc_addr_ptr;
+ 	u16 start_ppt_idx, end_ppt_idx, ppt_idx, spt_idx;
+ 
+ 	ppt_idx = u32_get_bits(cookie, ATH12K_DP_CC_COOKIE_PPT);
+ 	spt_idx = u32_get_bits(cookie, ATH12K_DP_CC_COOKIE_SPT);
++	dp_params = &dp->ab->profile_param->dp_params;
+ 
+-	start_ppt_idx = dp->rx_ppt_base + ATH12K_RX_SPT_PAGE_OFFSET(dp->ab);
++	start_ppt_idx = dp->rx_ppt_base + ath12k_dp_rx_spt_page_offset(dp_params);
+ 	end_ppt_idx = start_ppt_idx + ATH12K_NUM_RX_SPT_PAGES(dp->ab);
+ 
+ 	if (ppt_idx < start_ppt_idx ||
+@@ -1179,15 +1183,16 @@ EXPORT_SYMBOL(ath12k_dp_get_rx_desc);
+ struct ath12k_tx_desc_info *ath12k_dp_get_tx_desc(struct ath12k_dp *dp,
+ 						  u32 cookie)
+ {
++	const struct ath12k_dp_profile_params *dp_params;
+ 	struct ath12k_tx_desc_info **desc_addr_ptr;
+ 	u16 start_ppt_idx, end_ppt_idx, ppt_idx, spt_idx;
+ 
+ 	ppt_idx = u32_get_bits(cookie, ATH12K_DP_CC_COOKIE_PPT);
+ 	spt_idx = u32_get_bits(cookie, ATH12K_DP_CC_COOKIE_SPT);
++	dp_params = &dp->ab->profile_param->dp_params;
+ 
+ 	start_ppt_idx = ATH12K_TX_SPT_PAGE_OFFSET;
+-	end_ppt_idx = start_ppt_idx +
+-		      (ATH12K_TX_SPT_PAGES_PER_POOL(dp->ab) * ATH12K_HW_MAX_QUEUES);
++	end_ppt_idx = start_ppt_idx + ath12k_dp_num_tx_spt_pages(dp_params);
+ 
+ 	if (ppt_idx < start_ppt_idx ||
+ 	    ppt_idx >= end_ppt_idx ||
+@@ -1202,12 +1207,13 @@ EXPORT_SYMBOL(ath12k_dp_get_tx_desc);
+ 
+ static int ath12k_dp_cc_desc_init(struct ath12k_base *ab)
+ {
+-	struct ath12k_dp *dp = ath12k_ab_to_dp(ab);
++	const struct ath12k_dp_profile_params *dp_params = &ab->profile_param->dp_params;
+ 	struct ath12k_rx_desc_info *rx_descs, **rx_desc_addr;
+ 	struct ath12k_tx_desc_info *tx_descs, **tx_desc_addr;
++	u32 i, j, pool_id, tx_spt_page, tx_spt_pages_per_pool;
+ 	u32 num_rx_spt_pages = ATH12K_NUM_RX_SPT_PAGES(ab);
+-	u32 i, j, pool_id, tx_spt_page;
+-	u32 ppt_idx, cookie_ppt_idx;
++	u32 ppt_idx, cookie_ppt_idx, rx_spt_page_offset;
++	struct ath12k_dp *dp = ath12k_ab_to_dp(ab);
+ 
+ 	spin_lock_bh(&dp->rx_desc_lock);
+ 
+@@ -1219,9 +1225,9 @@ static int ath12k_dp_cc_desc_init(struct ath12k_base *ab)
+ 		return -ENOMEM;
+ 	}
+ 
+-	/* First ATH12K_NUM_RX_SPT_PAGES(ab) of allocated SPT pages are used for
+-	 * RX
+-	 */
++	rx_spt_page_offset = ath12k_dp_rx_spt_page_offset(dp_params);
++
++	/* First num_rx_spt_pages of allocated SPT pages are used for RX */
+ 	for (i = 0; i < num_rx_spt_pages; i++) {
+ 		rx_descs = kzalloc_objs(*rx_descs, ATH12K_MAX_SPT_ENTRIES,
+ 					GFP_ATOMIC);
+@@ -1231,7 +1237,7 @@ static int ath12k_dp_cc_desc_init(struct ath12k_base *ab)
+ 			return -ENOMEM;
+ 		}
+ 
+-		ppt_idx = ATH12K_RX_SPT_PAGE_OFFSET(ab) + i;
++		ppt_idx = rx_spt_page_offset + i;
+ 		cookie_ppt_idx = dp->rx_ppt_base + ppt_idx;
+ 		dp->rxbaddr[i] = &rx_descs[0];
+ 
+@@ -1250,14 +1256,17 @@ static int ath12k_dp_cc_desc_init(struct ath12k_base *ab)
+ 	spin_unlock_bh(&dp->rx_desc_lock);
+ 
+ 	dp->txbaddr = kzalloc_objs(struct ath12k_tx_desc_info *,
+-				   ATH12K_NUM_TX_SPT_PAGES(ab), GFP_ATOMIC);
++				   ath12k_dp_num_tx_spt_pages(dp_params),
++				   GFP_ATOMIC);
+ 
+ 	if (!dp->txbaddr)
+ 		return -ENOMEM;
+ 
++	tx_spt_pages_per_pool = ath12k_dp_tx_spt_pages_per_pool(dp_params);
++
+ 	for (pool_id = 0; pool_id < ATH12K_HW_MAX_QUEUES; pool_id++) {
+ 		spin_lock_bh(&dp->tx_desc_lock[pool_id]);
+-		for (i = 0; i < ATH12K_TX_SPT_PAGES_PER_POOL(ab); i++) {
++		for (i = 0; i < tx_spt_pages_per_pool; i++) {
+ 			tx_descs = kzalloc_objs(*tx_descs,
+ 						ATH12K_MAX_SPT_ENTRIES,
+ 						GFP_ATOMIC);
+@@ -1268,8 +1277,7 @@ static int ath12k_dp_cc_desc_init(struct ath12k_base *ab)
+ 				return -ENOMEM;
+ 			}
+ 
+-			tx_spt_page = i + pool_id *
+-				      ATH12K_TX_SPT_PAGES_PER_POOL(ab);
++			tx_spt_page = i + pool_id * tx_spt_pages_per_pool;
+ 			ppt_idx = ATH12K_TX_SPT_PAGE_OFFSET + tx_spt_page;
+ 
+ 			dp->txbaddr[tx_spt_page] = &tx_descs[0];
+@@ -1295,6 +1303,7 @@ static int ath12k_dp_cmem_init(struct ath12k_base *ab,
+ 			       struct ath12k_dp *dp,
+ 			       enum ath12k_dp_desc_type type)
+ {
++	const struct ath12k_dp_profile_params *dp_params = &ab->profile_param->dp_params;
+ 	u32 cmem_base;
+ 	int i, start, end;
+ 
+@@ -1303,11 +1312,11 @@ static int ath12k_dp_cmem_init(struct ath12k_base *ab,
+ 	switch (type) {
+ 	case ATH12K_DP_TX_DESC:
+ 		start = ATH12K_TX_SPT_PAGE_OFFSET;
+-		end = start + ATH12K_NUM_TX_SPT_PAGES(ab);
++		end = start + ath12k_dp_num_tx_spt_pages(dp_params);
+ 		break;
+ 	case ATH12K_DP_RX_DESC:
+ 		cmem_base += ATH12K_PPT_ADDR_OFFSET(dp->rx_ppt_base);
+-		start = ATH12K_RX_SPT_PAGE_OFFSET(ab);
++		start = ath12k_dp_rx_spt_page_offset(dp_params);
+ 		end = start + ATH12K_NUM_RX_SPT_PAGES(ab);
+ 		break;
+ 	default:
+@@ -1338,7 +1347,9 @@ void ath12k_dp_partner_cc_init(struct ath12k_base *ab)
+ 
+ static u32 ath12k_dp_get_num_spt_pages(struct ath12k_base *ab)
+ {
+-	return ATH12K_NUM_RX_SPT_PAGES(ab) + ATH12K_NUM_TX_SPT_PAGES(ab);
++	const struct ath12k_dp_profile_params *dp_params = &ab->profile_param->dp_params;
++
++	return ATH12K_NUM_RX_SPT_PAGES(ab) + ath12k_dp_num_tx_spt_pages(dp_params);
+ }
+ 
+ static int ath12k_dp_cc_init(struct ath12k_base *ab)
+diff --git a/drivers/net/wireless/ath/ath12k/dp.h b/drivers/net/wireless/ath/ath12k/dp.h
+index a7cd2535866b..7e48379d18a0 100644
+--- a/drivers/net/wireless/ath/ath12k/dp.h
++++ b/drivers/net/wireless/ath/ath12k/dp.h
+@@ -249,8 +249,6 @@ struct ath12k_pdev_dp {
+ #define ATH12K_SHADOW_DP_TIMER_INTERVAL 20
+ #define ATH12K_SHADOW_CTRL_TIMER_INTERVAL 10
+ 
+-#define ATH12K_NUM_POOL_TX_DESC(ab) \
+-	((ab)->profile_param->dp_params.num_pool_tx_desc)
+ /* TODO: revisit this count during testing */
+ #define ATH12K_RX_DESC_COUNT(ab) \
+ 	((ab)->profile_param->dp_params.rx_desc_count)
+@@ -268,13 +266,7 @@ struct ath12k_pdev_dp {
+ #define ATH12K_NUM_RX_SPT_PAGES(ab)	((ATH12K_RX_DESC_COUNT(ab)) / \
+ 					  ATH12K_MAX_SPT_ENTRIES)
+ 
+-#define ATH12K_TX_SPT_PAGES_PER_POOL(ab) (ATH12K_NUM_POOL_TX_DESC(ab) / \
+-					  ATH12K_MAX_SPT_ENTRIES)
+-#define ATH12K_NUM_TX_SPT_PAGES(ab)	(ATH12K_TX_SPT_PAGES_PER_POOL(ab) * \
+-					 ATH12K_HW_MAX_QUEUES)
+-
+ #define ATH12K_TX_SPT_PAGE_OFFSET 0
+-#define ATH12K_RX_SPT_PAGE_OFFSET(ab) ATH12K_NUM_TX_SPT_PAGES(ab)
+ 
+ /* The SPT pages are divided for RX and TX, first block for RX
+  * and remaining for TX
+@@ -700,6 +692,30 @@ ath12k_dp_rxdma_monitor_dst_ring_size(const struct ath12k_dp_profile_params *p)
+ 	return p->rxdma_monitor_dst_ring_size;
+ }
+ 
++static inline u32
++ath12k_dp_num_pool_tx_desc(const struct ath12k_dp_profile_params *p)
++{
++	return p->num_pool_tx_desc;
++}
++
++static inline u32
++ath12k_dp_tx_spt_pages_per_pool(const struct ath12k_dp_profile_params *p)
++{
++	return ath12k_dp_num_pool_tx_desc(p) / ATH12K_MAX_SPT_ENTRIES;
++}
++
++static inline u32
++ath12k_dp_num_tx_spt_pages(const struct ath12k_dp_profile_params *p)
++{
++	return ath12k_dp_tx_spt_pages_per_pool(p) * ATH12K_HW_MAX_QUEUES;
++}
++
++static inline u32
++ath12k_dp_rx_spt_page_offset(const struct ath12k_dp_profile_params *p)
++{
++	return ath12k_dp_num_tx_spt_pages(p);
++}
++
+ void ath12k_dp_vdev_tx_attach(struct ath12k *ar, struct ath12k_link_vif *arvif);
+ void ath12k_dp_partner_cc_init(struct ath12k_base *ab);
+ int ath12k_dp_pdev_alloc(struct ath12k_base *ab);
+diff --git a/drivers/net/wireless/ath/ath12k/mac.c b/drivers/net/wireless/ath/ath12k/mac.c
+index 99bf5cf79d10..a997e888feb5 100644
+--- a/drivers/net/wireless/ath/ath12k/mac.c
++++ b/drivers/net/wireless/ath/ath12k/mac.c
+@@ -9732,6 +9732,7 @@ static int ath12k_mac_config_mon_status_default(struct ath12k *ar, bool enable)
+ 
+ static int ath12k_mac_start(struct ath12k *ar)
+ {
++	const struct ath12k_dp_profile_params *dp_params;
+ 	struct ath12k_hw *ah = ar->ah;
+ 	struct ath12k_base *ab = ar->ab;
+ 	struct ath12k_pdev *pdev = ar->pdev;
+@@ -9740,6 +9741,8 @@ static int ath12k_mac_start(struct ath12k *ar)
+ 	lockdep_assert_held(&ah->hw_mutex);
+ 	lockdep_assert_wiphy(ath12k_ar_to_hw(ar)->wiphy);
+ 
++	dp_params = &ab->profile_param->dp_params;
++
+ 	ret = ath12k_wmi_pdev_set_param(ar, WMI_PDEV_PARAM_PMF_QOS,
+ 					1, pdev->pdev_id);
+ 
+@@ -9788,7 +9791,7 @@ static int ath12k_mac_start(struct ath12k *ar)
+ 	if (ab->hw_params->supports_cong_ctrl_max_msdus) {
+ 		ret = ath12k_wmi_pdev_set_param(ar,
+ 						WMI_PDEV_PARAM_SET_CONG_CTRL_MAX_MSDUS,
+-						ATH12K_NUM_POOL_TX_DESC(ab),
++						ath12k_dp_num_pool_tx_desc(dp_params),
+ 						pdev->pdev_id);
+ 		if (ret) {
+ 			ath12k_err(ab,
+-- 
+2.34.1
+
+Subject: [PATCH 6/7] wifi: ath12k: convert ATH12K_RX_DESC_COUNT to inline
+ helper
+From: Aaradhana Sahu <>
+Date: Thu, 20 Aug 2026 11:18:03 +0530
+
+Replace ATH12K_RX_DESC_COUNT with ath12k_dp_rx_desc_count() static inline
+helper, also replace ATH12K_NUM_RX_SPT_PAGES which is calculated from
+ATH12K_RX_DESC_COUNT into static inline helper functions and pass the DP
+profile parameters explicitly to improve type safety and make the interface
+explicit.
+
+Also remove the unused ATH12K_NUM_TX_SPT_PAGE_START macro.
+
+No functional change intended.
+
+Tested-on: QCN9274 hw2.0 PCI WLAN.WBE.1.6-01243-QCAHKSWPL_SILICONZ-1
+
+Signed-off-by: Aaradhana Sahu <>
+Reviewed-by: Baochen Qiang <>
+Reviewed-by: Rameshkumar Sundaram <>
+---
+ drivers/net/wireless/ath/ath12k/dp.c | 18 +++++++++++-------
+ drivers/net/wireless/ath/ath12k/dp.h | 24 ++++++++++++------------
+ 2 files changed, 23 insertions(+), 19 deletions(-)
+
+diff --git a/drivers/net/wireless/ath/ath12k/dp.c b/drivers/net/wireless/ath/ath12k/dp.c
+index 93a41b2440da..417d960bbd07 100644
+--- a/drivers/net/wireless/ath/ath12k/dp.c
++++ b/drivers/net/wireless/ath/ath12k/dp.c
+@@ -968,7 +968,7 @@ void ath12k_dp_vdev_tx_attach(struct ath12k *ar, struct ath12k_link_vif *arvif)
+ static void ath12k_dp_cc_cleanup(struct ath12k_base *ab)
+ {
+ 	const struct ath12k_dp_profile_params *dp_params = &ab->profile_param->dp_params;
+-	u32 pool_id, tx_spt_page, tx_spt_pages_per_pool;
++	u32 pool_id, tx_spt_page, tx_spt_pages_per_pool, num_rx_spt_pages;
+ 	struct ath12k_tx_desc_info *tx_desc_info, *tmp1;
+ 	struct ath12k_dp *dp = ath12k_ab_to_dp(ab);
+ 	struct ath12k_rx_desc_info *desc_info;
+@@ -983,8 +983,10 @@ static void ath12k_dp_cc_cleanup(struct ath12k_base *ab)
+ 	/* RX Descriptor cleanup */
+ 	spin_lock_bh(&dp->rx_desc_lock);
+ 
++	num_rx_spt_pages = ath12k_dp_num_rx_spt_pages(dp_params);
++
+ 	if (dp->rxbaddr) {
+-		for (i = 0; i < ATH12K_NUM_RX_SPT_PAGES(ab); i++) {
++		for (i = 0; i < num_rx_spt_pages; i++) {
+ 			if (!dp->rxbaddr[i])
+ 				continue;
+ 
+@@ -1166,7 +1168,7 @@ struct ath12k_rx_desc_info *ath12k_dp_get_rx_desc(struct ath12k_dp *dp,
+ 	dp_params = &dp->ab->profile_param->dp_params;
+ 
+ 	start_ppt_idx = dp->rx_ppt_base + ath12k_dp_rx_spt_page_offset(dp_params);
+-	end_ppt_idx = start_ppt_idx + ATH12K_NUM_RX_SPT_PAGES(dp->ab);
++	end_ppt_idx = start_ppt_idx + ath12k_dp_num_rx_spt_pages(dp_params);
+ 
+ 	if (ppt_idx < start_ppt_idx ||
+ 	    ppt_idx >= end_ppt_idx ||
+@@ -1208,10 +1210,10 @@ EXPORT_SYMBOL(ath12k_dp_get_tx_desc);
+ static int ath12k_dp_cc_desc_init(struct ath12k_base *ab)
+ {
+ 	const struct ath12k_dp_profile_params *dp_params = &ab->profile_param->dp_params;
++	u32 num_rx_spt_pages = ath12k_dp_num_rx_spt_pages(dp_params);
+ 	struct ath12k_rx_desc_info *rx_descs, **rx_desc_addr;
+ 	struct ath12k_tx_desc_info *tx_descs, **tx_desc_addr;
+ 	u32 i, j, pool_id, tx_spt_page, tx_spt_pages_per_pool;
+-	u32 num_rx_spt_pages = ATH12K_NUM_RX_SPT_PAGES(ab);
+ 	u32 ppt_idx, cookie_ppt_idx, rx_spt_page_offset;
+ 	struct ath12k_dp *dp = ath12k_ab_to_dp(ab);
+ 
+@@ -1317,7 +1319,7 @@ static int ath12k_dp_cmem_init(struct ath12k_base *ab,
+ 	case ATH12K_DP_RX_DESC:
+ 		cmem_base += ATH12K_PPT_ADDR_OFFSET(dp->rx_ppt_base);
+ 		start = ath12k_dp_rx_spt_page_offset(dp_params);
+-		end = start + ATH12K_NUM_RX_SPT_PAGES(ab);
++		end = start + ath12k_dp_num_rx_spt_pages(dp_params);
+ 		break;
+ 	default:
+ 		ath12k_err(ab, "invalid descriptor type %d in cmem init\n", type);
+@@ -1349,7 +1351,8 @@ static u32 ath12k_dp_get_num_spt_pages(struct ath12k_base *ab)
+ {
+ 	const struct ath12k_dp_profile_params *dp_params = &ab->profile_param->dp_params;
+ 
+-	return ATH12K_NUM_RX_SPT_PAGES(ab) + ath12k_dp_num_tx_spt_pages(dp_params);
++	return ath12k_dp_num_rx_spt_pages(dp_params) +
++	       ath12k_dp_num_tx_spt_pages(dp_params);
+ }
+ 
+ static int ath12k_dp_cc_init(struct ath12k_base *ab)
+@@ -1377,7 +1380,8 @@ static int ath12k_dp_cc_init(struct ath12k_base *ab)
+ 		return -ENOMEM;
+ 	}
+ 
+-	dp->rx_ppt_base = ab->device_id * ATH12K_NUM_RX_SPT_PAGES(ab);
++	dp->rx_ppt_base = ab->device_id *
++			  ath12k_dp_num_rx_spt_pages(&ab->profile_param->dp_params);
+ 
+ 	for (i = 0; i < dp->num_spt_pages; i++) {
+ 		dp->spt_info[i].vaddr = dma_alloc_coherent(ab->dev,
+diff --git a/drivers/net/wireless/ath/ath12k/dp.h b/drivers/net/wireless/ath/ath12k/dp.h
+index 7e48379d18a0..c8ca3ab4d5e1 100644
+--- a/drivers/net/wireless/ath/ath12k/dp.h
++++ b/drivers/net/wireless/ath/ath12k/dp.h
+@@ -249,10 +249,6 @@ struct ath12k_pdev_dp {
+ #define ATH12K_SHADOW_DP_TIMER_INTERVAL 20
+ #define ATH12K_SHADOW_CTRL_TIMER_INTERVAL 10
+ 
+-/* TODO: revisit this count during testing */
+-#define ATH12K_RX_DESC_COUNT(ab) \
+-	((ab)->profile_param->dp_params.rx_desc_count)
+-
+ #define ATH12K_PAGE_SIZE	PAGE_SIZE
+ 
+ /* Total 1024 entries in PPT, i.e 4K/4 considering 4K aligned
+@@ -263,16 +259,8 @@ struct ath12k_pdev_dp {
+ /* Total 512 entries in a SPT, i.e 4K Page/8 */
+ #define ATH12K_MAX_SPT_ENTRIES	512
+ 
+-#define ATH12K_NUM_RX_SPT_PAGES(ab)	((ATH12K_RX_DESC_COUNT(ab)) / \
+-					  ATH12K_MAX_SPT_ENTRIES)
+-
+ #define ATH12K_TX_SPT_PAGE_OFFSET 0
+ 
+-/* The SPT pages are divided for RX and TX, first block for RX
+- * and remaining for TX
+- */
+-#define ATH12K_NUM_TX_SPT_PAGE_START(ab) ATH12K_NUM_RX_SPT_PAGES(ab)
+-
+ #define ATH12K_DP_RX_DESC_MAGIC	0xBABABABA
+ 
+ /* 4K aligned address have last 12 bits set to 0, this check is done
+@@ -716,6 +704,18 @@ ath12k_dp_rx_spt_page_offset(const struct ath12k_dp_profile_params *p)
+ 	return ath12k_dp_num_tx_spt_pages(p);
+ }
+ 
++static inline u32
++ath12k_dp_rx_desc_count(const struct ath12k_dp_profile_params *p)
++{
++	return p->rx_desc_count;
++}
++
++static inline u32
++ath12k_dp_num_rx_spt_pages(const struct ath12k_dp_profile_params *p)
++{
++	return ath12k_dp_rx_desc_count(p) / ATH12K_MAX_SPT_ENTRIES;
++}
++
+ void ath12k_dp_vdev_tx_attach(struct ath12k *ar, struct ath12k_link_vif *arvif);
+ void ath12k_dp_partner_cc_init(struct ath12k_base *ab);
+ int ath12k_dp_pdev_alloc(struct ath12k_base *ab);
+-- 
+2.34.1
+
+Subject: [PATCH 7/7] wifi: ath12k: convert DP_RX_RELEASE_RING_SIZE to
+ inline helper
+From: Aaradhana Sahu <>
+Date: Thu, 20 Aug 2026 11:18:04 +0530
+
+Replace DP_RX_RELEASE_RING_SIZE macro with ath12k_dp_rx_release_ring_size()
+static inline helper. Pass the DP profile parameters explicitly to
+improve type safety and make the interface explicit.
+
+No functional change intended.
+
+Tested-on: QCN9274 hw2.0 PCI WLAN.WBE.1.6-01243-QCAHKSWPL_SILICONZ-1
+
+Signed-off-by: Aaradhana Sahu <>
+Reviewed-by: Baochen Qiang <>
+Reviewed-by: Rameshkumar Sundaram <>
+---
+ drivers/net/wireless/ath/ath12k/dp.c | 2 +-
+ drivers/net/wireless/ath/ath12k/dp.h | 8 ++++++--
+ 2 files changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/drivers/net/wireless/ath/ath12k/dp.c b/drivers/net/wireless/ath/ath12k/dp.c
+index 417d960bbd07..779529d189f8 100644
+--- a/drivers/net/wireless/ath/ath12k/dp.c
++++ b/drivers/net/wireless/ath/ath12k/dp.c
+@@ -488,7 +488,7 @@ static int ath12k_dp_srng_common_setup(struct ath12k_base *ab)
+ 
+ 	ret = ath12k_dp_srng_setup(ab, &dp->rx_rel_ring, HAL_WBM2SW_RELEASE,
+ 				   HAL_WBM2SW_REL_ERR_RING_NUM, 0,
+-				   DP_RX_RELEASE_RING_SIZE(ab));
++				   ath12k_dp_rx_release_ring_size(dp_params));
+ 	if (ret) {
+ 		ath12k_warn(ab, "failed to set up rx_rel ring :%d\n", ret);
+ 		goto err;
+diff --git a/drivers/net/wireless/ath/ath12k/dp.h b/drivers/net/wireless/ath/ath12k/dp.h
+index c8ca3ab4d5e1..ff62773cfa9a 100644
+--- a/drivers/net/wireless/ath/ath12k/dp.h
++++ b/drivers/net/wireless/ath/ath12k/dp.h
+@@ -206,8 +206,6 @@ struct ath12k_pdev_dp {
+ #define DP_REO_DST_RING_MAX		8
+ #define DP_REO_DST_RING_SIZE		2048
+ #define DP_REO_REINJECT_RING_SIZE	32
+-#define DP_RX_RELEASE_RING_SIZE(ab) \
+-	((ab)->profile_param->dp_params.rx_release_ring_size)
+ #define DP_REO_EXCEPTION_RING_SIZE	128
+ #define DP_REO_CMD_RING_SIZE		256
+ #define DP_REO_STATUS_RING_SIZE		2048
+@@ -716,6 +714,12 @@ ath12k_dp_num_rx_spt_pages(const struct ath12k_dp_profile_params *p)
+ 	return ath12k_dp_rx_desc_count(p) / ATH12K_MAX_SPT_ENTRIES;
+ }
+ 
++static inline u32
++ath12k_dp_rx_release_ring_size(const struct ath12k_dp_profile_params *p)
++{
++	return p->rx_release_ring_size;
++}
++
+ void ath12k_dp_vdev_tx_attach(struct ath12k *ar, struct ath12k_link_vif *arvif);
+ void ath12k_dp_partner_cc_init(struct ath12k_base *ab);
+ int ath12k_dp_pdev_alloc(struct ath12k_base *ab);
+-- 
+2.34.1
+
+
+wifi: ath12k: Configure RXDMA buffer ring size per memory profile
+https://lore.kernel.org/all/20261007-mpp_ws-v1-1-739b1fb87d24@oss.qualcomm.com/T/
+
+Subject: [PATCH 1/2] wifi: ath12k: Make RXDMA buffer ring size configurable
+ per memory profile
+From: Aaradhana Sahu <>
+Date: Wed, 07 Oct 2026 14:53:32 +0530
+
+Currently, the RXDMA buffer ring size is hardcoded to 4096 and shared
+across all memory profiles. This prevents individual profiles from tuning
+the ring size based on their memory and performance requirements.
+
+Add the RXDMA buffer ring size to the memory profile configuration and
+implement ath12k_dp_rxdma_buf_ring_size() static inline function to
+access the configured value. This allows different memory profiles to
+select an appropriate ring size based on available system resources.
+
+The function follows the pattern established in the previous patch for
+other DP profile parameters, taking struct ath12k_dp_profile_params
+pointer as argument.
+
+Tested-on: QCN9274 hw2.0 PCI WLAN.WBE.1.6-01243-QCAHKSWPL_SILICONZ-1
+Tested-on: WCN7850 hw2.0 PCI WLAN.HMT.1.1.c7-00108-QCAHMTSWPL_V1.0_V2.0_SILICONZ_UPSTREAM-3
+Tested-on: QCC2072 hw1.0 PCI WLAN.COL.1.0.c2-00074-QCACOLSWPL_V1_TO_SILICONZ-1
+
+Signed-off-by: Aaradhana Sahu <>
+Reviewed-by: Baochen Qiang <>
+Reviewed-by: Rameshkumar Sundaram <>
+---
+ drivers/net/wireless/ath/ath12k/core.c  | 2 ++
+ drivers/net/wireless/ath/ath12k/dp.h    | 8 +++++++-
+ drivers/net/wireless/ath/ath12k/dp_rx.c | 2 +-
+ 3 files changed, 10 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/net/wireless/ath/ath12k/core.c b/drivers/net/wireless/ath/ath12k/core.c
+index e527b59ecba5..764e646d0090 100644
+--- a/drivers/net/wireless/ath/ath12k/core.c
++++ b/drivers/net/wireless/ath/ath12k/core.c
+@@ -54,6 +54,7 @@ ath12k_mem_profile_based_param ath12k_mem_profile_based_param[] = {
+ 			.num_pool_tx_desc = 32768,
+ 			.rx_desc_count = 12288,
+ 			.rx_release_ring_size = 16384,
++			.rxdma_buf_ring_size = 4096,
+ 		},
+ 	},
+ [ATH12K_QMI_MEMORY_MODE_LOW_512_M] = {
+@@ -68,6 +69,7 @@ ath12k_mem_profile_based_param ath12k_mem_profile_based_param[] = {
+ 			.num_pool_tx_desc = 16384,
+ 			.rx_desc_count = 6144,
+ 			.rx_release_ring_size = 8192,
++			.rxdma_buf_ring_size = 4096,
+ 		},
+ 	},
+ };
+diff --git a/drivers/net/wireless/ath/ath12k/dp.h b/drivers/net/wireless/ath/ath12k/dp.h
+index c53eac20b989..108e27dd5797 100644
+--- a/drivers/net/wireless/ath/ath12k/dp.h
++++ b/drivers/net/wireless/ath/ath12k/dp.h
+@@ -30,6 +30,7 @@ struct ath12k_dp_profile_params {
+ 	u32 num_pool_tx_desc;
+ 	u32 rx_desc_count;
+ 	u32 rx_release_ring_size;
++	u32 rxdma_buf_ring_size;
+ };
+ 
+ #define DP_MON_PURGE_TIMEOUT_MS     100
+@@ -209,7 +210,6 @@ struct ath12k_pdev_dp {
+ #define DP_REO_EXCEPTION_RING_SIZE	128
+ #define DP_REO_CMD_RING_SIZE		256
+ #define DP_REO_STATUS_RING_SIZE		2048
+-#define DP_RXDMA_BUF_RING_SIZE		4096
+ #define DP_RX_MAC_BUF_RING_SIZE		4096
+ #define DP_RXDMA_REFILL_RING_SIZE	2048
+ #define DP_RXDMA_ERR_DST_RING_SIZE	1024
+@@ -720,6 +720,12 @@ ath12k_dp_rx_release_ring_size(const struct ath12k_dp_profile_params *p)
+ 	return p->rx_release_ring_size;
+ }
+ 
++static inline u32
++ath12k_dp_rxdma_buf_ring_size(const struct ath12k_dp_profile_params *p)
++{
++	return p->rxdma_buf_ring_size;
++}
++
+ void ath12k_dp_vdev_tx_attach(struct ath12k *ar, struct ath12k_link_vif *arvif);
+ void ath12k_dp_partner_cc_init(struct ath12k_base *ab);
+ int ath12k_dp_pdev_alloc(struct ath12k_base *ab);
+diff --git a/drivers/net/wireless/ath/ath12k/dp_rx.c b/drivers/net/wireless/ath/ath12k/dp_rx.c
+index cfaf26ae2720..36be543b7c50 100644
+--- a/drivers/net/wireless/ath/ath12k/dp_rx.c
++++ b/drivers/net/wireless/ath/ath12k/dp_rx.c
+@@ -1708,7 +1708,7 @@ int ath12k_dp_rx_alloc(struct ath12k_base *ab)
+ 	ret = ath12k_dp_srng_setup(ab,
+ 				   &dp->rx_refill_buf_ring.refill_buf_ring,
+ 				   HAL_RXDMA_BUF, 0, 0,
+-				   DP_RXDMA_BUF_RING_SIZE);
++				   ath12k_dp_rxdma_buf_ring_size(dp_params));
+ 	if (ret) {
+ 		ath12k_warn(ab, "failed to setup rx_refill_buf_ring\n");
+ 		return ret;
+
+-- 
+2.34.1
+
+Subject: [PATCH 2/2] wifi: ath12k: Increase RXDMA buffer ring size for
+ default memory profile
+From: Pavankumar Nandeshwar <>
+Date: Wed, 07 Oct 2026 14:53:33 +0530
+
+The default RXDMA buffer ring size of 4096 entries can become a
+bottleneck under high RX traffic load, resulting in reduced receive
+throughput due to limited buffer availability.
+
+Increase the RXDMA buffer ring size to 8192 entries for the default
+memory profile to provide additional RX buffering and improve RX packet
+processing efficiency.
+
+This increases memory consumption by approximately 9-10 MiB and improves
+RX throughput by ~20% with the default memory profile
+(ATH12K_QMI_MEMORY_MODE_DEFAULT).
+
+Tested-on: QCN9274 hw2.0 PCI WLAN.WBE.1.6-01243-QCAHKSWPL_SILICONZ-1
+Tested-on: WCN7850 hw2.0 PCI WLAN.HMT.1.1.c7-00108-QCAHMTSWPL_V1.0_V2.0_SILICONZ_UPSTREAM-3
+Tested-on: QCC2072 hw1.0 PCI WLAN.COL.1.0.c2-00074-QCACOLSWPL_V1_TO_SILICONZ-1
+
+Signed-off-by: Pavankumar Nandeshwar <>
+Signed-off-by: Aaradhana Sahu <>
+Reviewed-by: Baochen Qiang <>
+Reviewed-by: Rameshkumar Sundaram <>
+---
+ drivers/net/wireless/ath/ath12k/core.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/net/wireless/ath/ath12k/core.c b/drivers/net/wireless/ath/ath12k/core.c
+index 764e646d0090..a70590e1d821 100644
+--- a/drivers/net/wireless/ath/ath12k/core.c
++++ b/drivers/net/wireless/ath/ath12k/core.c
+@@ -54,7 +54,7 @@ ath12k_mem_profile_based_param ath12k_mem_profile_based_param[] = {
+ 			.num_pool_tx_desc = 32768,
+ 			.rx_desc_count = 12288,
+ 			.rx_release_ring_size = 16384,
+-			.rxdma_buf_ring_size = 4096,
++			.rxdma_buf_ring_size = 8192,
+ 		},
+ 	},
+ [ATH12K_QMI_MEMORY_MODE_LOW_512_M] = {
+
+-- 
+2.34.1
+
+
+wifi: ath12k: fix wrong register read for RU start index of 80_3 segment
+https://lore.kernel.org/all/20261030090906.298234-1-jtornosm@redhat.com/
+
+Subject: [PATCH] wifi: ath12k: fix wrong register read for RU start index
+ of 80_3 segment
+From: Jose Ignacio Tornos Martinez <>
+Date: Fri, 30 Oct 2026 10:09:06 +0100
+
+The RU start index for the fourth 80 MHz segment (80_3) is read from
+rx_usr_info->info2 instead of rx_usr_info->info3. The bitmask used
+(HAL_RX_USR_INFO3_RU_START_IDX_80_3) is correct for info3, so applying
+it to info2 extracts garbage bits, producing an out-of-range shift
+exponent that triggers a UBSAN splat:
+
+  UBSAN: shift-out-of-bounds in drivers/net/wireless/ath/ath12k/wifi7/dp_mon.c:302:22
+  shift exponent 284 is too large for 64-bit type 'long long unsigned int'
+  Call Trace:
+   ath12k_wifi7_dp_mon_hal_rx_parse_user_info.cold+0x3a/0xef7 [ath12k_wifi7]
+   ath12k_wifi7_dp_mon_rx_parse_status_tlv+0x621/0x990 [ath12k_wifi7]
+   ath12k_wifi7_dp_mon_parse_rx_dest+0xa9/0x2b0 [ath12k_wifi7]
+   ath12k_wifi7_dp_mon_srng_process+0x34f/0x560 [ath12k_wifi7]
+   ath12k_wifi7_dp_mon_process_ring+0x205/0x270 [ath12k_wifi7]
+   ath12k_wifi7_dp_service_srng+0x1b4/0x5e0 [ath12k_wifi7]
+   ath12k_pci_ext_grp_napi_poll+0x43/0x100 [ath12k]
+
+Read from the suitable info (in this case info3) like the other three
+segments do.
+
+Fixes: 5db19c488413 ("wifi: ath12k: Move MU user processing to Wi-Fi 7 module")
+Signed-off-by: Jose Ignacio Tornos Martinez <>
+Fixes: e6fa62bada87 ("wifi: ath12k: Add HAL_RX_PPDU_START_USER_INFO TLV parsing support")
+Reviewed-by: Tamizh Chelvam Raja <>
+---
+ drivers/net/wireless/ath/ath12k/wifi7/dp_mon.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/net/wireless/ath/ath12k/wifi7/dp_mon.c b/drivers/net/wireless/ath/ath12k/wifi7/dp_mon.c
+index 1e29c13ad66d..0e69d9fe138b 100644
+--- a/drivers/net/wireless/ath/ath12k/wifi7/dp_mon.c
++++ b/drivers/net/wireless/ath/ath12k/wifi7/dp_mon.c
+@@ -293,7 +293,7 @@ ath12k_wifi7_dp_mon_hal_rx_parse_user_info(const struct hal_receive_user_info *r
+ 	}
+ 
+ 	ru_type_80_3 = le32_get_bits(rx_usr_info->info2, HAL_RX_USR_INFO2_RU_TYPE_80_3);
+-	ru_start_index_80_3 = le32_get_bits(rx_usr_info->info2,
++	ru_start_index_80_3 = le32_get_bits(rx_usr_info->info3,
+ 					    HAL_RX_USR_INFO3_RU_START_IDX_80_3);
+ 	if (ru_type_80_3 != HAL_EHT_RU_NONE) {
+ 		ru_size += ru_type_80_3;
+-- 
+2.56.0
+
+
+wifi: ath12k: copy the first fragment's descriptor before queuing it
+https://lore.kernel.org/all/20261030180705.1702009-3-adriel@adriel.eu/
+
+Subject: [PATCH] wifi: ath12k: copy the first fragment's descriptor
+ before queuing it
+From: Adriel Santos <>
+Date: Fri, 30 Oct 2026 15:07:05 -0300
+
+ath12k_wifi7_dp_rx_frag_h_mpdu() queues a received fragment on
+rx_tid->rx_frags and sets its bit in rx_frag_bitmap before, for fragment
+0, it copies the REO destination descriptor with kmemdup(GFP_ATOMIC). If
+that copy fails, the function returns -ENOMEM and its caller,
+ath12k_wifi7_dp_process_rx_err_buf(), frees the msdu and returns its link
+descriptor while the msdu is still on rx_frags:
+
+ - the next flush of rx_frags (a new sequence number, the fragment timer
+   or peer teardown) frees the skb a second time;
+ - if the remaining fragments of the MPDU arrive first, the bitmap is
+   complete, ath12k_wifi7_dp_rx_h_defrag() walks the list with the freed
+   skb, and ath12k_wifi7_dp_rx_h_defrag_reo_reinject() dereferences the
+   NULL rx_tid->dst_ring_desc.
+
+This has not been seen in the field; it was reproduced, on ath11k only,
+by forcing the allocation to fail.
+
+Copy the descriptor before the fragment is queued, so a failure leaves
+nothing of this fragment in rx_tid and the caller's free is the only
+one. Fragments other than 0 still return their link descriptor after
+being queued.
+
+ath11k has the same code and gets the same fix.
+
+Found during an LLM-assisted review of the RX defragmentation path; the
+fix was LLM-assisted as well.
+
+Compile tested only.
+
+Fixes: d889913205cf ("wifi: ath12k: driver for Qualcomm Wi-Fi 7 devices")
+Signed-off-by: Adriel Santos <>
+---
+Notes:
+    Found while fixing the same bug in ath11k (previous patch), which was
+    tested on IPQ5018 with forced kmemdup() failures. No ath12k hardware was
+    available: this patch is build-tested only (arm64, W=1, no new
+    warnings), and no reproducer was run on ath12k.
+
+ drivers/net/wireless/ath/ath12k/wifi7/dp_rx.c | 22 ++++++++++---------
+ 1 file changed, 12 insertions(+), 10 deletions(-)
+
+diff --git a/drivers/net/wireless/ath/ath12k/wifi7/dp_rx.c b/drivers/net/wireless/ath/ath12k/wifi7/dp_rx.c
+index a32c80440..d84cbb8df 100644
+--- a/drivers/net/wireless/ath/ath12k/wifi7/dp_rx.c
++++ b/drivers/net/wireless/ath/ath12k/wifi7/dp_rx.c
+@@ -1215,6 +1215,17 @@ static int ath12k_wifi7_dp_rx_frag_h_mpdu(struct ath12k_pdev_dp *dp_pdev,
+ 		goto out_unlock;
+ 	}
+ 
++	/* On failure the caller frees msdu, so it must not be queued yet */
++	if (frag_no == 0) {
++		rx_tid->dst_ring_desc = kmemdup(ring_desc,
++						sizeof(*rx_tid->dst_ring_desc),
++						GFP_ATOMIC);
++		if (!rx_tid->dst_ring_desc) {
++			ret = -ENOMEM;
++			goto out_unlock;
++		}
++	}
++
+ 	if ((!rx_tid->rx_frag_bitmap || frag_no > __fls(rx_tid->rx_frag_bitmap)))
+ 		__skb_queue_tail(&rx_tid->rx_frags, msdu);
+ 	else
+@@ -1224,18 +1235,9 @@ static int ath12k_wifi7_dp_rx_frag_h_mpdu(struct ath12k_pdev_dp *dp_pdev,
+ 	if (!more_frags)
+ 		rx_tid->last_frag_no = frag_no;
+ 
+-	if (frag_no == 0) {
+-		rx_tid->dst_ring_desc = kmemdup(ring_desc,
+-						sizeof(*rx_tid->dst_ring_desc),
+-						GFP_ATOMIC);
+-		if (!rx_tid->dst_ring_desc) {
+-			ret = -ENOMEM;
+-			goto out_unlock;
+-		}
+-	} else {
++	if (frag_no != 0)
+ 		ath12k_wifi7_dp_rx_link_desc_return(dp, &ring_desc->buf_addr_info,
+ 						    HAL_WBM_REL_BM_ACT_PUT_IN_IDLE);
+-	}
+ 
+ 	if (!rx_tid->last_frag_no ||
+ 	    rx_tid->rx_frag_bitmap != GENMASK(rx_tid->last_frag_no, 0)) {
+-- 
+2.47.3
+

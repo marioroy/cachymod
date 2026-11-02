@@ -1,0 +1,2384 @@
+
+linux-assoc-array-fixes-v2
+https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tag/?h=assoc-array-fixes-v2
+
+##
+
+Clean up assoc_array library
+
+Nils Ollrogge reported a bug in the assoc_array library and had a patch
+to fix it too, but that code was too obscure for me to follow, so I did
+what I preach: use modern LLM tools to help make sense of it all.
+
+So this is an LLM-assisted branch which makes the code more readable by
+splitting up some of the larger and hard-to-read functions.  The code
+was then run through a test harness in user space, which not only
+confirmed the bug Nils reported, but found three other bugs too - all
+going back to the very first commit adding this library back in 2013.
+
+v2: David Howells asked for a fix-up of a couple of comments and rename
+assoc_array_segment_leaves() to assoc_array_fill_segment_cache(), and
+added his Tested-by: and Reviewed-by:
+
+##
+
+assoc_array: correct the documentation of get_key_chunk()'s level argument
+
+assoc_array.rst says the level passed to get_key_chunk() will be a
+multiple of ASSOC_ARRAY_KEY_CHUNK_SIZE, and asks for the chunk starting
+at that bit.  assoc_array_walk() after a shortcut, and both insertion
+paths, pass the level of a node, which is any multiple of
+ASSOC_ARRAY_LEVEL_STEP.  Each then shifts the chunk it gets back right
+by level & ASSOC_ARRAY_KEY_CHUNK_MASK, so what it wants is the chunk
+that contains that bit.
+
+The keyring code copes, because keyring_get_key_chunk() divides the
+level by ASSOC_ARRAY_KEY_CHUNK_SIZE before using it.  An implementation
+written to the documentation does not: one that returns a one-word key
+for level 0 and nothing for any other level files leaves under the
+wrong slot the first time a node is split, and a later insertion hits
+the BUG_ON() after found_slot_for_multiple_occupancy in
+assoc_array_insert_into_terminal_node().
+
+Say what the code expects.  get_object_key_chunk() is documented as
+"the previous function", so this covers it too.
+
+Assisted-by: LLM
+Signed-off-by: Linus Torvalds <>
+Tested-by: David Howells <>
+Reviewed-by: David Howells <>
+
+diff --git a/Documentation/core-api/assoc_array.rst b/Documentation/core-api/assoc_array.rst
+index 19d89f92bf8da..c5ada1bff06fa 100644
+--- a/Documentation/core-api/assoc_array.rst
++++ b/Documentation/core-api/assoc_array.rst
+@@ -123,10 +123,12 @@ This points to a number of methods, all of which need to be provided:
+ 
+     unsigned long (*get_key_chunk)(const void *index_key, int level);
+ 
+-   This should return a chunk of caller-supplied index key starting at the
+-   *bit* position given by the level argument.  The level argument will be a
+-   multiple of ``ASSOC_ARRAY_KEY_CHUNK_SIZE`` and the function should return
+-   ``ASSOC_ARRAY_KEY_CHUNK_SIZE bits``.  No error is possible.
++   This should return the ``ASSOC_ARRAY_KEY_CHUNK_SIZE`` bits of
++   caller-supplied index key that contain the *bit* position given by the
++   level argument, starting at level rounded down to a multiple of
++   ``ASSOC_ARRAY_KEY_CHUNK_SIZE``.  The level is often that of a node, which
++   is a multiple of ``ASSOC_ARRAY_LEVEL_STEP``, so the function has to do the
++   rounding.  No error is possible.
+ 
+ 
+ 2. Get a chunk of an object's index key::
+-- 
+2.53.0
+
+assoc_array: don't lose objects when a shortcut is split on a word boundary
+
+When assoc_array_insert_mid_shortcut() splits a shortcut at level diff,
+the new shortcut in front of the split, new_s0, gets the first
+round_up(diff, ASSOC_ARRAY_KEY_CHUNK_SIZE) bits of the old shortcut's
+index key, and the bits from diff onwards are then cleared from its
+last word:
+
+	blank = ULONG_MAX << (diff & ASSOC_ARRAY_KEY_CHUNK_MASK);
+	new_s0->index_key[keylen - 1] &= ~blank;
+
+When diff is a multiple of ASSOC_ARRAY_KEY_CHUNK_SIZE, the shift is 0,
+blank is all ones, and the whole last word is cleared, although all of
+it lies below diff.  A walk then compares the key it is looking for
+against that zeroed word, takes the shortcut to point elsewhere, and
+every object below it can no longer be found.
+
+assoc_array_insert_into_terminal_node() trims a new shortcut's key the
+same way, and only when the level is not a multiple of the chunk size.
+Do the same here.
+
+Found by a userspace build of the array with a test that inserts, in
+order, string keys whose first word is their length and the rest their
+bytes.  The 102nd key split a shortcut at bit 256, and 76 of the keys
+already in the array could no longer be found; AddressSanitizer also
+reported assoc_array_walk() reading a word past the end of a shortcut's
+index key.  With this change the test passes, and AddressSanitizer and
+UndefinedBehaviorSanitizer report nothing.
+
+Fixes: 3cb989501c26 ("Add a generic associative array implementation.")
+Assisted-by: LLM
+Signed-off-by: Linus Torvalds <>
+Tested-by: David Howells <>
+Reviewed-by: David Howells <>
+
+diff --git a/lib/assoc_array.c b/lib/assoc_array.c
+index b6c9723e12ced..20ef69e037801 100644
+--- a/lib/assoc_array.c
++++ b/lib/assoc_array.c
+@@ -865,9 +865,11 @@ static bool assoc_array_insert_mid_shortcut(struct assoc_array_edit *edit,
+ 		memcpy(new_s0->index_key, shortcut->index_key,
+ 		       flex_array_size(new_s0, index_key, keylen));
+ 
+-		blank = ULONG_MAX << (diff & ASSOC_ARRAY_KEY_CHUNK_MASK);
+-		pr_devel("blank off [%zu] %d: %lx\n", keylen - 1, diff, blank);
+-		new_s0->index_key[keylen - 1] &= ~blank;
++		if (diff & ASSOC_ARRAY_KEY_CHUNK_MASK) {
++			blank = ULONG_MAX << (diff & ASSOC_ARRAY_KEY_CHUNK_MASK);
++			pr_devel("blank off [%zu] %d: %lx\n", keylen - 1, diff, blank);
++			new_s0->index_key[keylen - 1] &= ~blank;
++		}
+ 	} else {
+ 		pr_devel("no pre-shortcut\n");
+ 		edit->set[0].to = assoc_array_node_to_ptr(new_n0);
+-- 
+2.53.0
+
+assoc_array: don't lose objects when a root shortcut is split at level 4
+
+assoc_array_insert_mid_shortcut() takes level, the level of the node
+holding the shortcut as assoc_array_walk() reports it, and adds
+ASSOC_ARRAY_LEVEL_STEP to get the level of a node in that shortcut's
+place.  If the new key first differs from the shortcut no further in
+than that, no shortcut is made in front of the split, and new_n0 takes
+the old shortcut's place directly.
+
+A shortcut at the root is held by no node.  assoc_array_walk() reports
+level 0 for it, and whatever takes its place is the root, which is read
+at level 0.  So when the new key first differs from a root shortcut in
+bits 4-7, diff is 4, no shortcut is made in front, and new_n0, whose
+slots are indexed by bits 4-7, becomes the root and is indexed by bits
+0-3.  Objects already in the array can no longer be found, and the new
+one lands in a slot its key does not select.
+
+Eighteen keys are enough: seventeen that agree on bits 0-7 make the root
+a shortcut, and one that agrees with them on bits 0-3 only splits it.
+Three of the eighteen objects can then not be found, and inserting one
+of those keys again adds a second object instead of replacing it.
+
+Only add the step for a shortcut that hangs from a node.  A root
+shortcut split at level 4 then gets a shortcut in front of the split
+that ends at level 4, as assoc_array_insert_into_terminal_node() already
+makes when the leaves of a full root node first differ there.
+
+Found by a userspace test that builds a shortcut ending at every level
+and splits it at every level inside it, from the root and from a node:
+every split of a root shortcut at level 4 failed, and nothing else did.
+
+Fixes: 3cb989501c26 ("Add a generic associative array implementation.")
+Assisted-by: LLM
+Signed-off-by: Linus Torvalds <>
+Tested-by: David Howells <>
+Reviewed-by: David Howells <>
+
+diff --git a/lib/assoc_array.c b/lib/assoc_array.c
+index 20ef69e037801..5611da338e1c8 100644
+--- a/lib/assoc_array.c
++++ b/lib/assoc_array.c
+@@ -843,7 +843,8 @@ static bool assoc_array_insert_mid_shortcut(struct assoc_array_edit *edit,
+ 	 * zero length - otherwise we just connect the new node directly to the
+ 	 * parent.
+ 	 */
+-	level += ASSOC_ARRAY_LEVEL_STEP;
++	if (shortcut->back_pointer)
++		level += ASSOC_ARRAY_LEVEL_STEP;
+ 	if (diff > level) {
+ 		pr_devel("pre-shortcut %d...%d\n", level, diff);
+ 		keylen = round_up(diff, ASSOC_ARRAY_KEY_CHUNK_SIZE);
+-- 
+2.53.0
+
+assoc_array: move in-place insertion into a function of its own
+
+assoc_array_insert_into_terminal_node() is over 300 lines and does four
+jobs, joined by gotos: putting the new leaf in place of a matching one
+or in a free slot, working out the segment of each leaf, splitting the
+node, and replacing the node with a shortcut.  The last two share the
+function's tail, which installs the replacement where the node was.
+
+Move the jobs into functions of their own, one per commit, starting with
+the two cases that need no new node: assoc_array_insert_in_node().
+
+No functional change.
+
+Assisted-by: LLM
+Signed-off-by: Linus Torvalds <>
+Tested-by: David Howells <>
+Reviewed-by: David Howells <>
+
+diff --git a/lib/assoc_array.c b/lib/assoc_array.c
+index 5611da338e1c8..11b92b6bb8e1c 100644
+--- a/lib/assoc_array.c
++++ b/lib/assoc_array.c
+@@ -470,33 +470,17 @@ static bool assoc_array_insert_in_empty_tree(struct assoc_array_edit *edit)
+ }
+ 
+ /*
+- * Handle insertion into a terminal node.
++ * Insert into a terminal node without changing its shape, if that can be
++ * done: in place of a leaf with the same index key, or in a free slot.
+  */
+-static bool assoc_array_insert_into_terminal_node(struct assoc_array_edit *edit,
+-						  const struct assoc_array_ops *ops,
+-						  const void *index_key,
+-						  struct assoc_array_walk_result *result)
++static bool assoc_array_insert_in_node(struct assoc_array_edit *edit,
++				       const struct assoc_array_ops *ops,
++				       const void *index_key,
++				       struct assoc_array_node *node)
+ {
+-	struct assoc_array_shortcut *shortcut, *new_s0;
+-	struct assoc_array_node *node, *new_n0, *new_n1, *side;
+ 	struct assoc_array_ptr *ptr;
+-	unsigned long dissimilarity, base_seg, blank;
+-	size_t keylen;
+-	bool have_meta;
+-	int level, diff;
+-	int slot, next_slot, free_slot, i, j;
+-
+-	node	= result->terminal_node.node;
+-	level	= result->terminal_node.level;
+-	edit->segment_cache[ASSOC_ARRAY_FAN_OUT] = result->terminal_node.slot;
+-
+-	pr_devel("-->%s()\n", __func__);
++	int free_slot, i;
+ 
+-	/* We arrived at a node which doesn't have an onward node or shortcut
+-	 * pointer that we have to follow.  This means that (a) the leaf we
+-	 * want must go here (either by insertion or replacement) or (b) we
+-	 * need to split this node and insert in one of the fragments.
+-	 */
+ 	free_slot = -1;
+ 
+ 	/* Firstly, we have to check the leaves in this node to see if there's
+@@ -514,7 +498,6 @@ static bool assoc_array_insert_into_terminal_node(struct assoc_array_edit *edit,
+ 			pr_devel("replace in slot %d\n", i);
+ 			edit->leaf_p = &node->slots[i];
+ 			edit->dead_leaf = node->slots[i];
+-			pr_devel("<--%s() = ok [replace]\n", __func__);
+ 			return true;
+ 		}
+ 	}
+@@ -526,7 +509,42 @@ static bool assoc_array_insert_into_terminal_node(struct assoc_array_edit *edit,
+ 		pr_devel("insert in free slot %d\n", free_slot);
+ 		edit->leaf_p = &node->slots[free_slot];
+ 		edit->adjust_count_on = node;
+-		pr_devel("<--%s() = ok [insert]\n", __func__);
++		return true;
++	}
++
++	return false;
++}
++
++/*
++ * Handle insertion into a terminal node.
++ */
++static bool assoc_array_insert_into_terminal_node(struct assoc_array_edit *edit,
++						  const struct assoc_array_ops *ops,
++						  const void *index_key,
++						  struct assoc_array_walk_result *result)
++{
++	struct assoc_array_shortcut *shortcut, *new_s0;
++	struct assoc_array_node *node, *new_n0, *new_n1, *side;
++	struct assoc_array_ptr *ptr;
++	unsigned long dissimilarity, base_seg, blank;
++	size_t keylen;
++	bool have_meta;
++	int level, diff;
++	int slot, next_slot, free_slot, i, j;
++
++	node	= result->terminal_node.node;
++	level	= result->terminal_node.level;
++	edit->segment_cache[ASSOC_ARRAY_FAN_OUT] = result->terminal_node.slot;
++
++	pr_devel("-->%s()\n", __func__);
++
++	/* We arrived at a node which doesn't have an onward node or shortcut
++	 * pointer that we have to follow.  This means that (a) the leaf we
++	 * want must go here (either by insertion or replacement) or (b) we
++	 * need to split this node and insert in one of the fragments.
++	 */
++	if (assoc_array_insert_in_node(edit, ops, index_key, node)) {
++		pr_devel("<--%s() = ok [in node]\n", __func__);
+ 		return true;
+ 	}
+ 
+-- 
+2.53.0
+
+assoc_array: fill the segment cache in one place
+
+The loop that records the segment of each leaf in a full node is written
+out twice in assoc_array_insert_into_terminal_node(): for the node at
+its own level, and again at the far end of a shortcut that replaces it.
+Make it assoc_array_fill_segment_cache().
+
+The second copy did not look for metadata pointers, because that path is
+only taken for a node holding nothing but leaves, so the function finds
+none there.  The new key's segment is still set by each caller, from the
+walk the first time and from the key the second.
+
+No functional change.
+
+Assisted-by: LLM
+Signed-off-by: Linus Torvalds <>
+Tested-by: David Howells <>
+Reviewed-by: David Howells <>
+
+diff --git a/lib/assoc_array.c b/lib/assoc_array.c
+index 11b92b6bb8e1c..38af851326e54 100644
+--- a/lib/assoc_array.c
++++ b/lib/assoc_array.c
+@@ -516,6 +516,38 @@ static bool assoc_array_insert_in_node(struct assoc_array_edit *edit,
+ }
+ 
+ /*
++ * Fill in the edit script's segment cache for a full node: the segment at
++ * this level of each leaf's index key, or 0xff for a metadata pointer.
++ * The new key's segment, in the last entry, is left to the caller.  Returns
++ * true if there are any metadata pointers.
++ */
++static bool assoc_array_fill_segment_cache(struct assoc_array_edit *edit,
++					   const struct assoc_array_ops *ops,
++					   const struct assoc_array_node *node,
++					   int level)
++{
++	struct assoc_array_ptr *ptr;
++	unsigned long base_seg;
++	bool have_meta;
++	int i;
++
++	have_meta = false;
++	for (i = 0; i < ASSOC_ARRAY_FAN_OUT; i++) {
++		ptr = node->slots[i];
++		if (assoc_array_ptr_is_meta(ptr)) {
++			edit->segment_cache[i] = 0xff;
++			have_meta = true;
++			continue;
++		}
++		base_seg = ops->get_object_key_chunk(
++			assoc_array_ptr_to_leaf(ptr), level);
++		base_seg >>= level & ASSOC_ARRAY_KEY_CHUNK_MASK;
++		edit->segment_cache[i] = base_seg & ASSOC_ARRAY_FAN_MASK;
++	}
++	return have_meta;
++}
++
++/*
+  * Handle insertion into a terminal node.
+  */
+ static bool assoc_array_insert_into_terminal_node(struct assoc_array_edit *edit,
+@@ -534,7 +566,6 @@ static bool assoc_array_insert_into_terminal_node(struct assoc_array_edit *edit,
+ 
+ 	node	= result->terminal_node.node;
+ 	level	= result->terminal_node.level;
+-	edit->segment_cache[ASSOC_ARRAY_FAN_OUT] = result->terminal_node.slot;
+ 
+ 	pr_devel("-->%s()\n", __func__);
+ 
+@@ -566,19 +597,8 @@ static bool assoc_array_insert_into_terminal_node(struct assoc_array_edit *edit,
+ 
+ 	/* We need to find out how similar the leaves are. */
+ 	pr_devel("no spare slots\n");
+-	have_meta = false;
+-	for (i = 0; i < ASSOC_ARRAY_FAN_OUT; i++) {
+-		ptr = node->slots[i];
+-		if (assoc_array_ptr_is_meta(ptr)) {
+-			edit->segment_cache[i] = 0xff;
+-			have_meta = true;
+-			continue;
+-		}
+-		base_seg = ops->get_object_key_chunk(
+-			assoc_array_ptr_to_leaf(ptr), level);
+-		base_seg >>= level & ASSOC_ARRAY_KEY_CHUNK_MASK;
+-		edit->segment_cache[i] = base_seg & ASSOC_ARRAY_FAN_MASK;
+-	}
++	have_meta = assoc_array_fill_segment_cache(edit, ops, node, level);
++	edit->segment_cache[ASSOC_ARRAY_FAN_OUT] = result->terminal_node.slot;
+ 
+ 	if (have_meta) {
+ 		pr_devel("have meta\n");
+@@ -791,13 +811,7 @@ all_leaves_cluster_together:
+ 	/* This now reduces to a node splitting exercise for which we'll need
+ 	 * to regenerate the disparity table.
+ 	 */
+-	for (i = 0; i < ASSOC_ARRAY_FAN_OUT; i++) {
+-		ptr = node->slots[i];
+-		base_seg = ops->get_object_key_chunk(assoc_array_ptr_to_leaf(ptr),
+-						     level);
+-		base_seg >>= level & ASSOC_ARRAY_KEY_CHUNK_MASK;
+-		edit->segment_cache[i] = base_seg & ASSOC_ARRAY_FAN_MASK;
+-	}
++	assoc_array_fill_segment_cache(edit, ops, node, level);
+ 
+ 	base_seg = ops->get_key_chunk(index_key, level);
+ 	base_seg >>= level & ASSOC_ARRAY_KEY_CHUNK_MASK;
+-- 
+2.53.0
+
+assoc_array: move node splitting into a function of its own
+
+Move the code after the do_split_node label into
+assoc_array_split_node(), which both the split path and the shortcut
+path still reach through that label.
+
+It sets new_n1's back pointer itself, which both paths did before
+jumping there, and it no longer sets new_n1's parent slot to -1 first:
+it always sets the real one.
+
+No functional change.
+
+Assisted-by: LLM
+Signed-off-by: Linus Torvalds <>
+Tested-by: David Howells <>
+Reviewed-by: David Howells <>
+
+diff --git a/lib/assoc_array.c b/lib/assoc_array.c
+index 38af851326e54..690446b468f1c 100644
+--- a/lib/assoc_array.c
++++ b/lib/assoc_array.c
+@@ -548,6 +548,106 @@ static bool assoc_array_fill_segment_cache(struct assoc_array_edit *edit,
+ }
+ 
+ /*
++ * Split a full node into new_n0, which takes its place, and new_n1, below
++ * new_n0 in the slot of a segment that at least two of the leaves share,
++ * the new one included.  The caller has filled in the segment cache and
++ * set new_n0's back pointer and parent slot.
++ */
++static void assoc_array_split_node(struct assoc_array_edit *edit,
++				   struct assoc_array_node *node,
++				   struct assoc_array_node *new_n0,
++				   struct assoc_array_node *new_n1)
++{
++	struct assoc_array_shortcut *shortcut;
++	struct assoc_array_node *side;
++	struct assoc_array_ptr *ptr;
++	int slot, next_slot, free_slot, i, j;
++
++	pr_devel("split node\n");
++
++	new_n1->back_pointer = assoc_array_node_to_ptr(new_n0);
++	new_n0->nr_leaves_on_branch = node->nr_leaves_on_branch;
++	new_n1->nr_leaves_on_branch = 0;
++
++	/* Begin by finding two matching leaves.  There have to be at least two
++	 * that match - even if there are meta pointers - because any leaf that
++	 * would match a slot with a meta pointer in it must be somewhere
++	 * behind that meta pointer and cannot be here.  Further, given N
++	 * remaining leaf slots, we now have N+1 leaves to go in them.
++	 */
++	for (i = 0; i < ASSOC_ARRAY_FAN_OUT; i++) {
++		slot = edit->segment_cache[i];
++		if (slot != 0xff)
++			for (j = i + 1; j < ASSOC_ARRAY_FAN_OUT + 1; j++)
++				if (edit->segment_cache[j] == slot)
++					goto found_slot_for_multiple_occupancy;
++	}
++found_slot_for_multiple_occupancy:
++	pr_devel("same slot: %x %x [%02x]\n", i, j, slot);
++	BUG_ON(i >= ASSOC_ARRAY_FAN_OUT);
++	BUG_ON(j >= ASSOC_ARRAY_FAN_OUT + 1);
++	BUG_ON(slot >= ASSOC_ARRAY_FAN_OUT);
++
++	new_n1->parent_slot = slot;
++
++	/* Metadata pointers cannot change slot */
++	for (i = 0; i < ASSOC_ARRAY_FAN_OUT; i++)
++		if (assoc_array_ptr_is_meta(node->slots[i]))
++			new_n0->slots[i] = node->slots[i];
++		else
++			new_n0->slots[i] = NULL;
++	BUG_ON(new_n0->slots[slot] != NULL);
++	new_n0->slots[slot] = assoc_array_node_to_ptr(new_n1);
++
++	/* Filter the leaf pointers between the new nodes */
++	free_slot = -1;
++	next_slot = 0;
++	for (i = 0; i < ASSOC_ARRAY_FAN_OUT; i++) {
++		if (assoc_array_ptr_is_meta(node->slots[i]))
++			continue;
++		if (edit->segment_cache[i] == slot) {
++			new_n1->slots[next_slot++] = node->slots[i];
++			new_n1->nr_leaves_on_branch++;
++		} else {
++			do {
++				free_slot++;
++			} while (new_n0->slots[free_slot] != NULL);
++			new_n0->slots[free_slot] = node->slots[i];
++		}
++	}
++
++	pr_devel("filtered: f=%x n=%x\n", free_slot, next_slot);
++
++	if (edit->segment_cache[ASSOC_ARRAY_FAN_OUT] != slot) {
++		do {
++			free_slot++;
++		} while (new_n0->slots[free_slot] != NULL);
++		edit->leaf_p = &new_n0->slots[free_slot];
++		edit->adjust_count_on = new_n0;
++	} else {
++		edit->leaf_p = &new_n1->slots[next_slot++];
++		edit->adjust_count_on = new_n1;
++	}
++
++	BUG_ON(next_slot <= 1);
++
++	edit->set_backpointers_to = assoc_array_node_to_ptr(new_n0);
++	for (i = 0; i < ASSOC_ARRAY_FAN_OUT; i++) {
++		if (edit->segment_cache[i] == 0xff) {
++			ptr = node->slots[i];
++			BUG_ON(assoc_array_ptr_is_leaf(ptr));
++			if (assoc_array_ptr_is_node(ptr)) {
++				side = assoc_array_ptr_to_node(ptr);
++				edit->set_backpointers[i] = &side->back_pointer;
++			} else {
++				shortcut = assoc_array_ptr_to_shortcut(ptr);
++				edit->set_backpointers[i] = &shortcut->back_pointer;
++			}
++		}
++	}
++}
++
++/*
+  * Handle insertion into a terminal node.
+  */
+ static bool assoc_array_insert_into_terminal_node(struct assoc_array_edit *edit,
+@@ -555,14 +655,14 @@ static bool assoc_array_insert_into_terminal_node(struct assoc_array_edit *edit,
+ 						  const void *index_key,
+ 						  struct assoc_array_walk_result *result)
+ {
+-	struct assoc_array_shortcut *shortcut, *new_s0;
+-	struct assoc_array_node *node, *new_n0, *new_n1, *side;
++	struct assoc_array_shortcut *new_s0;
++	struct assoc_array_node *node, *new_n0, *new_n1;
+ 	struct assoc_array_ptr *ptr;
+ 	unsigned long dissimilarity, base_seg, blank;
+ 	size_t keylen;
+ 	bool have_meta;
+ 	int level, diff;
+-	int slot, next_slot, free_slot, i, j;
++	int i;
+ 
+ 	node	= result->terminal_node.node;
+ 	level	= result->terminal_node.level;
+@@ -632,8 +732,6 @@ static bool assoc_array_insert_into_terminal_node(struct assoc_array_edit *edit,
+ 	}
+ 
+ split_node:
+-	pr_devel("split node\n");
+-
+ 	/* We need to split the current node.  The node must contain anything
+ 	 * from a single leaf (in the one leaf case, this leaf will cluster
+ 	 * with the new leaf) and the rest meta-pointers, to all leaves, some
+@@ -652,91 +750,9 @@ split_node:
+ 	edit->set[0].to = assoc_array_node_to_ptr(new_n0);
+ 	new_n0->back_pointer = node->back_pointer;
+ 	new_n0->parent_slot = node->parent_slot;
+-	new_n1->back_pointer = assoc_array_node_to_ptr(new_n0);
+-	new_n1->parent_slot = -1; /* Need to calculate this */
+ 
+ do_split_node:
+-	pr_devel("do_split_node\n");
+-
+-	new_n0->nr_leaves_on_branch = node->nr_leaves_on_branch;
+-	new_n1->nr_leaves_on_branch = 0;
+-
+-	/* Begin by finding two matching leaves.  There have to be at least two
+-	 * that match - even if there are meta pointers - because any leaf that
+-	 * would match a slot with a meta pointer in it must be somewhere
+-	 * behind that meta pointer and cannot be here.  Further, given N
+-	 * remaining leaf slots, we now have N+1 leaves to go in them.
+-	 */
+-	for (i = 0; i < ASSOC_ARRAY_FAN_OUT; i++) {
+-		slot = edit->segment_cache[i];
+-		if (slot != 0xff)
+-			for (j = i + 1; j < ASSOC_ARRAY_FAN_OUT + 1; j++)
+-				if (edit->segment_cache[j] == slot)
+-					goto found_slot_for_multiple_occupancy;
+-	}
+-found_slot_for_multiple_occupancy:
+-	pr_devel("same slot: %x %x [%02x]\n", i, j, slot);
+-	BUG_ON(i >= ASSOC_ARRAY_FAN_OUT);
+-	BUG_ON(j >= ASSOC_ARRAY_FAN_OUT + 1);
+-	BUG_ON(slot >= ASSOC_ARRAY_FAN_OUT);
+-
+-	new_n1->parent_slot = slot;
+-
+-	/* Metadata pointers cannot change slot */
+-	for (i = 0; i < ASSOC_ARRAY_FAN_OUT; i++)
+-		if (assoc_array_ptr_is_meta(node->slots[i]))
+-			new_n0->slots[i] = node->slots[i];
+-		else
+-			new_n0->slots[i] = NULL;
+-	BUG_ON(new_n0->slots[slot] != NULL);
+-	new_n0->slots[slot] = assoc_array_node_to_ptr(new_n1);
+-
+-	/* Filter the leaf pointers between the new nodes */
+-	free_slot = -1;
+-	next_slot = 0;
+-	for (i = 0; i < ASSOC_ARRAY_FAN_OUT; i++) {
+-		if (assoc_array_ptr_is_meta(node->slots[i]))
+-			continue;
+-		if (edit->segment_cache[i] == slot) {
+-			new_n1->slots[next_slot++] = node->slots[i];
+-			new_n1->nr_leaves_on_branch++;
+-		} else {
+-			do {
+-				free_slot++;
+-			} while (new_n0->slots[free_slot] != NULL);
+-			new_n0->slots[free_slot] = node->slots[i];
+-		}
+-	}
+-
+-	pr_devel("filtered: f=%x n=%x\n", free_slot, next_slot);
+-
+-	if (edit->segment_cache[ASSOC_ARRAY_FAN_OUT] != slot) {
+-		do {
+-			free_slot++;
+-		} while (new_n0->slots[free_slot] != NULL);
+-		edit->leaf_p = &new_n0->slots[free_slot];
+-		edit->adjust_count_on = new_n0;
+-	} else {
+-		edit->leaf_p = &new_n1->slots[next_slot++];
+-		edit->adjust_count_on = new_n1;
+-	}
+-
+-	BUG_ON(next_slot <= 1);
+-
+-	edit->set_backpointers_to = assoc_array_node_to_ptr(new_n0);
+-	for (i = 0; i < ASSOC_ARRAY_FAN_OUT; i++) {
+-		if (edit->segment_cache[i] == 0xff) {
+-			ptr = node->slots[i];
+-			BUG_ON(assoc_array_ptr_is_leaf(ptr));
+-			if (assoc_array_ptr_is_node(ptr)) {
+-				side = assoc_array_ptr_to_node(ptr);
+-				edit->set_backpointers[i] = &side->back_pointer;
+-			} else {
+-				shortcut = assoc_array_ptr_to_shortcut(ptr);
+-				edit->set_backpointers[i] = &shortcut->back_pointer;
+-			}
+-		}
+-	}
++	assoc_array_split_node(edit, node, new_n0, new_n1);
+ 
+ 	ptr = node->back_pointer;
+ 	if (!ptr)
+@@ -791,8 +807,6 @@ all_leaves_cluster_together:
+ 	new_s0->next_node = assoc_array_node_to_ptr(new_n0);
+ 	new_n0->back_pointer = assoc_array_shortcut_to_ptr(new_s0);
+ 	new_n0->parent_slot = 0;
+-	new_n1->back_pointer = assoc_array_node_to_ptr(new_n0);
+-	new_n1->parent_slot = -1; /* Need to calculate this */
+ 
+ 	new_s0->skip_to_level = level = diff & ~ASSOC_ARRAY_LEVEL_STEP_MASK;
+ 	pr_devel("skip_to_level = %d [diff %d]\n", level, diff);
+-- 
+2.53.0
+
+assoc_array: move shortcut creation into a function of its own
+
+Move the code after the all_leaves_cluster_together label into
+assoc_array_insert_shortcut(), which returns the new shortcut, or NULL
+when it cannot allocate one.  The caller installs it and jumps to
+do_split_node as before.
+
+No functional change.
+
+Assisted-by: LLM
+Signed-off-by: Linus Torvalds <>
+Tested-by: David Howells <>
+Reviewed-by: David Howells <>
+
+diff --git a/lib/assoc_array.c b/lib/assoc_array.c
+index 690446b468f1c..7f9afbcd40d71 100644
+--- a/lib/assoc_array.c
++++ b/lib/assoc_array.c
+@@ -648,6 +648,84 @@ found_slot_for_multiple_occupancy:
+ }
+ 
+ /*
++ * All the leaves, new and old, want to cluster together in this node in the
++ * same slot, so we have to replace this node with a shortcut to skip over
++ * the identical parts of the key, leading to new_n0.  The caller then splits
++ * the leaves between new_n0 and new_n1 at the shortcut's far end, for which
++ * this fills in the segment cache.
++ */
++static struct assoc_array_shortcut *
++assoc_array_insert_shortcut(struct assoc_array_edit *edit,
++			    const struct assoc_array_ops *ops,
++			    const void *index_key,
++			    struct assoc_array_node *node, int level,
++			    struct assoc_array_node *new_n0)
++{
++	struct assoc_array_shortcut *new_s0;
++	unsigned long base_seg, blank;
++	size_t keylen;
++	int diff, i;
++
++	/* Firstly we need to work out where the leaves start diverging as a
++	 * bit position into their keys so that we know how big the shortcut
++	 * needs to be.
++	 *
++	 * We only need to make a single pass of N of the N+1 leaves because if
++	 * any keys differ between themselves at bit X then at least one of
++	 * them must also differ with the base key at bit X or before.
++	 */
++	pr_devel("all leaves cluster together\n");
++	diff = INT_MAX;
++	for (i = 0; i < ASSOC_ARRAY_FAN_OUT; i++) {
++		int x = ops->diff_objects(assoc_array_ptr_to_leaf(node->slots[i]),
++					  index_key);
++		if (x < diff) {
++			BUG_ON(x < 0);
++			diff = x;
++		}
++	}
++	BUG_ON(diff == INT_MAX);
++	BUG_ON(diff < level + ASSOC_ARRAY_LEVEL_STEP);
++
++	keylen = round_up(diff, ASSOC_ARRAY_KEY_CHUNK_SIZE);
++	keylen >>= ASSOC_ARRAY_KEY_CHUNK_SHIFT;
++
++	new_s0 = kzalloc_flex(*new_s0, index_key, keylen);
++	if (!new_s0)
++		return NULL;
++	edit->new_meta[2] = assoc_array_shortcut_to_ptr(new_s0);
++
++	new_s0->back_pointer = node->back_pointer;
++	new_s0->parent_slot = node->parent_slot;
++	new_s0->next_node = assoc_array_node_to_ptr(new_n0);
++	new_n0->back_pointer = assoc_array_shortcut_to_ptr(new_s0);
++	new_n0->parent_slot = 0;
++
++	new_s0->skip_to_level = level = diff & ~ASSOC_ARRAY_LEVEL_STEP_MASK;
++	pr_devel("skip_to_level = %d [diff %d]\n", level, diff);
++	BUG_ON(level <= 0);
++
++	for (i = 0; i < keylen; i++)
++		new_s0->index_key[i] =
++			ops->get_key_chunk(index_key, i * ASSOC_ARRAY_KEY_CHUNK_SIZE);
++
++	if (level & ASSOC_ARRAY_KEY_CHUNK_MASK) {
++		blank = ULONG_MAX << (level & ASSOC_ARRAY_KEY_CHUNK_MASK);
++		pr_devel("blank off [%zu] %d: %lx\n", keylen - 1, level, blank);
++		new_s0->index_key[keylen - 1] &= ~blank;
++	}
++
++	/* This now reduces to a node splitting exercise for which we'll need
++	 * to regenerate the disparity table.
++	 */
++	assoc_array_fill_segment_cache(edit, ops, node, level);
++	base_seg = ops->get_key_chunk(index_key, level);
++	base_seg >>= level & ASSOC_ARRAY_KEY_CHUNK_MASK;
++	edit->segment_cache[ASSOC_ARRAY_FAN_OUT] = base_seg & ASSOC_ARRAY_FAN_MASK;
++	return new_s0;
++}
++
++/*
+  * Handle insertion into a terminal node.
+  */
+ static bool assoc_array_insert_into_terminal_node(struct assoc_array_edit *edit,
+@@ -658,10 +736,9 @@ static bool assoc_array_insert_into_terminal_node(struct assoc_array_edit *edit,
+ 	struct assoc_array_shortcut *new_s0;
+ 	struct assoc_array_node *node, *new_n0, *new_n1;
+ 	struct assoc_array_ptr *ptr;
+-	unsigned long dissimilarity, base_seg, blank;
+-	size_t keylen;
++	unsigned long dissimilarity, base_seg;
+ 	bool have_meta;
+-	int level, diff;
++	int level;
+ 	int i;
+ 
+ 	node	= result->terminal_node.node;
+@@ -766,70 +843,11 @@ do_split_node:
+ 	return true;
+ 
+ all_leaves_cluster_together:
+-	/* All the leaves, new and old, want to cluster together in this node
+-	 * in the same slot, so we have to replace this node with a shortcut to
+-	 * skip over the identical parts of the key and then place a pair of
+-	 * nodes, one inside the other, at the end of the shortcut and
+-	 * distribute the keys between them.
+-	 *
+-	 * Firstly we need to work out where the leaves start diverging as a
+-	 * bit position into their keys so that we know how big the shortcut
+-	 * needs to be.
+-	 *
+-	 * We only need to make a single pass of N of the N+1 leaves because if
+-	 * any keys differ between themselves at bit X then at least one of
+-	 * them must also differ with the base key at bit X or before.
+-	 */
+-	pr_devel("all leaves cluster together\n");
+-	diff = INT_MAX;
+-	for (i = 0; i < ASSOC_ARRAY_FAN_OUT; i++) {
+-		int x = ops->diff_objects(assoc_array_ptr_to_leaf(node->slots[i]),
+-					  index_key);
+-		if (x < diff) {
+-			BUG_ON(x < 0);
+-			diff = x;
+-		}
+-	}
+-	BUG_ON(diff == INT_MAX);
+-	BUG_ON(diff < level + ASSOC_ARRAY_LEVEL_STEP);
+-
+-	keylen = round_up(diff, ASSOC_ARRAY_KEY_CHUNK_SIZE);
+-	keylen >>= ASSOC_ARRAY_KEY_CHUNK_SHIFT;
+-
+-	new_s0 = kzalloc_flex(*new_s0, index_key, keylen);
++	new_s0 = assoc_array_insert_shortcut(edit, ops, index_key,
++					     node, level, new_n0);
+ 	if (!new_s0)
+ 		return false;
+-	edit->new_meta[2] = assoc_array_shortcut_to_ptr(new_s0);
+-
+ 	edit->set[0].to = assoc_array_shortcut_to_ptr(new_s0);
+-	new_s0->back_pointer = node->back_pointer;
+-	new_s0->parent_slot = node->parent_slot;
+-	new_s0->next_node = assoc_array_node_to_ptr(new_n0);
+-	new_n0->back_pointer = assoc_array_shortcut_to_ptr(new_s0);
+-	new_n0->parent_slot = 0;
+-
+-	new_s0->skip_to_level = level = diff & ~ASSOC_ARRAY_LEVEL_STEP_MASK;
+-	pr_devel("skip_to_level = %d [diff %d]\n", level, diff);
+-	BUG_ON(level <= 0);
+-
+-	for (i = 0; i < keylen; i++)
+-		new_s0->index_key[i] =
+-			ops->get_key_chunk(index_key, i * ASSOC_ARRAY_KEY_CHUNK_SIZE);
+-
+-	if (level & ASSOC_ARRAY_KEY_CHUNK_MASK) {
+-		blank = ULONG_MAX << (level & ASSOC_ARRAY_KEY_CHUNK_MASK);
+-		pr_devel("blank off [%zu] %d: %lx\n", keylen - 1, level, blank);
+-		new_s0->index_key[keylen - 1] &= ~blank;
+-	}
+-
+-	/* This now reduces to a node splitting exercise for which we'll need
+-	 * to regenerate the disparity table.
+-	 */
+-	assoc_array_fill_segment_cache(edit, ops, node, level);
+-
+-	base_seg = ops->get_key_chunk(index_key, level);
+-	base_seg >>= level & ASSOC_ARRAY_KEY_CHUNK_MASK;
+-	edit->segment_cache[ASSOC_ARRAY_FAN_OUT] = base_seg & ASSOC_ARRAY_FAN_MASK;
+ 	goto do_split_node;
+ }
+ 
+-- 
+2.53.0
+
+assoc_array: choose between splitting a node and a shortcut without gotos
+
+With its jobs in functions, assoc_array_insert_into_terminal_node()
+comes down to one decision: replace the node with a shortcut when every
+leaf in it and the new key share one segment, or split it otherwise.
+Write that as an if and an else, in place of the labels split_node,
+do_split_node and all_leaves_cluster_together.
+
+Each branch now works out where its replacement goes from that
+replacement's own back pointer and parent slot, with
+assoc_array_parent_link(), rather than both using the node's.  The two
+are the same today.
+
+None of the new functions is recursive, and gcc inlines all of them into
+assoc_array_insert(), whose stack frame is 240 bytes after this series
+against 224 before it, on an x86-64 defconfig.
+
+No functional change.
+
+Assisted-by: LLM
+Signed-off-by: Linus Torvalds <>
+Tested-by: David Howells <>
+Reviewed-by: David Howells <>
+
+diff --git a/lib/assoc_array.c b/lib/assoc_array.c
+index 7f9afbcd40d71..8bfdb0d5bc9a2 100644
+--- a/lib/assoc_array.c
++++ b/lib/assoc_array.c
+@@ -470,6 +470,21 @@ static bool assoc_array_insert_in_empty_tree(struct assoc_array_edit *edit)
+ }
+ 
+ /*
++ * The pointer that leads to a node or shortcut with the given back pointer
++ * and parent slot: the root, a slot in a node, or a shortcut's next node.
++ */
++static struct assoc_array_ptr **assoc_array_parent_link(struct assoc_array *array,
++							struct assoc_array_ptr *back_pointer,
++							int parent_slot)
++{
++	if (!back_pointer)
++		return &array->root;
++	if (assoc_array_ptr_is_node(back_pointer))
++		return &assoc_array_ptr_to_node(back_pointer)->slots[parent_slot];
++	return &assoc_array_ptr_to_shortcut(back_pointer)->next_node;
++}
++
++/*
+  * Insert into a terminal node without changing its shape, if that can be
+  * done: in place of a leaf with the same index key, or in a free slot.
+  */
+@@ -548,6 +563,20 @@ static bool assoc_array_fill_segment_cache(struct assoc_array_edit *edit,
+ }
+ 
+ /*
++ * Whether the leaves of a full node and the new key all share one segment,
++ * so that splitting the node cannot make room.
++ */
++static bool assoc_array_all_one_segment(const struct assoc_array_edit *edit)
++{
++	int i;
++
++	for (i = 1; i < ASSOC_ARRAY_FAN_OUT + 1; i++)
++		if (edit->segment_cache[i] != edit->segment_cache[0])
++			return false;
++	return true;
++}
++
++/*
+  * Split a full node into new_n0, which takes its place, and new_n1, below
+  * new_n0 in the slot of a segment that at least two of the leaves share,
+  * the new one included.  The caller has filled in the segment cache and
+@@ -735,11 +764,8 @@ static bool assoc_array_insert_into_terminal_node(struct assoc_array_edit *edit,
+ {
+ 	struct assoc_array_shortcut *new_s0;
+ 	struct assoc_array_node *node, *new_n0, *new_n1;
+-	struct assoc_array_ptr *ptr;
+-	unsigned long dissimilarity, base_seg;
+ 	bool have_meta;
+ 	int level;
+-	int i;
+ 
+ 	node	= result->terminal_node.node;
+ 	level	= result->terminal_node.level;
+@@ -777,78 +803,47 @@ static bool assoc_array_insert_into_terminal_node(struct assoc_array_edit *edit,
+ 	have_meta = assoc_array_fill_segment_cache(edit, ops, node, level);
+ 	edit->segment_cache[ASSOC_ARRAY_FAN_OUT] = result->terminal_node.slot;
+ 
+-	if (have_meta) {
+-		pr_devel("have meta\n");
+-		goto split_node;
+-	}
+-
+-	/* The node contains only leaves */
+-	dissimilarity = 0;
+-	base_seg = edit->segment_cache[0];
+-	for (i = 1; i < ASSOC_ARRAY_FAN_OUT; i++)
+-		dissimilarity |= edit->segment_cache[i] ^ base_seg;
+-
+-	pr_devel("only leaves; dissimilarity=%lx\n", dissimilarity);
+-
+-	if ((dissimilarity & ASSOC_ARRAY_FAN_MASK) == 0) {
+-		/* The old leaves all cluster in the same slot.  We will need
+-		 * to insert a shortcut if the new node wants to cluster with them.
++	if (!have_meta && assoc_array_all_one_segment(edit)) {
++		/* The node only contains leaves and all the leaves cluster in
++		 * the same slot, so we need to insert a shortcut to skip the
++		 * common portion of the key and split the node at the
++		 * shortcut's far end.
+ 		 */
+-		if ((edit->segment_cache[ASSOC_ARRAY_FAN_OUT] ^ base_seg) == 0)
+-			goto all_leaves_cluster_together;
+-
+-		/* Otherwise all the old leaves cluster in the same slot, but
+-		 * the new leaf wants to go into a different slot - so we
+-		 * create a new node (n0) to hold the new leaf and a pointer to
+-		 * a new node (n1) holding all the old leaves.
++		new_s0 = assoc_array_insert_shortcut(edit, ops, index_key,
++						     node, level, new_n0);
++		if (!new_s0)
++			return false;
++		edit->set[0].ptr = assoc_array_parent_link(edit->array,
++							   new_s0->back_pointer,
++							   new_s0->parent_slot);
++		edit->set[0].to = assoc_array_shortcut_to_ptr(new_s0);
++	} else {
++		/* We need to split the current node.  The node must contain
++		 * anything from a single leaf (in the one leaf case, this leaf
++		 * will cluster with the new leaf) and the rest meta-pointers,
++		 * to all leaves, some of which may cluster.
++		 *
++		 * We need to expel at least two leaves out of a set consisting
++		 * of the leaves in the node and the new leaf.  The current meta
++		 * pointers can just be copied as they shouldn't cluster with
++		 * any of the leaves.  If all the old leaves cluster in one slot
++		 * and the new leaf does not, they all go and the new leaf stays.
+ 		 *
+-		 * This can be done by falling through to the node splitting
+-		 * path.
++		 * We need a new node (n0) to replace the current one and a new
++		 * node to take the expelled nodes (n1).
+ 		 */
+-		pr_devel("present leaves cluster but not new leaf\n");
++		new_n0->back_pointer = node->back_pointer;
++		new_n0->parent_slot = node->parent_slot;
++		edit->set[0].ptr = assoc_array_parent_link(edit->array,
++							   new_n0->back_pointer,
++							   new_n0->parent_slot);
++		edit->set[0].to = assoc_array_node_to_ptr(new_n0);
+ 	}
+ 
+-split_node:
+-	/* We need to split the current node.  The node must contain anything
+-	 * from a single leaf (in the one leaf case, this leaf will cluster
+-	 * with the new leaf) and the rest meta-pointers, to all leaves, some
+-	 * of which may cluster.
+-	 *
+-	 * It won't contain the case in which all the current leaves plus the
+-	 * new leaves want to cluster in the same slot.
+-	 *
+-	 * We need to expel at least two leaves out of a set consisting of the
+-	 * leaves in the node and the new leaf.  The current meta pointers can
+-	 * just be copied as they shouldn't cluster with any of the leaves.
+-	 *
+-	 * We need a new node (n0) to replace the current one and a new node to
+-	 * take the expelled nodes (n1).
+-	 */
+-	edit->set[0].to = assoc_array_node_to_ptr(new_n0);
+-	new_n0->back_pointer = node->back_pointer;
+-	new_n0->parent_slot = node->parent_slot;
+-
+-do_split_node:
+ 	assoc_array_split_node(edit, node, new_n0, new_n1);
+-
+-	ptr = node->back_pointer;
+-	if (!ptr)
+-		edit->set[0].ptr = &edit->array->root;
+-	else if (assoc_array_ptr_is_node(ptr))
+-		edit->set[0].ptr = &assoc_array_ptr_to_node(ptr)->slots[node->parent_slot];
+-	else
+-		edit->set[0].ptr = &assoc_array_ptr_to_shortcut(ptr)->next_node;
+ 	edit->excised_meta[0] = assoc_array_node_to_ptr(node);
+ 	pr_devel("<--%s() = ok [split node]\n", __func__);
+ 	return true;
+-
+-all_leaves_cluster_together:
+-	new_s0 = assoc_array_insert_shortcut(edit, ops, index_key,
+-					     node, level, new_n0);
+-	if (!new_s0)
+-		return false;
+-	edit->set[0].to = assoc_array_shortcut_to_ptr(new_s0);
+-	goto do_split_node;
+ }
+ 
+ /*
+-- 
+2.53.0
+
+assoc_array: don't chain a new shortcut onto an existing one
+
+When a full node's leaves and the new key all share the node's segment,
+assoc_array_insert_into_terminal_node() replaces the node with a
+shortcut to a pair of new nodes.  If the node is itself the target of a
+shortcut, the new shortcut is installed as that shortcut's next node,
+and a shortcut leading to a shortcut is something nothing expects:
+assoc_array_walk() indexes the second one as a node, and
+assoc_array_apply_edit() hits the BUG_ON() in the loop that adjusts
+nr_leaves_on_branch, on that same insertion.
+
+Deletion gets a node there.  When the subtree below a shortcut shrinks
+enough, assoc_array_delete() collapses it into one node below the
+shortcut, and the leaves it collects can all share that node's segment.
+The next key that shares it too takes this path.  Eighteen insertions
+and a deletion are enough: sixteen keys that agree on bits 0-11, one
+that leaves them at bit 8 and is deleted again, and one more that agrees
+with the sixteen.
+
+Have the new shortcut replace the one in front of the node as well.
+assoc_array_insert_shortcut() gives it that shortcut's back pointer and
+parent slot, so the caller installs it where that one was, and excises
+the old shortcut along with the node, which takes a second entry in
+excised_meta[].  The new shortcut's index key comes from the new key up
+to the new skip level, so it covers what the old one did.
+
+Found by a userspace test doing random insertions and deletions on keys
+that share long prefixes; a targeted case builds a shortcut, deletes
+down to the collapse and inserts one more key.
+
+Fixes: 3cb989501c26 ("Add a generic associative array implementation.")
+Reported-by: Ollrogge <>
+Assisted-by: LLM
+Signed-off-by: Linus Torvalds <>
+Tested-by: David Howells <>
+Reviewed-by: David Howells <>
+
+diff --git a/include/linux/assoc_array_priv.h b/include/linux/assoc_array_priv.h
+index dca733ef67503..37a9f76e1505b 100644
+--- a/include/linux/assoc_array_priv.h
++++ b/include/linux/assoc_array_priv.h
+@@ -80,7 +80,7 @@ struct assoc_array_edit {
+ 	struct assoc_array_ptr		**leaf_p;
+ 	struct assoc_array_ptr		*dead_leaf;
+ 	struct assoc_array_ptr		*new_meta[3];
+-	struct assoc_array_ptr		*excised_meta[1];
++	struct assoc_array_ptr		*excised_meta[2];
+ 	struct assoc_array_ptr		*excised_subtree;
+ 	struct assoc_array_ptr		**set_backpointers[ASSOC_ARRAY_FAN_OUT];
+ 	struct assoc_array_ptr		*set_backpointers_to;
+diff --git a/lib/assoc_array.c b/lib/assoc_array.c
+index 8bfdb0d5bc9a2..834c33e3ddd4d 100644
+--- a/lib/assoc_array.c
++++ b/lib/assoc_array.c
+@@ -679,9 +679,10 @@ found_slot_for_multiple_occupancy:
+ /*
+  * All the leaves, new and old, want to cluster together in this node in the
+  * same slot, so we have to replace this node with a shortcut to skip over
+- * the identical parts of the key, leading to new_n0.  The caller then splits
+- * the leaves between new_n0 and new_n1 at the shortcut's far end, for which
+- * this fills in the segment cache.
++ * the identical parts of the key, leading to new_n0.  If the node is the
++ * target of a shortcut, the new one replaces that shortcut as well.  The
++ * caller then splits the leaves between new_n0 and new_n1 at the shortcut's
++ * far end, for which this fills in the segment cache.
+  */
+ static struct assoc_array_shortcut *
+ assoc_array_insert_shortcut(struct assoc_array_edit *edit,
+@@ -726,6 +727,20 @@ assoc_array_insert_shortcut(struct assoc_array_edit *edit,
+ 
+ 	new_s0->back_pointer = node->back_pointer;
+ 	new_s0->parent_slot = node->parent_slot;
++
++	/* A shortcut has to lead to a node, so a node at the end of a shortcut
++	 * is replaced together with that shortcut.  The new one holds the index
++	 * key from the root, so it covers what the old one did.
++	 */
++	if (node->back_pointer &&
++	    assoc_array_ptr_is_shortcut(node->back_pointer)) {
++		struct assoc_array_shortcut *above =
++			assoc_array_ptr_to_shortcut(node->back_pointer);
++
++		new_s0->back_pointer = above->back_pointer;
++		new_s0->parent_slot = above->parent_slot;
++		edit->excised_meta[1] = node->back_pointer;
++	}
+ 	new_s0->next_node = assoc_array_node_to_ptr(new_n0);
+ 	new_n0->back_pointer = assoc_array_shortcut_to_ptr(new_s0);
+ 	new_n0->parent_slot = 0;
+@@ -807,7 +822,8 @@ static bool assoc_array_insert_into_terminal_node(struct assoc_array_edit *edit,
+ 		/* The node only contains leaves and all the leaves cluster in
+ 		 * the same slot, so we need to insert a shortcut to skip the
+ 		 * common portion of the key and split the node at the
+-		 * shortcut's far end.
++		 * shortcut's far end.  The shortcut goes wherever its back
++		 * pointer says, which may be further up than the node.
+ 		 */
+ 		new_s0 = assoc_array_insert_shortcut(edit, ops, index_key,
+ 						     node, level, new_n0);
+-- 
+2.53.0
+
+assoc_array: keep gc's cleanup out of the live tree on allocation failure
+
+assoc_array_gc() builds a copy of the tree.  Where the copy reaches a
+shortcut, it allocates the copy of the shortcut with kmalloc_flex(),
+fills it with memcpy(), links it into the new tree, and only then
+allocates the copy of the node after it.  The memcpy() leaves the new
+shortcut's next_node pointing at the old tree's node, so if that second
+allocation fails, the cleanup, assoc_array_destroy_subtree() on the new
+tree, follows the new shortcut into the old tree, and the BUG_ON() on
+the old node's back pointer fires.
+
+Allocate the node first, and the shortcut once the node exists, freeing
+the node again if the shortcut cannot be allocated.  A copied shortcut
+is then only linked into the new tree when the copy of its node is there
+to follow it.  Nothing else changes: with no allocation failing, the
+trees gc builds are the same as before.
+
+Found by a userspace test that makes each allocation of each operation
+fail in turn.
+
+Fixes: 3cb989501c26 ("Add a generic associative array implementation.")
+Assisted-by: LLM
+Signed-off-by: Linus Torvalds <>
+Tested-by: David Howells <>
+Reviewed-by: David Howells <>
+
+diff --git a/lib/assoc_array.c b/lib/assoc_array.c
+index 834c33e3ddd4d..3a7cddb1290b0 100644
+--- a/lib/assoc_array.c
++++ b/lib/assoc_array.c
+@@ -1560,16 +1560,25 @@ int assoc_array_gc(struct assoc_array *array,
+ 	cursor = array->root;
+ 
+ descend:
+-	/* If this point is a shortcut, then we need to duplicate it and
+-	 * advance the target cursor.
++	/* The node at this position is duplicated, and so is the shortcut in
++	 * front of it if there is one.  The node is allocated first: the copy
++	 * of the shortcut starts out pointing at the old node, and must not be
++	 * in the new tree if the node cannot be allocated, or the cleanup
++	 * would follow it into the old tree.
+ 	 */
++	new_n = kzalloc_obj(struct assoc_array_node);
++	if (!new_n)
++		goto enomem;
++
+ 	if (assoc_array_ptr_is_shortcut(cursor)) {
+ 		shortcut = assoc_array_ptr_to_shortcut(cursor);
+ 		keylen = round_up(shortcut->skip_to_level, ASSOC_ARRAY_KEY_CHUNK_SIZE);
+ 		keylen >>= ASSOC_ARRAY_KEY_CHUNK_SHIFT;
+ 		new_s = kmalloc_flex(*new_s, index_key, keylen);
+-		if (!new_s)
++		if (!new_s) {
++			kfree(new_n);
+ 			goto enomem;
++		}
+ 		pr_devel("dup shortcut %p -> %p\n", shortcut, new_s);
+ 		memcpy(new_s, shortcut, struct_size(new_s, index_key, keylen));
+ 		new_s->back_pointer = new_parent;
+@@ -1579,11 +1588,7 @@ descend:
+ 		cursor = shortcut->next_node;
+ 	}
+ 
+-	/* Duplicate the node at this position */
+ 	node = assoc_array_ptr_to_node(cursor);
+-	new_n = kzalloc_obj(struct assoc_array_node);
+-	if (!new_n)
+-		goto enomem;
+ 	pr_devel("dup node %p -> %p\n", node, new_n);
+ 	new_n->back_pointer = new_parent;
+ 	new_n->parent_slot = node->parent_slot;
+-- 
+2.53.0
+
+assoc_array: move gc's folding into a function of its own
+
+assoc_array_gc() is close to 300 lines with eleven gotos.  It copies the
+tree depth first, without recursion, and packs each node's copy on the
+way back up; the copying, the walk and the packing are all written out
+in one function, joined by five labels.
+
+Start taking it apart with the folding of children into a finished
+copy, the code after the retry_compress label, which becomes
+assoc_array_gc_fold() and keeps its label and its goto.
+
+No functional change.
+
+Assisted-by: LLM
+Signed-off-by: Linus Torvalds <>
+Tested-by: David Howells <>
+Reviewed-by: David Howells <>
+
+diff --git a/lib/assoc_array.c b/lib/assoc_array.c
+index 3a7cddb1290b0..0dfc2efb4fda0 100644
+--- a/lib/assoc_array.c
++++ b/lib/assoc_array.c
+@@ -1503,6 +1503,97 @@ void assoc_array_cancel_edit(struct assoc_array_edit *edit)
+ 	kfree(edit);
+ }
+ 
++/*
++ * Fold the children of a finished copy into it where their leaves fit in
++ * its free slots, and count its leaves.  Returns the number of free slots
++ * left.
++ */
++static int assoc_array_gc_fold(struct assoc_array_node *new_n)
++{
++	struct assoc_array_ptr *ptr;
++	bool retained;
++	int slot, nr_free, next_slot, i;
++
++retry_compress:
++	pr_devel("-- compress node %p --\n", new_n);
++
++	/* Count up the number of empty slots in this node and work out the
++	 * subtree leaf count.
++	 */
++	new_n->nr_leaves_on_branch = 0;
++	nr_free = 0;
++	for (slot = 0; slot < ASSOC_ARRAY_FAN_OUT; slot++) {
++		ptr = new_n->slots[slot];
++		if (!ptr)
++			nr_free++;
++		else if (assoc_array_ptr_is_leaf(ptr))
++			new_n->nr_leaves_on_branch++;
++	}
++	pr_devel("free=%d, leaves=%lu\n", nr_free, new_n->nr_leaves_on_branch);
++
++	/* See what we can fold in */
++	retained = false;
++	next_slot = 0;
++	for (slot = 0; slot < ASSOC_ARRAY_FAN_OUT; slot++) {
++		struct assoc_array_shortcut *s;
++		struct assoc_array_node *child;
++
++		ptr = new_n->slots[slot];
++		if (!ptr || assoc_array_ptr_is_leaf(ptr))
++			continue;
++
++		s = NULL;
++		if (assoc_array_ptr_is_shortcut(ptr)) {
++			s = assoc_array_ptr_to_shortcut(ptr);
++			ptr = s->next_node;
++		}
++
++		child = assoc_array_ptr_to_node(ptr);
++		new_n->nr_leaves_on_branch += child->nr_leaves_on_branch;
++
++		if (child->nr_leaves_on_branch <= nr_free + 1) {
++			/* Fold the child node into this one */
++			pr_devel("[%d] fold node %lu/%d [nx %d]\n",
++				 slot, child->nr_leaves_on_branch, nr_free + 1,
++				 next_slot);
++
++			/* We would already have reaped an intervening shortcut
++			 * on the way back up the tree.
++			 */
++			BUG_ON(s);
++
++			new_n->slots[slot] = NULL;
++			nr_free++;
++			if (slot < next_slot)
++				next_slot = slot;
++			for (i = 0; i < ASSOC_ARRAY_FAN_OUT; i++) {
++				struct assoc_array_ptr *p = child->slots[i];
++				if (!p)
++					continue;
++				BUG_ON(assoc_array_ptr_is_meta(p));
++				while (new_n->slots[next_slot])
++					next_slot++;
++				BUG_ON(next_slot >= ASSOC_ARRAY_FAN_OUT);
++				new_n->slots[next_slot++] = p;
++				nr_free--;
++			}
++			kfree(child);
++		} else {
++			pr_devel("[%d] retain node %lu/%d [nx %d]\n",
++				 slot, child->nr_leaves_on_branch, nr_free + 1,
++				 next_slot);
++			retained = true;
++		}
++	}
++
++	if (retained && new_n->nr_leaves_on_branch <= ASSOC_ARRAY_FAN_OUT) {
++		pr_devel("internal nodes remain despite enough space, retrying\n");
++		goto retry_compress;
++	}
++	pr_devel("after: %lu\n", new_n->nr_leaves_on_branch);
++	return nr_free;
++}
++
+ /**
+  * assoc_array_gc - Garbage collect an associative array.
+  * @array: The array to clean.
+@@ -1538,8 +1629,7 @@ int assoc_array_gc(struct assoc_array *array,
+ 	struct assoc_array_ptr *cursor, *ptr;
+ 	struct assoc_array_ptr *new_root, *new_parent, **new_ptr_pp;
+ 	unsigned long nr_leaves_on_tree;
+-	bool retained;
+-	int keylen, slot, nr_free, next_slot, i;
++	int keylen, slot, nr_free;
+ 
+ 	pr_devel("-->%s()\n", __func__);
+ 
+@@ -1618,83 +1708,7 @@ continue_node:
+ 		goto descend;
+ 	}
+ 
+-retry_compress:
+-	pr_devel("-- compress node %p --\n", new_n);
+-
+-	/* Count up the number of empty slots in this node and work out the
+-	 * subtree leaf count.
+-	 */
+-	new_n->nr_leaves_on_branch = 0;
+-	nr_free = 0;
+-	for (slot = 0; slot < ASSOC_ARRAY_FAN_OUT; slot++) {
+-		ptr = new_n->slots[slot];
+-		if (!ptr)
+-			nr_free++;
+-		else if (assoc_array_ptr_is_leaf(ptr))
+-			new_n->nr_leaves_on_branch++;
+-	}
+-	pr_devel("free=%d, leaves=%lu\n", nr_free, new_n->nr_leaves_on_branch);
+-
+-	/* See what we can fold in */
+-	retained = false;
+-	next_slot = 0;
+-	for (slot = 0; slot < ASSOC_ARRAY_FAN_OUT; slot++) {
+-		struct assoc_array_shortcut *s;
+-		struct assoc_array_node *child;
+-
+-		ptr = new_n->slots[slot];
+-		if (!ptr || assoc_array_ptr_is_leaf(ptr))
+-			continue;
+-
+-		s = NULL;
+-		if (assoc_array_ptr_is_shortcut(ptr)) {
+-			s = assoc_array_ptr_to_shortcut(ptr);
+-			ptr = s->next_node;
+-		}
+-
+-		child = assoc_array_ptr_to_node(ptr);
+-		new_n->nr_leaves_on_branch += child->nr_leaves_on_branch;
+-
+-		if (child->nr_leaves_on_branch <= nr_free + 1) {
+-			/* Fold the child node into this one */
+-			pr_devel("[%d] fold node %lu/%d [nx %d]\n",
+-				 slot, child->nr_leaves_on_branch, nr_free + 1,
+-				 next_slot);
+-
+-			/* We would already have reaped an intervening shortcut
+-			 * on the way back up the tree.
+-			 */
+-			BUG_ON(s);
+-
+-			new_n->slots[slot] = NULL;
+-			nr_free++;
+-			if (slot < next_slot)
+-				next_slot = slot;
+-			for (i = 0; i < ASSOC_ARRAY_FAN_OUT; i++) {
+-				struct assoc_array_ptr *p = child->slots[i];
+-				if (!p)
+-					continue;
+-				BUG_ON(assoc_array_ptr_is_meta(p));
+-				while (new_n->slots[next_slot])
+-					next_slot++;
+-				BUG_ON(next_slot >= ASSOC_ARRAY_FAN_OUT);
+-				new_n->slots[next_slot++] = p;
+-				nr_free--;
+-			}
+-			kfree(child);
+-		} else {
+-			pr_devel("[%d] retain node %lu/%d [nx %d]\n",
+-				 slot, child->nr_leaves_on_branch, nr_free + 1,
+-				 next_slot);
+-			retained = true;
+-		}
+-	}
+-
+-	if (retained && new_n->nr_leaves_on_branch <= ASSOC_ARRAY_FAN_OUT) {
+-		pr_devel("internal nodes remain despite enough space, retrying\n");
+-		goto retry_compress;
+-	}
+-	pr_devel("after: %lu\n", new_n->nr_leaves_on_branch);
++	nr_free = assoc_array_gc_fold(new_n);
+ 
+ 	nr_leaves_on_tree = new_n->nr_leaves_on_branch;
+ 
+-- 
+2.53.0
+
+assoc_array: replace the labels in gc's tree walk with a loop
+
+assoc_array_gc() walks the old tree depth first, without recursion,
+building the copy as it goes.  Its position is a handful of locals, and
+its moves are labels: descend copies a node and the shortcut in front
+of it, continue_node goes on through the node's slots, the code after
+the fold removes a node holding nothing but a shortcut or a shortcut in
+front of a small node, and ascend_old_tree climbs back up.
+
+Keep the walk and its order, but give the position a structure,
+struct assoc_array_gc_walk, and each move a function:
+assoc_array_gc_copy(), assoc_array_gc_next(), assoc_array_gc_pack() and
+assoc_array_gc_ascend().  assoc_array_gc() becomes a loop that copies a
+subtree, then finds the next one, packing and climbing past the nodes
+that are done.
+
+Finishing is one test now: after packing, a copy has no parent exactly
+when it is the whole tree.  That covers all four ways the old code
+finished: the three gotos to gc_complete, and the climb out of a node
+below a root shortcut that is kept, which now stops at the packing.
+
+The copy is made in one place, so gcc inlines all of it into
+assoc_array_gc(), which has no recursion: its stack frame is 152 bytes,
+against 128 before, on an x86-64 defconfig.
+
+No functional change.
+
+Assisted-by: LLM
+Signed-off-by: Linus Torvalds <>
+Tested-by: David Howells <>
+Reviewed-by: David Howells <>
+
+diff --git a/lib/assoc_array.c b/lib/assoc_array.c
+index 0dfc2efb4fda0..879a6d12ec3d9 100644
+--- a/lib/assoc_array.c
++++ b/lib/assoc_array.c
+@@ -1504,6 +1504,105 @@ void assoc_array_cancel_edit(struct assoc_array_edit *edit)
+ }
+ 
+ /*
++ * Where assoc_array_gc() has got to.  It copies the tree depth first without
++ * recursion: on reaching a subtree it copies it and carries on there, and on
++ * finishing a node it climbs back up the old tree to the node above.
++ */
++struct assoc_array_gc_walk {
++	struct assoc_array_node	*node;		/* The node being copied */
++	struct assoc_array_node	*new_n;		/* Its copy */
++	int			slot;		/* The next slot of node to look at */
++	struct assoc_array_ptr	*new_root;	/* The root of the copy */
++	unsigned long		nr_leaves_on_tree;
++	bool (*iterator)(void *object, void *iterator_data);
++	void			*iterator_data;
++};
++
++/*
++ * Copy the node at cursor, and the shortcut in front of it if there is one,
++ * into the new tree at *link, below the copy of the node being worked on,
++ * and work on that node next.
++ */
++static bool assoc_array_gc_copy(struct assoc_array_gc_walk *w,
++				struct assoc_array_ptr *cursor,
++				struct assoc_array_ptr **link)
++{
++	struct assoc_array_shortcut *shortcut, *new_s;
++	struct assoc_array_node *new_n;
++	struct assoc_array_ptr *new_parent;
++	int keylen;
++
++	new_parent = w->new_n ? assoc_array_node_to_ptr(w->new_n) : NULL;
++
++	/* The node at this position is duplicated, and so is the shortcut in
++	 * front of it if there is one.  The node is allocated first: the copy
++	 * of the shortcut starts out pointing at the old node, and must not be
++	 * in the new tree if the node cannot be allocated, or the cleanup
++	 * would follow it into the old tree.
++	 */
++	new_n = kzalloc_obj(struct assoc_array_node);
++	if (!new_n)
++		return false;
++
++	if (assoc_array_ptr_is_shortcut(cursor)) {
++		shortcut = assoc_array_ptr_to_shortcut(cursor);
++		keylen = round_up(shortcut->skip_to_level, ASSOC_ARRAY_KEY_CHUNK_SIZE);
++		keylen >>= ASSOC_ARRAY_KEY_CHUNK_SHIFT;
++		new_s = kmalloc_flex(*new_s, index_key, keylen);
++		if (!new_s) {
++			kfree(new_n);
++			return false;
++		}
++		pr_devel("dup shortcut %p -> %p\n", shortcut, new_s);
++		memcpy(new_s, shortcut, struct_size(new_s, index_key, keylen));
++		new_s->back_pointer = new_parent;
++		new_s->parent_slot = shortcut->parent_slot;
++		*link = new_parent = assoc_array_shortcut_to_ptr(new_s);
++		link = &new_s->next_node;
++		cursor = shortcut->next_node;
++	}
++
++	w->node = assoc_array_ptr_to_node(cursor);
++	pr_devel("dup node %p -> %p\n", w->node, new_n);
++	new_n->back_pointer = new_parent;
++	new_n->parent_slot = w->node->parent_slot;
++	*link = assoc_array_node_to_ptr(new_n);
++	w->new_n = new_n;
++	w->slot = 0;
++	return true;
++}
++
++/*
++ * Carry on through the slots of the node being copied, putting the leaves
++ * the iterator keeps into the copy, as far as the next pointer to a subtree.
++ * Returns that pointer, with w->slot at it, or NULL when the node is done.
++ */
++static struct assoc_array_ptr *assoc_array_gc_next(struct assoc_array_gc_walk *w)
++{
++	struct assoc_array_ptr *ptr;
++
++	/* Filter across any leaves and gc any subtrees */
++	for (; w->slot < ASSOC_ARRAY_FAN_OUT; w->slot++) {
++		ptr = w->node->slots[w->slot];
++		if (!ptr)
++			continue;
++
++		if (assoc_array_ptr_is_leaf(ptr)) {
++			if (w->iterator(assoc_array_ptr_to_leaf(ptr),
++					w->iterator_data))
++				/* The iterator will have done any reference
++				 * counting on the object for us.
++				 */
++				w->new_n->slots[w->slot] = ptr;
++			continue;
++		}
++
++		return ptr;
++	}
++	return NULL;
++}
++
++/*
+  * Fold the children of a finished copy into it where their leaves fit in
+  * its free slots, and count its leaves.  Returns the number of free slots
+  * left.
+@@ -1594,123 +1693,21 @@ retry_compress:
+ 	return nr_free;
+ }
+ 
+-/**
+- * assoc_array_gc - Garbage collect an associative array.
+- * @array: The array to clean.
+- * @ops: The operations to use.
+- * @iterator: A callback function to pass judgement on each object.
+- * @iterator_data: Private data for the callback function.
+- *
+- * Collect garbage from an associative array and pack down the internal tree to
+- * save memory.
+- *
+- * The iterator function is asked to pass judgement upon each object in the
+- * array.  If it returns false, the object is discard and if it returns true,
+- * the object is kept.  If it returns true, it must increment the object's
+- * usage count (or whatever it needs to do to retain it) before returning.
+- *
+- * This function returns 0 if successful or -ENOMEM if out of memory.  In the
+- * latter case, the array is not changed.
+- *
+- * The caller should lock against other modifications and must continue to hold
+- * the lock until assoc_array_apply_edit() has been called.
+- *
+- * Accesses to the tree may take place concurrently with this function,
+- * provided they hold the RCU read lock.
++/*
++ * The copy of the node being worked on is finished: fold its children into
++ * it, then remove it if all it holds is a shortcut, or remove the shortcut
++ * in front of it if it is small.  Returns what is then the copy's parent, or
++ * NULL if it is at the root, when the whole tree has been copied.
+  */
+-int assoc_array_gc(struct assoc_array *array,
+-		   const struct assoc_array_ops *ops,
+-		   bool (*iterator)(void *object, void *iterator_data),
+-		   void *iterator_data)
++static struct assoc_array_ptr *assoc_array_gc_pack(struct assoc_array_gc_walk *w)
+ {
+-	struct assoc_array_shortcut *shortcut, *new_s;
+-	struct assoc_array_node *node, *new_n;
+-	struct assoc_array_edit *edit;
+-	struct assoc_array_ptr *cursor, *ptr;
+-	struct assoc_array_ptr *new_root, *new_parent, **new_ptr_pp;
+-	unsigned long nr_leaves_on_tree;
+-	int keylen, slot, nr_free;
+-
+-	pr_devel("-->%s()\n", __func__);
+-
+-	if (!array->root)
+-		return 0;
+-
+-	edit = kzalloc_obj(struct assoc_array_edit);
+-	if (!edit)
+-		return -ENOMEM;
+-	edit->array = array;
+-	edit->ops = ops;
+-	edit->ops_for_excised_subtree = ops;
+-	edit->set[0].ptr = &array->root;
+-	edit->excised_subtree = array->root;
+-
+-	new_root = new_parent = NULL;
+-	new_ptr_pp = &new_root;
+-	cursor = array->root;
+-
+-descend:
+-	/* The node at this position is duplicated, and so is the shortcut in
+-	 * front of it if there is one.  The node is allocated first: the copy
+-	 * of the shortcut starts out pointing at the old node, and must not be
+-	 * in the new tree if the node cannot be allocated, or the cleanup
+-	 * would follow it into the old tree.
+-	 */
+-	new_n = kzalloc_obj(struct assoc_array_node);
+-	if (!new_n)
+-		goto enomem;
+-
+-	if (assoc_array_ptr_is_shortcut(cursor)) {
+-		shortcut = assoc_array_ptr_to_shortcut(cursor);
+-		keylen = round_up(shortcut->skip_to_level, ASSOC_ARRAY_KEY_CHUNK_SIZE);
+-		keylen >>= ASSOC_ARRAY_KEY_CHUNK_SHIFT;
+-		new_s = kmalloc_flex(*new_s, index_key, keylen);
+-		if (!new_s) {
+-			kfree(new_n);
+-			goto enomem;
+-		}
+-		pr_devel("dup shortcut %p -> %p\n", shortcut, new_s);
+-		memcpy(new_s, shortcut, struct_size(new_s, index_key, keylen));
+-		new_s->back_pointer = new_parent;
+-		new_s->parent_slot = shortcut->parent_slot;
+-		*new_ptr_pp = new_parent = assoc_array_shortcut_to_ptr(new_s);
+-		new_ptr_pp = &new_s->next_node;
+-		cursor = shortcut->next_node;
+-	}
+-
+-	node = assoc_array_ptr_to_node(cursor);
+-	pr_devel("dup node %p -> %p\n", node, new_n);
+-	new_n->back_pointer = new_parent;
+-	new_n->parent_slot = node->parent_slot;
+-	*new_ptr_pp = new_parent = assoc_array_node_to_ptr(new_n);
+-	new_ptr_pp = NULL;
+-	slot = 0;
+-
+-continue_node:
+-	/* Filter across any leaves and gc any subtrees */
+-	for (; slot < ASSOC_ARRAY_FAN_OUT; slot++) {
+-		ptr = node->slots[slot];
+-		if (!ptr)
+-			continue;
+-
+-		if (assoc_array_ptr_is_leaf(ptr)) {
+-			if (iterator(assoc_array_ptr_to_leaf(ptr),
+-				     iterator_data))
+-				/* The iterator will have done any reference
+-				 * counting on the object for us.
+-				 */
+-				new_n->slots[slot] = ptr;
+-			continue;
+-		}
+-
+-		new_ptr_pp = &new_n->slots[slot];
+-		cursor = ptr;
+-		goto descend;
+-	}
++	struct assoc_array_shortcut *new_s;
++	struct assoc_array_node *new_n = w->new_n;
++	struct assoc_array_ptr *ptr, *new_parent;
++	int nr_free, slot;
+ 
+ 	nr_free = assoc_array_gc_fold(new_n);
+-
+-	nr_leaves_on_tree = new_n->nr_leaves_on_branch;
++	w->nr_leaves_on_tree = new_n->nr_leaves_on_branch;
+ 
+ 	/* Excise this node if it is singly occupied by a shortcut */
+ 	if (nr_free == ASSOC_ARRAY_FAN_OUT - 1) {
+@@ -1728,8 +1725,8 @@ continue_node:
+ 			if (!new_parent) {
+ 				new_s->back_pointer = NULL;
+ 				new_s->parent_slot = 0;
+-				new_root = ptr;
+-				goto gc_complete;
++				w->new_root = ptr;
++				return NULL;
+ 			}
+ 
+ 			if (assoc_array_ptr_is_shortcut(new_parent)) {
+@@ -1745,16 +1742,15 @@ continue_node:
+ 				if (!new_parent) {
+ 					new_s->back_pointer = NULL;
+ 					new_s->parent_slot = 0;
+-					new_root = ptr;
+-					goto gc_complete;
++					w->new_root = ptr;
++					return NULL;
+ 				}
+ 			}
+ 
+ 			new_s->back_pointer = new_parent;
+ 			new_s->parent_slot = slot;
+-			new_n = assoc_array_ptr_to_node(new_parent);
+-			new_n->slots[slot] = ptr;
+-			goto ascend_old_tree;
++			assoc_array_ptr_to_node(new_parent)->slots[slot] = ptr;
++			return new_parent;
+ 		}
+ 	}
+ 
+@@ -1763,59 +1759,135 @@ continue_node:
+ 	 */
+ 	ptr = new_n->back_pointer;
+ 	if (!ptr)
+-		goto gc_complete;
+-
+-	if (assoc_array_ptr_is_shortcut(ptr)) {
+-		new_s = assoc_array_ptr_to_shortcut(ptr);
+-		new_parent = new_s->back_pointer;
+-		slot = new_s->parent_slot;
++		return NULL;
+ 
+-		if (new_n->nr_leaves_on_branch <= ASSOC_ARRAY_FAN_OUT) {
+-			struct assoc_array_node *n;
++	if (!assoc_array_ptr_is_shortcut(ptr))
++		return ptr;
+ 
+-			pr_devel("excise shortcut\n");
+-			new_n->back_pointer = new_parent;
+-			new_n->parent_slot = slot;
+-			kfree(new_s);
+-			if (!new_parent) {
+-				new_root = assoc_array_node_to_ptr(new_n);
+-				goto gc_complete;
+-			}
++	new_s = assoc_array_ptr_to_shortcut(ptr);
++	new_parent = new_s->back_pointer;
++	slot = new_s->parent_slot;
+ 
+-			n = assoc_array_ptr_to_node(new_parent);
+-			n->slots[slot] = assoc_array_node_to_ptr(new_n);
++	if (new_n->nr_leaves_on_branch <= ASSOC_ARRAY_FAN_OUT) {
++		pr_devel("excise shortcut\n");
++		new_n->back_pointer = new_parent;
++		new_n->parent_slot = slot;
++		kfree(new_s);
++		if (!new_parent) {
++			w->new_root = assoc_array_node_to_ptr(new_n);
++			return NULL;
+ 		}
+-	} else {
+-		new_parent = ptr;
++
++		assoc_array_ptr_to_node(new_parent)->slots[slot] =
++			assoc_array_node_to_ptr(new_n);
+ 	}
+-	new_n = assoc_array_ptr_to_node(new_parent);
++	return new_parent;
++}
++
++/*
++ * Go back up from the node just finished to the node above it, whose copy is
++ * parent, and on to that node's next slot.
++ */
++static void assoc_array_gc_ascend(struct assoc_array_gc_walk *w,
++				  struct assoc_array_ptr *parent)
++{
++	struct assoc_array_shortcut *shortcut;
++	struct assoc_array_ptr *ptr, *cursor;
++	int slot;
++
++	w->new_n = assoc_array_ptr_to_node(parent);
+ 
+-ascend_old_tree:
+-	ptr = node->back_pointer;
++	ptr = w->node->back_pointer;
+ 	if (assoc_array_ptr_is_shortcut(ptr)) {
+ 		shortcut = assoc_array_ptr_to_shortcut(ptr);
+ 		slot = shortcut->parent_slot;
+ 		cursor = shortcut->back_pointer;
+-		if (!cursor)
+-			goto gc_complete;
+ 	} else {
+-		slot = node->parent_slot;
++		slot = w->node->parent_slot;
+ 		cursor = ptr;
+ 	}
+ 	BUG_ON(!cursor);
+-	node = assoc_array_ptr_to_node(cursor);
+-	slot++;
+-	goto continue_node;
++	w->node = assoc_array_ptr_to_node(cursor);
++	w->slot = slot + 1;
++}
++
++/**
++ * assoc_array_gc - Garbage collect an associative array.
++ * @array: The array to clean.
++ * @ops: The operations to use.
++ * @iterator: A callback function to pass judgement on each object.
++ * @iterator_data: Private data for the callback function.
++ *
++ * Collect garbage from an associative array and pack down the internal tree to
++ * save memory.
++ *
++ * The iterator function is asked to pass judgement upon each object in the
++ * array.  If it returns false, the object is discard and if it returns true,
++ * the object is kept.  If it returns true, it must increment the object's
++ * usage count (or whatever it needs to do to retain it) before returning.
++ *
++ * This function returns 0 if successful or -ENOMEM if out of memory.  In the
++ * latter case, the array is not changed.
++ *
++ * The caller should lock against other modifications and must continue to hold
++ * the lock until assoc_array_apply_edit() has been called.
++ *
++ * Accesses to the tree may take place concurrently with this function,
++ * provided they hold the RCU read lock.
++ */
++int assoc_array_gc(struct assoc_array *array,
++		   const struct assoc_array_ops *ops,
++		   bool (*iterator)(void *object, void *iterator_data),
++		   void *iterator_data)
++{
++	struct assoc_array_gc_walk w = {
++		.iterator	= iterator,
++		.iterator_data	= iterator_data,
++	};
++	struct assoc_array_edit *edit;
++	struct assoc_array_ptr *ptr, *parent, **link;
++
++	pr_devel("-->%s()\n", __func__);
++
++	if (!array->root)
++		return 0;
++
++	edit = kzalloc_obj(struct assoc_array_edit);
++	if (!edit)
++		return -ENOMEM;
++	edit->array = array;
++	edit->ops = ops;
++	edit->ops_for_excised_subtree = ops;
++	edit->set[0].ptr = &array->root;
++	edit->excised_subtree = array->root;
++
++	ptr = array->root;
++	link = &w.new_root;
++	for (;;) {
++		if (!assoc_array_gc_copy(&w, ptr, link))
++			goto enomem;
++
++		/* Find the next subtree to copy: further on in this node, or,
++		 * when it is done, in the nodes above it.
++		 */
++		while (!(ptr = assoc_array_gc_next(&w))) {
++			parent = assoc_array_gc_pack(&w);
++			if (!parent)
++				goto copied;
++			assoc_array_gc_ascend(&w, parent);
++		}
++		link = &w.new_n->slots[w.slot];
++	}
+ 
+-gc_complete:
+-	edit->set[0].to = new_root;
++copied:
++	edit->set[0].to = w.new_root;
+ 	assoc_array_apply_edit(edit);
+-	array->nr_leaves_on_tree = nr_leaves_on_tree;
++	array->nr_leaves_on_tree = w.nr_leaves_on_tree;
+ 	return 0;
+ 
+ enomem:
+ 	pr_devel("enomem\n");
+-	assoc_array_destroy_subtree(new_root, edit->ops);
++	assoc_array_destroy_subtree(w.new_root, edit->ops);
+ 	kfree(edit);
+ 	return -ENOMEM;
+ }
+-- 
+2.53.0
+
+assoc_array: move deletion's collapse into a function of its own
+
+assoc_array_delete() is 177 lines: it finds the leaf, clears it, and
+then spends some 90 lines collapsing the subtree around it into one
+node, with two labels of its own inside an if.
+
+Move the collapse into assoc_array_delete_collapse(), which returns
+false when it cannot allocate the node; the caller cancels the edit as
+before.
+
+No functional change.
+
+Assisted-by: LLM
+Signed-off-by: Linus Torvalds <>
+Tested-by: David Howells <>
+Reviewed-by: David Howells <>
+
+diff --git a/lib/assoc_array.c b/lib/assoc_array.c
+index 879a6d12ec3d9..fad5514aed16e 100644
+--- a/lib/assoc_array.c
++++ b/lib/assoc_array.c
+@@ -1133,6 +1133,107 @@ static int assoc_array_delete_collapse_iterator(const void *leaf,
+ 	return 0;
+ }
+ 
++/*
++ * Deleting a leaf from node leaves its subtree with FAN_OUT or fewer leaves:
++ * collapse the subtree into one new node, together with as much of the tree
++ * above it as also fits.  Returns false if the new node cannot be allocated.
++ */
++static bool assoc_array_delete_collapse(struct assoc_array_edit *edit,
++					struct assoc_array_node *node)
++{
++	struct assoc_array_delete_collapse_context collapse;
++	struct assoc_array_node *parent, *grandparent, *new_n0;
++	struct assoc_array_ptr *ptr;
++	bool has_meta;
++	int i;
++
++	/* First of all, we need to know if this node has metadata so
++	 * that we don't try collapsing if all the leaves are already
++	 * here.
++	 */
++	has_meta = false;
++	for (i = 0; i < ASSOC_ARRAY_FAN_OUT; i++) {
++		ptr = node->slots[i];
++		if (assoc_array_ptr_is_meta(ptr)) {
++			has_meta = true;
++			break;
++		}
++	}
++
++	pr_devel("leaves: %ld [m=%d]\n",
++		 node->nr_leaves_on_branch - 1, has_meta);
++
++	/* Look further up the tree to see if we can collapse this node
++	 * into a more proximal node too.
++	 */
++	parent = node;
++collapse_up:
++	pr_devel("collapse subtree: %ld\n", parent->nr_leaves_on_branch);
++
++	ptr = parent->back_pointer;
++	if (!ptr)
++		goto do_collapse;
++	if (assoc_array_ptr_is_shortcut(ptr)) {
++		struct assoc_array_shortcut *s = assoc_array_ptr_to_shortcut(ptr);
++		ptr = s->back_pointer;
++		if (!ptr)
++			goto do_collapse;
++	}
++
++	grandparent = assoc_array_ptr_to_node(ptr);
++	if (grandparent->nr_leaves_on_branch <= ASSOC_ARRAY_FAN_OUT + 1) {
++		parent = grandparent;
++		goto collapse_up;
++	}
++
++do_collapse:
++	/* There's no point collapsing if the original node has no meta
++	 * pointers to discard and if we didn't merge into one of that
++	 * node's ancestry.
++	 */
++	if (has_meta || parent != node) {
++		node = parent;
++
++		/* Create a new node to collapse into */
++		new_n0 = kzalloc_obj(struct assoc_array_node);
++		if (!new_n0)
++			return false;
++		edit->new_meta[0] = assoc_array_node_to_ptr(new_n0);
++
++		new_n0->back_pointer = node->back_pointer;
++		new_n0->parent_slot = node->parent_slot;
++		new_n0->nr_leaves_on_branch = node->nr_leaves_on_branch;
++		edit->adjust_count_on = new_n0;
++
++		collapse.node = new_n0;
++		collapse.skip_leaf = assoc_array_ptr_to_leaf(edit->dead_leaf);
++		collapse.slot = 0;
++		assoc_array_subtree_iterate(assoc_array_node_to_ptr(node),
++					    node->back_pointer,
++					    assoc_array_delete_collapse_iterator,
++					    &collapse);
++		pr_devel("collapsed %d,%lu\n", collapse.slot, new_n0->nr_leaves_on_branch);
++		BUG_ON(collapse.slot != new_n0->nr_leaves_on_branch - 1);
++
++		if (!node->back_pointer) {
++			edit->set[1].ptr = &edit->array->root;
++		} else if (assoc_array_ptr_is_leaf(node->back_pointer)) {
++			BUG();
++		} else if (assoc_array_ptr_is_node(node->back_pointer)) {
++			struct assoc_array_node *p =
++				assoc_array_ptr_to_node(node->back_pointer);
++			edit->set[1].ptr = &p->slots[node->parent_slot];
++		} else if (assoc_array_ptr_is_shortcut(node->back_pointer)) {
++			struct assoc_array_shortcut *s =
++				assoc_array_ptr_to_shortcut(node->back_pointer);
++			edit->set[1].ptr = &s->next_node;
++		}
++		edit->set[1].to = assoc_array_node_to_ptr(new_n0);
++		edit->excised_subtree = assoc_array_node_to_ptr(node);
++	}
++	return true;
++}
++
+ /**
+  * assoc_array_delete - Script deletion of an object from an associative array
+  * @array: The array to search.
+@@ -1156,13 +1257,11 @@ struct assoc_array_edit *assoc_array_delete(struct assoc_array *array,
+ 					    const struct assoc_array_ops *ops,
+ 					    const void *index_key)
+ {
+-	struct assoc_array_delete_collapse_context collapse;
+ 	struct assoc_array_walk_result result;
+-	struct assoc_array_node *node, *new_n0;
++	struct assoc_array_node *node;
+ 	struct assoc_array_edit *edit;
+ 	struct assoc_array_ptr *ptr;
+-	bool has_meta;
+-	int slot, i;
++	int slot;
+ 
+ 	pr_devel("-->%s()\n", __func__);
+ 
+@@ -1231,95 +1330,9 @@ found_leaf:
+ 	 * We could also try and collapse in partially filled subtrees to take
+ 	 * up space in this node.
+ 	 */
+-	if (node->nr_leaves_on_branch <= ASSOC_ARRAY_FAN_OUT + 1) {
+-		struct assoc_array_node *parent, *grandparent;
+-		struct assoc_array_ptr *ptr;
+-
+-		/* First of all, we need to know if this node has metadata so
+-		 * that we don't try collapsing if all the leaves are already
+-		 * here.
+-		 */
+-		has_meta = false;
+-		for (i = 0; i < ASSOC_ARRAY_FAN_OUT; i++) {
+-			ptr = node->slots[i];
+-			if (assoc_array_ptr_is_meta(ptr)) {
+-				has_meta = true;
+-				break;
+-			}
+-		}
+-
+-		pr_devel("leaves: %ld [m=%d]\n",
+-			 node->nr_leaves_on_branch - 1, has_meta);
+-
+-		/* Look further up the tree to see if we can collapse this node
+-		 * into a more proximal node too.
+-		 */
+-		parent = node;
+-	collapse_up:
+-		pr_devel("collapse subtree: %ld\n", parent->nr_leaves_on_branch);
+-
+-		ptr = parent->back_pointer;
+-		if (!ptr)
+-			goto do_collapse;
+-		if (assoc_array_ptr_is_shortcut(ptr)) {
+-			struct assoc_array_shortcut *s = assoc_array_ptr_to_shortcut(ptr);
+-			ptr = s->back_pointer;
+-			if (!ptr)
+-				goto do_collapse;
+-		}
+-
+-		grandparent = assoc_array_ptr_to_node(ptr);
+-		if (grandparent->nr_leaves_on_branch <= ASSOC_ARRAY_FAN_OUT + 1) {
+-			parent = grandparent;
+-			goto collapse_up;
+-		}
+-
+-	do_collapse:
+-		/* There's no point collapsing if the original node has no meta
+-		 * pointers to discard and if we didn't merge into one of that
+-		 * node's ancestry.
+-		 */
+-		if (has_meta || parent != node) {
+-			node = parent;
+-
+-			/* Create a new node to collapse into */
+-			new_n0 = kzalloc_obj(struct assoc_array_node);
+-			if (!new_n0)
+-				goto enomem;
+-			edit->new_meta[0] = assoc_array_node_to_ptr(new_n0);
+-
+-			new_n0->back_pointer = node->back_pointer;
+-			new_n0->parent_slot = node->parent_slot;
+-			new_n0->nr_leaves_on_branch = node->nr_leaves_on_branch;
+-			edit->adjust_count_on = new_n0;
+-
+-			collapse.node = new_n0;
+-			collapse.skip_leaf = assoc_array_ptr_to_leaf(edit->dead_leaf);
+-			collapse.slot = 0;
+-			assoc_array_subtree_iterate(assoc_array_node_to_ptr(node),
+-						    node->back_pointer,
+-						    assoc_array_delete_collapse_iterator,
+-						    &collapse);
+-			pr_devel("collapsed %d,%lu\n", collapse.slot, new_n0->nr_leaves_on_branch);
+-			BUG_ON(collapse.slot != new_n0->nr_leaves_on_branch - 1);
+-
+-			if (!node->back_pointer) {
+-				edit->set[1].ptr = &array->root;
+-			} else if (assoc_array_ptr_is_leaf(node->back_pointer)) {
+-				BUG();
+-			} else if (assoc_array_ptr_is_node(node->back_pointer)) {
+-				struct assoc_array_node *p =
+-					assoc_array_ptr_to_node(node->back_pointer);
+-				edit->set[1].ptr = &p->slots[node->parent_slot];
+-			} else if (assoc_array_ptr_is_shortcut(node->back_pointer)) {
+-				struct assoc_array_shortcut *s =
+-					assoc_array_ptr_to_shortcut(node->back_pointer);
+-				edit->set[1].ptr = &s->next_node;
+-			}
+-			edit->set[1].to = assoc_array_node_to_ptr(new_n0);
+-			edit->excised_subtree = assoc_array_node_to_ptr(node);
+-		}
+-	}
++	if (node->nr_leaves_on_branch <= ASSOC_ARRAY_FAN_OUT + 1 &&
++	    !assoc_array_delete_collapse(edit, node))
++		goto enomem;
+ 
+ 	return edit;
+ 
+-- 
+2.53.0
+
+assoc_array: find and collapse in deletion without gotos
+
+Finding the leaf to delete is a switch whose one useful case falls
+through into the cases that give up, and is left by a goto to
+found_leaf.  Make it an if, and a loop that stops at the leaf.
+
+The climb to the highest node the collapse can merge into is two
+labels, collapse_up and do_collapse.  Make it a for loop that stops at
+the root or at a node with too many leaves.  The new node's place is
+found with assoc_array_parent_link(), keeping the check against a leaf
+as a back pointer as a BUG_ON(), and the cleanup after a failed
+allocation moves to the one place that needs it.
+
+There is no recursion, and assoc_array_delete()'s stack frame is 160
+bytes against 176 before, on an x86-64 defconfig.
+
+No functional change.
+
+Assisted-by: LLM
+Signed-off-by: Linus Torvalds <>
+Tested-by: David Howells <>
+Reviewed-by: David Howells <>
+
+diff --git a/lib/assoc_array.c b/lib/assoc_array.c
+index fad5514aed16e..d3bc426f17af6 100644
+--- a/lib/assoc_array.c
++++ b/lib/assoc_array.c
+@@ -1166,27 +1166,20 @@ static bool assoc_array_delete_collapse(struct assoc_array_edit *edit,
+ 	/* Look further up the tree to see if we can collapse this node
+ 	 * into a more proximal node too.
+ 	 */
+-	parent = node;
+-collapse_up:
+-	pr_devel("collapse subtree: %ld\n", parent->nr_leaves_on_branch);
++	for (parent = node;; parent = grandparent) {
++		pr_devel("collapse subtree: %ld\n", parent->nr_leaves_on_branch);
+ 
+-	ptr = parent->back_pointer;
+-	if (!ptr)
+-		goto do_collapse;
+-	if (assoc_array_ptr_is_shortcut(ptr)) {
+-		struct assoc_array_shortcut *s = assoc_array_ptr_to_shortcut(ptr);
+-		ptr = s->back_pointer;
++		ptr = parent->back_pointer;
++		if (ptr && assoc_array_ptr_is_shortcut(ptr))
++			ptr = assoc_array_ptr_to_shortcut(ptr)->back_pointer;
+ 		if (!ptr)
+-			goto do_collapse;
+-	}
++			break;
+ 
+-	grandparent = assoc_array_ptr_to_node(ptr);
+-	if (grandparent->nr_leaves_on_branch <= ASSOC_ARRAY_FAN_OUT + 1) {
+-		parent = grandparent;
+-		goto collapse_up;
++		grandparent = assoc_array_ptr_to_node(ptr);
++		if (grandparent->nr_leaves_on_branch > ASSOC_ARRAY_FAN_OUT + 1)
++			break;
+ 	}
+ 
+-do_collapse:
+ 	/* There's no point collapsing if the original node has no meta
+ 	 * pointers to discard and if we didn't merge into one of that
+ 	 * node's ancestry.
+@@ -1215,19 +1208,11 @@ do_collapse:
+ 		pr_devel("collapsed %d,%lu\n", collapse.slot, new_n0->nr_leaves_on_branch);
+ 		BUG_ON(collapse.slot != new_n0->nr_leaves_on_branch - 1);
+ 
+-		if (!node->back_pointer) {
+-			edit->set[1].ptr = &edit->array->root;
+-		} else if (assoc_array_ptr_is_leaf(node->back_pointer)) {
+-			BUG();
+-		} else if (assoc_array_ptr_is_node(node->back_pointer)) {
+-			struct assoc_array_node *p =
+-				assoc_array_ptr_to_node(node->back_pointer);
+-			edit->set[1].ptr = &p->slots[node->parent_slot];
+-		} else if (assoc_array_ptr_is_shortcut(node->back_pointer)) {
+-			struct assoc_array_shortcut *s =
+-				assoc_array_ptr_to_shortcut(node->back_pointer);
+-			edit->set[1].ptr = &s->next_node;
+-		}
++		BUG_ON(node->back_pointer &&
++		       assoc_array_ptr_is_leaf(node->back_pointer));
++		edit->set[1].ptr = assoc_array_parent_link(edit->array,
++							   node->back_pointer,
++							   node->parent_slot);
+ 		edit->set[1].to = assoc_array_node_to_ptr(new_n0);
+ 		edit->excised_subtree = assoc_array_node_to_ptr(node);
+ 	}
+@@ -1272,8 +1257,10 @@ struct assoc_array_edit *assoc_array_delete(struct assoc_array *array,
+ 	edit->ops = ops;
+ 	edit->adjust_count_by = -1;
+ 
+-	switch (assoc_array_walk(array, ops, index_key, &result)) {
+-	case assoc_array_walk_found_terminal_node:
++	node = NULL;
++	slot = ASSOC_ARRAY_FAN_OUT;
++	if (assoc_array_walk(array, ops, index_key, &result) ==
++	    assoc_array_walk_found_terminal_node) {
+ 		/* We found a node that should contain the leaf we've been
+ 		 * asked to remove - *if* it's in the tree.
+ 		 */
+@@ -1286,18 +1273,15 @@ struct assoc_array_edit *assoc_array_delete(struct assoc_array *array,
+ 			    assoc_array_ptr_is_leaf(ptr) &&
+ 			    ops->compare_object(assoc_array_ptr_to_leaf(ptr),
+ 						index_key))
+-				goto found_leaf;
++				break;
+ 		}
+-		fallthrough;
+-	case assoc_array_walk_tree_empty:
+-	case assoc_array_walk_found_wrong_shortcut:
+-	default:
++	}
++	if (slot == ASSOC_ARRAY_FAN_OUT) {
+ 		assoc_array_cancel_edit(edit);
+ 		pr_devel("not found\n");
+ 		return NULL;
+ 	}
+ 
+-found_leaf:
+ 	BUG_ON(array->nr_leaves_on_tree <= 0);
+ 
+ 	/* In the simplest form of deletion we just clear the slot and release
+@@ -1331,16 +1315,14 @@ found_leaf:
+ 	 * up space in this node.
+ 	 */
+ 	if (node->nr_leaves_on_branch <= ASSOC_ARRAY_FAN_OUT + 1 &&
+-	    !assoc_array_delete_collapse(edit, node))
+-		goto enomem;
++	    !assoc_array_delete_collapse(edit, node)) {
++		/* Clean up after an out of memory error */
++		pr_devel("enomem\n");
++		assoc_array_cancel_edit(edit);
++		return ERR_PTR(-ENOMEM);
++	}
+ 
+ 	return edit;
+-
+-enomem:
+-	/* Clean up after an out of memory error */
+-	pr_devel("enomem\n");
+-	assoc_array_cancel_edit(edit);
+-	return ERR_PTR(-ENOMEM);
+ }
+ 
+ /**
+-- 
+2.53.0
+
+assoc_array: use assoc_array_parent_link() when splitting a shortcut
+
+assoc_array_insert_mid_shortcut() works out by hand which pointer leads
+to the shortcut it splits: the same cases as assoc_array_parent_link(),
+with a BUG() for a shortcut behind anything but a node.  Use the
+function, and keep the check as a BUG_ON().
+
+No functional change.
+
+Assisted-by: LLM
+Signed-off-by: Linus Torvalds <>
+Tested-by: David Howells <>
+Reviewed-by: David Howells <>
+
+diff --git a/lib/assoc_array.c b/lib/assoc_array.c
+index d3bc426f17af6..f19888ec3e093 100644
+--- a/lib/assoc_array.c
++++ b/lib/assoc_array.c
+@@ -870,7 +870,7 @@ static bool assoc_array_insert_mid_shortcut(struct assoc_array_edit *edit,
+ 					    struct assoc_array_walk_result *result)
+ {
+ 	struct assoc_array_shortcut *shortcut, *new_s0, *new_s1;
+-	struct assoc_array_node *node, *new_n0, *side;
++	struct assoc_array_node *new_n0, *side;
+ 	unsigned long sc_segments, dissimilarity, blank;
+ 	size_t keylen;
+ 	int level, sc_level, diff;
+@@ -896,14 +896,11 @@ static bool assoc_array_insert_mid_shortcut(struct assoc_array_edit *edit,
+ 	diff += sc_level & ~ASSOC_ARRAY_KEY_CHUNK_MASK;
+ 	pr_devel("diff=%d\n", diff);
+ 
+-	if (!shortcut->back_pointer) {
+-		edit->set[0].ptr = &edit->array->root;
+-	} else if (assoc_array_ptr_is_node(shortcut->back_pointer)) {
+-		node = assoc_array_ptr_to_node(shortcut->back_pointer);
+-		edit->set[0].ptr = &node->slots[shortcut->parent_slot];
+-	} else {
+-		BUG();
+-	}
++	BUG_ON(shortcut->back_pointer &&
++	       !assoc_array_ptr_is_node(shortcut->back_pointer));
++	edit->set[0].ptr = assoc_array_parent_link(edit->array,
++						   shortcut->back_pointer,
++						   shortcut->parent_slot);
+ 
+ 	edit->excised_meta[0] = assoc_array_shortcut_to_ptr(shortcut);
+ 
+-- 
+2.53.0
+

@@ -236,7 +236,7 @@ index 416758c8a3..835f155bb0 100644
  #include <trace/events/sched.h>
  
  #define CREATE_TRACE_POINTS
-@@ -2473,6 +2477,11 @@ __latent_entropy struct task_struct *copy_process(
+@@ -2476,6 +2480,11 @@ __latent_entropy struct task_struct *copy_process(
  	p->start_time = ktime_get_ns();
  	p->start_boottime = ktime_get_boottime_ns();
  
@@ -248,7 +248,7 @@ index 416758c8a3..835f155bb0 100644
  	/*
  	 * Make it visible to the rest of the system, but dont wake it up yet.
  	 * Need tasklist lock for parent etc handling!
-@@ -2558,7 +2567,11 @@ __latent_entropy struct task_struct *copy_process(
+@@ -2561,7 +2570,11 @@ __latent_entropy struct task_struct *copy_process(
  							 p->real_parent->signal->is_child_subreaper;
  			if (clone_flags & CLONE_AUTOREAP)
  				p->signal->autoreap = 1;
@@ -1363,7 +1363,7 @@ index ade1eceb39..fb694b6fb3 100644
  	/*
  	 * Tell update_rq_clock() that we've just updated,
  	 * so we don't do microscopic update in schedule()
-@@ -15548,6 +15709,9 @@ static void switched_to_fair(struct rq *rq, struct task_struct *p)
+@@ -15562,6 +15723,9 @@ static void switched_to_fair(struct rq *rq, struct task_struct *p)
  	WARN_ON_ONCE(p->se.sched_delayed);
  
  	attach_task_cfs_rq(p);

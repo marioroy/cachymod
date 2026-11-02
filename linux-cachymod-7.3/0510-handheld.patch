@@ -37450,3 +37450,97 @@ diff -uarp a/drivers/hid/hid-asus.c b/drivers/hid/hid-asus.c
 -- 
 2.53.0
 
+Sync CachyOS 7.3/handheld
+Revert "drm/amd: bump backlight brightness precision from 8 -> 16-bits"
+https://github.com/torvalds/linux/commit/bbfd22f75c1b58c9729682caae3f18412f66a678
+
+This reverts commit 0c20466609ddef8d0ba9ccaafc2b735c2bab2d0a.
+
+Upstream amdgpu_dm already exposes a 16-bit PWM range to userspace
+(0x101 * max_input_signal). The only remaining users of
+AMDGPU_MAX_BL_LEVEL in amdgpu_dm_backlight.c are the custom brightness
+curve helpers. They map userspace brightness onto the 8-bit firmware
+curve, whose input_signal points and max_input_signal are in [0..255].
+
+With the 0xFFFF override, scale_input_to_fw() returns 0..65535, so
+backlight_signal_to_luminance() lands past the last data point for
+almost every level. convert_brightness_to_millipercent() then clamps
+the result to 100%. On the Steam Deck LCD, the panel stays at full
+brightness whatever level is requested.
+
+The atombios hunk only renamed the 0xFF constant, so reverting it does
+not change behaviour.
+
+Link: https://github.com/CachyOS/linux-cachyos/issues/1089
+Signed-off-by: Peter Jung <>
+---
+ drivers/gpu/drm/amd/amdgpu/amdgpu_mode.h               |  2 ++
+ drivers/gpu/drm/amd/amdgpu/atombios_encoders.c         | 10 +++-------
+ .../drm/amd/display/amdgpu_dm/amdgpu_dm_backlight.c    |  3 ---
+ 3 files changed, 5 insertions(+), 10 deletions(-)
+
+diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu_mode.h b/drivers/gpu/drm/amd/amdgpu/amdgpu_mode.h
+index cb72e12e397da6..7c784277396ab1 100644
+--- a/drivers/gpu/drm/amd/amdgpu/amdgpu_mode.h
++++ b/drivers/gpu/drm/amd/amdgpu/amdgpu_mode.h
+@@ -437,6 +437,8 @@ struct amdgpu_mode_info {
+ 	struct drm_property *regamma_tf_property;
+ };
+ 
++#define AMDGPU_MAX_BL_LEVEL 0xFF
++
+ struct amdgpu_backlight_privdata {
+ 	struct amdgpu_encoder *encoder;
+ 	uint8_t negative;
+diff --git a/drivers/gpu/drm/amd/amdgpu/atombios_encoders.c b/drivers/gpu/drm/amd/amdgpu/atombios_encoders.c
+index dc4f3a8d0d351e..a1d05df0ac99b1 100644
+--- a/drivers/gpu/drm/amd/amdgpu/atombios_encoders.c
++++ b/drivers/gpu/drm/amd/amdgpu/atombios_encoders.c
+@@ -39,10 +39,6 @@
+ #include <linux/backlight.h>
+ #include "bif/bif_4_1_d.h"
+ 
+-
+-/* Maximum backlight level. */
+-#define AMDGPU_ATOM_MAX_BL_LEVEL 0xFF
+-
+ u8
+ amdgpu_atombios_encoder_get_backlight_level_from_reg(struct amdgpu_device *adev)
+ {
+@@ -131,8 +127,8 @@ static u8 amdgpu_atombios_encoder_backlight_level(struct backlight_device *bd)
+ 	/* Convert brightness to hardware level */
+ 	if (bd->props.brightness < 0)
+ 		level = 0;
+-	else if (bd->props.brightness > AMDGPU_ATOM_MAX_BL_LEVEL)
+-		level = AMDGPU_ATOM_MAX_BL_LEVEL;
++	else if (bd->props.brightness > AMDGPU_MAX_BL_LEVEL)
++		level = AMDGPU_MAX_BL_LEVEL;
+ 	else
+ 		level = bd->props.brightness;
+ 
+@@ -202,7 +198,7 @@ void amdgpu_atombios_encoder_init_backlight(struct amdgpu_encoder *amdgpu_encode
+ 	}
+ 
+ 	memset(&props, 0, sizeof(props));
+-	props.max_brightness = AMDGPU_ATOM_MAX_BL_LEVEL;
++	props.max_brightness = AMDGPU_MAX_BL_LEVEL;
+ 	props.type = BACKLIGHT_RAW;
+ 	snprintf(bl_name, sizeof(bl_name),
+ 		 "amdgpu_bl%d", dev->primary->index);
+diff --git a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm_backlight.c b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm_backlight.c
+index 92f0bd9afdae52..35378d2de41475 100644
+--- a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm_backlight.c
++++ b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm_backlight.c
+@@ -50,9 +50,6 @@
+ #include "amd_shared.h"
+ #include "dm_helpers.h"
+ 
+-/* Maximum backlight level. */
+-#define AMDGPU_MAX_BL_LEVEL 0xFFFF
+-
+ void amdgpu_dm_update_backlight_caps(struct amdgpu_display_manager *dm,
+ 				     int bl_idx)
+ {
+-- 
+2.53.0
+

@@ -211,3 +211,190 @@ index 9583b2c6c7a2..83ee35685373 100644
 -- 
 2.53.0
 
+Sync CachyOS 7.3/fixes
+HID: logitech-hidpp: read G920 force feedback config before hid_connect
+https://github.com/torvalds/linux/commit/e93468e0030d287fdf3677fde75669a421e010cb
+
+diff --git a/drivers/hid/hid-logitech-hidpp.c b/drivers/hid/hid-logitech-hidpp.c
+index 1504de32b1c84b..d4d65ad9b8829c 100644
+--- a/drivers/hid/hid-logitech-hidpp.c
++++ b/drivers/hid/hid-logitech-hidpp.c
+@@ -214,6 +214,8 @@ struct hidpp_device {
+ 	int hires_wheel_multiplier;
+ 	u8 hires_wheel_feature_index;
+ 
++	struct hidpp_ff_private_data *ff_config;
++
+ 	bool connected_once;
+ };
+ 
+@@ -4093,19 +4095,16 @@ static int hidpp_input_configured(struct hid_device *hdev, struct hid_input *hid
+ 		return 0;
+ 
+ 	if (hidpp->quirks & HIDPP_QUIRK_CLASS_G920) {
+-		struct hidpp_ff_private_data data;
+-
+ 		if (!list_is_first(&hidinput->list, &hdev->inputs))
+ 			return 0;
+ 
+-		ret = g920_get_config(hidpp, &data);
+-		if (!ret)
+-			ret = hidpp_ff_init(hidpp, &data);
+-
+-		if (ret) {
+-			hid_warn(hidpp->hid_dev,
+-				 "Unable to initialize force feedback support, errno %d\n",
+-				 ret);
++		/* The config was read in probe(), IO is stopped here */
++		if (hidpp->ff_config) {
++			ret = hidpp_ff_init(hidpp, hidpp->ff_config);
++			if (ret)
++				hid_warn(hidpp->hid_dev,
++					 "Unable to initialize force feedback support, errno %d\n",
++					 ret);
+ 		}
+ 	}
+ 
+@@ -4764,6 +4763,24 @@ static int hidpp_probe(struct hid_device *hdev, const struct hid_device_id *id)
+ 	if (hidpp->quirks & HIDPP_QUIRK_DELAYED_INIT)
+ 		connect_mask &= ~HID_CONNECT_HIDINPUT;
+ 
++	/*
++	 * Force feedback is set up from .input_configured(), which runs from
++	 * hid_connect() with IO stopped, so the device's replies cannot be
++	 * received there. Read the config while IO is still enabled.
++	 */
++	if (hidpp->quirks & HIDPP_QUIRK_CLASS_G920) {
++		struct hidpp_ff_private_data *data;
++
++		data = devm_kzalloc(&hdev->dev, sizeof(*data), GFP_KERNEL);
++		ret = data ? g920_get_config(hidpp, data) : -ENOMEM;
++		if (ret)
++			hid_warn(hdev,
++				 "Unable to initialize force feedback support, errno %d\n",
++				 ret);
++		else
++			hidpp->ff_config = data;
++	}
++
+ 	/* Now export the actual inputs and hidraw nodes to the world */
+ 	hid_device_io_stop(hdev);
+ 	ret = hid_connect(hdev, connect_mask);
+-- 
+2.53.0
+
+Sync CachyOS 7.3/t2
+platform/x86: macsmc: restrict the ACPI SMC stack to T2 Macs
+https://github.com/torvalds/linux/commit/b5b0300cdf3d818411ca4b503f45442ea400f858
+
+diff --git a/drivers/acpi/sbs.c b/drivers/acpi/sbs.c
+index 277540a7eeda7a..5f7506734a0ec1 100644
+--- a/drivers/acpi/sbs.c
++++ b/drivers/acpi/sbs.c
+@@ -634,7 +634,7 @@ static int acpi_sbs_probe(struct platform_device *pdev)
+ 	int result = 0;
+ 	int id;
+ 
+-	if (IS_ENABLED(CONFIG_MACSMC_POWER) && x86_apple_machine)
++	if (IS_ENABLED(CONFIG_MACSMC_POWER) && has_apple_t2_chip)
+ 		return -ENODEV;
+ 
+ 	device = ACPI_COMPANION(&pdev->dev);
+@@ -660,12 +660,14 @@ static int acpi_sbs_probe(struct platform_device *pdev)
+ 
+ 	result = 0;
+ 
+-	result = acpi_manager_get_info(sbs);
+-	if (!result) {
+-		sbs->manager_present = 1;
+-		for (id = 0; id < MAX_SBS_BAT; ++id)
+-			if ((sbs->batteries_supported & (1 << id)))
+-				acpi_battery_add(sbs, id);
++	if (!x86_apple_machine) {
++		result = acpi_manager_get_info(sbs);
++		if (!result) {
++			sbs->manager_present = 1;
++			for (id = 0; id < MAX_SBS_BAT; ++id)
++				if ((sbs->batteries_supported & (1 << id)))
++					acpi_battery_add(sbs, id);
++		}
+ 	}
+ 
+ 	if (!sbs->manager_present)
+diff --git a/drivers/acpi/x86/utils.c b/drivers/acpi/x86/utils.c
+index 9f3b9b7d9c27cc..e7000751943e26 100644
+--- a/drivers/acpi/x86/utils.c
++++ b/drivers/acpi/x86/utils.c
+@@ -609,7 +609,7 @@ bool acpi_quirk_skip_acpi_ac_and_battery(void)
+ 	long quirks = 0;
+ 	int i;
+ 
+-	if (IS_ENABLED(CONFIG_MACSMC_POWER) && x86_apple_machine)
++	if (IS_ENABLED(CONFIG_MACSMC_POWER) && has_apple_t2_chip)
+ 		return true;
+ 
+ 	dmi_id = dmi_first_match(acpi_quirk_skip_dmi_ids);
+diff --git a/drivers/hwmon/applesmc.c b/drivers/hwmon/applesmc.c
+index d0baa10502f7db..ef9b43af1fe64a 100644
+--- a/drivers/hwmon/applesmc.c
++++ b/drivers/hwmon/applesmc.c
+@@ -33,6 +33,7 @@
+ #include <linux/workqueue.h>
+ #include <linux/err.h>
+ #include <linux/bits.h>
++#include <linux/platform_data/x86/apple.h>
+ #include <asm/barrier.h>
+ 
+ /* data port used by Apple SMC */
+@@ -1431,6 +1432,12 @@ static int __init applesmc_init(void)
+ 		goto out;
+ 	}
+ 
++	/* T2 Macs are handled by the macsmc-acpi driver */
++	if (IS_ENABLED(CONFIG_MACSMC_ACPI) && has_apple_t2_chip) {
++		ret = -ENODEV;
++		goto out;
++	}
++
+ 	if (!request_region(APPLESMC_DATA_PORT, APPLESMC_NR_PORTS,
+ 								"applesmc")) {
+ 		ret = -ENXIO;
+diff --git a/drivers/platform/x86/Kconfig b/drivers/platform/x86/Kconfig
+index c37e76066e37cc..b041577a766d79 100644
+--- a/drivers/platform/x86/Kconfig
++++ b/drivers/platform/x86/Kconfig
+@@ -204,7 +204,7 @@ config ADV_SWBUTTON
+ 
+ config MACSMC_ACPI
+ 	tristate "Apple SMC (System Management Controller) ACPI Backend"
+-	depends on MFD_MACSMC_CORE && ACPI && !SENSORS_APPLESMC
++	depends on MFD_MACSMC_CORE && ACPI && X86
+ 	help
+ 	  This driver allows communication with the SMC (System Management Controller)
+ 	  on Intel-Macs. It is used to control fans, control battery, and more.
+diff --git a/drivers/platform/x86/macsmc-acpi.c b/drivers/platform/x86/macsmc-acpi.c
+index 5feda0df51e257..7950ede94babfc 100644
+--- a/drivers/platform/x86/macsmc-acpi.c
++++ b/drivers/platform/x86/macsmc-acpi.c
+@@ -13,6 +13,7 @@
+ #include <linux/io.h>
+ #include <linux/kfifo.h>
+ #include <linux/mfd/macsmc.h>
++#include <linux/platform_data/x86/apple.h>
+ #include <linux/platform_device.h>
+ #include <linux/reboot.h>
+ #include <linux/spinlock.h>
+@@ -575,6 +576,10 @@ static int apple_smc_acpi_probe(struct platform_device *pdev)
+ 	struct apple_smc_acpi *smc;
+ 	acpi_status status;
+ 
++	/* Pre-T2 Macs are handled by the applesmc driver */
++	if (!has_apple_t2_chip)
++		return -ENODEV;
++
+ 	smc = devm_kzalloc(&pdev->dev, sizeof(*smc), GFP_KERNEL);
+ 	if (!smc)
+ 		return -ENOMEM;
+-- 
+2.53.0
+

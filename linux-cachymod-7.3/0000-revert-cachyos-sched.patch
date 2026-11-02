@@ -1,0 +1,305 @@
+
+Revert the CachyOS 7.3 sched branch
+https://github.com/CachyOS/linux/tree/7.3/sched
+
+  sched/eevdf: Ensure that vprot will never go above a min slice
+  sched/eevdf: Align update_protect_slice to set_protect_slice
+  sched/eevdf: Handle more short slice waking cases
+  sched/fair: Reset NUMA fault locality after scan period update
+  sched/cputime: Don't account idle time twice after dyntick-idle
+  sched/cache: Avoid publishing partial LLC utilization
+
+
+diff -uNarp a/include/linux/kernel_stat.h b/include/linux/kernel_stat.h
+--- a/include/linux/kernel_stat.h
++++ b/include/linux/kernel_stat.h
+@@ -40,9 +40,6 @@ struct kernel_cpustat {
+ 	seqcount_t	idle_sleeptime_seq;
+ 	u64		idle_entrytime;
+ 	u64		idle_stealtime[2];
+-	u64		idle_dyntick_entry;
+-	u64		idle_tick_period;
+-	u64		idle_tick_overlap;
+ #endif
+ 	u64		cpustat[NR_STATS];
+ };
+@@ -114,7 +111,7 @@ static inline unsigned long kstat_cpu_ir
+ #ifdef CONFIG_HAVE_VIRT_CPU_ACCOUNTING_IDLE
+ 
+ static inline void kcpustat_dyntick_start(u64 now) { }
+-static inline void kcpustat_dyntick_stop(u64 now, u64 tick_start) { }
++static inline void kcpustat_dyntick_stop(u64 now) { }
+ static inline void kcpustat_irq_enter(u64 now) { }
+ static inline void kcpustat_irq_exit(u64 now) { }
+ static inline bool kcpustat_idle_dyntick(void) { return false; }
+@@ -135,7 +132,7 @@ static inline u64 kcpustat_field_iowait(
+ #else /* !CONFIG_HAVE_VIRT_CPU_ACCOUNTING_IDLE */
+ 
+ extern void kcpustat_dyntick_start(u64 now);
+-extern void kcpustat_dyntick_stop(u64 now, u64 tick_start);
++extern void kcpustat_dyntick_stop(u64 now);
+ extern void kcpustat_irq_enter(u64 now);
+ extern void kcpustat_irq_exit(u64 now);
+ extern u64 kcpustat_field_idle(int cpu);
+diff -uNarp a/kernel/sched/cputime.c b/kernel/sched/cputime.c
+--- a/kernel/sched/cputime.c
++++ b/kernel/sched/cputime.c
+@@ -381,9 +381,9 @@ void thread_group_cputime(struct task_st
+  * softirq as those do not count in task exec_runtime any more.
+  */
+ static void irqtime_account_process_tick(struct task_struct *p, int user_tick,
+-					 u64 cputime)
++					 int ticks)
+ {
+-	u64 other;
++	u64 other, cputime = TICK_NSEC * ticks;
+ 
+ 	/*
+ 	 * When returning from idle, many ticks can get accounted at
+@@ -418,7 +418,7 @@ static void irqtime_account_process_tick
+ 
+ #else /* !CONFIG_IRQ_TIME_ACCOUNTING: */
+ static inline void irqtime_account_process_tick(struct task_struct *p, int user_tick,
+-						u64 cputime) { }
++						int nr_ticks) { }
+ #endif /* !CONFIG_IRQ_TIME_ACCOUNTING */
+ 
+ #if defined(CONFIG_NO_HZ_COMMON) && !defined(CONFIG_HAVE_VIRT_CPU_ACCOUNTING_IDLE)
+@@ -468,38 +468,18 @@ static void kcpustat_idle_start(struct k
+ 	write_seqcount_end(&kc->idle_sleeptime_seq);
+ }
+ 
+-void kcpustat_dyntick_stop(u64 now, u64 tick_start)
++void kcpustat_dyntick_stop(u64 now)
+ {
+ 	struct kernel_cpustat *kc = kcpustat_this_cpu;
+ 
+ 	if (!vtime_generic_enabled_this_cpu()) {
+ 		WARN_ON_ONCE(!kc->idle_dyntick);
+-		if (kc->idle_tick_period != tick_start) {
+-			kc->idle_tick_period = tick_start;
+-			kc->idle_tick_overlap = 0;
+-		}
+-		tick_start = max(tick_start, kc->idle_dyntick_entry);
+-		if (!WARN_ON_ONCE(now < tick_start))
+-			kc->idle_tick_overlap += now - tick_start;
+ 		kcpustat_idle_stop(kc, now);
+ 		kc->idle_dyntick = false;
+ 		vtime_dyntick_stop();
+ 	}
+ }
+ 
+-/*
+- * The first tick after dyntick-idle covers a period that the dyntick-idle
+- * accounting may already have accounted in part.
+- */
+-static inline u64 kcpustat_tick_overlap(void)
+-{
+-	struct kernel_cpustat *kc = kcpustat_this_cpu;
+-	u64 overlap = kc->idle_tick_overlap;
+-
+-	kc->idle_tick_overlap = 0;
+-	return overlap;
+-}
+-
+ void kcpustat_dyntick_start(u64 now)
+ {
+ 	struct kernel_cpustat *kc = kcpustat_this_cpu;
+@@ -507,7 +487,6 @@ void kcpustat_dyntick_start(u64 now)
+ 	if (!vtime_generic_enabled_this_cpu()) {
+ 		vtime_dyntick_start();
+ 		kc->idle_dyntick = true;
+-		kc->idle_dyntick_entry = now;
+ 		kcpustat_idle_start(kc, now);
+ 	}
+ }
+@@ -576,11 +555,6 @@ u64 kcpustat_field_iowait(int cpu)
+ }
+ EXPORT_SYMBOL_GPL(kcpustat_field_iowait);
+ #else
+-static inline u64 kcpustat_tick_overlap(void)
+-{
+-	return 0;
+-}
+-
+ static u64 kcpustat_field_dyntick(int cpu, enum cpu_usage_stat idx,
+ 				  bool compute_delta, ktime_t now)
+ {
+@@ -721,13 +695,12 @@ void account_process_tick(struct task_st
+ 	if (kcpustat_idle_dyntick())
+ 		return;
+ 
+-	cputime = TICK_NSEC - kcpustat_tick_overlap();
+-
+ 	if (irqtime_enabled()) {
+-		irqtime_account_process_tick(p, user_tick, cputime);
++		irqtime_account_process_tick(p, user_tick, 1);
+ 		return;
+ 	}
+ 
++	cputime = TICK_NSEC;
+ 	steal = steal_account_process_time(ULONG_MAX);
+ 
+ 	if (steal >= cputime)
+diff -uNarp a/kernel/sched/fair.c b/kernel/sched/fair.c
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -830,6 +830,12 @@ static u64 ineligible_vruntime(struct cf
+ 	if (curr && !curr->on_rq)
+ 		curr = NULL;
+ 
++	/*
++	 * This is called from set_next_task_fair(.first=true) /
++	 * set_protect_slice() so curr had better be set and on_rq.
++	 */
++	WARN_ON_ONCE(!curr);
++
+ 	if (weight) {
+ 		s64 runtime = cfs_rq->sum_w_vruntime;
+ 
+@@ -1141,9 +1147,10 @@ static inline void set_protect_slice(str
+ 
+ 	/* If there are shorter slices than se's one */
+ 	if (slice != se->slice) {
+-		vprot = min_vruntime(vprot, se->vruntime + calc_delta_fair(slice, se));
+ 		if (sched_feat(PREEMPT_SHORT))
+ 			vprot = min_vruntime(vprot, ineligible_vruntime(cfs_rq));
++		else
++			vprot = min_vruntime(vprot, se->vruntime + calc_delta_fair(slice, se));
+ 	}
+ 
+ 	se->vprot = vprot;
+@@ -1151,19 +1158,10 @@ static inline void set_protect_slice(str
+ 
+ static inline void update_protect_slice(struct cfs_rq *cfs_rq, struct sched_entity *se)
+ {
++	u64 slice = cfs_rq_min_slice(cfs_rq);
+ 	u64 vruntime = min_vruntime(se->vruntime, avg_vruntime(cfs_rq));
+-	u64 slice = normalized_sysctl_sched_base_slice;
+-	u64 vprot;
+-
+-	if (sched_feat(RUN_TO_PARITY))
+-		slice = cfs_rq_min_slice(cfs_rq);
+-
+-	vprot = min_vruntime(se->vprot, vruntime + calc_delta_fair(slice, se));
+ 
+-	if (sched_feat(PREEMPT_SHORT) && slice != se->slice)
+-		vprot = min_vruntime(vprot, ineligible_vruntime(cfs_rq));
+-
+-	se->vprot = vprot;
++	se->vprot = min_vruntime(se->vprot, vruntime + calc_delta_fair(slice, se));
+ }
+ 
+ static inline bool protect_slice(struct sched_entity *se)
+@@ -3725,7 +3723,7 @@ static void update_task_scan_period(stru
+ 		p->mm->numa_next_scan = jiffies +
+ 			msecs_to_jiffies(p->numa_scan_period);
+ 
+-		goto out;
++		return;
+ 	}
+ 
+ 	/*
+@@ -3769,10 +3767,7 @@ static void update_task_scan_period(stru
+ 
+ 	p->numa_scan_period = clamp(p->numa_scan_period + diff,
+ 			task_scan_min(p), task_scan_max(p));
+-
+-out:
+-	memset(p->numa_faults_locality, 0,
+-	       sizeof(p->numa_faults_locality));
++	memset(p->numa_faults_locality, 0, sizeof(p->numa_faults_locality));
+ }
+ 
+ /*
+@@ -10181,14 +10176,8 @@ static inline bool set_preempt_buddy(str
+ 
+ static inline bool set_short_buddy(struct cfs_rq *cfs_rq, struct sched_entity *pse)
+ {
+-	if (cfs_rq->next) {
+-		if (cfs_rq->next->slice < pse->slice)
+-			return false;
+-
+-		if (cfs_rq->next->slice == pse->slice &&
+-		    entity_before(cfs_rq->next, pse))
+-			return false;
+-	}
++	if (cfs_rq->next && cfs_rq->next->slice < pse->slice)
++		return false;
+ 
+ 	set_next_buddy(cfs_rq, pse);
+ 	return true;
+@@ -12227,14 +12216,6 @@ static void record_sg_llc_stats(struct l
+ 		return;
+ 
+ 	/*
+-	 * A redo repeats stats published on the first pass. Hotplug can
+-	 * still leave env->cpus partial, so util would not match capacity.
+-	 */
+-	if ((env->flags & LBF_ALL_PINNED) ||
+-	    !cpumask_subset(sched_group_span(group), env->cpus))
+-		return;
+-
+-	/*
+ 	 * At this point we know this group spans a LLC domain.
+ 	 * Record the statistic of this group in its corresponding
+ 	 * shared LLC domain.
+diff -uNarp a/kernel/time/tick-sched.c b/kernel/time/tick-sched.c
+--- a/kernel/time/tick-sched.c
++++ b/kernel/time/tick-sched.c
+@@ -763,18 +763,12 @@ static ktime_t tick_forward_now(ktime_t
+ 	return expires + TICK_NSEC;
+ }
+ 
+-static void tick_nohz_forward_last_tick(struct tick_sched *ts, ktime_t now)
+-{
+-	if (now >= ts->last_tick)
+-		ts->last_tick = tick_forward_now(ts->last_tick, now);
+-}
+-
+ static void tick_nohz_restart(struct tick_sched *ts, ktime_t now)
+ {
+-	ktime_t expires;
++	ktime_t expires = ts->last_tick;
+ 
+-	tick_nohz_forward_last_tick(ts, now);
+-	expires = ts->last_tick;
++	if (now >= expires)
++		expires = tick_forward_now(expires, now);
+ 
+ 	if (tick_sched_flag_test(ts, TS_FLAG_HIGHRES)) {
+ 		hrtimer_start(&ts->sched_timer,	expires, HRTIMER_MODE_ABS_PINNED_HARD);
+@@ -1335,12 +1329,6 @@ unsigned long tick_nohz_get_idle_calls_c
+ 	return ts->idle_calls;
+ }
+ 
+-static void tick_nohz_dyntick_stop(struct tick_sched *ts, ktime_t now)
+-{
+-	tick_nohz_forward_last_tick(ts, now);
+-	kcpustat_dyntick_stop(now, ts->last_tick - TICK_NSEC);
+-}
+-
+ void tick_nohz_idle_restart_tick(void)
+ {
+ 	struct tick_sched *ts = this_cpu_ptr(&tick_cpu_sched);
+@@ -1353,7 +1341,7 @@ void tick_nohz_idle_restart_tick(void)
+ 		 * no tiny amount of idle time is accounted twice.
+ 		 */
+ 		ts->idle_entrytime = ktime_get();
+-		tick_nohz_dyntick_stop(ts, ts->idle_entrytime);
++		kcpustat_dyntick_stop(ts->idle_entrytime);
+ 		tick_nohz_restart_sched_tick(ts, ts->idle_entrytime);
+ 	}
+ }
+@@ -1397,7 +1385,7 @@ void tick_nohz_idle_exit(void)
+ 
+ 	if (tick_sched_flag_test(ts, TS_FLAG_STOPPED)) {
+ 		now = ktime_get();
+-		tick_nohz_dyntick_stop(ts, now);
++		kcpustat_dyntick_stop(now);
+ 		tick_nohz_idle_update_tick(ts, now);
+ 	}
+ 
+-- 
+2.53.0
+
