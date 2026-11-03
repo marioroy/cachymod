@@ -252,3 +252,138 @@ index 54ec12503357..db83b1257440 100644
 -- 
 2.55.0
 
+Sync CachyOS 7.3/cachy
+rust: Allow BTF generation with Rust + LTO
+https://github.com/torvalds/linux/commit/962bee17a9d7d5cd3369b70c0914fe050b66b948
+
+diff --git a/init/Kconfig b/init/Kconfig
+index 2ef6b3b35c2e20..c3171b072cda70 100644
+--- a/init/Kconfig
++++ b/init/Kconfig
+@@ -2230,7 +2230,7 @@ config RUST
+ 	depends on !MODVERSIONS || GENDWARFKSYMS
+ 	depends on !GCC_PLUGIN_RANDSTRUCT
+ 	depends on !RANDSTRUCT
+-	depends on !DEBUG_INFO_BTF || (PAHOLE_HAS_LANG_EXCLUDE && !LTO)
++	depends on !DEBUG_INFO_BTF || PAHOLE_HAS_LANG_EXCLUDE
+ 	depends on !CFI || HAVE_CFI_ICALL_NORMALIZE_INTEGERS_RUSTC
+ 	select CFI_ICALL_NORMALIZE_INTEGERS if CFI
+ 	depends on !KASAN || CC_IS_CLANG
+-- 
+2.53.0
+
+Sync CachyOS 7.3/cachy
+fixup! drivers/pci: Add ACS override support
+https://github.com/CachyOS/linux/commit/f2bd287ff236c5ef268b9ba54080e7c4b39920ca
+
+diff --git a/Documentation/admin-guide/kernel-parameters.txt b/Documentation/admin-guide/kernel-parameters.txt
+index bcd2297518196d..c452e3f9e28ab2 100644
+--- a/Documentation/admin-guide/kernel-parameters.txt
++++ b/Documentation/admin-guide/kernel-parameters.txt
+@@ -5038,6 +5038,7 @@ Kernel parameters
+ 				id:nnnn:nnnn
+ 					Specfic device - full ACS capabilities
+ 					Specified as vid:did (vendor/device ID) in hex
++				Only available with CONFIG_PCI_ACS_OVERRIDE=y.
+ 		noioapicquirk	[APIC] Disable all boot interrupt quirks.
+ 				Safety option to keep boot IRQs enabled. This
+ 				should never be necessary.
+diff --git a/drivers/pci/Kconfig b/drivers/pci/Kconfig
+index 0c7408509ba24b..f2f3f79c150e7e 100644
+--- a/drivers/pci/Kconfig
++++ b/drivers/pci/Kconfig
+@@ -67,6 +67,22 @@ config PCI_QUIRKS
+ 	  Disable this only if your target machine is unaffected by PCI
+ 	  quirks.
+ 
++config PCI_ACS_OVERRIDE
++	bool "Allow overriding missing PCIe ACS support"
++	depends on PCI_QUIRKS
++	default y
++	help
++	  This adds the pcie_acs_override= kernel parameter, which treats
++	  PCIe ports and devices without ACS as if they isolate peer-to-peer
++	  DMA. It splits IOMMU groups, for example to pass a single device
++	  to a virtual machine, but the hardware still allows peer-to-peer
++	  DMA that is not translated by the IOMMU.
++
++	  Say N if the IOMMU groups have to match the isolation the hardware
++	  actually provides.
++
++	  If unsure, say Y.
++
+ config PCI_DEBUG
+ 	bool "PCI Debugging"
+ 	depends on DEBUG_KERNEL
+diff --git a/drivers/pci/quirks.c b/drivers/pci/quirks.c
+index f9bdfd59539510..25e8418cf60f10 100644
+--- a/drivers/pci/quirks.c
++++ b/drivers/pci/quirks.c
+@@ -3747,6 +3747,7 @@ static void quirk_no_bus_reset(struct pci_dev *dev)
+ 	dev->dev_flags |= PCI_DEV_FLAGS_NO_BUS_RESET;
+ }
+ 
++#ifdef CONFIG_PCI_ACS_OVERRIDE
+ static bool acs_on_downstream;
+ static bool acs_on_multifunction;
+ 
+@@ -3847,6 +3848,8 @@ static int pcie_acs_overrides(struct pci_dev *dev, u16 acs_flags)
+ 
+ 	return -ENOTTY;
+ }
++#endif /* CONFIG_PCI_ACS_OVERRIDE */
++
+ /*
+  * After asserting Secondary Bus Reset to downstream devices via a GB10
+  * Root Port, the link may not retrain correctly.
+@@ -5345,7 +5348,9 @@ static const struct pci_dev_acs_enabled {
+ 	{ PCI_VENDOR_ID_ZHAOXIN, PCI_ANY_ID, pci_quirk_zhaoxin_pcie_ports_acs },
+ 	/* Wangxun nics */
+ 	{ PCI_VENDOR_ID_WANGXUN, PCI_ANY_ID, pci_quirk_wangxun_nic_acs },
++#ifdef CONFIG_PCI_ACS_OVERRIDE
+ 	{ PCI_ANY_ID, PCI_ANY_ID, pcie_acs_overrides },
++#endif
+ 	{ 0 }
+ };
+ 
+-- 
+2.53.0
+
+Sync CachyOS 7.3/fixes
+usb: pci-quirks: always assert xHCI OS ownership
+https://github.com/torvalds/linux/commit/a558a2bbbfc3f9e0c9fd99bf8a04ac6e99953242
+
+diff --git a/drivers/usb/host/pci-quirks.c b/drivers/usb/host/pci-quirks.c
+index 0404489c2f6a9c..2b12a35e6f10f3 100644
+--- a/drivers/usb/host/pci-quirks.c
++++ b/drivers/usb/host/pci-quirks.c
+@@ -1193,10 +1193,11 @@ static void quirk_usb_handoff_xhci(struct pci_dev *pdev)
+ 			 && pdev->device == 0x0014)) {
+ 		val = (val | XHCI_HC_OS_OWNED) & ~XHCI_HC_BIOS_OWNED;
+ 		writel(val, base + ext_cap_offset);
+-	}
+-
+-	/* If the BIOS owns the HC, signal that the OS wants it, and wait */
+-	if (val & XHCI_HC_BIOS_OWNED) {
++	} else {
++		/*
++		 * Perform the standard handoff and leave OS ownership set to
++		 * keep the BIOS at bay during subsequent suspends.
++		 */
+ 		writel(val | XHCI_HC_OS_OWNED, base + ext_cap_offset);
+ 
+ 		/* Wait for 1 second with 10 microsecond polling interval */
+@@ -1208,7 +1209,9 @@ static void quirk_usb_handoff_xhci(struct pci_dev *pdev)
+ 			dev_warn(&pdev->dev,
+ 				 "xHCI BIOS handoff failed (BIOS bug ?) %08x\n",
+ 				 val);
+-			writel(val & ~XHCI_HC_BIOS_OWNED, base + ext_cap_offset);
++			writel((val | XHCI_HC_OS_OWNED) &
++			       ~XHCI_HC_BIOS_OWNED,
++			       base + ext_cap_offset);
+ 		}
+ 	}
+ 
+-- 
+2.53.0
+

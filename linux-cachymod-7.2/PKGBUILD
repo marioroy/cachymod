@@ -157,7 +157,7 @@ _tagrel=1
 pkgver=${_major}.${_minor}
 
 pkgdesc='CachyMod Linux Kernel with other patches and improvements'
-pkgrel=1
+pkgrel=2
 #_srcname=cachyos-${_major}.${_minor}-${_tagrel}
 _srcname=cachyos-${_major}.11-${_tagrel}
 _kernver="$pkgver-$pkgrel"
@@ -819,6 +819,13 @@ _package-headers() {
     # Install .so files if they exist
     if compgen -G "rust/*.so" 1>/dev/null; then
         install -Dt "$builddir/rust" rust/*.so
+    fi
+
+    # Install generated Rust files
+    if [ -d rust/kernel ]; then
+        while IFS= read -r -d "" _gen; do
+            install -Dm644 "$_gen" "$builddir/$_gen"
+        done < <(find rust -type f -name 'generated_*.rs' -print0)
     fi
 
     echo "Installing unstripped VDSO..."

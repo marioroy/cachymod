@@ -16546,7 +16546,7 @@ diff --git a/drivers/pci/quirks.c b/drivers/pci/quirks.c
 index bc05d2b1c6bf..588a3ae839bd 100644
 --- a/drivers/pci/quirks.c
 +++ b/drivers/pci/quirks.c
-@@ -6516,22 +6516,224 @@ static void pci_fixup_d3cold_delay_1sec(struct pci_dev *pdev)
+@@ -6521,22 +6521,224 @@ static void pci_fixup_d3cold_delay_1sec(struct pci_dev *pdev)
  }
  DECLARE_PCI_FIXUP_FINAL(0x5555, 0x0004, pci_fixup_d3cold_delay_1sec);
  
