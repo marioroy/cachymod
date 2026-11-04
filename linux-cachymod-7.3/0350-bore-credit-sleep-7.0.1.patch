@@ -1,5 +1,5 @@
 
-BORE-Lite: Credit-sleep feature from official BORE 7.0.0
+BORE-Lite: Credit-sleep feature from official BORE 7.0.1
 https://github.com/firelzrd/bore-scheduler
 
 A mini-patch crafted for use with CachyMod EEVDF
@@ -21,7 +21,7 @@ diff -uNarp a/include/linux/sched/bore.h b/include/linux/sched/bore.h
 +#define SCHED_BORE_AUTHOR   "Masahito Suzuki"
 +#define SCHED_BORE_PROGNAME "BORE-Lite CPU Scheduler modification"
 +
-+#define SCHED_BORE_VERSION  "7.0.0"
++#define SCHED_BORE_VERSION  "7.0.1"
 +
 +extern uint __read_mostly sched_credit_cap_us;
 +DECLARE_STATIC_KEY_TRUE(sched_credit_key);
@@ -38,7 +38,7 @@ diff -uNarp a/include/linux/sched/bore.h b/include/linux/sched/bore.h
 diff -uNarp a/include/linux/sched.h b/include/linux/sched.h
 --- a/include/linux/sched.h
 +++ b/include/linux/sched.h
-@@ -834,6 +834,12 @@ struct task_ipi_mask {
+@@ -832,6 +832,12 @@ struct task_ipi_mask {
  struct task_ipi_mask { };
  #endif
  
@@ -51,7 +51,7 @@ diff -uNarp a/include/linux/sched.h b/include/linux/sched.h
  struct task_struct {
  #ifdef CONFIG_THREAD_INFO_IN_TASK
  	/*
-@@ -895,6 +901,9 @@ struct task_struct {
+@@ -893,6 +899,9 @@ struct task_struct {
  #ifdef CONFIG_SCHED_CLASS_EXT
  	struct sched_ext_entity		scx;
  #endif
@@ -61,6 +61,21 @@ diff -uNarp a/include/linux/sched.h b/include/linux/sched.h
  	const struct sched_class	*sched_class;
  
  #ifdef CONFIG_SCHED_CORE
+diff --git a/kernel/fork.c b/kernel/fork.c
+--- a/kernel/fork.c
++++ b/kernel/fork.c
+@@ -2476,6 +2476,11 @@ __latent_entropy struct task_struct *copy_process(
+ 	p->start_time = ktime_get_ns();
+ 	p->start_boottime = ktime_get_boottime_ns();
+ 
++#ifdef CONFIG_SCHED_BORE
++	if (likely(p->pid))
++		p->bore.credit_sleep = 0;
++#endif /* CONFIG_SCHED_BORE */
++
+ 	/*
+ 	 * Make it visible to the rest of the system, but dont wake it up yet.
+ 	 * Need tasklist lock for parent etc handling!
 diff -uNarp a/kernel/sched/bore.c b/kernel/sched/bore.c
 --- a/kernel/sched/bore.c
 +++ b/kernel/sched/bore.c
@@ -165,7 +180,7 @@ diff -uNarp a/kernel/sched/build_utility.c b/kernel/sched/build_utility.c
 diff -uNarp a/kernel/sched/core.c b/kernel/sched/core.c
 --- a/kernel/sched/core.c
 +++ b/kernel/sched/core.c
-@@ -100,6 +100,10 @@
+@@ -99,6 +99,10 @@
  #include "../smpboot.h"
  #include "../locking/mutex.h"
  
@@ -176,7 +191,7 @@ diff -uNarp a/kernel/sched/core.c b/kernel/sched/core.c
  EXPORT_TRACEPOINT_SYMBOL_GPL(ipi_send_cpu);
  EXPORT_TRACEPOINT_SYMBOL_GPL(ipi_send_cpumask);
  
-@@ -8986,6 +8990,10 @@ void __init sched_init(void)
+@@ -8990,6 +8994,10 @@ void __init sched_init(void)
  	BUG_ON(!sched_class_above(&ext_sched_class, &idle_sched_class));
  #endif
  
@@ -190,7 +205,7 @@ diff -uNarp a/kernel/sched/core.c b/kernel/sched/core.c
 diff -uNarp a/kernel/sched/fair.c b/kernel/sched/fair.c
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -58,6 +58,10 @@
+@@ -61,6 +61,10 @@
  #include "stats.h"
  #include "autogroup.h"
  
@@ -201,7 +216,7 @@ diff -uNarp a/kernel/sched/fair.c b/kernel/sched/fair.c
  /*
   * The initial- and re-scaling of tunables is configurable
   *
-@@ -6321,6 +6325,16 @@ place_entity(struct cfs_rq *cfs_rq, stru
+@@ -6537,6 +6541,20 @@ place_entity(struct cfs_rq *cfs_rq, stru
  	 * EEVDF: vd_i = ve_i + r_i/w_i
  	 */
  	se->deadline = se->vruntime + vslice;
@@ -211,29 +226,29 @@ diff -uNarp a/kernel/sched/fair.c b/kernel/sched/fair.c
 +			entity_is_task(se) && (flags & ENQUEUE_WAKEUP)) {
 +		u64 credit = bore_credit_ns(task_of(se));
 +
-+		if (credit && se->deadline > credit)
-+			se->deadline -= credit;
++		if (credit) {
++			u64 vcredit = calc_delta_fair(credit, se);
++
++			if (se->deadline > vcredit)
++				se->deadline -= credit;
++		}
 +	}
 +#endif /* CONFIG_CACHY */
  }
  
  static void check_enqueue_throttle(struct cfs_rq *cfs_rq);
-@@ -8287,6 +8301,17 @@ static bool dequeue_task_fair(struct rq
+@@ -8444,6 +8462,13 @@ static bool dequeue_task_fair(struct rq
  	if (!p->se.sched_delayed)
  		util_est_dequeue(&rq->cfs, p);
  
 +#ifdef CONFIG_CACHY
 +	if (flags & DEQUEUE_SLEEP) {
-+		struct sched_entity *se = &p->se;
-+		if (entity_is_task(se)) {
-+			struct cfs_rq *cfs_rq = cfs_rq_of(se);
-+			if (cfs_rq->curr == se)
-+				update_curr(cfs_rq);
-+			bore_note_sleep(p, rq_clock(rq));
-+		}
++		if (rq->cfs.curr == &p->se)
++			update_curr_eevdf(&rq->cfs);
++		bore_note_sleep(p, rq_clock(rq));
 +	}
 +#endif /* CONFIG_CACHY */
- 	if (dequeue_entities(rq, &p->se, flags) < 0)
+ 	if (!__dequeue_task(rq, p, flags))
  		return false;
  
 diff -uNarp a/kernel/sched/Makefile b/kernel/sched/Makefile

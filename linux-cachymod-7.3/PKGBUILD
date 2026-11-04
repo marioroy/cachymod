@@ -157,7 +157,7 @@ _tagrel=1
 pkgver=${_major}.${_minor}
 
 pkgdesc='CachyMod Linux Kernel with other patches and improvements'
-pkgrel=2
+pkgrel=3
 _srcname=cachyos-${_major}.${_minor}-${_tagrel}
 _kernver="$pkgver-$pkgrel"
 _kernuname="${pkgver}-${_pkgsuffix}"
@@ -214,7 +214,7 @@ source=(
     "0300-x86-prevent-avx2-vector.patch"
 
     # The credit-sleep feature is applied unless detected BORE patch
-    "0350-bore-credit-sleep-7.0.0.patch"
+    "0350-bore-credit-sleep-7.0.1.patch"
 
     # This revert is applied only if detected a BORE patch
     "0360-fair-revert-cachy-mods.patch"
@@ -222,7 +222,7 @@ source=(
 
 # Use BORE
 if [[ "$_use_bore" =~ ^(yes|y|1)$ ]]; then
-    source+=("0370-bore-7.0.0.patch")
+    source+=("0370-bore-7.0.1.patch")
 fi
 
 # LLVM makedepends
