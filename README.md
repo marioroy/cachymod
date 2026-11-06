@@ -28,7 +28,7 @@ sudo pacman -Sy nvidia-dkms
 ## 🛠️ Building and Installation
 
 There are no binary packages. One builds the kernel with `build.sh`.
-The demonstrations are given for the 7.3 kernel.
+The demonstrations are given for the 7.4 kernel.
 
 ```bash
 # obtain CachyMod repo
@@ -39,20 +39,20 @@ cd cachymod
 mkdir -p ~/.config/cachymod
 
 # copy the build configs for a specific version or copy all
-cp defconfigs/7.3/*.conf ~/.config/cachymod/
+cp defconfigs/7.4/*.conf ~/.config/cachymod/
 cp defconfigs/*/*.conf ~/.config/cachymod/
 
 # the TUI tools require the gum package
 sudo pacman -S gum
 
 # make any adjustments with the confmod.sh TUI tool
-cd linux-cachymod-7.3
+cd linux-cachymod-7.4
 ../confmod.sh
 
 # build CachyMod kernel (includes installation)
 ./build.sh list  # to get a list of build configs
-./build.sh 73    # build kernel using the 73 config
-./build.sh 73 --noinstall   # skip installation
+./build.sh 74    # build kernel using the 74 config
+./build.sh 74 --noinstall   # skip installation
 ```
 
 To update, fetch the changes to automatically merge them into
@@ -78,8 +78,8 @@ sudo pacman -U linux-cachymod-[67dh]*.zst
 sudo pacman -U linux-cachymod-rt-[67dh]*.zst
 
 # with kernel tag
-sudo pacman -U linux-cachymod-73-[67dh]*.zst
-sudo pacman -U linux-cachymod-73-rt-[67dh]*.zst
+sudo pacman -U linux-cachymod-74-[67dh]*.zst
+sudo pacman -U linux-cachymod-74-rt-[67dh]*.zst
 ```
 
 ### Uninstall
@@ -129,7 +129,6 @@ _localmodcfg_minimal=yes
 
 # Opt-in for extra performance
 _buildtype=thin # or full
-_autofdo=yes
 ```
 
 *   If you're running CPU-intensive background tasks or make jobs, refer to **[linux-cgroup-always](https://github.com/marioroy/linux-cgroup-always)** for Ghostty-like `linux-cgroup = always` feature with your terminal emulator. This can be used with EEVDF/BORE and Real-time (RT) kernels.
