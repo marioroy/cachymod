@@ -51,7 +51,7 @@ diff -uNarp a/include/linux/sched.h b/include/linux/sched.h
  struct task_struct {
  #ifdef CONFIG_THREAD_INFO_IN_TASK
  	/*
-@@ -894,6 +900,9 @@ struct task_struct {
+@@ -896,6 +902,9 @@ struct task_struct {
  #ifdef CONFIG_SCHED_CLASS_EXT
  	struct sched_ext_entity		scx;
  #endif
@@ -64,7 +64,7 @@ diff -uNarp a/include/linux/sched.h b/include/linux/sched.h
 diff --git a/kernel/fork.c b/kernel/fork.c
 --- a/kernel/fork.c
 +++ b/kernel/fork.c
-@@ -2472,6 +2472,11 @@ __latent_entropy struct task_struct *copy_process(
+@@ -2480,6 +2480,11 @@ __latent_entropy struct task_struct *copy_process(
  	p->start_time = ktime_get_ns();
  	p->start_boottime = ktime_get_boottime_ns();
  
@@ -191,7 +191,7 @@ diff -uNarp a/kernel/sched/core.c b/kernel/sched/core.c
  EXPORT_TRACEPOINT_SYMBOL_GPL(ipi_send_cpu);
  EXPORT_TRACEPOINT_SYMBOL_GPL(ipi_send_cpumask);
  
-@@ -8924,6 +8928,10 @@ void __init sched_init(void)
+@@ -8931,6 +8935,10 @@ void __init sched_init(void)
  	BUG_ON(!sched_class_above(&ext_sched_class, &idle_sched_class));
  #endif
  
@@ -216,7 +216,7 @@ diff -uNarp a/kernel/sched/fair.c b/kernel/sched/fair.c
  /*
   * The initial- and re-scaling of tunables is configurable
   *
-@@ -6483,6 +6487,20 @@ place_entity(struct cfs_rq *cfs_rq, stru
+@@ -6488,6 +6492,20 @@ place_entity(struct cfs_rq *cfs_rq, stru
  	 * EEVDF: vd_i = ve_i + r_i/w_i
  	 */
  	se->deadline = se->vruntime + vslice;
@@ -237,7 +237,7 @@ diff -uNarp a/kernel/sched/fair.c b/kernel/sched/fair.c
  }
  
  static void check_enqueue_throttle(struct cfs_rq *cfs_rq);
-@@ -8392,6 +8410,13 @@ static bool dequeue_task_fair(struct rq
+@@ -8397,6 +8415,13 @@ static bool dequeue_task_fair(struct rq
  	if (!p->se.sched_delayed)
  		util_est_dequeue(&rq->cfs, p);
  

@@ -42,7 +42,7 @@ wakeups highly efficient.
 diff -uarp a/kernel/sched/features.h b/kernel/sched/features.h
 --- a/kernel/sched/features.h
 +++ b/kernel/sched/features.h
-@@ -79,7 +79,7 @@ SCHED_FEAT(HRTICK_DL, false)
+@@ -84,7 +84,7 @@ SCHED_FEAT(HRTICK_DL, false)
  SCHED_FEAT(NONTASK_CAPACITY, true)
  
  #ifdef CONFIG_PREEMPT_RT

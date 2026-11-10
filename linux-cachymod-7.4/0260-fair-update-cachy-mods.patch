@@ -68,7 +68,7 @@ Disable NI_RANDOM (newidle-balance) as default.
 diff -uarp a/kernel/sched/features.h b/kernel/sched/features.h
 --- a/kernel/sched/features.h
 +++ b/kernel/sched/features.h
-@@ -140,5 +140,5 @@ SCHED_FEAT(LATENCY_WARN, false)
+@@ -145,5 +145,5 @@ SCHED_FEAT(LATENCY_WARN, false)
  /*
   * Do newidle balancing proportional to its success rate using randomization.
   */
@@ -80,18 +80,21 @@ diff -uarp a/kernel/sched/features.h b/kernel/sched/features.h
 
 Disable DELAY_DEQUEUE as default.
 
-diff -uarp a/kernel/sched/features.h b/kernel/sched/features.h
---- a/kernel/sched/features.h
-+++ b/kernel/sched/features.h
-@@ -55,7 +55,7 @@ SCHED_FEAT(CACHE_HOT_BUDDY, true)
-  *
-  * DELAY_ZERO clips the lag on dequeue (or wakeup) to 0.
-  */
--SCHED_FEAT(DELAY_DEQUEUE, true)
-+SCHED_FEAT(DELAY_DEQUEUE, false)
- SCHED_FEAT(DELAY_ZERO, true)
- 
- SCHED_FEAT(PARANOID_AVG, false)
--- 
-2.53.0
+Adopted by CachyOS 7.4-rc2
+https://github.com/CachyOS/linux/commit/d3dd3a45029f02
+
+# diff -uarp a/kernel/sched/features.h b/kernel/sched/features.h
+# --- a/kernel/sched/features.h
+# +++ b/kernel/sched/features.h
+# @@ -55,7 +55,7 @@ SCHED_FEAT(CACHE_HOT_BUDDY, true)
+#   *
+#   * DELAY_ZERO clips the lag on dequeue (or wakeup) to 0.
+#   */
+# -SCHED_FEAT(DELAY_DEQUEUE, true)
+# +SCHED_FEAT(DELAY_DEQUEUE, false)
+#  SCHED_FEAT(DELAY_ZERO, true)
+#  
+#  SCHED_FEAT(PARANOID_AVG, false)
+# -- 
+# 2.53.0
 

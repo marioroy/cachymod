@@ -66,6 +66,8 @@ else
   : ${_use_bore:=no}
   : ${_cpusched:=eevdf}
   : ${_buildtype:=clang}
+  : ${_autofdo:=no}
+  : ${_autofdo_profile_name:=cachymod.afdo}
   : ${_hugepage:=auto}
   : ${_kernel_suffix:=}
   : ${_localmodcfg:=no}
@@ -100,7 +102,7 @@ export _preempt _processor_opt _prevent_avx2 _build_r8125 _build_debug
 export _extra_patch_or_url0 _extra_patch_or_url1 _extra_patch_or_url2
 export _extra_patch_or_url3 _extra_patch_or_url4 _extra_patch_or_url5
 export _extra_patch_or_url6 _extra_patch_or_url7 _extra_patch_or_url8
-export _extra_patch_or_url9
+export _extra_patch_or_url9 _autofdo _autofdo_profile_name
 
 if [[ "$NOINSTALL" -eq 0 ]]; then
   # Build and install the CachyMod kernel.

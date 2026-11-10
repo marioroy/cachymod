@@ -123,7 +123,7 @@ index 967ca52fb2..042327d822 100644
  
  		if (!idle_cpu(sibling))
  			return false;
-@@ -8756,7 +8767,13 @@ static bool is_idle_core(int cpu, struct task_struct *p)
+@@ -8761,7 +8772,13 @@ static bool is_idle_core(int cpu, struct task_struct *p)
  {
  	int sibling;
  
@@ -137,17 +137,17 @@ index 967ca52fb2..042327d822 100644
  		return choose_idle_cpu(cpu, p);
  
  	for_each_cpu(sibling, cpu_smt_mask(cpu))
-@@ -9191,6 +9208,9 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target, int sync)
+@@ -9196,6 +9213,9 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target, int sync)
  	    cpumask_test_cpu(recent_used_cpu, p->cpus_ptr)) {
  
  		if ((unsigned int)recent_used_cpu < nr_cpumask_bits &&
 +#ifdef CONFIG_SCHED_POC_SELECTOR
 +		    !static_branch_likely(&sched_poc_prefer_idle_smt) &&
 +#endif /* CONFIG_SCHED_POC_SELECTOR */
- 		    is_idle_core(recent_used_cpu, p))
+ 		    is_idle_core(recent_used_cpu, p)) {
  			return recent_used_cpu;
- 	} else {
-@@ -9278,6 +9298,39 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target, int sync)
+ 		}
+@@ -9284,6 +9304,40 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target, int sync)
  	if (!sd)
  		return target;
  
@@ -158,7 +158,8 @@ index 967ca52fb2..042327d822 100644
 +		 * Level 1: target CPU is core-idle → return (non-SMT)
 +		 * Preferred with varied apps and Shadow of the Tomb Raider
 +		 */
-+		if (is_idle_core(target, p)) {
++		if (!static_branch_likely(&sched_poc_prefer_idle_smt)
++				&& is_idle_core(target, p)) {
 +			return target;
 +		} else {
 +			/*
@@ -187,7 +188,7 @@ index 967ca52fb2..042327d822 100644
  	if (sched_smt_active()) {
  		has_idle_core = test_idle_cores(target);
  
-@@ -9302,6 +9355,9 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target, int sync)
+@@ -9308,6 +9362,9 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target, int sync)
  	 * first. But prev_cpu or recent_used_cpu may also be a good candidate,
  	 * use them if possible when no idle CPU found in select_idle_cpu().
  	 */

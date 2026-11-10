@@ -116,7 +116,9 @@ w! /sys/devices/system/cpu/cpuidle/current_governor - - - - teo
 
 ***
 
-## 📂 Optional Utilities & Developer Notes
+## 📂 Developer Notes & Optional Utilities
+
+*   I believe a great kernel is defined by what you leave out, not just what you put in. My philosophy for CachyMod is to maintain a carefully selected, thoroughly tested set of changes that serve a clear purpose. I do not believe that adding more features or a maximalist list of patches necessarily makes a better kernel. Any such external modifications are made entirely at your own risk.
 
 *   **[poc-extra folder](./poc-extra):** A collection of multi-function wrapper scripts designed to easily toggle **Piece-Of-Cake (POC) Custom** kernel scheduler features (`poc`, `poc-smt`, `poc-sticky`). These tools support automatic runtime execution wrapping (e.g., for Steam launch options) and clean state restoration upon exit. Includes an automated installer for passwordless `sudo` rights.
 
@@ -129,6 +131,7 @@ _localmodcfg_minimal=yes
 
 # Opt-in for extra performance
 _buildtype=thin # or full
+_autofdo=yes
 ```
 
 *   If you're running CPU-intensive background tasks or make jobs, refer to **[linux-cgroup-always](https://github.com/marioroy/linux-cgroup-always)** for Ghostty-like `linux-cgroup = always` feature with your terminal emulator. This can be used with EEVDF/BORE and Real-time (RT) kernels.

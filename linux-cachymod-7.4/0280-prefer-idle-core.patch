@@ -267,7 +267,7 @@ index 23596398abca9e..0d2ce4bfac8322 100644
  static unsigned long task_h_load(struct task_struct *p);
  static unsigned long capacity_of(int cpu);
  
-@@ -8071,7 +8071,7 @@ static int sched_idle_rq(struct rq *rq)
+@@ -8076,7 +8076,7 @@ static int sched_idle_rq(struct rq *rq)
  
  static int choose_sched_idle_rq(struct rq *rq, struct task_struct *p)
  {
@@ -276,7 +276,7 @@ index 23596398abca9e..0d2ce4bfac8322 100644
  }
  
  static int choose_idle_cpu(int cpu, struct task_struct *p)
-@@ -8750,6 +8750,24 @@ static inline int __select_idle_cpu(int cpu, struct task_struct *p)
+@@ -8755,6 +8755,24 @@ static inline int __select_idle_cpu(int cpu, struct task_struct *p)
  DEFINE_STATIC_KEY_FALSE(sched_smt_present);
  EXPORT_SYMBOL_GPL(sched_smt_present);
  
@@ -301,7 +301,7 @@ index 23596398abca9e..0d2ce4bfac8322 100644
  static inline void set_idle_cores(int cpu, int val)
  {
  	struct sched_domain_shared *sds;
-@@ -9158,13 +9176,29 @@ static inline bool asym_fits_cpu(unsigned long util,
+@@ -9163,13 +9181,30 @@ static inline bool asym_fits_cpu(unsigned long util,
  /*
   * Try and locate an idle core/thread in the LLC cache domain.
   */
@@ -323,8 +323,9 @@ index 23596398abca9e..0d2ce4bfac8322 100644
 +	    cpumask_test_cpu(recent_used_cpu, p->cpus_ptr)) {
 +
 +		if ((unsigned int)recent_used_cpu < nr_cpumask_bits &&
-+		    is_idle_core(recent_used_cpu, p))
++		    is_idle_core(recent_used_cpu, p)) {
 +			return recent_used_cpu;
++		}
 +	} else {
 +		recent_used_cpu = -1;
 +	}
@@ -332,16 +333,16 @@ index 23596398abca9e..0d2ce4bfac8322 100644
  	/*
  	 * On asymmetric system, update task utilization because we will check
  	 * that the task fits with CPU's capacity.
-@@ -9181,7 +9215,7 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target)
+@@ -9186,7 +9221,7 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target)
  	 */
  	lockdep_assert_irqs_disabled();
  
 -	if (choose_idle_cpu(target, p) &&
-+	if (sync && is_idle_core(target, p) &&
++	if (sync && choose_idle_cpu(target, p) &&
  	    asym_fits_cpu(task_util, util_min, util_max, target))
  		goto select_smt_priority;
  
-@@ -9218,26 +9252,6 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target)
+@@ -9223,26 +9258,6 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target)
  		goto select_smt_priority;
  	}
  
@@ -368,7 +369,7 @@ index 23596398abca9e..0d2ce4bfac8322 100644
  	/*
  	 * For asymmetric CPU capacity systems, our domain of interest is
  	 * sd_asym_cpucapacity rather than sd_llc.
-@@ -9985,8 +9999,16 @@ select_task_rq_fair(struct task_struct *p, int prev_cpu, int wake_flags)
+@@ -9990,8 +10005,16 @@ select_task_rq_fair(struct task_struct *p, int prev_cpu, int wake_flags)
  	}
  
  	/* Fast path */
@@ -387,7 +388,7 @@ index 23596398abca9e..0d2ce4bfac8322 100644
  
  	return new_cpu;
  }
-@@ -11982,7 +12004,7 @@ static bool sched_use_asym_prio(struct sched_domain *sd, int cpu)
+@@ -11994,7 +12017,7 @@ static bool sched_use_asym_prio(struct sched_domain *sd, int cpu)
  	if (!sched_smt_active())
  		return true;
  
@@ -413,7 +414,7 @@ diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
  
  		if (!idle_cpu(sibling))
  			return false;
-@@ -12004,7 +12002,7 @@ static bool sched_use_asym_prio(struct s
+@@ -12017,7 +12015,7 @@ static bool sched_use_asym_prio(struct s
  	if (!sched_smt_active())
  		return true;
  

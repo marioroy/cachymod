@@ -1,3 +1,6 @@
+CachyOS dkms-clang patch
+https://github.com/CachyOS/kernel-patches/tree/master/7.4/misc
+
 From 43f3ac9606e8dd2ff132478045122348dde22576 Mon Sep 17 00:00:00 2001
 From: Eric Naim <dnaim@cachyos.org>
 Date: Mon, 23 Feb 2026 12:22:31 +0800

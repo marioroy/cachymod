@@ -1,3 +1,6 @@
+CachyOS rt-i915 patch
+https://github.com/CachyOS/kernel-patches/tree/master/7.4/misc
+
 From 47c64e06e10dce05aeafe677ee0db17bb0586fc8 Mon Sep 17 00:00:00 2001
 From: Eric Naim <dnaim@cachyos.org>
 Date: Thu, 26 Mar 2026 12:43:13 +0800
