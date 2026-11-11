@@ -4,7 +4,8 @@ Revert Cachy mods, plus improve smoothness
 (1) Set scheduler tunable latencies to unscaled
 (2) Compute sched_base_slice
 (3) Decrease timer_slack_ns default
-(4) Disable sched/fair DELAY_DEQUEUE feature
+(4) Disable sched/fair NI_RANDOM feature (newidle-balance)
+(5) Disable sched/fair DELAY_DEQUEUE feature
 
 Signed-off-by: Mario Roy <>
 
@@ -61,6 +62,21 @@ diff -uarp a/init/init_task.c b/init/init_task.c
  #ifdef CONFIG_AUDIT
 -- 
 2.47.1
+
+Disable NI_RANDOM (newidle-balance) as default.
+
+diff -uarp a/kernel/sched/features.h b/kernel/sched/features.h
+--- a/kernel/sched/features.h
++++ b/kernel/sched/features.h
+@@ -145,5 +145,5 @@ SCHED_FEAT(LATENCY_WARN, false)
+ /*
+  * Do newidle balancing proportional to its success rate using randomization.
+  */
+-SCHED_FEAT(NI_RANDOM, true)
++SCHED_FEAT(NI_RANDOM, false)
+ SCHED_FEAT(NI_RATE, true)
+-- 
+2.53.0
 
 Disable DELAY_DEQUEUE as default.
 
