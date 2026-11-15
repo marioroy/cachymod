@@ -6,6 +6,7 @@ Revert Cachy mods, plus improve smoothness
 (3) Decrease timer_slack_ns default
 (4) Disable sched/fair DELAY_DEQUEUE feature
 (5) Restrict NI_RANDOM throttling to !SD_SHARE_LLC domains
+(6) Disable sched/fair NI_RATE feature
 
 Signed-off-by: Mario Roy <>
 
@@ -63,7 +64,7 @@ diff -uarp a/init/init_task.c b/init/init_task.c
 -- 
 2.47.1
 
-Disable DELAY_DEQUEUE as default.
+sched/fair: disable DELAY_DEQUEUE as default
 
 Adopted by CachyOS 7.4-rc2
 https://github.com/CachyOS/linux/commit/d3dd3a45029f02
@@ -172,6 +173,35 @@ diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
  				if (d1k > weight) {
  					update_newidle_stats(sd, 0);
  					continue;
+-- 
+2.53.0
+
+sched/fair: disable NI_RATE as default
+
+The above patch handles intra-CCD balancing immediately (SD_SHARE_LLC) and
+caps cross-CCD starvation via the 32/1024 floor. With that in place, NI_RATE
+is no longer needed as a fallback mechanism and only adds scheduler noise on
+multi-CCD topologies.
+
+ Configuration          Elapsed    CPU %    User     System   Invol CS
+ ---------------------------------------------------------------------
+ Stock NI_RANDOM         19.70s    1913%   375.03s    1.91s    242,332
+ Stock NO_NI_RANDOM      18.67s    2029%   374.63s    4.36s    840,725
+ Patched (NI_RANDOM)     18.43s    2038%   373.63s    2.25s    508,080
+ Plus disable NI_RATE    18.37s    2055%   375.67s    1.89s    446,661
+
+Assisted-by: Gemini LLM
+Signed-off-by: Mario Roy <>
+
+diff -uarp a/kernel/sched/features.h b/kernel/sched/features.h
+--- a/kernel/sched/features.h
++++ b/kernel/sched/features.h
+@@ -146,4 +146,4 @@ SCHED_FEAT(LATENCY_WARN, false)
+  * Do newidle balancing proportional to its success rate using randomization.
+  */
+ SCHED_FEAT(NI_RANDOM, true)
+-SCHED_FEAT(NI_RATE, true)
++SCHED_FEAT(NI_RATE, false)
 -- 
 2.53.0
 
