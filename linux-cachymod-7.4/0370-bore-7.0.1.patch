@@ -1374,7 +1374,7 @@ index cfc982205b..94599101db 100644
  	/*
  	 * Tell update_rq_clock() that we've just updated,
  	 * so we don't do microscopic update in schedule()
-@@ -15628,6 +15793,9 @@ static void switched_to_fair(struct rq *rq, struct task_struct *p)
+@@ -15647,6 +15812,9 @@ static void switched_to_fair(struct rq *rq, struct task_struct *p)
  	WARN_ON_ONCE(p->se.sched_delayed);
  
  	attach_task_cfs_rq(p);

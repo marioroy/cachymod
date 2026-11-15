@@ -4,8 +4,8 @@ Revert Cachy mods, plus improve smoothness
 (1) Set scheduler tunable latencies to unscaled
 (2) Compute sched_base_slice
 (3) Decrease timer_slack_ns default
-(4) Disable sched/fair NI_RANDOM feature (newidle-balance)
-(5) Disable sched/fair DELAY_DEQUEUE feature
+(4) Disable sched/fair DELAY_DEQUEUE feature
+(5) Restrict NI_RANDOM throttling to !SD_SHARE_LLC domains
 
 Signed-off-by: Mario Roy <>
 
@@ -63,21 +63,6 @@ diff -uarp a/init/init_task.c b/init/init_task.c
 -- 
 2.47.1
 
-Disable NI_RANDOM (newidle-balance) as default.
-
-diff -uarp a/kernel/sched/features.h b/kernel/sched/features.h
---- a/kernel/sched/features.h
-+++ b/kernel/sched/features.h
-@@ -145,5 +145,5 @@ SCHED_FEAT(LATENCY_WARN, false)
- /*
-  * Do newidle balancing proportional to its success rate using randomization.
-  */
--SCHED_FEAT(NI_RANDOM, true)
-+SCHED_FEAT(NI_RANDOM, false)
- SCHED_FEAT(NI_RATE, true)
--- 
-2.53.0
-
 Disable DELAY_DEQUEUE as default.
 
 Adopted by CachyOS 7.4-rc2
@@ -97,4 +82,96 @@ https://github.com/CachyOS/linux/commit/d3dd3a45029f02
 #  SCHED_FEAT(PARANOID_AVG, false)
 # -- 
 # 2.53.0
+
+sched/fair: Restrict NI_RANDOM throttling to !SD_SHARE_LLC domains
+
+On multi-LLC (multi-CCD) topologies, applying NI_RANDOM probabilistic
+throttling across all scheduling domains starves intra-LLC cores of
+work and allows sd->newidle_ratio to collapse toward zero during bursty
+multi-threaded workloads.
+
+Make three targeted adjustments to sched_balance_newidle():
+
+ 1. Abort the domain walk early if ttwu_pending or cfs.h_nr_queued
+    becomes set while unlocked, avoiding remote pull collisions and
+    unnecessary involuntary preemptions.
+
+ 2. Bypass NI_RANDOM inside SD_SHARE_LLC domains (SMT/MC) where scans
+    are cheap and the L3 cache is shared.
+
+ 3. Clamp the minimum NI_RANDOM check weight to 32/1024 (~3.1%) on
+    !SD_SHARE_LLC domains so cross-LLC bursts are rescued promptly
+    while preserving decay via update_newidle_stats(sd, 0).
+
+Benchmark on AMD Threadripper 9960X (24C/48T, 4 CCDs, NPS1, performance
+governor @ 3.625 GHz min, teo cpuidle, libx264 1080p medium 42 threads):
+
+ /usr/bin/time -v ffmpeg \
+    -hide_banner -loglevel error \
+    -i 2026-10-03_02-46-32.mkv \
+    -map 0:v:0 \
+    -vf "scale=1920:1080" \
+    -c:v libx264 -preset medium -profile:v high \
+    -b:v 8000k -maxrate 8000k -bufsize 8000k \
+    -g 120 -keyint_min 120 -sc_threshold 0 \
+    -x264-params aq-mode=2:me=umh:direct=auto:rc-lookahead=50:subme=8 \
+    -threads 42 \
+    -an -sn \
+    -f null -
+
+ Configuration          Elapsed    CPU %    User     System   Invol CS
+ ---------------------------------------------------------------------
+ Stock NI_RANDOM         19.70s    1913%   375.03s    1.91s    242,332
+ Stock NO_NI_RANDOM      18.67s    2029%   374.63s    4.36s    840,725
+ Patched (NI_RANDOM)     18.43s    2038%   373.63s    2.25s    508,080
+ Patched + poc-smt -d    18.03s    2094%   376.24s    1.51s     81,044
+
+ Patched NI_RANDOM outperforms stock NO_NI_RANDOM in wall-clock elapsed
+ time (18.43s vs. 18.67s) while cutting system time by 48% (2.25s vs.
+ 4.36s) and involuntary context switches by 40% (508k vs. 840k).
+
+Assisted-by: Gemini LLM
+Signed-off-by: Mario Roy <>
+
+diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -14955,14 +14955,33 @@ static int sched_balance_newidle(struct
+ 		if (sd->flags & SD_BALANCE_NEWIDLE) {
+ 			unsigned int weight = 1;
+ 
+-			if (sched_feat(NI_RANDOM) && sd->newidle_ratio < 1024) {
++			/*
++			 * While unlocked or scanning lower domains, a local
++			 * wakeup may already be queued or pending on this_rq.
++			 * Stop pulling remote tasks to avoid collisions and
++			 * involuntary preemptions.
++			 */
++			if (this_rq->ttwu_pending ||
++			    READ_ONCE(this_rq->cfs.h_nr_queued)) {
++				break;
++			}
++
++			/*
++			 * Always run newidle immediately within the local L3
++			 * domain (SMT/MC). Only throttle cross-CCD (DIE) scans
++			 * where !SD_SHARE_LLC, with a 32/1024 (~3.1%) floor.
++			 */
++			if (sched_feat(NI_RANDOM) &&
++			    !(sd->flags & SD_SHARE_LLC) &&
++			    sd->newidle_ratio < 1024) {
+ 				/*
+ 				 * Throw a 1k sided dice; and only run
+ 				 * newidle_balance according to the success
+ 				 * rate.
+ 				 */
+ 				u32 d1k = sched_rng() % 1024;
+-				weight = 1 + sd->newidle_ratio;
++				weight = clamp_t(unsigned int,
++						 1 + sd->newidle_ratio, 32, 1024);
+ 				if (d1k > weight) {
+ 					update_newidle_stats(sd, 0);
+ 					continue;
+-- 
+2.53.0
 
