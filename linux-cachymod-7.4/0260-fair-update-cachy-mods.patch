@@ -187,8 +187,12 @@ multi-CCD topologies.
  ---------------------------------------------------------------------
  Stock NI_RANDOM         19.70s    1913%   375.03s    1.91s    242,332
  Stock NO_NI_RANDOM      18.67s    2029%   374.63s    4.36s    840,725
+
  Patched (NI_RANDOM)     18.43s    2038%   373.63s    2.25s    508,080
- Plus disable NI_RATE    18.37s    2055%   375.67s    1.89s    446,661
+ Plus NO_NI_RATE         18.37s    2055%   375.67s    1.89s    446,661
+
+ Patched + poc-smt -d    18.03s    2094%   376.24s    1.51s     81,044
+ Plus NO_NI_RATE         17.99s    2108%   378.00s    1.52s     82,174
 
 Assisted-by: Gemini LLM
 Signed-off-by: Mario Roy <>
