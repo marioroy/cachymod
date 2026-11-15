@@ -194,6 +194,28 @@ multi-CCD topologies.
  Patched + poc-smt -d    18.03s    2094%   376.24s    1.51s     81,044
  Plus NO_NI_RATE         17.99s    2108%   378.00s    1.52s     82,174
 
+Additionally, validated against the easyWave tsunami simulation benchmark
+(which originally exposed the NI_RANDOM newidle_ratio collapse on LKML):
+
+ OMP_NUM_THREADS=<N> ./src/easywave \
+    -grid examples/e2Asean.grd -source examples/BengkuluSept2007.flt \
+    -time 1200
+
+ Configuration (Threadripper 9960X)         Threads   05:00:00    10:00:00
+ -------------------------------------------------------------------------
+ Pre-NI_RANDOM baseline (6.12.63 / 6.18.3)     48     2,908 ms         N/A
+ Stock NI_RANDOM regression (6.12.66 / 6.18.6) 48    13,057 ms         N/A
+ Patched NO_NI_RANDOM (7.4-rc2)                48     2,279 ms    9,827 ms
+ Patched NI_RANDOM + NI_RATE (7.4-rc2)         48     3,227 ms   11,759 ms
+ Patched NI_RANDOM + NO_NI_RATE (7.4-rc2)      48     4,796 ms   13,743 ms
+ Patched NI_RANDOM + NO_NI_RATE (7.4-rc2)      24     1,924 ms    9,108 ms
+
+While NI_RATE helps synthetic 100% SMT lockstep barriers (48 threads),
+NO_NI_RATE achieves the fastest overall throughput at physical core count
+(24 threads: 1,924 ms vs. 2,908 ms pre-regression) and outperforms across
+real-world multi-threaded workloads (libaom, x265, libx264, Geekbench 6,
+and partial-load desktop usage) without cross-CCD migration noise.
+
 Assisted-by: Gemini LLM
 Signed-off-by: Mario Roy <>
 
