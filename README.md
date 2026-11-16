@@ -118,7 +118,7 @@ w! /sys/devices/system/cpu/cpuidle/current_governor - - - - teo
 
 ## 📂 Developer Notes & Optional Utilities
 
-*   I believe a great kernel is defined by what you leave out, not just what you put in. My philosophy for CachyMod is to maintain a carefully selected, thoroughly tested set of changes that serve a clear purpose. I do not believe that adding more features or a maximalist list of patches necessarily makes a better kernel. Any such external modifications are made entirely at your own risk.
+*   I believe a great kernel is defined by what you leave out, not just what you put in. My goal for CachyMod is to provide a rock-solid, thoroughly vetted baseline where every included patch serves a clear, proven purpose. Rather than chasing a maximalist list of experimental tweaks, I only merge changes that I can personally stand behind. If you want to experiment with third-party patch lists, `_extra_patch_or_url` is always there for you to test things on your own terms—just keep in mind that external patches fall outside of CachyMod's tested baseline.
 
 *   **[poc-extra folder](./poc-extra):** A collection of multi-function wrapper scripts designed to easily toggle **Piece-Of-Cake (POC) Custom** kernel scheduler features (`poc`, `poc-smt`, `poc-sticky`). These tools support automatic runtime execution wrapping (e.g., for Steam launch options) and clean state restoration upon exit. Includes an automated installer for passwordless `sudo` rights.
 
