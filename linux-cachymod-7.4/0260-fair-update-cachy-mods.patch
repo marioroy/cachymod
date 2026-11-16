@@ -7,7 +7,7 @@ Revert Cachy mods, plus improve smoothness
 (4) Disable sched/fair DELAY_DEQUEUE feature
 (5) Restrict NI_RANDOM throttling to !SD_SHARE_LLC domains
 (6) Disable sched/fair NI_RATE feature
-(7) Reduce newidle_ratio sample window to 512 (32/512 floor)
+(7) Reduce newidle_ratio sample window to 512 (16/512 floor)
 
 Signed-off-by: Mario Roy <>
 
@@ -232,30 +232,31 @@ diff -uarp a/kernel/sched/features.h b/kernel/sched/features.h
 -- 
 2.53.0
 
-sched/fair: Reduce newidle_ratio sample window to 512 (32/512 floor)
+sched/fair: Reduce newidle_ratio sample window to 512 (16/512 floor)
 
 Halve the update_newidle_stats() sample window from 1024 to 512 calls
-(adjusting the time-decay shift to delta >> 23) and raise the minimum
-!SD_SHARE_LLC check weight to 32/512 (exact 1/16 = 6.25% floor).
+(adjusting the time-decay shift to delta >> 23) and set the minimum
+!SD_SHARE_LLC check weight to 16/512 (exact 1/32 = 3.125% floor).
 
 This cuts adaptation lag in half when workloads transition between idle
-and active states while doubling the baseline cross-CCD rescue rate—
-improving worst-case 48-thread OpenMP barrier latency and interactive
-GUI responsiveness without adding involuntary context switch churn.
+and active states while preserving the ~3.125% baseline cross-CCD rescue
+rate—improving worst-case 48-thread OpenMP barrier latency, memory-bound
+streaming throughput, and interactive GUI responsiveness without adding
+involuntary context switch churn.
 
 Benchmark comparison:
-(1024 window @ 3.1% vs. 512 window @ 6.25%, NO_NI_RATE)
+(1024 window @ 3.1% vs. 512 window @ 3.1%, NO_NI_RATE)
 
  Workload / Metric                    1024 Window    512 Window
  --------------------------------------------------------------
- easyWave 48T (05:00:00)                 4,796 ms      4,356 ms
- easyWave 48T (10:00:00)                13,743 ms     12,814 ms
- easyWave 24T (05:00:00)                 1,924 ms      2,005 ms
- easyWave 24T (10:00:00)                 9,108 ms      9,512 ms
- ffmpeg 42T smt=1 (Elapsed)                18.37s        18.61s
- ffmpeg 42T smt=1 (Invol CS)              446,661       448,974
- ffmpeg 42T poc-smt -d (Elapsed)           17.99s        18.02s
- ffmpeg 42T poc-smt -d (Invol CS)          82,174        81,237
+ easyWave 48T (05:00:00)                 4,796 ms      3,467 ms
+ easyWave 48T (10:00:00)                13,743 ms     11,898 ms
+ easyWave 24T (05:00:00)                 1,924 ms      1,908 ms
+ easyWave 24T (10:00:00)                 9,108 ms      9,228 ms
+ ffmpeg 42T smt=1 (Elapsed)                18.37s        18.41s
+ ffmpeg 42T smt=1 (Invol CS)              446,661       446,887
+ ffmpeg 42T poc-smt -d (Elapsed)           17.99s        17.92s
+ ffmpeg 42T poc-smt -d (Invol CS)          82,174        80,906
 
 Assisted-by: Gemini LLM
 Signed-off-by: Mario Roy <>
@@ -303,7 +304,7 @@ diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
  			 * Always run newidle immediately within the local L3
  			 * domain (SMT/MC). Only throttle cross-CCD (DIE) scans
 -			 * where !SD_SHARE_LLC, with a 32/1024 (~3.1%) floor.
-+			 * where !SD_SHARE_LLC, with a 32/512 (~6.2%) floor.
++			 * where !SD_SHARE_LLC, with a 16/512 (~3.1%) floor.
  			 */
  			if (sched_feat(NI_RANDOM) &&
  			    !(sd->flags & SD_SHARE_LLC) &&
@@ -319,7 +320,7 @@ diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
 +				u32 d512 = sched_rng() % 512;
  				weight = clamp_t(unsigned int,
 -						 1 + sd->newidle_ratio, 32, 1024);
-+						 1 + sd->newidle_ratio, 32, 512);
++						 1 + sd->newidle_ratio, 16, 512);
 -				if (d1k > weight) {
 +				if (d512 > weight) {
  					update_newidle_stats(sd, 0);
