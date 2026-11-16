@@ -135,47 +135,50 @@ governor @ 3.625 GHz min, teo cpuidle, libx264 1080p medium 42 threads):
 Assisted-by: Gemini LLM
 Signed-off-by: Mario Roy <>
 
-diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
---- a/kernel/sched/fair.c
-+++ b/kernel/sched/fair.c
-@@ -14955,14 +14955,33 @@ static int sched_balance_newidle(struct
- 		if (sd->flags & SD_BALANCE_NEWIDLE) {
- 			unsigned int weight = 1;
- 
--			if (sched_feat(NI_RANDOM) && sd->newidle_ratio < 1024) {
-+			/*
-+			 * While unlocked or scanning lower domains, a local
-+			 * wakeup may already be queued or pending on this_rq.
-+			 * Stop pulling remote tasks to avoid collisions and
-+			 * involuntary preemptions.
-+			 */
-+			if (this_rq->ttwu_pending ||
-+			    READ_ONCE(this_rq->cfs.h_nr_queued)) {
-+				break;
-+			}
-+
-+			/*
-+			 * Always run newidle immediately within the local L3
-+			 * domain (SMT/MC). Only throttle cross-CCD (DIE) scans
-+			 * where !SD_SHARE_LLC, with a 32/1024 (~3.1%) floor.
-+			 */
-+			if (sched_feat(NI_RANDOM) &&
-+			    !(sd->flags & SD_SHARE_LLC) &&
-+			    sd->newidle_ratio < 1024) {
- 				/*
- 				 * Throw a 1k sided dice; and only run
- 				 * newidle_balance according to the success
- 				 * rate.
- 				 */
- 				u32 d1k = sched_rng() % 1024;
--				weight = 1 + sd->newidle_ratio;
-+				weight = clamp_t(unsigned int,
-+						 1 + sd->newidle_ratio, 32, 1024);
- 				if (d1k > weight) {
- 					update_newidle_stats(sd, 0);
- 					continue;
--- 
-2.53.0
+Adopted by CachyOS 7.4-rc3
+https://github.com/CachyOS/linux/commit/822f78a2e832ee
+
+# diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
+# --- a/kernel/sched/fair.c
+# +++ b/kernel/sched/fair.c
+# @@ -14955,14 +14955,33 @@ static int sched_balance_newidle(struct
+#  		if (sd->flags & SD_BALANCE_NEWIDLE) {
+#  			unsigned int weight = 1;
+#  
+# -			if (sched_feat(NI_RANDOM) && sd->newidle_ratio < 1024) {
+# +			/*
+# +			 * While unlocked or scanning lower domains, a local
+# +			 * wakeup may already be queued or pending on this_rq.
+# +			 * Stop pulling remote tasks to avoid collisions and
+# +			 * involuntary preemptions.
+# +			 */
+# +			if (this_rq->ttwu_pending ||
+# +			    READ_ONCE(this_rq->cfs.h_nr_queued)) {
+# +				break;
+# +			}
+# +
+# +			/*
+# +			 * Always run newidle immediately within the local L3
+# +			 * domain (SMT/MC). Only throttle cross-CCD (DIE) scans
+# +			 * where !SD_SHARE_LLC, with a 32/1024 (~3.1%) floor.
+# +			 */
+# +			if (sched_feat(NI_RANDOM) &&
+# +			    !(sd->flags & SD_SHARE_LLC) &&
+# +			    sd->newidle_ratio < 1024) {
+#  				/*
+#  				 * Throw a 1k sided dice; and only run
+#  				 * newidle_balance according to the success
+#  				 * rate.
+#  				 */
+#  				u32 d1k = sched_rng() % 1024;
+# -				weight = 1 + sd->newidle_ratio;
+# +				weight = clamp_t(unsigned int,
+# +						 1 + sd->newidle_ratio, 32, 1024);
+#  				if (d1k > weight) {
+#  					update_newidle_stats(sd, 0);
+#  					continue;
+# -- 
+# 2.53.0
 
 sched/fair: disable NI_RATE as default
 
@@ -220,17 +223,20 @@ and partial-load desktop usage) without cross-CCD migration noise.
 Assisted-by: Gemini LLM
 Signed-off-by: Mario Roy <>
 
-diff -uarp a/kernel/sched/features.h b/kernel/sched/features.h
---- a/kernel/sched/features.h
-+++ b/kernel/sched/features.h
-@@ -146,4 +146,4 @@ SCHED_FEAT(LATENCY_WARN, false)
-  * Do newidle balancing proportional to its success rate using randomization.
-  */
- SCHED_FEAT(NI_RANDOM, true)
--SCHED_FEAT(NI_RATE, true)
-+SCHED_FEAT(NI_RATE, false)
--- 
-2.53.0
+Adopted by CachyOS 7.4-rc3
+https://github.com/CachyOS/linux/commit/822f78a2e832ee
+
+# diff -uarp a/kernel/sched/features.h b/kernel/sched/features.h
+# --- a/kernel/sched/features.h
+# +++ b/kernel/sched/features.h
+# @@ -146,4 +146,4 @@ SCHED_FEAT(LATENCY_WARN, false)
+#   * Do newidle balancing proportional to its success rate using randomization.
+#   */
+#  SCHED_FEAT(NI_RANDOM, true)
+# -SCHED_FEAT(NI_RATE, true)
+# +SCHED_FEAT(NI_RATE, false)
+# -- 
+# 2.53.0
 
 sched/fair: Reduce newidle_ratio sample window to 512 (16/512 floor)
 
@@ -264,7 +270,7 @@ Signed-off-by: Mario Roy <>
 diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -14204,7 +14204,7 @@ static inline void update_newidle_stats(
+@@ -14210,7 +14210,7 @@ static inline void update_newidle_stats(
  	sd->newidle_call++;
  	sd->newidle_success += success;
  
@@ -273,7 +279,7 @@ diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
  		u64 now = sched_clock();
  		s64 delta = now - sd->newidle_stamp;
  		sd->newidle_stamp = now;
-@@ -14217,18 +14217,18 @@ static inline void update_newidle_stats(
+@@ -14223,18 +14223,18 @@ static inline void update_newidle_stats(
  			/*
  			 * ratio  delta   freq
  			 *
@@ -299,7 +305,7 @@ diff -uarp a/kernel/sched/fair.c b/kernel/sched/fair.c
  		sd->newidle_call /= 2;
  		sd->newidle_success /= 2;
  	}
-@@ -14969,24 +14969,24 @@ static int sched_balance_newidle(struct
+@@ -14975,24 +14975,24 @@ static int sched_balance_newidle(struct
  			/*
  			 * Always run newidle immediately within the local L3
  			 * domain (SMT/MC). Only throttle cross-CCD (DIE) scans

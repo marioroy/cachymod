@@ -81,7 +81,7 @@ Signed-off-by: Mario Roy <>
 diff -uarp a/net/core/net_namespace.c b/net/core/net_namespace.c
 --- a/net/core/net_namespace.c
 +++ b/net/core/net_namespace.c
-@@ -430,7 +430,7 @@ static __net_init void preinit_net(struc
+@@ -435,7 +435,7 @@ static __net_init void preinit_net(struc
  /*
   * setup_net runs the initializers for the network namespace object.
   */

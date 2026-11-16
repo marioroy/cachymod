@@ -152,12 +152,12 @@ fi
 _pkgsuffix=cachymod
 _major=7.4
 _minor=0
-_tagrel=2
-_rcver="rc2"
+_tagrel=1
+_rcver="rc3"
 pkgver=${_major}.${_rcver}
 
 pkgdesc='CachyMod Linux Kernel with other patches and improvements'
-pkgrel=7
+pkgrel=1
 #_srcname=cachyos-${_major}.${_minor}-${_tagrel}
 _srcname=cachyos-${_major}-${_rcver}-${_tagrel}
 _kernver="$pkgver-$pkgrel"
@@ -392,10 +392,6 @@ prepare() {
 
     echo "Enabling CachyOS config..."
     scripts/config -e CACHY
-
-    echo "Disabling RUST for now..."
-    echo "Due to RUST update: unknown unstable option: profile-sample-use"
-    scripts/config -d RUST
 
     ### Selecting the CPU scheduler
     case "$_cpusched" in
