@@ -157,7 +157,7 @@ _rcver="rc3"
 pkgver=${_major}.${_rcver}
 
 pkgdesc='CachyMod Linux Kernel with other patches and improvements'
-pkgrel=1
+pkgrel=2
 #_srcname=cachyos-${_major}.${_minor}-${_tagrel}
 _srcname=cachyos-${_major}-${_rcver}-${_tagrel}
 _kernver="$pkgver-$pkgrel"
@@ -178,6 +178,9 @@ source=(
     "config"
     "config.sh"
     "minimal-modprobed.db"  # used if _localmodcfg=yes and _localmodcfg_minimal=yes
+
+    # Revert the CachyOS 7.4-rc3 mglru-fg branch
+    "0000-revert-mglru-fg-branch.patch"
 
     # assoc_array: clean up library
     "0000-assoc-array-fixes.patch"
