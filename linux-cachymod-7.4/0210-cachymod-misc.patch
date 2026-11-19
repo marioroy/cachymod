@@ -401,6 +401,76 @@ index 0cf94c7a2c9c..20450f7a0c92 100644
 -- 
 2.40.2
 
+sched/uclamp: Fix race condition leading to imbalanced uclamp_rq
+https://lore.kernel.org/all/20261103005953.56271-2-qyousef@layalina.io/
+
+diff --git a/kernel/sched/core.c b/kernel/sched/core.c
+index d7c3b43158dea..c6780358a7975 100644
+--- a/kernel/sched/core.c
++++ b/kernel/sched/core.c
+@@ -2111,7 +2111,7 @@ static void uclamp_post_fork(struct task_struct *p)
+ 	uclamp_update_util_min_rt_default(p);
+ }
+ 
+-static void __init init_uclamp_rq(struct rq *rq)
++void init_uclamp_rq(struct rq *rq)
+ {
+ 	enum uclamp_id clamp_id;
+ 	struct uclamp_rq *uc_rq = rq->uclamp;
+diff --git a/kernel/sched/idle.c b/kernel/sched/idle.c
+index 76f3c84ca6846..84301fc49e699 100644
+--- a/kernel/sched/idle.c
++++ b/kernel/sched/idle.c
+@@ -506,6 +506,25 @@ static void set_next_task_idle(struct rq *rq, struct task_struct *next, enum snt
+ 	 * lost_idle_time of clock_pelt
+ 	 */
+ 	update_idle_rq_clock_pelt(rq);
++
++	/*
++	 * Due to a race condition when enabling sched_uclamp_used static key,
++	 * we can end up with imbalance where uclamp_rq_inc_id() has happened
++	 * on a CPU without uclamp_rq_dec_id() on another CPU that hasn't seen
++	 * the static key flipped. The race condition is unlikely, but ensure
++	 * the uclamp_rq() state is set properly on each entry to idle.
++	 *
++	 * The reset will cause the uclamp_max from uclamp_idle_value() to be
++	 * lost. Since we are imbalanced, hard to know what is right. So just
++	 * cleanup. This should be a transient error state once we recover
++	 * everything should work as expected.
++	 *
++	 * We need to be careful of some paths that can force idle with tasks
++	 * are still queued.
++	 */
++	if (uclamp_is_used() &&
++	    !rq->nr_running && unlikely(!uclamp_rq_is_idle(rq)))
++		init_uclamp_rq(rq);
+ }
+ 
+ struct task_struct *pick_task_idle(struct rq *rq, struct rq_flags *rf)
+diff --git a/kernel/sched/sched.h b/kernel/sched/sched.h
+index 7d2ec527b8a25..d87bdbd2121df 100644
+--- a/kernel/sched/sched.h
++++ b/kernel/sched/sched.h
+@@ -3739,6 +3739,7 @@ static inline unsigned long cpu_util_rt(struct rq *rq)
+ #ifdef CONFIG_UCLAMP_TASK
+ 
+ unsigned long uclamp_eff_value(struct task_struct *p, enum uclamp_id clamp_id);
++void init_uclamp_rq(struct rq *rq);
+ 
+ /*
+  * When uclamp is compiled in, the aggregation at rq level is 'turned off'
+@@ -3837,6 +3838,8 @@ uclamp_eff_value(struct task_struct *p, enum uclamp_id clamp_id)
+ 	return SCHED_CAPACITY_SCALE;
+ }
+ 
++static inline void init_uclamp_rq(struct rq *rq) {}
++
+ static inline bool uclamp_rq_is_capped(struct rq *rq) { return false; }
+ 
+ static inline bool uclamp_is_used(void)
+-- 
+2.53.0
+
 sched/eevdf: Fix vprot across reweighting
 https://lore.kernel.org/all/20261016153721.7843-1-kayracizmeci@gmail.com/
 
