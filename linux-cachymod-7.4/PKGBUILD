@@ -77,7 +77,8 @@
 
 # Select CPU compiler optimization
 # { generic, generic_v1, generic_v2, generic_v3, generic_v4, native, other }
-# { westmere, haswell, skylake, raptorlake, meteorlake, k10, zen2, zen3, zen4, zen5 }
+# { westmere, haswell, skylake, tigerlake, raptorlake, meteorlake }
+# { k10, zen2, zen3, zen4, zen5 }
 # For the "other" selection, set the processor UARCH via custom.sh or makenconfig
 # Example custom.sh line: scripts/config -d GENERIC_CPU -e MTIGERLAKE
 : ${_processor_opt:=native}
