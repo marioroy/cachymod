@@ -10,7 +10,7 @@ for ARG in "$@"; do
   if [[ "$ARG" = *"="* ]]; then
     KEY="${ARG%%=*}" VALUE="${ARG#*=}"
     export "$KEY"="$VALUE"
-  elif [[ "$ARG" = "--noinstall" ]]; then
+  elif [[ "$ARG" = "--noinstall" || "$ARG" = "--no-install" ]]; then
     NOINSTALL=1
   else
     ARGS+=("$ARG")
