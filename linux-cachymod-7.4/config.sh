@@ -153,7 +153,6 @@ scripts/config -d CFG80211_DEBUGFS
 scripts/config -d CIFS_DEBUG
 scripts/config -d CIFS_DEBUG2
 scripts/config -d CIFS_DEBUG_DUMP_KEYS
-scripts/config -d CMA_DEBUGFS
 scripts/config -d CROS_EC_DEBUGFS
 scripts/config -d CRYPTO_DEV_AMLOGIC_GXL_DEBUG
 scripts/config -d CRYPTO_DEV_CCP_DEBUGFS
@@ -233,9 +232,6 @@ if [[ $(uname -m) = *"x86"* ]]; then
     ### Disable support for memory balloon compaction.
     scripts/config -d BALLOON_COMPACTION
 
-    ### Disable the Contiguous Memory Allocator.
-    scripts/config -d CMA
-
     ### Disable DAMON: Data Access Monitoring Framework.
     scripts/config -d DAMON
 
@@ -259,12 +255,6 @@ if [[ $(uname -m) = *"x86"* ]]; then
 
     ### Disable the general notification queue.
     scripts/config -d WATCH_QUEUE
-
-    ### Disable PCI Express ASPM L0s and L1, even if the BIOS enabled them.
-    scripts/config -d PCIEASPM_DEFAULT -e PCIEASPM_PERFORMANCE
-
-    ### Disable workqueue power-efficient mode by default.
-    scripts/config -d WQ_POWER_EFFICIENT_DEFAULT
 
     ### Set the default state of memory_corruption_check to off.
     scripts/config -d X86_BOOTPARAM_MEMORY_CORRUPTION_CHECK
@@ -300,9 +290,6 @@ if [[ $(uname -m) = *"x86"* ]]; then
 
     ### Disable low-overhead sampling-based memory safety error detector.
     scripts/config -d KFENCE
-
-    ### Disable utilization clamping for RT/FAIR tasks.
-    scripts/config -d UCLAMP_TASK
 
     ### Disable CGROUP controllers.
     scripts/config -d CGROUP_HUGETLB
