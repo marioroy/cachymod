@@ -68,7 +68,7 @@ diff --git a/kernel/fork.c b/kernel/fork.c
  	p->start_time = ktime_get_ns();
  	p->start_boottime = ktime_get_boottime_ns();
  
-+#ifdef CONFIG_SCHED_BORE
++#ifdef CONFIG_CACHY
 +	if (likely(p->pid))
 +		p->bore.credit_sleep = 0;
 +#endif /* CONFIG_SCHED_BORE */
@@ -230,7 +230,7 @@ diff -uNarp a/kernel/sched/fair.c b/kernel/sched/fair.c
 +			u64 vcredit = calc_delta_fair(credit, se);
 +
 +			if (se->deadline > vcredit)
-+				se->deadline -= credit;
++				se->deadline -= vcredit;
 +		}
 +	}
 +#endif /* CONFIG_CACHY */
