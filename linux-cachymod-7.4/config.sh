@@ -291,6 +291,10 @@ if [[ $(uname -m) = *"x86"* ]]; then
     ### Disable low-overhead sampling-based memory safety error detector.
     scripts/config -d KFENCE
 
+    ### Disable utilization clamping for RT/FAIR tasks.
+    ### Override via "custom.sh" for Homogeneous Architecture.
+    scripts/config -d UCLAMP_TASK
+
     ### Disable CGROUP controllers.
     scripts/config -d CGROUP_HUGETLB
     scripts/config -d CGROUP_NET_PRIO

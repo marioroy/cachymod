@@ -15,6 +15,17 @@
 
 set -e
 
+# Utilization clamping (uclamp) is designed primarily to bias task
+# placement on asymmetric, heterogeneous CPUs—such as ARM big.LITTLE
+# or newer Intel hybrid chips with Performance and Efficiency cores
+# (Alder Lake and newer).
+#scripts/config -e UCLAMP_TASK
+
+# If running VMware closed-source host modules (vmmon and vmnet),
+# these are needed for the VMware closed-source drivers.
+#scripts/config -e X86_VSYSCALL_EMULATION
+#scripts/config -e X86_IOPL_IOPERM
+
 # Disable dynamic kernel debugging messages support
 # https://www.kernel.org/doc/html/latest/admin-guide/dynamic-debug-howto.html
 #scripts/config -d DYNAMIC_DEBUG
@@ -24,11 +35,6 @@ set -e
 # https://utcc.utoronto.ca/~cks/space/blog/linux/TaskDelayAccountingNotes
 # https://www.reddit.com/r/linuxquestions/comments/1b6bijd/downsides_to_kerneltask_delayacct/
 #scripts/config -d TASK_DELAY_ACCT
-
-# If running VMware closed-source host modules (vmmon and vmnet),
-# these are needed for the VMware closed-source drivers.
-#scripts/config -e X86_VSYSCALL_EMULATION
-#scripts/config -e X86_IOPL_IOPERM
 
 # Disable staging drivers
 # Drivers that are not of the "normal" Linux kernel quality level
