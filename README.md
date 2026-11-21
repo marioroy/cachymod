@@ -120,8 +120,6 @@ w! /sys/devices/system/cpu/cpuidle/current_governor - - - - teo
 
 *   I believe a great kernel is defined by what you leave out, not just what you put in. My goal for CachyMod is to provide a rock-solid, thoroughly vetted baseline where every included patch serves a clear, proven purpose. Rather than chasing a maximalist list of experimental tweaks, I only merge changes that I can personally stand behind. If you want to experiment with third-party patch lists, `_extra_patch_or_url` is always there for you to test things on your own terms—just keep in mind that external patches fall outside of CachyMod's tested baseline.
 
-*   **[poc-extra folder](./poc-extra):** A collection of multi-function wrapper scripts designed to easily toggle **Piece-Of-Cake (POC) Custom** kernel scheduler features (`poc`, `poc-smt`, `poc-sticky`). These tools support automatic runtime execution wrapping (e.g., for Steam launch options) and clean state restoration upon exit. Includes an automated installer for passwordless `sudo` rights.
-
 *   **Faster Compilation via `localmodcfg`:** Build times can be significantly reduced by enabling a stripped-down, streamlined kernel configuration using two specific variables. Setting `_localmodcfg_minimal="yes"` appends the `linux-tkg` pre-configured, community-maintained "diet" database of Linux kernel modules. This provides excellent out-of-the-box hardware compatibility without forcing you to manually plug in and log every peripheral to "train" a local database before compiling.
 
 ```bash
@@ -159,11 +157,7 @@ preempt=lazy
 
 *   Thank you, CachyOS community with sounding board and testing.
 
-*   **Piece-Of-Cake (POC) Custom Patch:** The core O(1) bitmask-driven idle CPU selector patch integrated into CachyMod is a customized variant based on the official **[POC v2.1.0](https://github.com/firelzrd/poc-selector)** by [firelzrd](https://github.com/firelzrd). This variant has been streamlined to maintain a minimalist architecture, operating as a complementary layer to the original `0280 prefer-idle-core` patch to help minimize EEVDF placement anomalies.
-
 *   The **`minimal-modprobed.db`** is from [linux-tkg](https://github.com/Frogging-Family/linux-tkg), used for making a diet kernel { `_localmodcfg=y` and `_localmodcfg_minimal=y` }.
-
-*   **Documentation & Tooling Design:** Technical documentation layouts, Markdown formatting optimizations, and scripting structural refinements for the `poc-extra` module were developed with collaborative assistance from Google's **Gemini**.
 
 *   **CachyMod Core & Tooling:** This project, including the custom interactive configuration TUI (`confmod.sh`), the automated compilation framework (`build.sh`), and the removal tools (`uninstall.sh`), is original standalone work developed by **Mario Roy** (@marioroy) to streamline custom kernel building on CachyOS.
 

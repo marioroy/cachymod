@@ -158,7 +158,7 @@ _rcver="rc3"
 pkgver=${_major}.${_rcver}
 
 pkgdesc='CachyMod Linux Kernel with other patches and improvements'
-pkgrel=6
+pkgrel=7
 #_srcname=cachyos-${_major}.${_minor}-${_tagrel}
 _srcname=cachyos-${_major}-${_rcver}-${_tagrel}
 _kernver="$pkgver-$pkgrel"
@@ -199,11 +199,12 @@ source=(
     "0200-clearlinux-extras.patch"
     "0210-cachymod-misc.patch"
     "0260-fair-update-cachy-mods.patch"
-    "0280-prefer-idle-core.patch"
-    "0290-poc-selector-v2.1.12-r8.patch"
 
     # Clear Linux default, applied if _prevent_avx2=yes
     "0300-x86-prevent-avx2-vector.patch"
+
+    # The credit-sleep feature is applied unless detected BORE patch
+    "0350-bore-credit-sleep-7.0.1.patch"
 
     # This revert is applied only if detected a BORE patch
     "0360-fair-revert-cachy-mods.patch"
@@ -281,7 +282,7 @@ build_bore=0
 {
     local src
     for src in "${source[@]}"; do
-        if [[ $src = *-bore* ]]; then
+        if [[ $src = *-bore* && $src != 0350-bore-credit-sleep* ]]; then
             [[ "$_cpusched" =~ ^(eevdf|rt)$ ]] && build_bore=1
             break
         fi
@@ -294,17 +295,6 @@ build_handheld=0
     for src in "${source[@]}"; do
         if [[ $src = *-handheld* ]]; then
             [[ "$_cpusched" =~ ^(eevdf|rt)$ ]] && build_handheld=1
-            break
-        fi
-    done
-}
-
-build_poc=0
-{
-    local src
-    for src in "${source[@]}"; do
-        if [[ $src = *-poc-selector* && $src != 0290-poc-selector* ]]; then
-            [[ "$_cpusched" =~ ^(eevdf|rt)$ ]] && build_poc=1
             break
         fi
     done
@@ -341,11 +331,8 @@ prepare() {
         if [[ $src = *-prevent-avx2* ]]; then
             [[ "$_prevent_avx2" =~ ^(yes|y|1)$ ]] || continue
         fi
-        if [[ $src = 0280-prefer-idle-core* ]]; then
-            [[ "$build_poc" -eq 1 ]] && continue
-        fi
-        if [[ $src = 0290-poc-selector* ]]; then
-            [[ "$build_poc" -eq 1 ]] && continue
+        if [[ $src = 0350-bore-credit-sleep* ]]; then
+            [[ "$build_bore" -eq 1 ]] && continue
         fi
         if [[ $src = *-revert-cachy-mods.patch ]]; then
             [[ "$build_bore" -eq 0 ]] && continue
